@@ -485,6 +485,10 @@ Deno.serve(async (req) => {
       proxyFlagLen: proxyFlagRaw.length,
       hasProxyUrl: !!proxyUrl,
       hasProxySecret: !!proxySecret,
+      proxySecretLen: proxySecret?.length ?? 0,
+      proxySecretFp: proxySecret
+        ? `${proxySecret.slice(0, 4)}...${proxySecret.slice(-4)}`
+        : null,
       usarProxy,
       transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
     });
