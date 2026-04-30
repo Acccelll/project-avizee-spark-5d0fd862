@@ -8687,6 +8687,7 @@ export type Database = {
         Args: { p_motivo: string; p_nf_id: string; p_protocolo: string }
         Returns: undefined
       }
+      ler_secret_vault: { Args: { p_name: string }; Returns: string }
       limpar_dados_migracao: { Args: { p_confirmar?: boolean }; Returns: Json }
       log_self_update_audit: {
         Args: {
