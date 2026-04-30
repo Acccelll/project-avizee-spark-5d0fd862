@@ -383,24 +383,32 @@ Deno.serve(async (req) => {
       return json({ sucesso: false, erro: "CNPJ inválido extraído do certificado." }, 500);
     }
 
-    // Cliente HTTP com mTLS
-    let client: Deno.HttpClient;
-    try {
-      // O endpoint legado NFeDistribuicaoDFe.asmx (Ambiente Nacional) só aceita
-      // HTTP/1.1. Sem forçar `http2: false`, o Deno tenta ALPN h2 e o servidor
-      // derruba a conexão com "endpoint requires HTTP/1.1".
-      // @ts-ignore — Deno.createHttpClient é estável em Deno Deploy
-      client = Deno.createHttpClient({
-        cert: certPem,
-        key: keyPem,
-        http1: true,
-        http2: false,
-      });
-    } catch (e: any) {
-      return json(
-        { sucesso: false, erro: `Falha ao criar cliente mTLS: ${e.message}` },
-        500,
-      );
+    // Transporte mTLS:
+    //   1) Caminho preferido — Cloudflare Worker (`SEFAZ_MTLS_PROXY_URL`):
+    //      o Worker já tem o certificado A1 vinculado via `mtls_certificates`
+    //      e cuida do handshake com a SEFAZ. Mais estável que `Deno.createHttpClient`,
+    //      que historicamente sofre "connection reset by peer" contra o IIS do AN.
+    //   2) Fallback — `Deno.createHttpClient({ cert, key })` direto contra a SEFAZ.
+    const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim();
+    const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
+    const usarProxy = !!(proxyUrl && proxySecret);
+
+    let client: Deno.HttpClient | null = null;
+    if (!usarProxy) {
+      try {
+        // @ts-ignore — Deno.createHttpClient é estável em Deno Deploy
+        client = Deno.createHttpClient({
+          cert: certPem,
+          key: keyPem,
+          http1: true,
+          http2: false,
+        });
+      } catch (e: any) {
+        return json(
+          { sucesso: false, erro: `Falha ao criar cliente mTLS: ${e.message}` },
+          500,
+        );
+      }
     }
 
     const distDFeInt = action === "consultar-chave"
@@ -413,6 +421,7 @@ Deno.serve(async (req) => {
 
     log.info("preparado envio SEFAZ", {
       url,
+      transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
       ambiente,
       action,
       cUFAutor,
@@ -425,37 +434,107 @@ Deno.serve(async (req) => {
     const timer = setTimeout(() => controller.abort(), 45_000);
     let xmlRetorno = "";
     try {
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          // SOAP 1.1 contra IIS/.asmx do AN: text/xml + SOAPAction como
-          // header HTTP separado (com aspas — exigência do .asmx).
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction:
-            '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
-          Accept: "text/xml, application/soap+xml; charset=utf-8",
-          "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
-        },
-        body: envelope,
-        // @ts-ignore — option client é específica do Deno
-        client,
-        signal: controller.signal,
-      });
+      const headersSoap: Record<string, string> = {
+        // SOAP 1.1 contra IIS/.asmx do AN: text/xml + SOAPAction como
+        // header HTTP separado (com aspas — exigência do .asmx).
+        "Content-Type": "text/xml; charset=utf-8",
+        SOAPAction:
+          '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+        Accept: "text/xml, application/soap+xml; charset=utf-8",
+        "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
+      };
+
+      const resp = usarProxy
+        ? await fetch(proxyUrl!, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-proxy-secret": proxySecret!,
+            },
+            body: JSON.stringify({
+              url,
+              method: "POST",
+              headers: headersSoap,
+              body: envelope,
+            }),
+            signal: controller.signal,
+          })
+        : await fetch(url, {
+            method: "POST",
+            headers: headersSoap,
+            body: envelope,
+            // @ts-ignore — option client é específica do Deno
+            client: client!,
+            signal: controller.signal,
+          });
       clearTimeout(timer);
-      xmlRetorno = await resp.text();
-      log.info("resposta SEFAZ recebida", {
-        statusHttp: resp.status,
-        statusText: resp.statusText,
-        contentType: resp.headers.get("content-type"),
-        bytes: xmlRetorno.length,
-        preview: xmlRetorno.slice(0, 240),
-      });
-      if (!resp.ok) {
-        return json({
-          sucesso: false,
-          erro: `HTTP ${resp.status}: ${resp.statusText}`,
-          xmlRetorno,
+      const respText = await resp.text();
+
+      if (usarProxy) {
+        // Worker devolve { ok, status, statusText, body } (body = string com o XML SEFAZ).
+        try {
+          const parsed = JSON.parse(respText) as {
+            ok?: boolean;
+            status?: number;
+            statusText?: string;
+            body?: string;
+            error?: string;
+          };
+          if (!resp.ok || parsed.error) {
+            log.info("worker mTLS erro", {
+              statusHttp: resp.status,
+              workerStatus: parsed.status,
+              error: parsed.error,
+              preview: (parsed.body ?? respText).slice(0, 240),
+            });
+            return json({
+              sucesso: false,
+              erro: parsed.error
+                ? `Worker mTLS: ${parsed.error}`
+                : `Worker HTTP ${resp.status}: ${resp.statusText}`,
+              xmlRetorno: parsed.body ?? respText,
+              codigoTransporte: "WORKER_ERROR",
+            });
+          }
+          xmlRetorno = parsed.body ?? "";
+          log.info("resposta SEFAZ via worker", {
+            statusHttp: parsed.status,
+            statusText: parsed.statusText,
+            bytes: xmlRetorno.length,
+            preview: xmlRetorno.slice(0, 240),
+          });
+          if (parsed.status && parsed.status >= 400) {
+            return json({
+              sucesso: false,
+              erro: `SEFAZ HTTP ${parsed.status}: ${parsed.statusText ?? ""}`,
+              xmlRetorno,
+            });
+          }
+        } catch (parseErr) {
+          log.error("worker resposta não-JSON", parseErr);
+          return json({
+            sucesso: false,
+            erro: `Resposta inválida do worker mTLS: ${String(parseErr)}`,
+            xmlRetorno: respText,
+            codigoTransporte: "WORKER_BAD_RESPONSE",
+          });
+        }
+      } else {
+        xmlRetorno = respText;
+        log.info("resposta SEFAZ recebida", {
+          statusHttp: resp.status,
+          statusText: resp.statusText,
+          contentType: resp.headers.get("content-type"),
+          bytes: xmlRetorno.length,
+          preview: xmlRetorno.slice(0, 240),
         });
+        if (!resp.ok) {
+          return json({
+            sucesso: false,
+            erro: `HTTP ${resp.status}: ${resp.statusText}`,
+            xmlRetorno,
+          });
+        }
       }
     } catch (e: any) {
       clearTimeout(timer);
@@ -498,7 +577,7 @@ Deno.serve(async (req) => {
     } finally {
       try {
         // @ts-ignore
-        client.close?.();
+        client?.close?.();
       } catch (_) { /* ignore */ }
     }
 
