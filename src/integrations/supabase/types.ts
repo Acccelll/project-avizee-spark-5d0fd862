@@ -8655,6 +8655,7 @@ export type Database = {
       get_secret_gateway_key: { Args: never; Returns: string }
       get_secret_sefaz_password: { Args: never; Returns: string }
       get_secret_smtp_password: { Args: never; Returns: string }
+      get_secret_vault_by_name: { Args: { p_name: string }; Returns: string }
       global_search: {
         Args: { max_per_category?: number; search_term: string }
         Returns: {
