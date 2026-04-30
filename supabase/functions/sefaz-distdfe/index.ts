@@ -195,33 +195,78 @@ function montarDistDFeInt(opts: {
 </distDFeInt>`;
 }
 
-function envelopeSoap(distDFeInt: string): string {
-  // NT 2014.002 v1.30 (seção 5 — Exemplos de requisições XML) define o
-  // envelope EXATAMENTE como SOAP 1.1 (`http://schemas.xmlsoap.org/soap/envelope/`).
-  // O endpoint `NFeDistribuicaoDFe.asmx` do AN é IIS/.NET configurado para
-  // text/xml + SOAPAction (HTTP header). Enviar `application/soap+xml`
-  // (SOAP 1.2) faz o IIS encerrar a conexão sem SOAP Fault — sintoma
-  // exato observado em abr/2026 ("connection reset by peer").
-  // O serviço NÃO declara `nfeCabecMsg` (apenas `nfeDadosMsg`), por isso
-  // o envelope tem apenas Body.
+/**
+ * Monta o envelope SOAP do NFeDistribuicaoDFe.
+ *
+ * O WSDL desse serviço expõe DOIS bindings:
+ *  - SOAP 1.1 (`http://schemas.xmlsoap.org/soap/envelope/`) com header HTTP `SOAPAction`.
+ *  - SOAP 1.2 (`http://www.w3.org/2003/05/soap-envelope`) com `action` embutida no `Content-Type`.
+ *
+ * O IIS do Ambiente Nacional aceita os dois, mas a combinação que historicamente
+ * funciona sem `Connection reset by peer` é SOAP 1.2 com `application/soap+xml`.
+ * Por isso essa função é parametrizada por `variant` e a edge tenta SOAP 1.2
+ * primeiro e cai para SOAP 1.1 como fallback.
+ *
+ * O serviço NÃO declara `nfeCabecMsg` — apenas `nfeDadosMsg` dentro de
+ * `nfeDistDFeInteresse`.
+ */
+type SoapVariant = "soap12" | "soap11";
+
+function envelopeSoap(distDFeInt: string, variant: SoapVariant): string {
   const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
+  if (variant === "soap12") {
+    return `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope" ` +
+      `xmlns:xsd="http://www.w3.org/2001/XMLSchema" ` +
+      `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
+      `<soap12:Body>` +
+      `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
+      `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
+      `</nfeDistDFeInteresse>` +
+      `</soap12:Body>` +
+      `</soap12:Envelope>`;
+  }
   return `<?xml version="1.0" encoding="UTF-8"?>` +
     `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ` +
     `xmlns:xsd="http://www.w3.org/2001/XMLSchema" ` +
     `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
     `<soap:Body>` +
     `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
-    `<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">${inner}</nfeDadosMsg>` +
+    `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
     `</nfeDistDFeInteresse>` +
     `</soap:Body>` +
     `</soap:Envelope>`;
 }
 
+const SOAP_ACTION_DISTDFE =
+  "http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse";
+
+function headersFor(variant: SoapVariant): Record<string, string> {
+  if (variant === "soap12") {
+    return {
+      // SOAP 1.2: action obrigatoriamente embutida no Content-Type;
+      // SOAPAction como header HTTP é IGNORADO pelo binding 1.2.
+      "Content-Type":
+        `application/soap+xml; charset=utf-8; action="${SOAP_ACTION_DISTDFE}"`,
+      Accept: "application/soap+xml, text/xml, multipart/related",
+      "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
+    };
+  }
+  return {
+    "Content-Type": "text/xml; charset=utf-8",
+    SOAPAction: `"${SOAP_ACTION_DISTDFE}"`,
+    Accept: "text/xml, application/soap+xml; charset=utf-8",
+    "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
+  };
+}
+
 function endpointAN(amb: "1" | "2"): string {
   return amb === "1"
     ? "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx"
-    // URL publicada no Portal Nacional NF-e (Relação de Serviços Web do AN).
-    : "https://hom.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx";
+    // URL oficial do AN para homologação (Portal Nacional NF-e). O host
+    // correto é `hom1.nfe.fazenda.gov.br` — o `hom.nfe.fazenda.gov.br` é
+    // do RecepcaoEvento AN e fechava a conexão para DistDFe.
+    : "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx";
 }
 
 // ── Parsing do retorno ───────────────────────────────────────────
