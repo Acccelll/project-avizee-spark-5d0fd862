@@ -214,11 +214,24 @@ type SoapVariant = "soap12" | "soap11";
 
 function envelopeSoap(distDFeInt: string, variant: SoapVariant): string {
   const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
+  // Header nfeCabecMsg — exigido pelo binding SOAP do NFeDistribuicaoDFe (AN).
+  // O cliente oficial ZeusAutomacao/DFe.NET e a referência da SEFAZ enviam
+  // este header com cUF (código IBGE da UF do interessado) + versaoDados=1.35.
+  // Sua omissão causa, em alguns CNPJs, o IIS do AN derrubar a conexão antes
+  // de gerar SOAP Fault — sintoma idêntico ao "Connection reset by peer"
+  // observado em prod. cUF é extraído do cUFAutor presente no distDFeInt.
+  const cUFMatch = inner.match(/<cUFAutor>(\d{2})<\/cUFAutor>/);
+  const cUF = cUFMatch ? cUFMatch[1] : "91";
+  const cabec =
+    `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
+    `<cUF>${cUF}</cUF><versaoDados>1.35</versaoDados>` +
+    `</nfeCabecMsg>`;
   if (variant === "soap12") {
     return `<?xml version="1.0" encoding="UTF-8"?>` +
       `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope" ` +
       `xmlns:xsd="http://www.w3.org/2001/XMLSchema" ` +
       `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
+      `<soap12:Header>${cabec}</soap12:Header>` +
       `<soap12:Body>` +
       `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
       `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
@@ -230,6 +243,7 @@ function envelopeSoap(distDFeInt: string, variant: SoapVariant): string {
     `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ` +
     `xmlns:xsd="http://www.w3.org/2001/XMLSchema" ` +
     `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
+    `<soap:Header>${cabec}</soap:Header>` +
     `<soap:Body>` +
     `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
     `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
@@ -457,6 +471,26 @@ Deno.serve(async (req) => {
     const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
     const proxyEnabled = Deno.env.get("SEFAZ_USE_MTLS_PROXY")?.trim() === "1";
     const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
+
+    // Telemetria do gate de transporte (sem expor segredos).
+    log.info("transporte resolvido", {
+      proxyEnabled,
+      hasProxyUrl: !!proxyUrl,
+      hasProxySecret: !!proxySecret,
+      usarProxy,
+      transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
+    });
+
+    // Se a flag pediu proxy mas falta URL/secret, falha explicitamente em vez
+    // de cair em deno-mtls silenciosamente (que sofre geo-block do AN).
+    if (proxyEnabled && (!proxyUrl || !proxySecret)) {
+      return json({
+        sucesso: false,
+        erro:
+          "SEFAZ_USE_MTLS_PROXY=1 está ativo mas faltam SEFAZ_MTLS_PROXY_URL e/ou SEFAZ_MTLS_PROXY_SECRET. Reconfigure os secrets do Worker mTLS.",
+        codigoTransporte: "WORKER_CONFIG_MISSING",
+      }, 500);
+    }
 
     let client: Deno.HttpClient | null = null;
     if (!usarProxy) {
