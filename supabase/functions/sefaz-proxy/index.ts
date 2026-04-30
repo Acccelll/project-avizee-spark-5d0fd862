@@ -452,6 +452,12 @@ Deno.serve(async (req) => {
         );
       }
 
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
       const senha = await getVaultSecretByName(adminClient, "CERTIFICADO_PFX_SENHA");
       if (!senha) {
         return json(
@@ -461,12 +467,6 @@ Deno.serve(async (req) => {
       }
 
       // Baixar o .pfx do Storage privado dbavizee/certificados/empresa.pfx
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-
       const { data: blob, error: dlErr } = await adminClient.storage
         .from("dbavizee")
         .download("certificados/empresa.pfx");
@@ -503,6 +503,12 @@ Deno.serve(async (req) => {
         );
       }
 
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
       const senha = await getVaultSecretByName(adminClient, "CERTIFICADO_PFX_SENHA");
       if (!senha) {
         return json(
@@ -514,12 +520,6 @@ Deno.serve(async (req) => {
           500,
         );
       }
-
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
 
       const { data: blob, error: dlErr } = await adminClient.storage
         .from("dbavizee")
