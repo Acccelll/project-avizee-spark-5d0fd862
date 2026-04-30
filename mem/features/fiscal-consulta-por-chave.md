@@ -23,3 +23,8 @@ type: feature
 - Catálogo cStat traduzido pelo backend (campo `mensagemCstat`) cobre 108/109/137/138/214/215/217/236/238/239/252/280-286/402/404/472/473/489/490/589/593/614-619/632/640/641/653/654/656/999.
 - Scanner de chave (abr/2026): `FiscalChaveScannerDialog` (`@zxing/browser`) lê CODE-128 do DANFE NF-e e QR Code do DANFE NFC-e via câmera (facingMode environment) ou upload de imagem. Parser `src/services/fiscal/chaveAcesso.parser.ts` (`extrairChaveDeTextoOuUrl`, `lerChaveDeEntrada`, `tipoDocumentoPelaChave`) extrai chave de URL NFC-e (`?p=<chave>|...`), URL portal NF-e (`chNFe`/`chave`/`chaveAcesso`/`chcte`), texto livre ou chave pura/formatada — sempre validando MOD11 via `validarChaveAcesso`. Botão "Ler QR/Código" no header de `Fiscal.tsx`. Scanner NÃO consulta SEFAZ nem importa XML: apenas obtém chave e oferece CTAs para `BuscarPorChaveDialog` (DistDFe) ou `Consultar SEFAZ` na lista (NFeConsultaProtocolo4). Chave é copiada para clipboard como ponte entre os dois modais (BuscarPorChaveDialog não aceita prop `chaveInicial` ainda).
 - `sefazUrls.service.ts` agora expõe serviços `evento_an` (RecepcaoEvento AN para manifestação do destinatário) e `distdfe` (NFeDistribuicaoDFe AN), além do helper `resolverUrlSvcAn(amb, servico)` para contingência SVC-AN e `ufSuportada(uf)` para feedback antecipado na UI.
+
+## Update abr/2026 — gate explícito do Worker mTLS
+
+- Variável `SEFAZ_USE_MTLS_PROXY=1` é agora obrigatória para usar o Cloudflare Worker. Sem ela, a edge ignora `SEFAZ_MTLS_PROXY_URL/SECRET` e usa `Deno.createHttpClient({ cert, key })` diretamente contra a SEFAZ com o A1 (cadeia ICP-Brasil completa) do Vault.
+- Motivo: Worker estava devolvendo 401 Unauthorized e bloqueando todas as consultas mesmo com PFX válido carregado.

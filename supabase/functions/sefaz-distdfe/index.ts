@@ -402,14 +402,16 @@ Deno.serve(async (req) => {
     }
 
     // Transporte mTLS:
-    //   1) Caminho preferido — Cloudflare Worker (`SEFAZ_MTLS_PROXY_URL`):
-    //      o Worker já tem o certificado A1 vinculado via `mtls_certificates`
-    //      e cuida do handshake com a SEFAZ. Mais estável que `Deno.createHttpClient`,
-    //      que historicamente sofre "connection reset by peer" contra o IIS do AN.
-    //   2) Fallback — `Deno.createHttpClient({ cert, key })` direto contra a SEFAZ.
+    //   1) Padrão — `Deno.createHttpClient({ cert, key })` direto contra a SEFAZ
+    //      usando o A1 (com cadeia ICP-Brasil completa) carregado do Vault.
+    //   2) Opcional — Cloudflare Worker (`SEFAZ_MTLS_PROXY_URL` + `SEFAZ_MTLS_PROXY_SECRET`).
+    //      Só é usado quando a flag `SEFAZ_USE_MTLS_PROXY=1` estiver setada,
+    //      evitando que um Worker mal configurado (ex.: 401 Unauthorized)
+    //      derrube a integração mesmo com mTLS nativo funcionando.
     const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim();
     const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
-    const usarProxy = !!(proxyUrl && proxySecret);
+    const proxyEnabled = Deno.env.get("SEFAZ_USE_MTLS_PROXY")?.trim() === "1";
+    const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
 
     let client: Deno.HttpClient | null = null;
     if (!usarProxy) {
