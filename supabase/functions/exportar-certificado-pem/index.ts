@@ -128,8 +128,9 @@ Deno.serve(async (req) => {
     const buf = new Uint8Array(await file.arrayBuffer());
     const base64 = bytesToBase64(buf);
 
-    // Lê a senha via RPC SECURITY DEFINER (admin-only).
-    const { data: secret, error: secretErr } = await admin.rpc("ler_secret_vault", {
+    // Lê a senha via RPC SECURITY DEFINER (admin-only) — usa userClient
+    // para que auth.uid() esteja disponível no SQL.
+    const { data: secret, error: secretErr } = await userClient.rpc("ler_secret_vault", {
       p_name: VAULT_SECRET_NAME,
     });
     if (secretErr || !secret) {
