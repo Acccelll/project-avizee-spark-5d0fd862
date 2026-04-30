@@ -562,15 +562,15 @@ Deno.serve(async (req) => {
           ? await fetch(proxyUrl!, {
               method: "POST",
               headers: {
-                "Content-Type": "application/json",
                 "x-proxy-secret": proxySecret!,
+                "x-target-url": url,
+                "Content-Type": headersSoap["Content-Type"] ??
+                  headersSoap["content-type"] ?? "application/soap+xml; charset=utf-8",
+                ...(headersSoap["SOAPAction"]
+                  ? { soapaction: headersSoap["SOAPAction"] }
+                  : {}),
               },
-              body: JSON.stringify({
-                url,
-                method: "POST",
-                headers: headersSoap,
-                body: envelope,
-              }),
+              body: envelope,
               signal: controller.signal,
             })
           : await fetch(url, {
@@ -585,58 +585,53 @@ Deno.serve(async (req) => {
         const respText = await resp.text();
 
         if (usarProxy) {
-          try {
-            const parsed = JSON.parse(respText) as {
-              ok?: boolean;
-              status?: number;
-              statusText?: string;
-              body?: string;
-              error?: string;
-            };
-            if (!resp.ok || parsed.error) {
-              log.info("worker mTLS erro", {
-                statusHttp: resp.status,
-                workerStatus: parsed.status,
-                error: parsed.error,
-                soapVariant: variant,
-                preview: (parsed.body ?? respText).slice(0, 240),
-              });
-              try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
-              return json({
-                sucesso: false,
-                erro: parsed.error
-                  ? `Worker mTLS: ${parsed.error}`
-                  : `Worker HTTP ${resp.status}: ${resp.statusText}`,
-                xmlRetorno: parsed.body ?? respText,
-                codigoTransporte: "WORKER_ERROR",
-              });
-            }
-            xmlRetorno = parsed.body ?? "";
-            log.info("resposta SEFAZ via worker", {
-              statusHttp: parsed.status,
-              statusText: parsed.statusText,
-              soapVariant: variant,
-              bytes: xmlRetorno.length,
-              preview: xmlRetorno.slice(0, 240),
-            });
-            if (parsed.status && parsed.status >= 400) {
-              try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
-              return json({
-                sucesso: false,
-                erro: `SEFAZ HTTP ${parsed.status}: ${parsed.statusText ?? ""}`,
-                xmlRetorno,
-              });
-            }
-          } catch (parseErr) {
-            log.error("worker resposta não-JSON", parseErr);
+          // Novo contrato: Worker repassa a resposta da SEFAZ tal-qual
+          // (status + body cru). Status 401/400 do próprio Worker indicam
+          // erro de configuração; demais status são da SEFAZ.
+          xmlRetorno = respText;
+          log.info("resposta SEFAZ via worker", {
+            statusHttp: resp.status,
+            statusText: resp.statusText,
+            soapVariant: variant,
+            bytes: xmlRetorno.length,
+            preview: xmlRetorno.slice(0, 240),
+          });
+          // 401/400 com corpo curto = erro do próprio Worker (não da SEFAZ).
+          if ((resp.status === 401 || resp.status === 400) && xmlRetorno.length < 200) {
             try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
             return json({
               sucesso: false,
-              erro: `Resposta inválida do worker mTLS: ${String(parseErr)}`,
-              xmlRetorno: respText,
-              codigoTransporte: "WORKER_BAD_RESPONSE",
+              erro: `Worker mTLS rejeitou requisição (HTTP ${resp.status}): ${xmlRetorno}`,
+              xmlRetorno,
+              codigoTransporte: "WORKER_ERROR",
             });
           }
+          // 5xx do AN → trata como falha de transporte e tenta a próxima
+          // variante (SOAP 1.1) antes de desistir.
+          if (resp.status >= 500) {
+            log.info("falha de transporte SEFAZ via worker", {
+              soapVariant: variant,
+              tentativa: i + 1,
+              statusHttp: resp.status,
+              preview: xmlRetorno.slice(0, 240),
+            });
+            ultimoErroTransporte = {
+              raw: `SEFAZ HTTP ${resp.status}: ${xmlRetorno.slice(0, 240)}`,
+              codigo: resp.status === 520 ? "CLOUDFLARE_520" : "SEFAZ_5XX",
+            };
+            continue;
+          }
+          if (!resp.ok) {
+            try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
+            return json({
+              sucesso: false,
+              erro: `SEFAZ HTTP ${resp.status}: ${resp.statusText}`,
+              xmlRetorno,
+            });
+          }
+          // Sucesso: marca para sair do loop
+          respondeu = true;
+          break;
         } else {
           xmlRetorno = respText;
           log.info("resposta SEFAZ recebida", {
