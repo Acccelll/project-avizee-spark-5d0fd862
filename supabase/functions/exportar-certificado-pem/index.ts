@@ -128,16 +128,20 @@ Deno.serve(async (req) => {
     const buf = new Uint8Array(await file.arrayBuffer());
     const base64 = bytesToBase64(buf);
 
-    const { data: secret, error: secretErr } = await admin.rpc("ler_secret_vault", {
-      p_name: VAULT_SECRET_NAME,
-    });
-    if (secretErr || !secret) {
+    // Lê a senha direto do schema vault (service-role tem acesso).
+    const { data: secretRow, error: secretErr } = await admin
+      .schema("vault")
+      .from("decrypted_secrets")
+      .select("decrypted_secret")
+      .eq("name", VAULT_SECRET_NAME)
+      .maybeSingle();
+    if (secretErr || !secretRow?.decrypted_secret) {
       return json({
         error: `Senha do certificado não encontrada no Vault (${VAULT_SECRET_NAME}). ` +
           `Detalhe: ${secretErr?.message ?? "secret vazio"}`,
       }, 500);
     }
-    const senha = String(secret);
+    const senha = String(secretRow.decrypted_secret);
 
     const { certPem, keyPem, cnpj, validadeFim, razaoSocial } = pfxToPem(base64, senha);
 
