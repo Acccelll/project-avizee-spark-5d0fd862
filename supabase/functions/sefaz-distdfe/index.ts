@@ -479,157 +479,151 @@ Deno.serve(async (req) => {
     const distDFeInt = action === "consultar-chave"
       ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput, cUFAutor })
       : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput, cUFAutor });
-    // cUF do nfeCabecMsg = UF do webservice (AN sempre 91), independente
-    // da UF da empresa. O cUFAutor (interessado) já foi para o corpo.
-    const envelope = envelopeSoap(distDFeInt);
     const url = endpointAN(ambiente);
 
-    log.info("preparado envio SEFAZ", {
-      url,
-      transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
-      ambiente,
-      action,
-      cUFAutor,
-      cnpjLen: cnpj.length,
-      envelopeBytes: envelope.length,
-      certChainBytes: certPem.length,
-    });
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 45_000);
+    // Tentamos SOAP 1.2 primeiro (binding oficial estável do .asmx do AN).
+    // Se houver erro de transporte (reset/timeout/TLS) sem nenhuma resposta
+    // HTTP, fazemos UMA tentativa adicional em SOAP 1.1. Qualquer resposta
+    // HTTP da SEFAZ (mesmo 500/SOAP Fault) interrompe o fallback porque já
+    // representa diagnóstico oficial.
+    const tentativas: SoapVariant[] = ["soap12", "soap11"];
     let xmlRetorno = "";
-    try {
-      const headersSoap: Record<string, string> = {
-        // SOAP 1.1 contra IIS/.asmx do AN: text/xml + SOAPAction como
-        // header HTTP separado (com aspas — exigência do .asmx).
-        "Content-Type": "text/xml; charset=utf-8",
-        SOAPAction:
-          '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
-        Accept: "text/xml, application/soap+xml; charset=utf-8",
-        "User-Agent": "AviZee-ERP/1.0 (+sefaz-distdfe)",
-      };
+    let respondeu = false;
+    let ultimoErroTransporte: { raw: string; codigo: string } | null = null;
 
-      const resp = usarProxy
-        ? await fetch(proxyUrl!, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-proxy-secret": proxySecret!,
-            },
-            body: JSON.stringify({
-              url,
+    for (let i = 0; i < tentativas.length; i++) {
+      const variant = tentativas[i];
+      const envelope = envelopeSoap(distDFeInt, variant);
+      const headersSoap = headersFor(variant);
+
+      log.info("preparado envio SEFAZ", {
+        url,
+        transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
+        soapVariant: variant,
+        tentativa: i + 1,
+        ambiente,
+        action,
+        cUFAutor,
+        cnpjLen: cnpj.length,
+        envelopeBytes: envelope.length,
+        certChainBytes: certPem.length,
+      });
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 45_000);
+      try {
+        const resp = usarProxy
+          ? await fetch(proxyUrl!, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-proxy-secret": proxySecret!,
+              },
+              body: JSON.stringify({
+                url,
+                method: "POST",
+                headers: headersSoap,
+                body: envelope,
+              }),
+              signal: controller.signal,
+            })
+          : await fetch(url, {
               method: "POST",
               headers: headersSoap,
               body: envelope,
-            }),
-            signal: controller.signal,
-          })
-        : await fetch(url, {
-            method: "POST",
-            headers: headersSoap,
-            body: envelope,
-            // @ts-ignore — option client é específica do Deno
-            client: client!,
-            signal: controller.signal,
-          });
-      clearTimeout(timer);
-      const respText = await resp.text();
-
-      if (usarProxy) {
-        // Worker devolve { ok, status, statusText, body } (body = string com o XML SEFAZ).
-        try {
-          const parsed = JSON.parse(respText) as {
-            ok?: boolean;
-            status?: number;
-            statusText?: string;
-            body?: string;
-            error?: string;
-          };
-          if (!resp.ok || parsed.error) {
-            log.info("worker mTLS erro", {
-              statusHttp: resp.status,
-              workerStatus: parsed.status,
-              error: parsed.error,
-              preview: (parsed.body ?? respText).slice(0, 240),
+              // @ts-ignore — option client é específica do Deno
+              client: client!,
+              signal: controller.signal,
             });
+        clearTimeout(timer);
+        const respText = await resp.text();
+
+        if (usarProxy) {
+          try {
+            const parsed = JSON.parse(respText) as {
+              ok?: boolean;
+              status?: number;
+              statusText?: string;
+              body?: string;
+              error?: string;
+            };
+            if (!resp.ok || parsed.error) {
+              log.info("worker mTLS erro", {
+                statusHttp: resp.status,
+                workerStatus: parsed.status,
+                error: parsed.error,
+                soapVariant: variant,
+                preview: (parsed.body ?? respText).slice(0, 240),
+              });
+              try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
+              return json({
+                sucesso: false,
+                erro: parsed.error
+                  ? `Worker mTLS: ${parsed.error}`
+                  : `Worker HTTP ${resp.status}: ${resp.statusText}`,
+                xmlRetorno: parsed.body ?? respText,
+                codigoTransporte: "WORKER_ERROR",
+              });
+            }
+            xmlRetorno = parsed.body ?? "";
+            log.info("resposta SEFAZ via worker", {
+              statusHttp: parsed.status,
+              statusText: parsed.statusText,
+              soapVariant: variant,
+              bytes: xmlRetorno.length,
+              preview: xmlRetorno.slice(0, 240),
+            });
+            if (parsed.status && parsed.status >= 400) {
+              try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
+              return json({
+                sucesso: false,
+                erro: `SEFAZ HTTP ${parsed.status}: ${parsed.statusText ?? ""}`,
+                xmlRetorno,
+              });
+            }
+          } catch (parseErr) {
+            log.error("worker resposta não-JSON", parseErr);
+            try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
             return json({
               sucesso: false,
-              erro: parsed.error
-                ? `Worker mTLS: ${parsed.error}`
-                : `Worker HTTP ${resp.status}: ${resp.statusText}`,
-              xmlRetorno: parsed.body ?? respText,
-              codigoTransporte: "WORKER_ERROR",
+              erro: `Resposta inválida do worker mTLS: ${String(parseErr)}`,
+              xmlRetorno: respText,
+              codigoTransporte: "WORKER_BAD_RESPONSE",
             });
           }
-          xmlRetorno = parsed.body ?? "";
-          log.info("resposta SEFAZ via worker", {
-            statusHttp: parsed.status,
-            statusText: parsed.statusText,
+        } else {
+          xmlRetorno = respText;
+          log.info("resposta SEFAZ recebida", {
+            statusHttp: resp.status,
+            statusText: resp.statusText,
+            contentType: resp.headers.get("content-type"),
+            soapVariant: variant,
             bytes: xmlRetorno.length,
             preview: xmlRetorno.slice(0, 240),
           });
-          if (parsed.status && parsed.status >= 400) {
+          if (!resp.ok) {
+            // 415/500 com corpo: SOAP Fault legítimo. Não tenta outra variante.
+            try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
             return json({
               sucesso: false,
-              erro: `SEFAZ HTTP ${parsed.status}: ${parsed.statusText ?? ""}`,
+              erro: `HTTP ${resp.status}: ${resp.statusText}`,
               xmlRetorno,
+              soapVariant: variant,
             });
           }
-        } catch (parseErr) {
-          log.error("worker resposta não-JSON", parseErr);
-          return json({
-            sucesso: false,
-            erro: `Resposta inválida do worker mTLS: ${String(parseErr)}`,
-            xmlRetorno: respText,
-            codigoTransporte: "WORKER_BAD_RESPONSE",
-          });
         }
-      } else {
-        xmlRetorno = respText;
-        log.info("resposta SEFAZ recebida", {
-          statusHttp: resp.status,
-          statusText: resp.statusText,
-          contentType: resp.headers.get("content-type"),
-          bytes: xmlRetorno.length,
-          preview: xmlRetorno.slice(0, 240),
-        });
-        if (!resp.ok) {
-          return json({
-            sucesso: false,
-            erro: `HTTP ${resp.status}: ${resp.statusText}`,
-            xmlRetorno,
-          });
-        }
-      }
-    } catch (e: any) {
-      clearTimeout(timer);
-      const raw = e?.name === "AbortError"
-        ? "Timeout de 45s ao conectar com o Ambiente Nacional"
-        : e?.message ?? String(e);
-      // Diferenciar causas conhecidas de transporte:
-      //  - HTTP/2 forçado por ALPN: o servidor responde "endpoint requires HTTP/1.1".
-        //    Já mitigado por http2:false, mas mantemos a mensagem para diagnóstico.
-      //  - Connection reset / TLS / handshake: instabilidade do AN ou
-      //    incompatibilidade do certificado com o ambiente selecionado.
-      const looksLikeHttp2 = /HTTP\/1\.1|http2 error|stream error/i.test(raw);
-      const looksLikeUnknownIssuer = /UnknownIssuer|invalid peer certificate/i.test(raw);
-      const looksLikeReset = /Connection reset|reset by peer|EOF/i.test(raw);
-      const looksLikeTls = /tls|handshake|alert/i.test(raw);
-      let hint = "";
-      if (looksLikeHttp2) {
-        hint = " — o webservice NFeDistribuicaoDFe exige HTTP/1.1; ajuste o cliente para forçar http1.";
-      } else if (looksLikeUnknownIssuer) {
-        hint = " — a cadeia de certificados do servidor SEFAZ não foi reconhecida pelo runtime (cadeia ICP-Brasil ausente). Caso recorrente, embutir caCerts ICP-Brasil no cliente HTTP.";
-      } else if (looksLikeReset || looksLikeTls) {
-        hint =
-          " — falha de transporte contra o Ambiente Nacional. Causa típica: divergência de protocolo SOAP (o IIS do AN exige SOAP 1.1) ou cadeia ICP-Brasil ausente no runtime. Como o Portal NF-e responde normalmente para consultas, o serviço da Receita está no ar.";
-      }
-      return json({
-        sucesso: false,
-        ambiente,
-        cnpj,
-        erro: `${raw}${hint}`,
-        codigoTransporte: looksLikeUnknownIssuer
+        respondeu = true;
+        break;
+      } catch (e: any) {
+        clearTimeout(timer);
+        const raw = e?.name === "AbortError"
+          ? "Timeout de 45s ao conectar com o Ambiente Nacional"
+          : e?.message ?? String(e);
+        const looksLikeHttp2 = /HTTP\/1\.1|http2 error|stream error/i.test(raw);
+        const looksLikeUnknownIssuer = /UnknownIssuer|invalid peer certificate/i.test(raw);
+        const looksLikeReset = /Connection reset|reset by peer|EOF/i.test(raw);
+        const looksLikeTls = /tls|handshake|alert/i.test(raw);
+        const codigo = looksLikeUnknownIssuer
           ? "UNKNOWN_ISSUER"
           : looksLikeHttp2
           ? "HTTP2_REQUIRED"
@@ -637,14 +631,44 @@ Deno.serve(async (req) => {
           ? "CONNECTION_RESET"
           : looksLikeTls
           ? "TLS_FAILURE"
-          : "TRANSPORT_ERROR",
-      });
-    } finally {
-      try {
-        // @ts-ignore
-        client?.close?.();
-      } catch (_) { /* ignore */ }
+          : "TRANSPORT_ERROR";
+        log.info("falha de transporte SEFAZ", {
+          soapVariant: variant,
+          tentativa: i + 1,
+          codigo,
+          raw: raw.slice(0, 240),
+        });
+        ultimoErroTransporte = { raw, codigo };
+        // Erros de cadeia ICP-Brasil/HTTP2 não se resolvem mudando a variante.
+        if (looksLikeUnknownIssuer || looksLikeHttp2) break;
+        // Demais: tenta a próxima variante.
+        continue;
+      }
     }
+
+    if (!respondeu) {
+      try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
+      const codigo = ultimoErroTransporte?.codigo ?? "TRANSPORT_ERROR";
+      const raw = ultimoErroTransporte?.raw ?? "Falha de transporte sem detalhes.";
+      let hint = "";
+      if (codigo === "HTTP2_REQUIRED") {
+        hint = " — o webservice NFeDistribuicaoDFe exige HTTP/1.1; ajuste o cliente para forçar http1.";
+      } else if (codigo === "UNKNOWN_ISSUER") {
+        hint = " — a cadeia de certificados do servidor SEFAZ não foi reconhecida pelo runtime (cadeia ICP-Brasil ausente). Caso recorrente, embutir caCerts ICP-Brasil no cliente HTTP.";
+      } else if (codigo === "CONNECTION_RESET" || codigo === "TLS_FAILURE") {
+        hint =
+          " — falha de transporte contra o Ambiente Nacional após tentar SOAP 1.2 e SOAP 1.1. Possíveis causas: cadeia ICP-Brasil incompleta no A1, certificado expirado/de outro ambiente, ou bloqueio temporário do CNPJ no AN. O Portal NF-e segue funcionando, então o serviço da Receita está no ar.";
+      }
+      return json({
+        sucesso: false,
+        ambiente,
+        cnpj,
+        erro: `${raw}${hint}`,
+        codigoTransporte: codigo,
+      });
+    }
+
+    try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
 
     const parsed = parseRetDistDFeInt(xmlRetorno);
     log.info("retDistDFeInt", {
