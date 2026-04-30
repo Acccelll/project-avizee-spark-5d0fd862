@@ -606,6 +606,21 @@ Deno.serve(async (req) => {
               codigoTransporte: "WORKER_ERROR",
             });
           }
+          // 5xx do AN → trata como falha de transporte e tenta a próxima
+          // variante (SOAP 1.1) antes de desistir.
+          if (resp.status >= 500) {
+            log.info("falha de transporte SEFAZ via worker", {
+              soapVariant: variant,
+              tentativa: i + 1,
+              statusHttp: resp.status,
+              preview: xmlRetorno.slice(0, 240),
+            });
+            ultimoErroTransporte = {
+              raw: `SEFAZ HTTP ${resp.status}: ${xmlRetorno.slice(0, 240)}`,
+              codigo: resp.status === 520 ? "CLOUDFLARE_520" : "SEFAZ_5XX",
+            };
+            continue;
+          }
           if (!resp.ok) {
             try { /* @ts-ignore */ client?.close?.(); } catch (_) { /* ignore */ }
             return json({
@@ -614,6 +629,9 @@ Deno.serve(async (req) => {
               xmlRetorno,
             });
           }
+          // Sucesso: marca para sair do loop
+          respondeu = true;
+          break;
         } else {
           xmlRetorno = respText;
           log.info("resposta SEFAZ recebida", {
