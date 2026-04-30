@@ -469,12 +469,17 @@ Deno.serve(async (req) => {
     //      derrube a integração mesmo com mTLS nativo funcionando.
     const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim();
     const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
-    const proxyEnabled = Deno.env.get("SEFAZ_USE_MTLS_PROXY")?.trim() === "1";
+    const proxyFlagRaw = Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "";
+    // Aceita variações comuns: "1", "true", "yes", "on", com/sem aspas/espaços.
+    const proxyFlagNorm = proxyFlagRaw.trim().replace(/^["']|["']$/g, "").toLowerCase();
+    const proxyEnabled = ["1", "true", "yes", "on", "sim"].includes(proxyFlagNorm);
     const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
 
     // Telemetria do gate de transporte (sem expor segredos).
     log.info("transporte resolvido", {
       proxyEnabled,
+      proxyFlagLen: proxyFlagRaw.length,
+      proxyFlagNorm,
       hasProxyUrl: !!proxyUrl,
       hasProxySecret: !!proxySecret,
       usarProxy,
