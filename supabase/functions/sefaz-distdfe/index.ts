@@ -41,6 +41,22 @@ function json(data: unknown, status = 200) {
   });
 }
 
+async function getVaultSecretByName(
+  adminClient: ReturnType<typeof createClient>,
+  secretName: string,
+): Promise<string | null> {
+  const { data, error } = await adminClient.rpc("get_secret_vault_by_name", {
+    p_name: secretName,
+  });
+
+  if (error) {
+    throw new Error(`Falha ao ler segredo '${secretName}' no cofre: ${error.message}`);
+  }
+
+  const secret = typeof data === "string" ? data : data == null ? null : String(data);
+  return secret && secret.length > 0 ? secret : null;
+}
+
 // ── UF → código IBGE (cUFAutor) ──────────────────────────────────
 // NT 2014.002 v1.30: cUFAutor é o código IBGE da UF do interessado
 // (ex.: 35=SP, 29=BA). Fallback "91" só quando UF não estiver configurada.
@@ -318,21 +334,23 @@ Deno.serve(async (req) => {
       return json({ sucesso: false, erro: "Chave de acesso (chNFe) inválida — exige 44 dígitos." }, 400);
     }
 
-    // Senha do certificado
-    const senha = Deno.env.get("CERTIFICADO_PFX_SENHA");
-    if (!senha) {
-      return json(
-        { sucesso: false, erro: "Secret CERTIFICADO_PFX_SENHA não configurado." },
-        500,
-      );
-    }
-
-    // Baixa o PFX
+    // Baixa o PFX + lê a senha persistida no cofre seguro.
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    const senha = await getVaultSecretByName(adminClient, "CERTIFICADO_PFX_SENHA");
+    if (!senha) {
+      return json(
+        {
+          sucesso: false,
+          erro: "Senha do certificado não encontrada no cofre seguro. Reenvie o certificado em Configuração Fiscal.",
+        },
+        500,
+      );
+    }
 
     // Lê UF da empresa para compor cUFAutor conforme NT 2014.002 v1.30.
     let cUFAutor = "91";

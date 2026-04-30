@@ -37,6 +37,22 @@ function json(data: unknown, status = 200) {
   });
 }
 
+async function getVaultSecretByName(
+  adminClient: ReturnType<typeof createClient>,
+  secretName: string,
+): Promise<string | null> {
+  const { data, error } = await adminClient.rpc("get_secret_vault_by_name", {
+    p_name: secretName,
+  });
+
+  if (error) {
+    throw new Error(`Falha ao ler segredo '${secretName}' no cofre: ${error.message}`);
+  }
+
+  const secret = typeof data === "string" ? data : data == null ? null : String(data);
+  return secret && secret.length > 0 ? secret : null;
+}
+
 // ── Autenticação JWT ─────────────────────────────────────────────
 
 async function requireAuth(req: Request) {
@@ -375,7 +391,13 @@ Deno.serve(async (req) => {
     // edge function está acessível sem precisar de PFX/SOAP. Retorna
     // também a presença do secret de senha do certificado.
     if (action === "health") {
-      const hasPfxPassword = !!Deno.env.get("CERTIFICADO_PFX_SENHA");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
+      const hasPfxPassword = !!(await getVaultSecretByName(adminClient, "CERTIFICADO_PFX_SENHA"));
       return json({
         ok: true,
         action: "health",
@@ -430,21 +452,21 @@ Deno.serve(async (req) => {
         );
       }
 
-      const senha = Deno.env.get("CERTIFICADO_PFX_SENHA");
-      if (!senha) {
-        return json(
-          { sucesso: false, erro: "Secret CERTIFICADO_PFX_SENHA não configurado." },
-          500,
-        );
-      }
-
-      // Baixar o .pfx do Storage privado dbavizee/certificados/empresa.pfx
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
 
+      const senha = await getVaultSecretByName(adminClient, "CERTIFICADO_PFX_SENHA");
+      if (!senha) {
+        return json(
+          { sucesso: false, erro: "Senha do certificado não encontrada no cofre seguro." },
+          500,
+        );
+      }
+
+      // Baixar o .pfx do Storage privado dbavizee/certificados/empresa.pfx
       const { data: blob, error: dlErr } = await adminClient.storage
         .from("dbavizee")
         .download("certificados/empresa.pfx");
@@ -481,23 +503,23 @@ Deno.serve(async (req) => {
         );
       }
 
-      const senha = Deno.env.get("CERTIFICADO_PFX_SENHA");
-      if (!senha) {
-        return json(
-          {
-            sucesso: false,
-            erro:
-              "Secret CERTIFICADO_PFX_SENHA não configurado — configure em Administração > Fiscal.",
-          },
-          500,
-        );
-      }
-
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const adminClient = createClient(supabaseUrl, serviceRoleKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
+
+      const senha = await getVaultSecretByName(adminClient, "CERTIFICADO_PFX_SENHA");
+      if (!senha) {
+        return json(
+          {
+            sucesso: false,
+            erro:
+              "Senha do certificado não encontrada no cofre seguro — reenvie o certificado em Administração > Fiscal.",
+          },
+          500,
+        );
+      }
 
       const { data: blob, error: dlErr } = await adminClient.storage
         .from("dbavizee")
