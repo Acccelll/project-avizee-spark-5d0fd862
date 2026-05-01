@@ -10,6 +10,7 @@ import type { Cliente, Fornecedor } from "@/types/domain";
 import type { ContaContabil, LancamentoForm } from "@/pages/financeiro/types";
 import type { ContaBancaria } from "@/types/domain";
 import { statusFinanceiro, getStatusLabel } from "@/lib/statusSchema";
+import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 
 interface Props {
   form: LancamentoForm;
@@ -89,9 +90,9 @@ export function FinanceiroLancamentoForm({
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
             <SelectContent>
               <SelectItem value="nenhum">Selecione...</SelectItem>
-              <SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto">Boleto</SelectItem>
-              <SelectItem value="cartao">Cartão</SelectItem><SelectItem value="pix">PIX</SelectItem>
-              <SelectItem value="transferencia">Transferência</SelectItem>
+              {FORMA_PAGAMENTO_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
