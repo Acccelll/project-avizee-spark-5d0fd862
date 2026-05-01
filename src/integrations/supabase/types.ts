@@ -8912,6 +8912,10 @@ export type Database = {
         }
         Returns: string
       }
+      marcar_dup_como_mantido: {
+        Args: { p_audit_id: string; p_motivo: string }
+        Returns: undefined
+      }
       marcar_lancamentos_vencidos: { Args: never; Returns: number }
       marcar_remessa_em_transito: {
         Args: { p_remessa_id: string }
@@ -8956,6 +8960,7 @@ export type Database = {
       proximo_numero_ordem_venda: { Args: never; Returns: string }
       proximo_numero_pedido_compra: { Args: never; Returns: string }
       proximo_sku_grupo: { Args: { _grupo_id: string }; Returns: string }
+      purge_dups_confirmado: { Args: { p_audit_id: string }; Returns: number }
       reabrir_apuracao_societaria: {
         Args: { p_apuracao_id: string; p_motivo: string }
         Returns: undefined
@@ -9063,6 +9068,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      scan_dups_lancamentos: {
+        Args: never
+        Returns: {
+          claros: number
+          grupos_inseridos: number
+          revisao_manual: number
+        }[]
       }
       set_principal_endereco: {
         Args: { p_cliente_id: string; p_endereco_id: string }
