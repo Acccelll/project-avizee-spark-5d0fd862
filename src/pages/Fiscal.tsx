@@ -988,21 +988,27 @@ const Fiscal = () => {
             variant="outline"
             size="sm"
             className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => setBuscarChaveOpen(true)}
-            aria-label="Buscar NF-e pela chave de acesso"
+            onClick={() => toast.info("Funcionalidade em breve")}
+            disabled
+            aria-label="Buscar NF-e pela chave de acesso (em breve)"
+            title="Em breve"
           >
             <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
             <span className="hidden xs:inline">Buscar por </span>chave
+            <span className="ml-1 hidden md:inline text-[10px] uppercase opacity-70">Em breve</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => setScannerOpen(true)}
-            aria-label="Ler chave por código de barras ou QR Code"
+            onClick={() => toast.info("Funcionalidade em breve")}
+            disabled
+            aria-label="Ler chave por código de barras ou QR Code (em breve)"
+            title="Em breve"
           >
             <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
             <span className="hidden xs:inline">Ler </span>QR/Código
+            <span className="ml-1 hidden md:inline text-[10px] uppercase opacity-70">Em breve</span>
           </Button>
           <Button
             variant="outline"
