@@ -8,6 +8,7 @@ import type { Lancamento } from "@/types/domain";
 import type { LancamentoForm } from "@/pages/financeiro/types";
 import { useGerarParcelas } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { logger } from "@/lib/logger";
+import { cartaoFaturaParaData } from "@/services/cartoesCredito.service";
 
 type LancamentoWritePayload = Partial<Lancamento>;
 
@@ -54,15 +55,48 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
       setSaving(true);
 
       try {
+        // Se é pagamento em cartão de crédito com cartão selecionado,
+        // resolve a fatura correspondente à data de vencimento e usa o
+        // vencimento da fatura como vencimento efetivo do lançamento.
+        let resolvedVencimento = form.data_vencimento;
+        let resolvedFaturaId: string | null = form.cartao_fatura_id || null;
+        if (
+          form.forma_pagamento === "cartao_credito" &&
+          form.cartao_id &&
+          mode === "create"
+        ) {
+          try {
+            const faturaId = await cartaoFaturaParaData(
+              form.cartao_id,
+              form.data_vencimento,
+            );
+            if (faturaId) {
+              resolvedFaturaId = faturaId;
+              const { data: fat } = await supabase
+                .from("cartao_faturas")
+                .select("data_vencimento")
+                .eq("id", faturaId)
+                .maybeSingle();
+              if (fat?.data_vencimento) {
+                resolvedVencimento = fat.data_vencimento;
+              }
+            }
+          } catch (err) {
+            logger.warn("[financeiro] falha ao resolver fatura de cartão", err);
+          }
+        }
+
         const basePayload: LancamentoWritePayload = {
           tipo: form.tipo,
           descricao: form.descricao,
           valor: form.valor,
-          data_vencimento: form.data_vencimento,
+          data_vencimento: resolvedVencimento,
           status: form.status === "vencido" ? "aberto" : form.status,
           forma_pagamento: form.forma_pagamento || null,
           banco: form.banco || null,
           cartao: form.cartao || null,
+          cartao_id: form.cartao_id || null,
+          cartao_fatura_id: resolvedFaturaId,
           cliente_id: form.cliente_id || null,
           fornecedor_id: form.fornecedor_id || null,
           conta_bancaria_id: form.conta_bancaria_id || null,
