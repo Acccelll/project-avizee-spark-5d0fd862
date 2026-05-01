@@ -489,6 +489,32 @@ const ContasBancarias = () => {
               <div className="space-y-2"><Label>Saldo Inicial</Label><Input type="number" step="0.01" value={form.saldo_atual} onChange={e => updateForm({ saldo_atual: Number(e.target.value) })} /></div>
             )}
           </div>
+          <div className="space-y-2">
+            <Label>Fornecedor do banco (DDA)</Label>
+            <Select
+              value={form.banco_fornecedor_id || "nenhum"}
+              onValueChange={(v) =>
+                updateForm({ banco_fornecedor_id: v === "nenhum" ? "" : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione fornecedor..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nenhum">Nenhum</SelectItem>
+                {fornecedores.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.nome_razao_social}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Vincula o banco a um fornecedor (ex.: Itaú → "Banco Itaú S.A."). Boletos
+              DDA do banco passam a sugerir este fornecedor automaticamente. O vínculo
+              é compartilhado por todas as contas do mesmo banco.
+            </p>
+          </div>
           {mode === "edit" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3">
