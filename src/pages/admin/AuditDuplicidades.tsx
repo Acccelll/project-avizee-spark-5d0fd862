@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
-import { formatDateBr } from "@/lib/date";
+import { formatDate } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import {
   listAuditDups,
@@ -224,7 +224,7 @@ export default function AuditDuplicidades() {
       <ModulePage
         title="Auditoria de Duplicidades"
         subtitle="Revisão de lançamentos financeiros potencialmente duplicados (apenas administradores)"
-        actions={
+        headerActions={
           <Button onClick={handleScan} disabled={scanning} variant="outline">
             {scanning ? (
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
