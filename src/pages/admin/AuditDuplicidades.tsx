@@ -135,7 +135,7 @@ export default function AuditDuplicidades() {
       key: "venc",
       label: "Vencimento",
       sortable: true,
-      render: (r: AuditDup) => formatDateBr(r.data_vencimento),
+      render: (r: AuditDup) => formatDate(r.data_vencimento),
     },
     {
       key: "parcela",
@@ -284,7 +284,7 @@ export default function AuditDuplicidades() {
               <br />
               <span className="font-medium text-foreground">
                 Valor: {purgeTarget && formatCurrency(Number(purgeTarget.valor))} — Vencimento:{" "}
-                {purgeTarget && formatDateBr(purgeTarget.data_vencimento)}
+                {purgeTarget && formatDate(purgeTarget.data_vencimento)}
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
