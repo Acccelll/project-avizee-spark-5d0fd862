@@ -188,6 +188,8 @@ const Financeiro = () => {
       forma_pagamento: l.forma_pagamento || "",
       banco: l.banco || "",
       cartao: l.cartao || "",
+      cartao_id: l.cartao_id || "",
+      cartao_fatura_id: l.cartao_fatura_id || "",
       cliente_id: l.cliente_id || "",
       fornecedor_id: l.fornecedor_id || "",
       conta_bancaria_id: l.conta_bancaria_id || "",

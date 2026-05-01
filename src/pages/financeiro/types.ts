@@ -17,6 +17,8 @@ export interface LancamentoForm {
   forma_pagamento: string;
   banco: string;
   cartao: string;
+  cartao_id: string;
+  cartao_fatura_id: string;
   cliente_id: string;
   fornecedor_id: string;
   conta_bancaria_id: string;
@@ -37,6 +39,8 @@ export const emptyLancamentoForm: LancamentoForm = {
   forma_pagamento: "",
   banco: "",
   cartao: "",
+  cartao_id: "",
+  cartao_fatura_id: "",
   cliente_id: "",
   fornecedor_id: "",
   conta_bancaria_id: "",

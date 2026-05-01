@@ -118,8 +118,17 @@ export function FinanceiroLancamentoForm({
           </Label>
           {cartoes.length > 0 ? (
             <Select
-              value={form.cartao || "nenhum"}
-              onValueChange={(v) => updateField("cartao", v === "nenhum" ? "" : v)}
+              value={form.cartao_id || "nenhum"}
+              onValueChange={(v) => {
+                if (v === "nenhum") {
+                  updateField("cartao_id", "");
+                  updateField("cartao", "");
+                  return;
+                }
+                const sel = cartoes.find((c) => c.id === v);
+                updateField("cartao_id", v);
+                updateField("cartao", sel?.nome ?? "");
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione cartão..." />
