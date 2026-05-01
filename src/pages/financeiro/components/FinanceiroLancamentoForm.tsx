@@ -11,6 +11,7 @@ import type { ContaContabil, LancamentoForm } from "@/pages/financeiro/types";
 import type { ContaBancaria } from "@/types/domain";
 import { statusFinanceiro, getStatusLabel } from "@/lib/statusSchema";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
+import type { CartaoCredito } from "@/services/cartoesCredito.service";
 
 interface Props {
   form: LancamentoForm;
@@ -20,6 +21,7 @@ interface Props {
   contasContabeis: ContaContabil[];
   clientes: Cliente[];
   fornecedores: Fornecedor[];
+  cartoes?: CartaoCredito[];
   setForm: (next: LancamentoForm) => void;
   onCancel: () => void;
   onSubmit: (e: FormEvent) => void;
@@ -42,6 +44,7 @@ export function FinanceiroLancamentoForm({
   contasContabeis,
   clientes,
   fornecedores,
+  cartoes = [],
   setForm,
   onCancel,
   onSubmit,
@@ -109,7 +112,38 @@ export function FinanceiroLancamentoForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2"><Label>Cartão</Label><Input value={form.cartao} onChange={(e) => updateField("cartao", e.target.value)} /></div>
+        <div className="space-y-2">
+          <Label>
+            Cartão {form.forma_pagamento === "cartao_credito" ? "*" : ""}
+          </Label>
+          {cartoes.length > 0 ? (
+            <Select
+              value={form.cartao || "nenhum"}
+              onValueChange={(v) => updateField("cartao", v === "nenhum" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione cartão..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nenhum">Selecione...</SelectItem>
+                {cartoes
+                  .filter((c) => c.ativo)
+                  .map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}
+                      {c.ultimos4 ? ` •••• ${c.ultimos4}` : ""}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              value={form.cartao}
+              onChange={(e) => updateField("cartao", e.target.value)}
+              placeholder="Nome do cartão"
+            />
+          )}
+        </div>
         {form.tipo === "receber" && (
           <div className="space-y-2"><Label>Cliente</Label>
             <Select value={form.cliente_id || "nenhum"} onValueChange={(v) => updateField("cliente_id", v === "nenhum" ? "" : v)}>
