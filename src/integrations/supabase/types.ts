@@ -511,6 +511,69 @@ export type Database = {
           },
         ]
       }
+      audit_dups_lancamentos: {
+        Row: {
+          classificacao: string
+          cliente_id: string | null
+          created_at: string
+          data_vencimento: string
+          fornecedor_id: string | null
+          grupo_hash: string
+          id: string
+          ids: string[]
+          ids_a_remover: string[]
+          ids_baixados: string[]
+          motivo: string | null
+          origem_ref: string | null
+          parcela_numero: number | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          classificacao: string
+          cliente_id?: string | null
+          created_at?: string
+          data_vencimento: string
+          fornecedor_id?: string | null
+          grupo_hash: string
+          id?: string
+          ids: string[]
+          ids_a_remover?: string[]
+          ids_baixados?: string[]
+          motivo?: string | null
+          origem_ref?: string | null
+          parcela_numero?: number | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          tipo: string
+          valor: number
+        }
+        Update: {
+          classificacao?: string
+          cliente_id?: string | null
+          created_at?: string
+          data_vencimento?: string
+          fornecedor_id?: string | null
+          grupo_hash?: string
+          id?: string
+          ids?: string[]
+          ids_a_remover?: string[]
+          ids_baixados?: string[]
+          motivo?: string | null
+          origem_ref?: string | null
+          parcela_numero?: number | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       auditoria_logs: {
         Row: {
           acao: string
@@ -551,6 +614,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
+          fornecedor_id: string | null
           id: string
           nome: string
           tipo: string | null
@@ -558,6 +622,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          fornecedor_id?: string | null
           id?: string
           nome: string
           tipo?: string | null
@@ -565,11 +630,20 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          fornecedor_id?: string | null
           id?: string
           nome?: string
           tipo?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bancos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       budgets_mensais: {
         Row: {
@@ -692,6 +766,109 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cartao_faturas: {
+        Row: {
+          cartao_id: string
+          competencia: string
+          created_at: string
+          data_abertura: string | null
+          data_fechamento: string
+          data_vencimento: string
+          id: string
+          observacoes: string | null
+          status: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          cartao_id: string
+          competencia: string
+          created_at?: string
+          data_abertura?: string | null
+          data_fechamento: string
+          data_vencimento: string
+          id?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          cartao_id?: string
+          competencia?: string
+          created_at?: string
+          data_abertura?: string | null
+          data_fechamento?: string
+          data_vencimento?: string
+          id?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartao_faturas_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes_credito"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cartoes_credito: {
+        Row: {
+          ativo: boolean
+          banco_id: string | null
+          bandeira: string | null
+          created_at: string
+          dia_fechamento: number
+          dia_vencimento: number
+          id: string
+          limite: number | null
+          nome: string
+          observacoes: string | null
+          ultimos4: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          banco_id?: string | null
+          bandeira?: string | null
+          created_at?: string
+          dia_fechamento: number
+          dia_vencimento: number
+          id?: string
+          limite?: number | null
+          nome: string
+          observacoes?: string | null
+          ultimos4?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          banco_id?: string | null
+          bandeira?: string | null
+          created_at?: string
+          dia_fechamento?: number
+          dia_vencimento?: number
+          id?: string
+          limite?: number | null
+          nome?: string
+          observacoes?: string | null
+          ultimos4?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartoes_credito_banco_id_fkey"
+            columns: ["banco_id"]
+            isOneToOne: false
+            referencedRelation: "bancos"
             referencedColumns: ["id"]
           },
         ]
@@ -2442,6 +2619,8 @@ export type Database = {
           ativo: boolean
           banco: string | null
           cartao: string | null
+          cartao_fatura_id: string | null
+          cartao_id: string | null
           centro_custo_id: string | null
           cliente_id: string | null
           codigo_fluxo_origem: string | null
@@ -2483,6 +2662,8 @@ export type Database = {
           ativo?: boolean
           banco?: string | null
           cartao?: string | null
+          cartao_fatura_id?: string | null
+          cartao_id?: string | null
           centro_custo_id?: string | null
           cliente_id?: string | null
           codigo_fluxo_origem?: string | null
@@ -2524,6 +2705,8 @@ export type Database = {
           ativo?: boolean
           banco?: string | null
           cartao?: string | null
+          cartao_fatura_id?: string | null
+          cartao_id?: string | null
           centro_custo_id?: string | null
           cliente_id?: string | null
           codigo_fluxo_origem?: string | null
@@ -2562,6 +2745,20 @@ export type Database = {
           valor_pago?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "financeiro_lancamentos_cartao_fatura_id_fkey"
+            columns: ["cartao_fatura_id"]
+            isOneToOne: false
+            referencedRelation: "cartao_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes_credito"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "financeiro_lancamentos_centro_custo_id_fkey"
             columns: ["centro_custo_id"]
@@ -8516,6 +8713,10 @@ export type Database = {
         Args: { p_lote_id: string }
         Returns: Json
       }
+      cartao_fatura_para_data: {
+        Args: { p_cartao_id: string; p_data: string }
+        Returns: string
+      }
       confirmar_nota_fiscal: { Args: { p_nf_id: string }; Returns: undefined }
       consolidar_lote_cadastros: { Args: { p_lote_id: string }; Returns: Json }
       consolidar_lote_enriquecimento: {
@@ -8623,6 +8824,17 @@ export type Database = {
             Returns: number
           }
         | { Args: { p_folha_id: string }; Returns: Json }
+      gerar_financeiro_nfe_entrada: {
+        Args: {
+          p_duplicatas: Json
+          p_forma_pagamento?: string
+          p_nota_id: string
+        }
+        Returns: {
+          lancamento_id: string
+          parcela: number
+        }[]
+      }
       gerar_financeiro_retirada: {
         Args: {
           p_conta_bancaria_id?: string

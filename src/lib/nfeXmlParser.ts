@@ -44,6 +44,22 @@ export interface NFeData {
   icmsStTotal: number;
   valorTotal: number;
   itens: NFeItem[];
+  cobranca?: NFeCobranca;
+}
+
+export interface NFeDuplicata {
+  numero: string;
+  vencimento: string; // ISO yyyy-mm-dd
+  valor: number;
+}
+
+export interface NFeCobranca {
+  fatura?: { numero: string; valorOriginal: number; valorDesconto: number; valorLiquido: number };
+  duplicatas: NFeDuplicata[];
+  /** Código tPag SEFAZ do primeiro detPag, ou null se ausente. */
+  tPag: string | null;
+  /** true se identificado pagamento à vista (sem duplicatas e tPag != boleto). */
+  aVista: boolean;
 }
 
 function text(el: Element | null, tag: string): string {
@@ -124,6 +140,41 @@ export function parseNFeXml(xmlString: string): NFeData {
   // ICMSTot - totals
   const total = infNFe.getElementsByTagName("ICMSTot")[0];
 
+  // cobr / dup
+  const cobr = infNFe.getElementsByTagName("cobr")[0];
+  const duplicatas: NFeDuplicata[] = [];
+  let fatura: NFeCobranca["fatura"] | undefined;
+  if (cobr) {
+    const fat = cobr.getElementsByTagName("fat")[0];
+    if (fat) {
+      fatura = {
+        numero: text(fat, "nFat"),
+        valorOriginal: num(fat, "vOrig"),
+        valorDesconto: num(fat, "vDesc"),
+        valorLiquido: num(fat, "vLiq"),
+      };
+    }
+    const dups = cobr.getElementsByTagName("dup");
+    for (let i = 0; i < dups.length; i++) {
+      const d = dups[i];
+      duplicatas.push({
+        numero: text(d, "nDup") || String(i + 1),
+        vencimento: text(d, "dVenc"),
+        valor: num(d, "vDup"),
+      });
+    }
+  }
+
+  // pag / detPag
+  const pag = infNFe.getElementsByTagName("pag")[0];
+  let tPag: string | null = null;
+  if (pag) {
+    const detPag = pag.getElementsByTagName("detPag")[0] || pag;
+    tPag = text(detPag, "tPag") || null;
+  }
+
+  const aVista = duplicatas.length === 0 && tPag !== null && !["02", "15"].includes(tPag);
+
   return {
     numero,
     serie,
@@ -141,5 +192,6 @@ export function parseNFeXml(xmlString: string): NFeData {
     icmsStTotal: num(total, "vST"),
     valorTotal: num(total, "vNF"),
     itens,
+    cobranca: { fatura, duplicatas, tPag, aVista },
   };
 }

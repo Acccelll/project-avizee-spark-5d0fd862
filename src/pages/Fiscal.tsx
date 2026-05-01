@@ -203,7 +203,11 @@ const Fiscal = () => {
     fiscalMap: Record<number, NfItemFiscalData>;
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
-  const [xmlOriginInfo, setXmlOriginInfo] = useState<{ fornecedorId: string; fornecedorNome: string } | null>(null);
+  const [xmlOriginInfo, setXmlOriginInfo] = useState<{
+    fornecedorId: string;
+    fornecedorNome: string;
+    cobranca?: import("@/lib/nfeXmlParser").NFeCobranca;
+  } | null>(null);
   // Quick-add disparado a partir do drawer de tradução XML
   const [quickProdutoLinhaIdx, setQuickProdutoLinhaIdx] = useState<number | null>(null);
   const [quickProdutoNome, setQuickProdutoNome] = useState("");
@@ -585,7 +589,7 @@ const Fiscal = () => {
     setItemContaContabil({});
     setItemFiscalData(fiscalMap);
     setTraducaoLinhas(linhas);
-    setXmlOriginInfo({ fornecedorId, fornecedorNome });
+    setXmlOriginInfo({ fornecedorId, fornecedorNome, cobranca: nfe.cobranca });
     setModalOpen(true);
   };
 
@@ -738,6 +742,43 @@ const Fiscal = () => {
             : `NF ${form.numero} criada manualmente.`,
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
+        // Geração de financeiro a partir das duplicatas do XML (NF-e de entrada).
+        if (
+          form.tipo === "entrada" &&
+          form.origem === "importacao_xml" &&
+          xmlOriginInfo?.cobranca?.duplicatas?.length
+        ) {
+          try {
+            const { mapTPagSefaz } = await import("@/lib/financeiro");
+            const formaPag = xmlOriginInfo.cobranca.tPag
+              ? mapTPagSefaz(xmlOriginInfo.cobranca.tPag)
+              : "boleto_dda";
+            const { error: rpcErr } = await supabase.rpc("gerar_financeiro_nfe_entrada", {
+              p_nota_id: nfId,
+              p_duplicatas: xmlOriginInfo.cobranca.duplicatas.map((d) => ({
+                numero: d.numero,
+                vencimento: d.vencimento,
+                valor: d.valor,
+              })),
+              p_forma_pagamento: formaPag,
+            } as never);
+            if (rpcErr) throw rpcErr;
+            toast.success(
+              `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Pagar.`,
+            );
+          } catch (rpcErr) {
+            logger.error("[fiscal] gerar financeiro NFe:", rpcErr);
+            toast.warning(
+              "NF salva, mas houve falha ao gerar parcelas no financeiro. Lance manualmente.",
+            );
+          }
+        } else if (
+          form.tipo === "entrada" &&
+          form.origem === "importacao_xml" &&
+          !xmlOriginInfo?.cobranca?.duplicatas?.length
+        ) {
+          toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
+        }
       } else if (selected) {
         await registrarEventoFiscal({
           nota_fiscal_id: selected.id,
@@ -988,21 +1029,27 @@ const Fiscal = () => {
             variant="outline"
             size="sm"
             className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => setBuscarChaveOpen(true)}
-            aria-label="Buscar NF-e pela chave de acesso"
+            onClick={() => toast.info("Funcionalidade em breve")}
+            disabled
+            aria-label="Buscar NF-e pela chave de acesso (em breve)"
+            title="Em breve"
           >
             <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
             <span className="hidden xs:inline">Buscar por </span>chave
+            <span className="ml-1 hidden md:inline text-[10px] uppercase opacity-70">Em breve</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => setScannerOpen(true)}
-            aria-label="Ler chave por código de barras ou QR Code"
+            onClick={() => toast.info("Funcionalidade em breve")}
+            disabled
+            aria-label="Ler chave por código de barras ou QR Code (em breve)"
+            title="Em breve"
           >
             <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
             <span className="hidden xs:inline">Ler </span>QR/Código
+            <span className="ml-1 hidden md:inline text-[10px] uppercase opacity-70">Em breve</span>
           </Button>
           <Button
             variant="outline"

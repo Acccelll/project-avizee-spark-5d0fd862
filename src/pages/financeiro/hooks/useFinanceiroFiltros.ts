@@ -5,6 +5,12 @@ import type { MultiSelectOption } from "@/components/ui/MultiSelect";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import type { ContaBancaria, Lancamento } from "@/types/domain";
+import {
+  FORMA_PAGAMENTO_OPTIONS,
+  FORMA_PAGAMENTO_LABELS,
+  normalizeFormaPagamento,
+  type FormaPagamentoCanonica,
+} from "@/lib/financeiro";
 
 const validPeriods: readonly Period[] = ["7d", "15d", "30d", "90d", "year", "hoje", "todos", "vencidos"];
 
@@ -33,6 +39,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
   const statusParam = searchParams.get("status");
   const bancoParam = searchParams.get("banco");
   const origemParam = searchParams.get("origem");
+  const formaParam = searchParams.get("forma");
   const periodParam = searchParams.get("period");
   const mesParam = searchParams.get("mes");
 
@@ -45,6 +52,9 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
   );
   const [origemFilters, setOrigemFilters] = useState<string[]>(
     origemParam ? origemParam.split(",") : [],
+  );
+  const [formaPagamentoFilters, setFormaPagamentoFilters] = useState<string[]>(
+    formaParam ? formaParam.split(",") : [],
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
@@ -69,6 +79,8 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
         else next.delete("banco");
         if (origemFilters.length) next.set("origem", origemFilters.join(","));
         else next.delete("origem");
+        if (formaPagamentoFilters.length) next.set("forma", formaPagamentoFilters.join(","));
+        else next.delete("forma");
         if (period !== "30d") next.set("period", period);
         else next.delete("period");
         if (mes) next.set("mes", mes);
@@ -77,7 +89,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
       },
       { replace: true },
     );
-  }, [searchTerm, statusFilters, tipoFilters, bancoFilters, origemFilters, period, mes, setSearchParams]);
+  }, [searchTerm, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, period, mes, setSearchParams]);
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -102,6 +114,10 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
       if (tipoFilters.length > 0 && !tipoFilters.includes(l.tipo)) return false;
       if (bancoFilters.length > 0 && !bancoFilters.includes(l.conta_bancaria_id || "")) return false;
       if (origemFilters.length > 0 && !origemFilters.includes(l.origem_tipo || "manual")) return false;
+      if (formaPagamentoFilters.length > 0) {
+        const canon = normalizeFormaPagamento(l.forma_pagamento) ?? "outros";
+        if (!formaPagamentoFilters.includes(canon)) return false;
+      }
 
       if (query) {
         const haystack = [
@@ -122,7 +138,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
 
       return true;
     });
-  }, [data, statusFilters, tipoFilters, bancoFilters, origemFilters, searchTerm, period, mes, getLancamentoStatus]);
+  }, [data, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, searchTerm, period, mes, getLancamentoStatus]);
 
   const activeFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -164,14 +180,24 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
       }),
     );
 
+    formaPagamentoFilters.forEach((filter) =>
+      chips.push({
+        key: "forma",
+        label: "Forma de pagamento",
+        value: [filter],
+        displayValue: FORMA_PAGAMENTO_LABELS[filter as FormaPagamentoCanonica] ?? filter,
+      }),
+    );
+
     return chips;
-  }, [tipoFilters, statusFilters, bancoFilters, origemFilters, contasBancarias]);
+  }, [tipoFilters, statusFilters, bancoFilters, origemFilters, formaPagamentoFilters, contasBancarias]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters((prev) => prev.filter((v) => v !== value));
     if (key === "status") setStatusFilters((prev) => prev.filter((v) => v !== value));
     if (key === "banco") setBancoFilters((prev) => prev.filter((v) => v !== value));
     if (key === "origem") setOrigemFilters((prev) => prev.filter((v) => v !== value));
+    if (key === "forma") setFormaPagamentoFilters((prev) => prev.filter((v) => v !== value));
   };
 
   const tipoOpts: MultiSelectOption[] = [
@@ -190,6 +216,10 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     { label: "Folha de pagamento", value: "folha_pagamento" },
     { label: "Pedido de compra", value: "pedido_compra" },
   ];
+  const formaPagamentoOpts: MultiSelectOption[] = FORMA_PAGAMENTO_OPTIONS.map((o) => ({
+    label: o.label,
+    value: o.value,
+  }));
 
   return {
     selectedIds,
@@ -204,6 +234,8 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     setBancoFilters,
     origemFilters,
     setOrigemFilters,
+    formaPagamentoFilters,
+    setFormaPagamentoFilters,
     period,
     setPeriod,
     mes,
@@ -214,5 +246,6 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     tipoOpts,
     bancoOpts,
     origemOpts,
+    formaPagamentoOpts,
   };
 }

@@ -193,7 +193,7 @@ export const navSections: NavSection[] = [
       {
         title: 'Documentos fiscais',
         items: [
-          { title: 'Faturamento', path: '/faturamento', icon: Receipt, keywords: ['emissor', 'sebrae', 'painel', 'sefaz', 'wizard', 'kpi'] },
+          { title: 'Faturamento (em breve)', path: '/faturamento', icon: Receipt, keywords: ['emissor', 'sebrae', 'painel', 'sefaz', 'wizard', 'kpi', 'em breve'] },
           { title: 'Dashboard Fiscal', path: '/fiscal/dashboard', icon: BarChart3, keywords: ['indicadores', 'kpi', 'icms', 'apuracao', 'distdfe', 'painel'] },
           { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: Receipt, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
           { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: Receipt, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
