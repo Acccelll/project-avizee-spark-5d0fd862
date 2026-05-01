@@ -239,6 +239,7 @@ export const navSections: NavSection[] = [
           { title: 'Configurações', path: '/administracao', icon: Settings, keywords: ['empresa', 'usuarios', 'email', 'fiscal', 'financeiro', 'parametros'] },
           { title: 'Migração de Dados', path: '/migracao-dados', icon: Database, keywords: ['importacao', 'excel', 'csv', 'carga'] },
           { title: 'Auditoria', path: '/auditoria', icon: Shield, keywords: ['logs', 'historico', 'rastreabilidade'] },
+          { title: 'Auditoria de Duplicidades', path: '/admin/audit-duplicidades', icon: Shield, keywords: ['financeiro', 'duplicados', 'limpeza', 'lancamentos'] },
         ],
       },
     ],
