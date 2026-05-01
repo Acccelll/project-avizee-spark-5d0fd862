@@ -1,4 +1,5 @@
 import type { ContaBancaria } from "@/types/domain";
+import type { CartaoCredito } from "@/services/cartoesCredito.service";
 
 export interface ContaContabil {
   id: string;
@@ -49,4 +50,5 @@ export const emptyLancamentoForm: LancamentoForm = {
 export interface FinanceiroAuxiliaresState {
   contasBancarias: ContaBancaria[];
   contasContabeis: ContaContabil[];
+  cartoes: CartaoCredito[];
 }
