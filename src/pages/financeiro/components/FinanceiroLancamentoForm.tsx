@@ -209,6 +209,11 @@ export function FinanceiroLancamentoForm({
               <div className="col-span-2 text-xs text-muted-foreground">
                 {form.num_parcelas > 1 && form.valor > 0 && (<span>{form.num_parcelas}× de <strong>{formatCurrency(form.valor / form.num_parcelas)}</strong> a cada {form.intervalo_dias} dias</span>)}
               </div>
+              {form.forma_pagamento === "cartao_credito" && form.cartao_id && (
+                <div className="col-span-2 text-xs text-primary bg-primary/5 border border-primary/20 rounded-md p-2">
+                  💳 Cada parcela será alocada na fatura correspondente do cartão e o vencimento usará a data da fatura.
+                </div>
+              )}
             </div>
           )}
         </div>
