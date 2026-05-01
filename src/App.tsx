@@ -40,6 +40,8 @@ const DistDFeHistorico = lazy(() => import("./pages/fiscal/DistDFeHistorico"));
 const FiscalDashboard = lazy(() => import("./pages/fiscal/FiscalDashboard"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const ContasBancarias = lazy(() => import("./pages/ContasBancarias"));
+const CartoesCredito = lazy(() => import("./pages/CartoesCredito"));
+const AuditDuplicidades = lazy(() => import("./pages/admin/AuditDuplicidades"));
 const FluxoCaixa = lazy(() => import("./pages/FluxoCaixa"));
 const ContasContabeis = lazy(() => import("./pages/ContasContabeis"));
 const Login = lazy(() => import("./pages/Login"));
@@ -179,6 +181,8 @@ const App = () => (
                       <Route path="/financeiro" element={<PermissionRoute resource="financeiro"><LazyPage><Financeiro /></LazyPage></PermissionRoute>} />
                       <Route path="/financeiro/:id" element={<PermissionRoute resource="financeiro"><LazyPage><Financeiro /></LazyPage></PermissionRoute>} />
                       <Route path="/contas-bancarias" element={<PermissionRoute resource="financeiro"><LazyPage><ContasBancarias /></LazyPage></PermissionRoute>} />
+                      <Route path="/cartoes-credito" element={<PermissionRoute resource="financeiro"><LazyPage><CartoesCredito /></LazyPage></PermissionRoute>} />
+                      <Route path="/admin/audit-duplicidades" element={<AdminRoute><LazyPage><AuditDuplicidades /></LazyPage></AdminRoute>} />
                       <Route path="/fluxo-caixa" element={<PermissionRoute resource="financeiro"><LazyPage><FluxoCaixa /></LazyPage></PermissionRoute>} />
                       <Route path="/caixa" element={<Navigate to="/financeiro" replace />} />
                       <Route path="/relatorios" element={<PermissionRoute resource="relatorios"><LazyPage><Relatorios /></LazyPage></PermissionRoute>} />

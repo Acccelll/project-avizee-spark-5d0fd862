@@ -5,6 +5,7 @@ import { fetchFinanceiroAuxiliares } from "@/services/financeiro/auxiliares";
 const INITIAL_STATE: FinanceiroAuxiliaresState = {
   contasBancarias: [],
   contasContabeis: [],
+  cartoes: [],
 };
 
 export function useFinanceiroAuxiliares() {
