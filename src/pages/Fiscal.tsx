@@ -203,7 +203,11 @@ const Fiscal = () => {
     fiscalMap: Record<number, NfItemFiscalData>;
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
-  const [xmlOriginInfo, setXmlOriginInfo] = useState<{ fornecedorId: string; fornecedorNome: string } | null>(null);
+  const [xmlOriginInfo, setXmlOriginInfo] = useState<{
+    fornecedorId: string;
+    fornecedorNome: string;
+    cobranca?: import("@/lib/nfeXmlParser").NFeCobranca;
+  } | null>(null);
   // Quick-add disparado a partir do drawer de tradução XML
   const [quickProdutoLinhaIdx, setQuickProdutoLinhaIdx] = useState<number | null>(null);
   const [quickProdutoNome, setQuickProdutoNome] = useState("");
@@ -585,7 +589,7 @@ const Fiscal = () => {
     setItemContaContabil({});
     setItemFiscalData(fiscalMap);
     setTraducaoLinhas(linhas);
-    setXmlOriginInfo({ fornecedorId, fornecedorNome });
+    setXmlOriginInfo({ fornecedorId, fornecedorNome, cobranca: nfe.cobranca });
     setModalOpen(true);
   };
 
