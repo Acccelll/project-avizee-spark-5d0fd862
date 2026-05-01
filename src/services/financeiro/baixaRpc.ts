@@ -45,6 +45,7 @@ export interface GerarParcelasBase {
   forma_pagamento?: string | null;
   banco?: string | null;
   cartao?: string | null;
+  cartao_id?: string | null;
   cliente_id?: string | null;
   fornecedor_id?: string | null;
   conta_bancaria_id?: string | null;

@@ -109,7 +109,8 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
           const numParcelas = Number(form.num_parcelas);
           const intervalo = Number(form.intervalo_dias) || 30;
           // RPC oficial `gerar_parcelas_financeiras`: cria agrupador + N parcelas
-          // de forma atômica, garantindo rollback automático em caso de falha.
+          // de forma atômica. Quando há cartao_id + forma_pagamento='cartao_credito',
+          // a RPC resolve fatura por parcela e ajusta vencimento conforme a fatura.
           await gerarParcelas.mutateAsync({
             base: {
               tipo: form.tipo as "receber" | "pagar",
@@ -119,6 +120,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
               forma_pagamento: form.forma_pagamento || null,
               banco: form.banco || null,
               cartao: form.cartao || null,
+              cartao_id: form.cartao_id || null,
               cliente_id: form.cliente_id || null,
               fornecedor_id: form.fornecedor_id || null,
               conta_bancaria_id: form.conta_bancaria_id || null,
