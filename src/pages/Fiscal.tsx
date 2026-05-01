@@ -742,6 +742,43 @@ const Fiscal = () => {
             : `NF ${form.numero} criada manualmente.`,
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
+        // Geração de financeiro a partir das duplicatas do XML (NF-e de entrada).
+        if (
+          form.tipo === "entrada" &&
+          form.origem === "importacao_xml" &&
+          xmlOriginInfo?.cobranca?.duplicatas?.length
+        ) {
+          try {
+            const { mapTPagSefaz } = await import("@/lib/financeiro");
+            const formaPag = xmlOriginInfo.cobranca.tPag
+              ? mapTPagSefaz(xmlOriginInfo.cobranca.tPag)
+              : "boleto_dda";
+            const { error: rpcErr } = await supabase.rpc("gerar_financeiro_nfe_entrada", {
+              p_nota_id: nfId,
+              p_duplicatas: xmlOriginInfo.cobranca.duplicatas.map((d) => ({
+                numero: d.numero,
+                vencimento: d.vencimento,
+                valor: d.valor,
+              })),
+              p_forma_pagamento: formaPag,
+            } as never);
+            if (rpcErr) throw rpcErr;
+            toast.success(
+              `${xmlOriginInfo.cobranca.duplicatas.length} parcela(s) gerada(s) em Contas a Pagar.`,
+            );
+          } catch (rpcErr) {
+            logger.error("[fiscal] gerar financeiro NFe:", rpcErr);
+            toast.warning(
+              "NF salva, mas houve falha ao gerar parcelas no financeiro. Lance manualmente.",
+            );
+          }
+        } else if (
+          form.tipo === "entrada" &&
+          form.origem === "importacao_xml" &&
+          !xmlOriginInfo?.cobranca?.duplicatas?.length
+        ) {
+          toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
+        }
       } else if (selected) {
         await registrarEventoFiscal({
           nota_fiscal_id: selected.id,
