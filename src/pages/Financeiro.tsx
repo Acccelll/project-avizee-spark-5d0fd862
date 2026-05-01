@@ -138,6 +138,8 @@ const Financeiro = () => {
     setBancoFilters,
     origemFilters,
     setOrigemFilters,
+    formaPagamentoFilters,
+    setFormaPagamentoFilters,
     period,
     setPeriod,
     mes,
@@ -148,6 +150,7 @@ const Financeiro = () => {
     tipoOpts,
     bancoOpts,
     origemOpts,
+    formaPagamentoOpts,
   } = useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatus });
 
   const statusOpts = statusToOptions(statusFinanceiroSchema);
@@ -292,6 +295,7 @@ const Financeiro = () => {
             setStatusFilters([]);
             setBancoFilters([]);
             setOrigemFilters([]);
+            setFormaPagamentoFilters([]);
           }}
           count={filteredData.length}
           extra={selectedIds.length > 0 ? (
@@ -310,6 +314,7 @@ const Financeiro = () => {
           <MultiSelect options={statusOpts} selected={statusFilters} onChange={setStatusFilters} placeholder="Status" className="w-[180px]" />
           <MultiSelect options={bancoOpts} selected={bancoFilters} onChange={setBancoFilters} placeholder="Bancos" className="w-[200px]" />
           <MultiSelect options={origemOpts} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[200px]" />
+          <MultiSelect options={formaPagamentoOpts} selected={formaPagamentoFilters} onChange={setFormaPagamentoFilters} placeholder="Forma de pagamento" className="w-[220px]" />
         </AdvancedFilterBar>
         </div>
 
