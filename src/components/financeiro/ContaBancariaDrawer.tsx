@@ -31,7 +31,12 @@ interface ContaBancaria {
   ativo: boolean;
   created_at?: string;
   updated_at?: string;
-  bancos?: { nome: string; tipo: string };
+  bancos?: {
+    nome: string;
+    tipo: string;
+    fornecedor_id?: string | null;
+    fornecedores?: { id: string; nome_razao_social: string } | null;
+  };
 }
 
 interface LancamentoResumo {
@@ -253,6 +258,11 @@ export function ContaBancariaDrawer({
                   )}
                   {selected.titular && (
                     <ViewField label="Titular">{selected.titular}</ViewField>
+                  )}
+                  {selected.bancos?.fornecedores && (
+                    <ViewField label="Fornecedor do banco (DDA)">
+                      {selected.bancos.fornecedores.nome_razao_social}
+                    </ViewField>
                   )}
                   <ViewField label="Status">
                     <Badge

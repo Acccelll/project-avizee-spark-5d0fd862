@@ -36,7 +36,9 @@ import {
   createContaBancaria,
   updateContaBancaria,
   inativarContaBancaria,
+  setBancoFornecedor,
 } from "@/services/contasBancarias.service";
+import { listFornecedoresAtivos } from "@/services/pedidosCompra.service";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -45,12 +47,26 @@ import {
   CheckCircle, Ban, Building2,
 } from "lucide-react";
 
-interface Banco { id: string; nome: string; tipo: string; ativo: boolean; }
+interface Banco {
+  id: string;
+  nome: string;
+  tipo: string;
+  ativo: boolean;
+  fornecedor_id?: string | null;
+  fornecedores?: { id: string; nome_razao_social: string } | null;
+}
 interface ContaBancaria {
   id: string; banco_id: string; descricao: string; agencia: string; conta: string;
   titular: string; saldo_atual: number; ativo: boolean;
-  bancos?: { nome: string; tipo: string };
+  bancos?: {
+    nome: string;
+    tipo: string;
+    fornecedor_id?: string | null;
+    fornecedores?: { id: string; nome_razao_social: string } | null;
+  };
 }
+
+interface FornecedorOption { id: string; nome_razao_social: string }
 
 interface InUseCounts {
   lancamentos: number;
@@ -70,12 +86,32 @@ function getTipoLabel(tipo: string | undefined) {
   return tipoContaLabel[tipo.toLowerCase()] ?? tipo;
 }
 
-type ContaBancariaForm = { banco_id: string; descricao: string; agencia: string; conta: string; titular: string; saldo_atual: number; ativo: boolean };
-const emptyContaForm: ContaBancariaForm = { banco_id: "", descricao: "", agencia: "", conta: "", titular: "", saldo_atual: 0, ativo: true };
+type ContaBancariaForm = {
+  banco_id: string;
+  descricao: string;
+  agencia: string;
+  conta: string;
+  titular: string;
+  saldo_atual: number;
+  ativo: boolean;
+  /** Fornecedor vinculado ao banco (DDA). Não pertence à conta, mas é editável aqui por conveniência. */
+  banco_fornecedor_id: string;
+};
+const emptyContaForm: ContaBancariaForm = {
+  banco_id: "",
+  descricao: "",
+  agencia: "",
+  conta: "",
+  titular: "",
+  saldo_atual: 0,
+  ativo: true,
+  banco_fornecedor_id: "",
+};
 
 const ContasBancarias = () => {
   const [bancos, setBancos] = useState<Banco[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
+  const [fornecedores, setFornecedores] = useState<FornecedorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -95,9 +131,19 @@ const ContasBancarias = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [b, c] = await Promise.all([listBancosAtivos(), listContasBancarias()]);
+      const [b, c, f] = await Promise.all([
+        listBancosAtivos(),
+        listContasBancarias(),
+        listFornecedoresAtivos().catch(() => []),
+      ]);
       setBancos(b);
       setContas(c as ContaBancaria[]);
+      setFornecedores(
+        (f as FornecedorOption[]).map((x) => ({
+          id: x.id,
+          nome_razao_social: x.nome_razao_social,
+        })),
+      );
     } catch (err) {
       notifyError(err);
     } finally {
@@ -181,6 +227,7 @@ const ContasBancarias = () => {
   const openEdit = async (c: ContaBancaria) => {
     setMode("edit");
     setSelected(c);
+    const bancoAtual = bancos.find((b) => b.id === c.banco_id);
     reset({
       banco_id: c.banco_id,
       descricao: c.descricao,
@@ -189,6 +236,8 @@ const ContasBancarias = () => {
       titular: c.titular || "",
       saldo_atual: c.saldo_atual || 0,
       ativo: c.ativo,
+      banco_fornecedor_id:
+        c.bancos?.fornecedor_id ?? bancoAtual?.fornecedor_id ?? "",
     });
     setModalOpen(true);
     try {
@@ -209,6 +258,14 @@ const ContasBancarias = () => {
         titular: form.titular || null,
         saldo_atual: form.saldo_atual,
       });
+      // Vincula o fornecedor ao banco (DDA), se selecionado e diferente do atual.
+      if (form.banco_id) {
+        const bancoAtual = bancos.find((b) => b.id === form.banco_id);
+        const novoFornecedor = form.banco_fornecedor_id || null;
+        if ((bancoAtual?.fornecedor_id ?? null) !== novoFornecedor) {
+          await setBancoFornecedor(form.banco_id, novoFornecedor);
+        }
+      }
       toast.success("Conta criada com sucesso!");
       markPristine();
       setModalOpen(false);
@@ -227,6 +284,14 @@ const ContasBancarias = () => {
         titular: form.titular.trim() || null,
         ativo: form.ativo,
       });
+      // Atualiza vínculo banco↔fornecedor se mudou.
+      if (form.banco_id) {
+        const bancoAtual = bancos.find((b) => b.id === form.banco_id);
+        const novoFornecedor = form.banco_fornecedor_id || null;
+        if ((bancoAtual?.fornecedor_id ?? null) !== novoFornecedor) {
+          await setBancoFornecedor(form.banco_id, novoFornecedor);
+        }
+      }
       toast.success("Conta bancária atualizada com sucesso!");
       markPristine();
       setModalOpen(false);
@@ -423,6 +488,32 @@ const ContasBancarias = () => {
             {mode === "create" && (
               <div className="space-y-2"><Label>Saldo Inicial</Label><Input type="number" step="0.01" value={form.saldo_atual} onChange={e => updateForm({ saldo_atual: Number(e.target.value) })} /></div>
             )}
+          </div>
+          <div className="space-y-2">
+            <Label>Fornecedor do banco (DDA)</Label>
+            <Select
+              value={form.banco_fornecedor_id || "nenhum"}
+              onValueChange={(v) =>
+                updateForm({ banco_fornecedor_id: v === "nenhum" ? "" : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione fornecedor..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nenhum">Nenhum</SelectItem>
+                {fornecedores.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.nome_razao_social}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Vincula o banco a um fornecedor (ex.: Itaú → "Banco Itaú S.A."). Boletos
+              DDA do banco passam a sugerir este fornecedor automaticamente. O vínculo
+              é compartilhado por todas as contas do mesmo banco.
+            </p>
           </div>
           {mode === "edit" && (
             <div className="space-y-3">
