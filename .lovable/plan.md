@@ -1,106 +1,90 @@
-## Objetivo
+# Correções no Módulo Financeiro
 
-Carregar em massa as 27 NF-es enviadas (13 entrada + 14 saída) no módulo Fiscal, extraindo todos os dados disponíveis do XML, vinculando aos cadastros existentes e gerando lançamentos financeiros corretos:
+## Diagnóstico
 
-- **A prazo (com `<cobr>/<dup>`):** uma parcela por duplicata, com `nDup`, `dVenc` e `vDup` exatos, status `aberto`.
-- **À vista (sem duplicatas):** 1 lançamento `condicao_pagamento='a_vista'`, status `aberto` (não dou baixa — sem comprovante).
+### 1) Lançamentos "com -" (coluna Pessoa em branco)
+Todos os 36 lançamentos importados têm `fornecedor_id` (entradas) ou `cliente_id` (saídas) preenchidos. O "—" aparece quando o `useSupabaseCrud` não traz a relação aninhada esperada, ou quando o lançamento é de origem manual sem contraparte. Confirmei que os lançamentos da importação têm pessoa correta no banco — o problema é visual, causado por:
+- A coluna `parceiro` em `financeiroColumns.tsx` só lê `l.clientes?.nome_razao_social` ou `l.fornecedores?.nome_razao_social`, mas se a query falha de join (ou se houve criação fora do hook), o nome não aparece.
+- O `displayDescricao` em alguns casos antigos cai em "Lançamento sem descrição" quando vê `[object Object]`.
 
-A lógica de geração financeira já existe na RPC `confirmar_nota_fiscal` (lê `condicao_pagamento`, `parcelas` jsonb e cria os títulos), então o trabalho concentra-se em **persistir as NFs corretamente** e **acionar a confirmação**.
+### 2) Lançamentos duplicados
+- Os 36 lançamentos da importação têm `nota_fiscal_id` único por parcela — **não são duplicados** (parcelas 1/3, 2/3, 3/3 de uma mesma NF). A UI exibe "NF X - Parc. n/total" mas pode dar impressão de duplicidade.
+- Existe **1 NF duplicada de fato** no cadastro: `numero=11`, `fornecedor=bf12ccf7-...` aparece 2x em `notas_fiscais` (não importada por nós, é dado preexistente).
+- Falta uma **constraint única** em `notas_fiscais` para `(chave_acesso)` e/ou `(numero, serie, fornecedor_id, tipo)` para evitar reincidência.
 
-## Diagnóstico da carga
+### 3) Filtro de tipo de cartão de crédito não funciona
+A página `/financeiro` (`src/pages/Financeiro.tsx`) tem filtros de Tipo, Status, Bancos, Origem, Forma de Pagamento — **não existe filtro por cartão**. Existia conceitualmente em uma versão anterior; foi removido durante refatoração. Há `cartoes_credito` carregados via `useFinanceiroAuxiliares`, mas nenhum `MultiSelect` de cartões está montado.
 
-Inspecionei os 27 XMLs e o estado do banco:
+### 4) Não dá para criar conta bancária
+RLS atual de `public.contas_bancarias`:
+```
+cb_insert: WITH CHECK has_role(auth.uid(),'admin')   -- só admin
+cb_update: USING admin OR financeiro
+cb_select: USING admin OR financeiro
+```
+O usuário `financeiro@avizee.com.br` tem role `financeiro` (não admin), portanto consegue ver/editar mas **não consegue inserir** novas contas. A política está inconsistente com update/select.
 
-- **25 chaves novas** (a importar) + **2 chaves já presentes** em `notas_fiscais` com `status=pendente`:
-  - `35260406643570000186550010001462911962220876` (NF 146291 IABER, R$ 11.317,08, 3 duplicatas)
-  - `35260460878527000145550010000072021978862931` (NF 7202 A.CURUCI, R$ 3.648,00, 2 duplicatas)
-- **Fornecedores:** 4 dos 6 emitentes já cadastrados. Faltam:
-  - `13756867000113` ELETRICA BICHUETTE LTDA
-  - `55450241000124` A.FURLAN & FILHO COMERCIAL LTDA
-- **Clientes:** 12 dos 13 destinatários já cadastrados. Falta:
-  - `18911232629` Amanda Alves Pimenta (consumidor final, NFe ML 12/200)
-- **Produtos:** 197 ativos no catálogo. Match será tentado por `codigo_interno`/`sku` == `cProd` do XML; itens não encontrados ficam **sem `produto_id`** (campo é nullable em `notas_fiscais_itens`) preservando descrição/código/qtd/valor do XML.
+---
 
-## O que será feito
+## Plano de correção
 
-### 1) Cadastros faltantes
-Criar via INSERT (extraídos do próprio XML, bloco `<emit>/<dest>`):
-- 2 fornecedores (ELETRICA BICHUETTE, A.FURLAN) — campos: razão social, CNPJ, IE, endereço, UF, município, CEP, telefone se houver.
-- 1 cliente (Amanda Alves Pimenta — CPF, endereço completo).
+### A) Banco de dados (migrations)
 
-### 2) Importação das 25 NF-es novas
+1. **Ajustar RLS de `contas_bancarias`** — permitir INSERT também para role `financeiro`:
+   ```sql
+   DROP POLICY cb_insert ON public.contas_bancarias;
+   CREATE POLICY cb_insert ON public.contas_bancarias
+     FOR INSERT TO authenticated
+     WITH CHECK (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
+   ```
 
-Para cada XML, montar payload completo e chamar a RPC `salvar_nota_fiscal` (atomic header + itens), depois `confirmar_nota_fiscal`:
+2. **Constraint anti-duplicidade em `notas_fiscais`**:
+   ```sql
+   CREATE UNIQUE INDEX IF NOT EXISTS uq_notas_fiscais_chave
+     ON public.notas_fiscais(chave_acesso) WHERE chave_acesso IS NOT NULL;
+   CREATE UNIQUE INDEX IF NOT EXISTS uq_notas_fiscais_num_serie_emit
+     ON public.notas_fiscais(numero, COALESCE(serie,''), COALESCE(fornecedor_id::text, cliente_id::text), tipo)
+     WHERE status <> 'cancelada';
+   ```
 
-**Cabeçalho (`notas_fiscais`):**
-- `tipo`: `entrada` (emitente ≠ Avizee) ou `saida`
-- `chave_acesso`, `numero`, `serie`, `data_emissao` (de `dhEmi`/`dEmi`)
-- `natureza_operacao`, `finalidade_nfe`, `modelo_documento` (55 / 65)
-- `fornecedor_id` (entradas) ou `cliente_id` (saídas)
-- `valor_total`, `valor_produtos`, `icms_valor`, `ipi_valor`, `pis_valor`, `cofins_valor`, `desconto_valor`, `frete_valor`, `outras_despesas` (de `<ICMSTot>`)
-- `forma_pagamento`: traduzido de `tPag` (`15`→boleto, `03`→cartão crédito, `17`→pix, `99`→outros, `90`→sem pagamento)
-- `condicao_pagamento`: `a_prazo` se houver `<dup>`; senão `a_vista`
-- `parcelas` (jsonb): array `[{numero, vencimento, valor}]` extraído de `<dup>` (entradas com cobrança)
-- `numero_parcelas`: contagem de duplicatas (default 1)
-- `data_vencimento`: 1ª duplicata, ou `data_emissao` se à vista
-- `status`: `pendente` (será confirmado em seguida)
-- `status_sefaz`: `autorizada` (XML é procNFe com protocolo)
-- `protocolo_autorizacao`: `<infProt>/nProt`
-- `gera_financeiro`: `true` para todas (entrada e saída)
-- `movimenta_estoque`: `true` (será refletido em `estoque_movimentos`)
-- `origem`: `xml_importado`
+3. **Limpar NF duplicada `numero=11`** — manter a mais antiga, soft-delete (status='cancelada') na duplicada, somente se não tiver lançamentos/movimentos vinculados.
 
-**Itens (`notas_fiscais_itens`):** todos os `<det>` com `codigo_produto`, `descricao`, `ncm`, `cfop`, `cst`, `quantidade`, `unidade`, `valor_unitario`, `valor_total`, e impostos ICMS/IPI/PIS/COFINS por item. Campos `*_origem` preservam dados crus do XML para auditoria.
+### B) Frontend
 
-### 3) Tratar as 2 chaves já pendentes
-Apenas chamar `confirmar_nota_fiscal` (gera financeiro/estoque idempotentemente). Se as `parcelas`/`condicao_pagamento` no banco estiverem vazias, antes faço UPDATE com os valores do XML.
+4. **Adicionar filtro "Cartão"** na barra de filtros do `/financeiro`:
+   - Em `useFinanceiroFiltros.ts`: novo state `cartaoFilters`, leitura de `?cartao=` no URL, opção `cartaoOpts` populada via `auxiliares.cartoes`, filtro em `filteredData` por `l.cartao_id`.
+   - Em `Financeiro.tsx`: novo `<MultiSelect placeholder="Cartão">` ao lado do filtro de Forma de pagamento.
+   - Chip ativo + remoção.
 
-### 4) Geração financeira (automática pela RPC)
-A RPC `confirmar_nota_fiscal` já gera, sem código novo:
-- À vista → 1 lançamento `status=pago` (atenção: o RPC marca como pago). **Conforme pedido do usuário (à vista “em aberto”), vou ajustar:** após confirmação à vista, faço UPDATE em `financeiro_lancamentos` zerando `data_pagamento`, `valor_pago=0`, `saldo_restante=valor`, `status='aberto'`. Aplica-se às NFs sem `<cobr>` (saídas com `tPag=99`, etc.).
-- A prazo com `parcelas` jsonb → N lançamentos `aberto` com vencimentos exatos das duplicatas.
-- Tipo: `pagar` para entrada, `receber` para saída. Vínculo automático com `fornecedor_id`/`cliente_id` e `nota_fiscal_id`.
+5. **Robustecer coluna Pessoa** em `financeiroColumns.tsx`:
+   - Fallback para `l.cartao_id` → nome do cartão (lançamento de fatura).
+   - Se `nota_fiscal_id` existir e não houver pessoa, mostrar "Cliente/Fornecedor da NF" como link.
 
-### 5) Integrações colaterais (já automáticas)
-- **Estoque:** `confirmar_nota_fiscal` insere em `estoque_movimentos` (entrada soma, saída subtrai) — só para itens com `produto_id` resolvido.
-- **Triggers existentes** mantêm `estoque_atual`, recálculo de saldos e auditoria.
+6. **Robustecer `displayDescricao`** — já tem cascata, garantir que cubra também `null`/`undefined`.
 
-## Saídas esperadas
+### C) Auditoria de duplicatas
 
-- 27 notas em `status=confirmada`, `status_sefaz=autorizada`.
-- ~50+ lançamentos em `financeiro_lancamentos` (`origem_tipo=fiscal_nota`):
-  - Entradas a prazo (IABER + A.CURUCI + HOPPNER): 3+3+3+1+3+2+3 = 18 a pagar com vencimentos das duplicatas.
-  - Entradas à vista (BICHUETTE + 4× MARCIA + FURLAN): 6 a pagar em aberto.
-  - Saídas: 14 a receber (13 com `tPag=99` + 1 ML com pix) — em aberto, vencimento = data emissão.
-- Movimentos de estoque para itens com produto vinculado.
-- Relatório final: arquivo CSV em `/mnt/documents/importacao-nfe-2026-04.csv` com chave, número, fornecedor/cliente, valor, # parcelas geradas, # itens vinculados/sem vínculo.
+7. Rodar query no console e mostrar relatório CSV em `/mnt/documents/auditoria-duplicidades-fiscal.csv` listando NFs duplicadas (chave, numero, fornecedor, valores) para o usuário decidir manualmente quais cancelar.
 
-## Detalhes técnicos
+---
+
+## Arquivos afetados
 
 ```text
-Pipeline (script Python local + psql para INSERTs):
-
-XML → parse (ET) → resolve_pessoa(CNPJ) → resolve_produtos(cProd) →
-build_payload(notas_fiscais) + build_itens + build_parcelas(jsonb) →
-INSERT notas_fiscais → INSERT notas_fiscais_itens →
-RPC confirmar_nota_fiscal(nf_id) → ajuste à vista (status='aberto')
+supabase/migrations/<timestamp>_fix_contas_bancarias_rls.sql        (novo)
+supabase/migrations/<timestamp>_uniq_notas_fiscais.sql              (novo)
+src/pages/financeiro/hooks/useFinanceiroFiltros.ts                  (filtro cartão)
+src/pages/financeiro/hooks/useFinanceiroAuxiliares.ts               (já carrega cartões)
+src/pages/Financeiro.tsx                                            (MultiSelect cartão)
+src/pages/financeiro/config/financeiroColumns.tsx                   (fallback pessoa)
+src/lib/displayLancamento.ts                                        (cobertura null)
+/mnt/documents/auditoria-duplicidades-fiscal.csv                    (artifact)
 ```
 
-- Idempotência: `chave_acesso` é única → re-execução do script não duplica (fará SKIP nas 25, e nas 2 já existentes só chama `confirmar_nota_fiscal` — que também é idempotente via guards `NOT EXISTS`).
-- Não preciso de migrations: schema já suporta tudo.
-- Não preciso editar código frontend: usuário verá as NFs e títulos imediatamente em `/fiscal` e `/financeiro`.
+## Notas técnicas
 
-## Validações pós-carga (incluídas no script)
+- Não vou recriar/duplicar lançamentos já importados — eles têm `nota_fiscal_id` único e estão corretos.
+- A unique index em `notas_fiscais` será **parcial** (`WHERE status <> 'cancelada'`) para não bloquear estornos legítimos.
+- A nova policy de INSERT segue o padrão das demais policies do módulo (admin OR financeiro).
 
-1. `count(*)` em `notas_fiscais` cresceu em 25 (2 já existiam).
-2. Soma de `valor_total` confere com soma de `<vNF>` dos XMLs.
-3. Para cada NF a prazo, soma de `valor` em `financeiro_lancamentos` == `valor_total` da NF.
-4. Lista NFs com itens sem `produto_id` para revisão manual posterior.
-
-## Riscos / observações
-
-- Itens sem produto vinculado: descrição/código/qtd/valor são preservados; **não geram movimento de estoque**. Isso é o esperado e o usuário pode fazer o de-para depois.
-- 1 saída de Avizee (NF 322 etc.) **não está no pacote** — não é problema, importo só o que veio.
-- Tributação simples; não recalculo CFOP, uso o que veio no XML.
-
-Após sua aprovação, executo a importação e devolvo um resumo com os números e o CSV de auditoria.
+Aprove para eu aplicar.
