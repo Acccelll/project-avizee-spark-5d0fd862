@@ -207,7 +207,7 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
   - **Estoque:** Ajustes manuais devem exigir `estoque:editar` (atual sem verificação no UI).
   - **Fiscal:** Cancelamento NF / Carta de correção precisam `faturamento_fiscal:cancelar` e `faturamento_fiscal:admin_fiscal`.
   - **Administração:** já gated via `AdminRoute`. Revogação de sessão (admin-users) — confirmar logs.
-- ⏳ Revisão admin-users (revogação de sessão): edge function `supabase/functions/admin-users/index.ts` (662 linhas) — auditoria pendente.
+- ✅ Revisão admin-users (revogação de sessão): a função aplicava `ban_duration` mas **não revogava sessões ativas**, deixando JWT válido por ~1h após desativação. Corrigido: `setUserActiveStatus(false)` agora chama `auth.admin.signOut(userId, "global")` em sequência (best-effort, não bloqueia). `admin-sessions` já tinha endpoint `revoke` correto.
 - ✅ Gates `can()` em **cadastros** (Excluir oculto sem permissão): Clientes (`clientes:excluir`), Fornecedores (`fornecedores:excluir`), Produtos (`produtos:excluir`), Transportadoras (`transportadoras:excluir`), FormasPagamento (`formas_pagamento:excluir`), Funcionários (`administracao:visualizar`), GruposEconomicos (`clientes:excluir|administracao:visualizar`).
 - ✅ Gate `can("orcamentos:aprovar")` em **Comercial/Orcamentos** (Aprovar desktop+mobile) — substitui check `isAdmin` puro por permissão real, com fallback admin.
 - ✅ Gate `can("faturamento_fiscal:criar")|"pedidos:editar"` em **Pedidos** (botão Gerar NF desktop+mobile).
