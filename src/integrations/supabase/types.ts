@@ -8551,6 +8551,18 @@ export type Database = {
         Args: { p_retirada_id: string }
         Returns: undefined
       }
+      atualizar_financeiro_nota: {
+        Args: {
+          p_condicao_pagamento: string
+          p_forma_pagamento: string
+          p_nota_id: string
+          p_parcelas?: Json
+        }
+        Returns: {
+          lancamento_id: string
+          parcela: number
+        }[]
+      }
       buscar_municipio_ibge: {
         Args: { p_nome: string; p_uf: string }
         Returns: {
