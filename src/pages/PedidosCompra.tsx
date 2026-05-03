@@ -14,6 +14,7 @@ import { PedidoCompraFormModal } from "@/components/compras/PedidoCompraFormModa
 import { PedidoCompraDrawer } from "@/components/compras/PedidoCompraDrawer";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCan } from "@/hooks/useCan";
 import { pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
 import { useComprasRealtime } from "@/hooks/useComprasRealtime";
 
@@ -22,6 +23,11 @@ const statusLabels: Record<string, string> = pedidoStatusLabelMap;
 export default function PedidosCompra() {
   const ctx = usePedidosCompra();
   const { isAdmin } = useIsAdmin();
+  const { can } = useCan();
+  // Aprovar/Cancelar/Rejeitar pedido de compra requer permissão explícita; admin
+  // mantém acesso total. Mantemos a prop `isAdmin` no Drawer para evitar refactor
+  // amplo — semântica passa a ser "pode operar" (admin OU permissão).
+  const canOperate = isAdmin || can("compras:aprovar") || can("compras:cancelar");
 
   // Realtime: invalida React Query quando outro usuário/aba altera registros.
   useComprasRealtime();
@@ -160,7 +166,7 @@ export default function PedidosCompra() {
           onAprovar={ctx.aprovarPedido}
           onRejeitar={ctx.rejeitarPedido}
           onAfterRecebimentoChange={() => { ctx.refreshAll(); ctx.setDrawerOpen(false); }}
-          isAdmin={isAdmin}
+          isAdmin={canOperate}
           statusLabels={statusLabels}
         />
       )}
