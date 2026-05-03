@@ -160,6 +160,8 @@ interface DevolucaoItem extends NfItemRow { qtd_devolver: number; nome: string; 
 const Fiscal = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { can } = useCan();
+  const canEstornarNF = can("faturamento_fiscal:cancelar") || can("faturamento_fiscal:admin_fiscal");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { data, loading, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
     table: "notas_fiscais", select: "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)"
