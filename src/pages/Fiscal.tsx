@@ -1132,7 +1132,7 @@ const Fiscal = () => {
           searchPlaceholder="Buscar por número, chave ou parceiro..."
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
-          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); }}
+          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); setEmissaoMes(""); setVencimentoMes(""); }}
           count={filteredData.length}
         >
           {!tipoParam && <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />}
@@ -1140,6 +1140,30 @@ const Fiscal = () => {
           <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status ERP" className="w-[180px]" />
           <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
           <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
+          {tipoParam === "entrada" && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] uppercase font-semibold text-muted-foreground">Emissão</span>
+              <input
+                type="month"
+                value={emissaoMes}
+                onChange={(e) => setEmissaoMes(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                aria-label="Filtrar por mês de emissão"
+              />
+            </div>
+          )}
+          {tipoParam === "entrada" && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] uppercase font-semibold text-muted-foreground">Vencimento</span>
+              <input
+                type="month"
+                value={vencimentoMes}
+                onChange={(e) => setVencimentoMes(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                aria-label="Filtrar por mês de vencimento"
+              />
+            </div>
+          )}
         </AdvancedFilterBar>
         </div>
 
