@@ -312,7 +312,7 @@ export function GrupoEconomicoView({ id }: Props) {
           }
         }}
         title="Inativar grupo econômico"
-        message={
+        description={
           empresas.length > 0
             ? `Este grupo possui ${empresas.length} empresa(s) vinculada(s). Ao inativar, ele deixará de aparecer em novas seleções, mas as empresas continuam existindo.`
             : `Tem certeza que deseja inativar "${grupo.nome}"? Você pode reativá-lo a qualquer momento.`

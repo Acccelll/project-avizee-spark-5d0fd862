@@ -350,7 +350,7 @@ export function FormaPagamentoView({ id }: Props) {
           }
         }}
         title="Inativar forma de pagamento"
-        message={
+        description={
           usoLancamentos > 0 || clientes.length > 0
             ? `Esta forma é usada em ${usoLancamentos} lançamento(s) e ${clientes.length} cliente(s). Ao inativar, ela deixará de aparecer em novas seleções, mas o histórico será preservado.`
             : `Tem certeza que deseja inativar "${forma.descricao}"? Você pode reativá-la a qualquer momento.`

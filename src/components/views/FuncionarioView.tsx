@@ -410,7 +410,7 @@ export function FuncionarioView({ id }: Props) {
           }
         }}
         title="Inativar funcionário"
-        message={`Tem certeza que deseja inativar "${funcionario.nome}"? O histórico de folha e financeiro será preservado. Você pode reativar a qualquer momento na lista.`}
+        description={`Tem certeza que deseja inativar "${funcionario.nome}"? O histórico de folha e financeiro será preservado. Você pode reativar a qualquer momento na lista.`}
       />
 
       <PermanentDeleteDialog

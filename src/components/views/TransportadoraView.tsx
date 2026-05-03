@@ -394,7 +394,7 @@ export function TransportadoraView({ id }: Props) {
           }
         }}
         title="Inativar transportadora"
-        message={
+        description={
           clientes.length > 0 || remessas.length > 0
             ? `Esta transportadora possui ${clientes.length} cliente(s) vinculado(s) e ${remessas.length} remessa(s). Ao inativar, ela deixará de aparecer em novas seleções; o histórico será preservado.`
             : `Tem certeza que deseja inativar "${transportadora.nome_razao_social}"? Você pode reativá-la a qualquer momento.`

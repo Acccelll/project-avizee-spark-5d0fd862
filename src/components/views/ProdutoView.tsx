@@ -604,7 +604,7 @@ export function ProdutoView({ id }: Props) {
           }
         }}
         title="Excluir produto"
-        message={[
+        description={[
           `Tem certeza que deseja excluir "${selected?.nome || ""}"${selected?.sku ? ` (SKU: ${selected.sku})` : ""}?`,
           "Esta ação não pode ser desfeita.",
           fornecedoresProd.length > 0 ? `Este produto possui ${fornecedoresProd.length} fornecedor(es) vinculado(s).` : "",

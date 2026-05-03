@@ -341,7 +341,7 @@ export function ClienteView({ id }: Props) {
           })
         }
         title="Excluir cliente"
-        message={`Tem certeza que deseja excluir "${selected?.nome_razao_social || ""}"? Esta ação não pode ser desfeita.`}
+        description={`Tem certeza que deseja excluir "${selected?.nome_razao_social || ""}"? Esta ação não pode ser desfeita.`}
       />
     </div>
   );

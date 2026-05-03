@@ -342,7 +342,7 @@ export function FornecedorView({ id }: Props) {
           })
         }
         title="Excluir fornecedor"
-        message={deleteDescription}
+        description={deleteDescription}
       />
     </div>
   );
