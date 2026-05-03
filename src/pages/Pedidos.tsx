@@ -439,6 +439,29 @@ const Pedidos = () => {
             ) : null
           )}
           mobileStatusKey="status"
+          mobileIdentifierKey="numero"
+          mobileInlineActions={(p) => (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-10 w-10 p-0"
+                onClick={(e) => { e.stopPropagation(); handleView(p); }}
+                aria-label="Ver detalhes"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-10 w-10 p-0"
+                onClick={(e) => { e.stopPropagation(); navigate(`/pedidos/${p.id}`); }}
+                aria-label="Editar"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           mobilePrimaryAction={(p) => {
             if (!canFaturarPedido(p)) return null;
             return (
