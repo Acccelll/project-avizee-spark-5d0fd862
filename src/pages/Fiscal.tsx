@@ -174,6 +174,7 @@ const Fiscal = () => {
   const produtosCrud = useSupabaseCrud<ProdutoRef>({ table: "produtos" });
   const [ordensVenda, setOrdensVenda] = useState<OrdemVendaRef[]>([]);
   const [contasContabeis, setContasContabeis] = useState<ContaContabilRef[]>([]);
+  const [cartoes, setCartoes] = useState<CartaoCredito[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<NotaFiscal | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
