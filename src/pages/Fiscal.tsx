@@ -194,6 +194,11 @@ const Fiscal = () => {
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
+  // Filtros de mês — apenas em Notas de Entrada (default emissão = mês atual)
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const [emissaoMes, setEmissaoMes] = useState<string>(currentMonth);
+  const [vencimentoMes, setVencimentoMes] = useState<string>("");
+  const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
   // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
   const [traducaoLinhas, setTraducaoLinhas] = useState<TraducaoLinha[]>([]);
