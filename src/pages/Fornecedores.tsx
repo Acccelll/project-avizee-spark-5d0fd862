@@ -43,6 +43,7 @@ import { UF_OPTIONS } from "@/constants/brasil";
 import { AddProdutoFornecedor } from "@/components/fornecedores/AddProdutoFornecedor";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useCan } from "@/hooks/useCan";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
@@ -71,6 +72,8 @@ const Fornecedores = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
+  const { can } = useCan();
+  const canExcluir = can("fornecedores:excluir");
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -383,7 +386,7 @@ const Fornecedores = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={(f) => remove(f.id)}
+            onDelete={canExcluir ? (f) => remove(f.id) : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
