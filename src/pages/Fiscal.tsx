@@ -8,6 +8,8 @@ import { ParcelasFiscalEditor } from "@/pages/fiscal/components/ParcelasFiscalEd
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Upload, KeyRound, ScanLine } from "lucide-react";
+import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
+import { calcularFaturaParaData, calcularFaturasParcelas } from "@/lib/cartaoFatura";
 import { SummaryCard } from "@/components/SummaryCard";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
@@ -97,6 +99,7 @@ interface FiscalForm {
   ordem_venda_id: string;
   conta_contabil_id: string;
   modelo_documento: string;
+  cartao_id: string;
   frete_valor: number;
   icms_valor: number;
   ipi_valor: number;
@@ -113,7 +116,7 @@ const emptyForm: FiscalForm = {
   tipo: "entrada", numero: "", serie: "1", chave_acesso: "", data_emissao: new Date().toISOString().split("T")[0],
   fornecedor_id: "", cliente_id: "", valor_total: 0, status: "pendente", observacoes: "",
   movimenta_estoque: true, gera_financeiro: true, forma_pagamento: "", condicao_pagamento: "a_vista",
-  ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55",
+  ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55", cartao_id: "",
   frete_valor: 0, icms_valor: 0, ipi_valor: 0, pis_valor: 0, cofins_valor: 0,
   icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual",
 };
@@ -171,6 +174,7 @@ const Fiscal = () => {
   const produtosCrud = useSupabaseCrud<ProdutoRef>({ table: "produtos" });
   const [ordensVenda, setOrdensVenda] = useState<OrdemVendaRef[]>([]);
   const [contasContabeis, setContasContabeis] = useState<ContaContabilRef[]>([]);
+  const [cartoes, setCartoes] = useState<CartaoCredito[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<NotaFiscal | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
@@ -250,12 +254,14 @@ const Fiscal = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [ovs, contas] = await Promise.all([
+      const [ovs, contas, cs] = await Promise.all([
         listOrdensVendaParaFiscal(),
         listContasContabeisLancaveis(),
+        listCartoesAtivos().catch(() => []),
       ]);
       setOrdensVenda(ovs);
       setContasContabeis(contas);
+      setCartoes(cs);
     };
     load();
   }, []);
@@ -334,6 +340,7 @@ const Fiscal = () => {
       forma_pagamento: n.forma_pagamento || "", condicao_pagamento: n.condicao_pagamento || "a_vista",
       ordem_venda_id: n.ordem_venda_id || "", conta_contabil_id: n.conta_contabil_id || "",
       modelo_documento: n.modelo_documento || "55",
+      cartao_id: (n as { cartao_id?: string | null }).cartao_id || "",
       frete_valor: n.frete_valor || 0, icms_valor: n.icms_valor || 0, ipi_valor: n.ipi_valor || 0,
       pis_valor: n.pis_valor || 0, cofins_valor: n.cofins_valor || 0, icms_st_valor: n.icms_st_valor || 0,
       desconto_valor: n.desconto_valor || 0, outras_despesas: n.outras_despesas || 0,
@@ -724,6 +731,10 @@ const Fiscal = () => {
     if (!form.numero) { toast.error("Número é obrigatório"); return; }
     if (form.tipo === "entrada" && !form.fornecedor_id) { toast.error("Fornecedor é obrigatório para notas de entrada"); return; }
     if (form.tipo === "saida" && !form.cliente_id) { toast.error("Cliente é obrigatório para notas de saída"); return; }
+    if (form.forma_pagamento === "cartao_credito" && !form.cartao_id) {
+      toast.error("Selecione o cartão de crédito.");
+      return;
+    }
     const unlinkedCount = items.filter(i => !i.produto_id).length;
     if (unlinkedCount > 0) {
       toast.error(`${unlinkedCount} item(ns) sem produto vinculado. Vincule todos os itens ou remova-os antes de salvar.`);
@@ -733,7 +744,7 @@ const Fiscal = () => {
     try {
       const savedTotal = totalNF || form.valor_total;
       const planoParcelas = form.condicao_pagamento === "a_prazo" && parcelas > 1 ? parcelasPlano : null;
-      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
+      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, cartao_id: form.cartao_id || null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
       const nfId = await upsertNotaFiscalComItens({
         mode: mode === "create" ? "create" : "edit",
         nfId: selected?.id,
@@ -769,6 +780,7 @@ const Fiscal = () => {
                 valor: d.valor,
               })),
               p_forma_pagamento: formaPag,
+              p_cartao_id: form.cartao_id || null,
             } as never);
             if (rpcErr) throw rpcErr;
             toast.success(
@@ -786,6 +798,35 @@ const Fiscal = () => {
           !xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
+        } else if (
+          form.tipo === "entrada" &&
+          form.gera_financeiro &&
+          form.forma_pagamento === "cartao_credito" &&
+          form.cartao_id
+        ) {
+          // NF de entrada manual (sem XML) com cartão de crédito → gerar parcelas
+          // a partir do plano do editor (ou parcela única se à vista).
+          const duplicatas =
+            form.condicao_pagamento === "a_prazo" && parcelasPlano.length > 0
+              ? parcelasPlano.map((p, i) => ({
+                  numero: String(i + 1),
+                  vencimento: p.vencimento,
+                  valor: p.valor,
+                }))
+              : [{ numero: "1", vencimento: form.data_emissao, valor: savedTotal }];
+          try {
+            const { error: rpcErr } = await supabase.rpc("gerar_financeiro_nfe_entrada", {
+              p_nota_id: nfId,
+              p_duplicatas: duplicatas,
+              p_forma_pagamento: "cartao_credito",
+              p_cartao_id: form.cartao_id,
+            } as never);
+            if (rpcErr) throw rpcErr;
+            toast.success(`${duplicatas.length} parcela(s) lançada(s) na fatura do cartão.`);
+          } catch (rpcErr) {
+            logger.error("[fiscal] gerar financeiro cartao:", rpcErr);
+            toast.warning("NF salva, mas houve falha ao gerar parcelas no cartão.");
+          }
         }
       } else if (selected) {
         await registrarEventoFiscal({
@@ -1370,8 +1411,22 @@ const Fiscal = () => {
           </Collapsible>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2"><Label>Forma de Pagamento</Label>
-              <Select value={form.forma_pagamento} onValueChange={(v) => setForm({ ...form, forma_pagamento: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="cartao">Cartão</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>
+              <Select value={form.forma_pagamento} onValueChange={(v) => setForm({ ...form, forma_pagamento: v, cartao_id: v === "cartao_credito" ? form.cartao_id : "" })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="cartao_credito">Cartão de Crédito</SelectItem><SelectItem value="cartao_debito">Cartão de Débito</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>
             </div>
+            {form.forma_pagamento === "cartao_credito" && (
+              <div className="space-y-2"><Label>Cartão *</Label>
+                <Select value={form.cartao_id || ""} onValueChange={(v) => setForm({ ...form, cartao_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o cartão..." /></SelectTrigger>
+                  <SelectContent>
+                    {cartoes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome}{c.ultimos4 ? ` ····${c.ultimos4}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2"><Label>Condição</Label>
               <Select value={form.condicao_pagamento} onValueChange={(v) => setForm({ ...form, condicao_pagamento: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="a_vista">À Vista</SelectItem><SelectItem value="a_prazo">A Prazo</SelectItem></SelectContent></Select>
             </div>
@@ -1394,6 +1449,24 @@ const Fiscal = () => {
               onParcelasChange={setParcelasPlano}
             />
           )}
+          {form.forma_pagamento === "cartao_credito" && form.cartao_id && form.gera_financeiro && (() => {
+            const cartao = cartoes.find((c) => c.id === form.cartao_id);
+            if (!cartao) return null;
+            const n = form.condicao_pagamento === "a_prazo" ? Math.max(parcelas, 1) : 1;
+            const previews = calcularFaturasParcelas(form.data_emissao, cartao.dia_fechamento, cartao.dia_vencimento, n);
+            return (
+              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+                <p className="font-medium text-foreground">Faturas previstas para este cartão:</p>
+                <ul className="space-y-0.5 text-muted-foreground">
+                  {previews.map((p, i) => (
+                    <li key={i}>
+                      Parcela {i + 1}/{n} — competência {p.competencia} · fecha {p.dataFechamento.toLocaleDateString("pt-BR")} · vence <strong>{p.dataVencimento.toLocaleDateString("pt-BR")}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
           {contasContabeis.length > 0 && (
             <div className="space-y-2"><Label>Conta Contábil Geral (fallback para itens sem conta)</Label>
               <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => setForm({ ...form, conta_contabil_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}</SelectContent></Select>

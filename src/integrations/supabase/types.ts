@@ -4104,6 +4104,8 @@ export type Database = {
           ativo: boolean
           caminho_pdf: string | null
           caminho_xml: string | null
+          cartao_fatura_id: string | null
+          cartao_id: string | null
           chave_acesso: string | null
           cliente_id: string | null
           cofins_valor: number | null
@@ -4178,6 +4180,8 @@ export type Database = {
           ativo?: boolean
           caminho_pdf?: string | null
           caminho_xml?: string | null
+          cartao_fatura_id?: string | null
+          cartao_id?: string | null
           chave_acesso?: string | null
           cliente_id?: string | null
           cofins_valor?: number | null
@@ -4252,6 +4256,8 @@ export type Database = {
           ativo?: boolean
           caminho_pdf?: string | null
           caminho_xml?: string | null
+          cartao_fatura_id?: string | null
+          cartao_id?: string | null
           chave_acesso?: string | null
           cliente_id?: string | null
           cofins_valor?: number | null
@@ -4322,6 +4328,20 @@ export type Database = {
           xml_gerado?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "notas_fiscais_cartao_fatura_id_fkey"
+            columns: ["cartao_fatura_id"]
+            isOneToOne: false
+            referencedRelation: "cartao_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes_credito"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notas_fiscais_cliente_id_fkey"
             columns: ["cliente_id"]
@@ -8563,6 +8583,18 @@ export type Database = {
           parcela: number
         }[]
       }
+      baixar_fatura_cartao: {
+        Args: {
+          p_conta_bancaria_id: string
+          p_data_baixa?: string
+          p_fatura_id: string
+        }
+        Returns: {
+          baixa_id: string
+          lancamento_id: string
+          valor: number
+        }[]
+      }
       buscar_municipio_ibge: {
         Args: { p_nome: string; p_uf: string }
         Returns: {
@@ -8729,11 +8761,13 @@ export type Database = {
         | { Args: { p_folha_id: string }; Returns: Json }
       gerar_financeiro_nfe_entrada: {
         Args: {
+          p_cartao_id?: string
           p_duplicatas: Json
           p_forma_pagamento?: string
           p_nota_id: string
         }
         Returns: {
+          fatura_id: string
           lancamento_id: string
           parcela: number
         }[]

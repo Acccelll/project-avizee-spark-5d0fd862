@@ -115,3 +115,22 @@ export async function gerarFaturaCartao(
     erro: "Sem retorno",
   };
 }
+
+/**
+ * Baixa em lote todos os lançamentos abertos/parciais vinculados a uma fatura
+ * de cartão, debitando da conta bancária informada. Atualiza o status da
+ * fatura para 'paga' quando todos os lançamentos forem quitados.
+ */
+export async function baixarFaturaCartao(
+  faturaId: string,
+  contaBancariaId: string,
+  dataBaixa: string,
+): Promise<Array<{ lancamento_id: string; baixa_id: string; valor: number }>> {
+  const { data, error } = await supabase.rpc("baixar_fatura_cartao", {
+    p_fatura_id: faturaId,
+    p_conta_bancaria_id: contaBancariaId,
+    p_data_baixa: dataBaixa,
+  });
+  if (error) throw error;
+  return (data as Array<{ lancamento_id: string; baixa_id: string; valor: number }>) ?? [];
+}
