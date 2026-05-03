@@ -731,6 +731,10 @@ const Fiscal = () => {
     if (!form.numero) { toast.error("Número é obrigatório"); return; }
     if (form.tipo === "entrada" && !form.fornecedor_id) { toast.error("Fornecedor é obrigatório para notas de entrada"); return; }
     if (form.tipo === "saida" && !form.cliente_id) { toast.error("Cliente é obrigatório para notas de saída"); return; }
+    if (form.forma_pagamento === "cartao_credito" && !form.cartao_id) {
+      toast.error("Selecione o cartão de crédito.");
+      return;
+    }
     const unlinkedCount = items.filter(i => !i.produto_id).length;
     if (unlinkedCount > 0) {
       toast.error(`${unlinkedCount} item(ns) sem produto vinculado. Vincule todos os itens ou remova-os antes de salvar.`);
@@ -740,7 +744,7 @@ const Fiscal = () => {
     try {
       const savedTotal = totalNF || form.valor_total;
       const planoParcelas = form.condicao_pagamento === "a_prazo" && parcelas > 1 ? parcelasPlano : null;
-      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
+      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, cartao_id: form.cartao_id || null, valor_total: savedTotal, valor_produtos: valorProdutos, parcelas: planoParcelas };
       const nfId = await upsertNotaFiscalComItens({
         mode: mode === "create" ? "create" : "edit",
         nfId: selected?.id,
