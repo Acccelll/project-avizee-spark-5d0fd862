@@ -1531,6 +1531,7 @@ export type Database = {
           conta: string | null
           created_at: string
           descricao: string
+          fornecedor_id: string | null
           id: string
           saldo_atual: number | null
           titular: string | null
@@ -1543,6 +1544,7 @@ export type Database = {
           conta?: string | null
           created_at?: string
           descricao: string
+          fornecedor_id?: string | null
           id?: string
           saldo_atual?: number | null
           titular?: string | null
@@ -1555,6 +1557,7 @@ export type Database = {
           conta?: string | null
           created_at?: string
           descricao?: string
+          fornecedor_id?: string | null
           id?: string
           saldo_atual?: number | null
           titular?: string | null
@@ -1566,6 +1569,13 @@ export type Database = {
             columns: ["banco_id"]
             isOneToOne: false
             referencedRelation: "bancos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_bancarias_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
             referencedColumns: ["id"]
           },
         ]
