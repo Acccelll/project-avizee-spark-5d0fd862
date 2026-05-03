@@ -210,6 +210,10 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - ⏳ Revisão admin-users (revogação de sessão): edge function `supabase/functions/admin-users/index.ts` (662 linhas) — auditoria pendente.
 - ✅ Gates `can()` em **cadastros** (Excluir oculto sem permissão): Clientes (`clientes:excluir`), Fornecedores (`fornecedores:excluir`), Produtos (`produtos:excluir`), Transportadoras (`transportadoras:excluir`), FormasPagamento (`formas_pagamento:excluir`), Funcionários (`administracao:visualizar`), GruposEconomicos (`clientes:excluir|administracao:visualizar`).
 - ✅ Gate `can("orcamentos:aprovar")` em **Comercial/Orcamentos** (Aprovar desktop+mobile) — substitui check `isAdmin` puro por permissão real, com fallback admin.
+- ✅ Gate `can("faturamento_fiscal:criar")|"pedidos:editar"` em **Pedidos** (botão Gerar NF desktop+mobile).
+- ✅ Gate `can("faturamento_fiscal:cancelar"|"admin_fiscal")` em **Fiscal** (Estornar NF no DropdownMenu).
+- ✅ Gate `can("estoque:editar")` em **Estoque** (botão Ajuste Manual desabilitado + bloqueio em `abrirAjusteRapido`).
+- ⏳ **Compras**: `PedidosCompra` segue gating via `isAdmin` injetado no drawer (Cancelar/Aprovar/Rejeitar). Migrar para `compras:cancelar`/`compras:aprovar` em iteração futura.
 
 ### Fase 6 — Integrações & evoluções
 - Cartões: fatura→lançamento (RPC + UI).

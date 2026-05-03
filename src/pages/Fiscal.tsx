@@ -28,6 +28,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { EmBreve } from "@/components/EmBreve";
+import { useCan } from "@/hooks/useCan";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
@@ -159,6 +160,8 @@ interface DevolucaoItem extends NfItemRow { qtd_devolver: number; nome: string; 
 const Fiscal = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { can } = useCan();
+  const canEstornarNF = can("faturamento_fiscal:cancelar") || can("faturamento_fiscal:admin_fiscal");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { data, loading, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
     table: "notas_fiscais", select: "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)"
@@ -1204,7 +1207,7 @@ const Fiscal = () => {
                         <ArrowLeftRight className="h-4 w-4 mr-2" /> Devolução
                       </DropdownMenuItem>
                     )}
-                    {canEstornarFiscal(n.status) && (
+                    {canEstornarFiscal(n.status) && canEstornarNF && (
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

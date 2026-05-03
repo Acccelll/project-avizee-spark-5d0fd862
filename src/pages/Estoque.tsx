@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
+import { useCan } from "@/hooks/useCan";
 import { logger } from "@/lib/logger";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
@@ -116,8 +117,14 @@ const Estoque = () => {
   const [ajusteSheetOpen, setAjusteSheetOpen] = useState(false);
   const [ajusteSheetProdutoId, setAjusteSheetProdutoId] = useState<string | null>(null);
   const [ajusteSheetTipo, setAjusteSheetTipo] = useState<"entrada" | "saida" | "ajuste">("entrada");
+  const { can } = useCan();
+  const canAjustar = can("estoque:editar");
 
   const abrirAjusteRapido = (produtoId: string, tipo: "entrada" | "saida" | "ajuste" = "entrada") => {
+    if (!canAjustar) {
+      toast.error("Você não tem permissão para ajustar estoque.");
+      return;
+    }
     setAjusteSheetProdutoId(produtoId);
     setAjusteSheetTipo(tipo);
     setAjusteSheetOpen(true);
@@ -422,7 +429,7 @@ const Estoque = () => {
         title="Estoque"
         subtitle="Central de saúde do estoque — saldos, rastreabilidade e ajustes controlados"
         headerActions={
-          <Button variant="outline" size="sm" className="gap-2 max-sm:hidden" onClick={() => setActiveTab("ajuste")} title="Atalho — em mobile use a tab abaixo" data-help-id="estoque.ajusteBtn">
+          <Button variant="outline" size="sm" className="gap-2 max-sm:hidden" onClick={() => setActiveTab("ajuste")} disabled={!canAjustar} title={canAjustar ? "Atalho — em mobile use a tab abaixo" : "Você não tem permissão para ajustar estoque"} data-help-id="estoque.ajusteBtn">
             <SlidersHorizontal className="h-4 w-4" />
             Ajuste Manual
           </Button>
