@@ -194,9 +194,8 @@ const Fiscal = () => {
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
-  // Filtros de mês — apenas em Notas de Entrada (default emissão = mês atual)
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const [emissaoMes, setEmissaoMes] = useState<string>(currentMonth);
+  // Filtros de mês — Notas de Entrada e Saída (sem default)
+  const [emissaoMes, setEmissaoMes] = useState<string>("");
   const [vencimentoMes, setVencimentoMes] = useState<string>("");
   const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
