@@ -221,9 +221,10 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - Avaliar OFX para conciliação. (pendente)
 
 ### Fase 7 — Limpeza técnica
-- Quebrar hooks/services grandes.
-- Centralização de tipos.
-- Plano de squashing de migrations.
+- ✅ `useCotacoesCompra` (477→381 linhas) — extraídos `useCotacoesEnrichment` (effect de summaries) e `useCotacaoPropostas` (form/handlers add/select/delete) em `src/hooks/compras/`.
+- ✅ `usePedidosCompra` (534→462 linhas) — extraído `useCompraLifecycle` (solicitar/aprovar/rejeitar/enviado/cancelar/deleteSelected) em `src/hooks/compras/`.
+- ⏳ Auditoria de drift em `src/types/domain.ts` (próxima iteração).
+- ⏳ Plano de squashing de migrations (apenas plano, não imediato).
 
 ---
 
