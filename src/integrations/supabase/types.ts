@@ -1527,7 +1527,7 @@ export type Database = {
         Row: {
           agencia: string | null
           ativo: boolean
-          banco_id: string | null
+          banco_id: string
           conta: string | null
           created_at: string
           descricao: string
@@ -1540,7 +1540,7 @@ export type Database = {
         Insert: {
           agencia?: string | null
           ativo?: boolean
-          banco_id?: string | null
+          banco_id: string
           conta?: string | null
           created_at?: string
           descricao: string
@@ -1553,7 +1553,7 @@ export type Database = {
         Update: {
           agencia?: string | null
           ativo?: boolean
-          banco_id?: string | null
+          banco_id?: string
           conta?: string | null
           created_at?: string
           descricao?: string
