@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useCan } from "@/hooks/useCan";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -80,6 +81,8 @@ const GruposEconomicos = () => {
   const [clienteCountMap, setClienteCountMap] = useState<Record<string, number>>({});
   const [matrizNomeMap, setMatrizNomeMap] = useState<Record<string, string>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
+  const { can } = useCan();
+  const canExcluir = can("clientes:excluir") || can("administracao:visualizar");
   const { pushView } = useRelationalNavigation();
 
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
@@ -402,7 +405,7 @@ const GruposEconomicos = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={(g) => remove(g.id)}
+            onDelete={canExcluir ? (g) => remove(g.id) : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="qtd_clientes"
             mobileStatusKey="ativo"
