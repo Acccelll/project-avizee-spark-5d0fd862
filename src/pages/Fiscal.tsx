@@ -28,7 +28,6 @@ import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical,
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { EmBreve } from "@/components/EmBreve";
 import { useCan } from "@/hooks/useCan";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
@@ -1080,28 +1079,26 @@ const Fiscal = () => {
         addButtonHelpId="fiscal.novoBtn"
         headerActions={<>
           <input ref={xmlInputRef} type="file" accept=".xml" className="hidden" onChange={handleXmlImport} />
-          <EmBreve mode="wrap" tooltip="Buscar NF-e pela chave de acesso — em breve.">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 min-h-11 md:min-h-9 px-3"
-              aria-label="Buscar NF-e pela chave de acesso (em breve)"
-            >
-              <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-              <span className="hidden xs:inline">Buscar por </span>chave
-            </Button>
-          </EmBreve>
-          <EmBreve mode="wrap" tooltip="Ler chave por código de barras ou QR Code — em breve.">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 min-h-11 md:min-h-9 px-3"
-              aria-label="Ler chave por código de barras ou QR Code (em breve)"
-            >
-              <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-              <span className="hidden xs:inline">Ler </span>QR/Código
-            </Button>
-          </EmBreve>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 min-h-11 md:min-h-9 px-3"
+            onClick={() => setBuscarChaveOpen(true)}
+            aria-label="Buscar NF-e pela chave de acesso"
+          >
+            <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
+            <span className="hidden xs:inline">Buscar por </span>chave
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 min-h-11 md:min-h-9 px-3"
+            onClick={() => setScannerOpen(true)}
+            aria-label="Ler chave por código de barras ou QR Code"
+          >
+            <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
+            <span className="hidden xs:inline">Ler </span>QR/Código
+          </Button>
           <Button
             variant="outline"
             size="sm"
