@@ -63,8 +63,11 @@ export default defineConfig(({ mode }) => {
         name: "Sistema AviZee",
         short_name: "AviZee",
         description: "ERP AviZee - Sistema de Gestão Empresarial",
-        theme_color: "#0F766E",
-        background_color: "#ffffff",
+        // Cores oficiais da marca AviZee. Lembrete: theme_color e
+        // background_color são "pinados" no momento da instalação — quem já
+        // tem o app instalado precisa reinstalar para ver as novas cores.
+        theme_color: "#b2592c",
+        background_color: "#690500",
         display: "standalone",
         orientation: "portrait-primary",
         start_url: "/",

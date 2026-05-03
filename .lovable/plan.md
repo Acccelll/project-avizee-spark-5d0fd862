@@ -1,50 +1,51 @@
-## Diagnóstico verificado nos logs atuais
+# Instalação iOS (Safari) e cores da marca no PWA
 
-Logs recentes da `sefaz-distdfe`:
+Hoje o `InstallPwaButton` só aparece quando o navegador dispara `beforeinstallprompt` (Chrome/Edge/Android). iOS Safari não suporta esse evento, então o usuário de iPhone nunca vê o convite. As cores do manifest também estão em `#0F766E` (teal antigo), em vez das cores da marca AviZee `#b2592c` / `#690500`.
 
-```
-transporte resolvido  proxyEnabled=false  usarProxy=false  transporte=deno-mtls   ✓ (gate ok)
-preparado envio SEFAZ  soapVariant=soap12  envelopeBytes=803  certChainBytes=13064
-falha de transporte SEFAZ  soapVariant=soap12  CONNECTION_RESET
-preparado envio SEFAZ  soapVariant=soap11  envelopeBytes=791
-falha de transporte SEFAZ  soapVariant=soap11  CONNECTION_RESET
-```
+## Mudanças
 
-O gate do proxy (fix anterior) está correto. O AN aceita a conexão TLS mas derruba o socket assim que recebe o envelope — em **ambas** as variantes SOAP. Isso é o sintoma exato registrado em `mem/features/fiscal-consulta-por-chave.md`:
+### 1. Cores da marca no app instalado
 
-> "O WSDL do NFeDistribuicaoDFe NÃO declara `nfeCabecMsg` — apenas `nfeDadosMsg`. Enviar Header `nfeCabecMsg` (como nos outros serviços) faz o IIS do AN derrubar a conexão antes de gerar SOAP Fault — causa raiz do 'connection reset by peer' recorrente."
+**`vite.config.ts`** — manifest do PWA:
+- `theme_color: "#b2592c"` (cor primária — barra de status no Android, header em alguns browsers)
+- `background_color: "#690500"` (cor secundária — splash screen de boot do app instalado)
 
-Hoje `envelopeSoap()` (linhas 215–253) **monta e injeta** `<nfeCabecMsg>` em ambas as variantes, contradizendo a memória. Esse é o impeditivo.
+**`index.html`**:
+- `<meta name="theme-color" content="#b2592c">` (substitui o teal atual)
+- Adicionar `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">` para integrar com o tom escuro da marca no iOS (já existe a tag, ajustar valor de `default` para `black-translucent`).
+- Adicionar `<link rel="apple-touch-icon" sizes="180x180" href="/images/pwa-192.png">` (iOS prefere 180×180; o 192 é renderizado bem).
 
-## Correção (1 arquivo)
+> Observação: manifest fields (`theme_color`, `background_color`, ícones) são "pinados" no momento da instalação. Quem já tem o app instalado precisa reinstalar para ver as novas cores. Avisaremos isso na resposta final.
 
-Em `supabase/functions/sefaz-distdfe/index.ts`, função `envelopeSoap`:
+### 2. Convite de instalação para iPhone/Safari
 
-1. Remover bloco que monta `cabec` (linhas 217–228).
-2. Remover `<soap12:Header>${cabec}</soap12:Header>` (linha 234) e `<soap:Header>${cabec}</soap:Header>` (linha 246).
-3. Substituir o comentário antigo por uma nota de aviso explícita ("não reintroduzir nfeCabecMsg — viola WSDL e causa Connection reset").
+**`src/components/InstallPwaButton.tsx`** — adicionar fluxo iOS paralelo ao atual:
+- Detectar iOS Safari: `/iPhone|iPad|iPod/.test(navigator.userAgent)` + não estar em standalone (`window.matchMedia('(display-mode: standalone)').matches === false` e `navigator.standalone !== true`).
+- Quando for iOS e não houver `beforeinstallprompt`, renderizar o mesmo card flutuante com texto adaptado: "Instalar AviZee no iPhone" + botão "Ver como instalar" que abre um pequeno modal/sheet com os passos ilustrados:
+  1. Toque no ícone **Compartilhar** (quadrado com seta para cima) na barra do Safari.
+  2. Role e toque em **Adicionar à Tela de Início**.
+  3. Confirme em **Adicionar**.
+- Reaproveitar `localStorage[avizee.pwa.install.dismissed]` (já existente) para o "Agora não".
+- Manter a variante `inline` funcionando para iOS também (botão "Como instalar no iPhone" em Configurações).
 
-`montarDistDFeInt` continua injetando `cUFAutor` no corpo `distDFeInt` — comportamento correto, sem mudanças.
+Ícones usados no modal: `Share` e `Plus` do `lucide-react` (já no projeto).
 
-## Validação pós-deploy
+### 3. Memória do projeto
 
-1. Deploy `sefaz-distdfe`.
-2. Testar "Buscar por chave" com `35260460878527000145550010000072021978862931` (chave que falhou nos logs).
-3. **Esperado:** HTTP 200 com `cStat` (oficial, qualquer um — `138` localizado, `137` nada localizado, `640` não destinada ao CNPJ, `593` CNPJ-base diverge etc.). Qualquer cStat oficial confirma que o transporte voltou.
-4. Rodar também o cron `process-distdfe-cron` (action `consultar-nsu`) para garantir que o caminho NSU também responde.
+Atualizar `mem://features/pwa-offline-leve.md`:
+- Registrar cores oficiais (`#b2592c` / `#690500`) no manifest.
+- Documentar que iOS Safari agora tem fluxo guiado próprio (não usa `beforeinstallprompt`).
+- Lembrar a regra "manifest é pinado na instalação" — usuários com app antigo precisam reinstalar para ver as cores novas.
 
-## Hipóteses de fallback (caso o reset persista após a correção)
+## Arquivos editados
 
-Em ordem de prioridade, sem mexer no código antes de validar:
+- `vite.config.ts` (manifest do VitePWA)
+- `index.html` (metas iOS + theme-color)
+- `src/components/InstallPwaButton.tsx` (fluxo iOS)
+- `.lovable/memory/features/pwa-offline-leve.md` (atualização)
 
-1. **Cadeia ICP-Brasil incompleta no PFX novo** (`e-cnpj_AviZee_2026-2.pfx` foi enviado agora). Se o novo A1 tiver só o leaf, sem intermediários, rustls negocia TLS mas o AN fecha. Validação: ler `certBags.length` no log `preparado envio SEFAZ` (já existe `certChainBytes`) — comparar com o PFX antigo.
-2. **CNPJ bloqueado por consumo (cStat 656)**: o AN bloqueia 1h após excesso de `consChNFe`. Aguardar e tentar de novo (o throttle do client em 18/h já protege novas requisições).
-3. **Worker mTLS opcional**: se mesmo após (1) e (2) o reset persistir, ativar `SEFAZ_USE_MTLS_PROXY=1` com Worker Cloudflare configurado — o gate atual já suporta opt-in.
+## Validação
 
-## Sobre o PFX enviado
-
-O usuário enviou `e-cnpj_AviZee_2026-2.pfx`. O fluxo canônico de troca de A1 é via tela **Configuração Fiscal** (faz upload para `dbavizee/certificados/empresa.pfx` + grava senha em Vault `CERTIFICADO_PFX_SENHA`). Não vou copiar esse PFX para o repositório nem para storage diretamente — credenciais privadas não devem ser commitadas. Após o deploy do fix, o usuário pode (se quiser) substituir o A1 pelo novo via Configuração Fiscal e refazer o teste.
-
-## Memória
-
-Sem alterações — `mem/features/fiscal-consulta-por-chave.md` já documenta a regra. Esta correção só realinha o código à memória existente.
+- Build de produção (preview ou publicado), abrir no Safari do iPhone → card "Instalar AviZee no iPhone" deve aparecer com as instruções.
+- Em Android/Chrome, comportamento atual (`beforeinstallprompt`) preservado.
+- Após instalar no iPhone, splash screen e ícone na home devem refletir as cores da marca.
