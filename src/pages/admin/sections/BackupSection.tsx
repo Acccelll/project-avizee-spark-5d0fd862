@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useSectionConfig } from "@/pages/admin/hooks/useSectionConfig";
-import { Badge } from "@/components/ui/badge";
+import { EmBreve } from "@/components/EmBreve";
 
 const DEFAULTS = {
   frequencia: "diario",
@@ -49,7 +49,7 @@ export function BackupSection() {
           <div className="flex-1">
             <p className="font-medium flex items-center gap-2">
               Execução automática
-              <Badge variant="outline" className="border-warning/40 text-warning text-[10px] uppercase tracking-wider">Em breve</Badge>
+              <EmBreve />
             </p>
             <p className="text-xs">
               A política definida abaixo é persistida, mas a execução agendada (cron) ainda não está ativa. Backups manuais devem continuar sendo realizados pela infraestrutura.
