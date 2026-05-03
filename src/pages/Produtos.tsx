@@ -42,6 +42,7 @@ import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useCan } from "@/hooks/useCan";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { produtoSchema, validateForm } from "@/lib/validationSchemas";
