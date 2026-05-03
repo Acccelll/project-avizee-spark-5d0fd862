@@ -194,9 +194,8 @@ const Fiscal = () => {
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
-  // Filtros de mês — apenas em Notas de Entrada (default emissão = mês atual)
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const [emissaoMes, setEmissaoMes] = useState<string>(currentMonth);
+  // Filtros de mês — Notas de Entrada e Saída (sem default)
+  const [emissaoMes, setEmissaoMes] = useState<string>("");
   const [vencimentoMes, setVencimentoMes] = useState<string>("");
   const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
@@ -843,7 +842,7 @@ const Fiscal = () => {
 
   // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
   useEffect(() => {
-    if (tipoParam !== "entrada" || !vencimentoMes) {
+    if (!vencimentoMes) {
       setVencimentoNotaIds(null);
       return;
     }
@@ -872,7 +871,7 @@ const Fiscal = () => {
       setVencimentoNotaIds(set);
     })();
     return () => { cancelled = true; };
-  }, [tipoParam, vencimentoMes]);
+  }, [vencimentoMes]);
 
   const filteredData = useMemo(() => {
     const query = consultaSearch.trim().toLowerCase();
@@ -884,8 +883,8 @@ const Fiscal = () => {
       if (statusFromUrl.length > 0 && !statusFromUrl.includes(n.status)) return false;
       if (origemFilters.length > 0 && !origemFilters.includes(n.origem || "manual")) return false;
       if (statusSefazFilters.length > 0 && !statusSefazFilters.includes(n.status_sefaz || "nao_enviada")) return false;
-      if (tipoParam === "entrada" && emissaoMes && (n.data_emissao || "").slice(0, 7) !== emissaoMes) return false;
-      if (tipoParam === "entrada" && vencimentoMes) {
+      if (emissaoMes && (n.data_emissao || "").slice(0, 7) !== emissaoMes) return false;
+      if (vencimentoMes) {
         if (!vencimentoNotaIds || !vencimentoNotaIds.has(n.id)) return false;
       }
       if (!query) return true;
@@ -909,10 +908,10 @@ const Fiscal = () => {
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
-    if (tipoParam === "entrada" && emissaoMes) {
+    if (emissaoMes) {
       chips.push({ key: "emissao_mes", label: "Emissão", value: [emissaoMes], displayValue: emissaoMes });
     }
-    if (tipoParam === "entrada" && vencimentoMes) {
+    if (vencimentoMes) {
       chips.push({ key: "vencimento_mes", label: "Vencimento", value: [vencimentoMes], displayValue: vencimentoMes });
     }
     tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "entrada" ? "Entrada" : "Saída" }));
@@ -921,7 +920,7 @@ const Fiscal = () => {
     origemFilters.forEach(f => chips.push({ key: "origem", label: "Origem", value: [f], displayValue: origemLabels[f] || f }));
     statusSefazFilters.forEach(f => chips.push({ key: "status_sefaz", label: "Status SEFAZ", value: [f], displayValue: getFiscalSefazStatus(f).label }));
     return chips;
-  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters, emissaoMes, vencimentoMes, tipoParam]);
+  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters, emissaoMes, vencimentoMes]);
 
   const handleRemoveFiscalFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
@@ -1140,30 +1139,26 @@ const Fiscal = () => {
           <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status ERP" className="w-[180px]" />
           <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
           <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
-          {tipoParam === "entrada" && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] uppercase font-semibold text-muted-foreground">Emissão</span>
-              <input
-                type="month"
-                value={emissaoMes}
-                onChange={(e) => setEmissaoMes(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-                aria-label="Filtrar por mês de emissão"
-              />
-            </div>
-          )}
-          {tipoParam === "entrada" && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] uppercase font-semibold text-muted-foreground">Vencimento</span>
-              <input
-                type="month"
-                value={vencimentoMes}
-                onChange={(e) => setVencimentoMes(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-                aria-label="Filtrar por mês de vencimento"
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] uppercase font-semibold text-muted-foreground">Emissão</span>
+            <input
+              type="month"
+              value={emissaoMes}
+              onChange={(e) => setEmissaoMes(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              aria-label="Filtrar por mês de emissão"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] uppercase font-semibold text-muted-foreground">Vencimento</span>
+            <input
+              type="month"
+              value={vencimentoMes}
+              onChange={(e) => setVencimentoMes(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              aria-label="Filtrar por mês de vencimento"
+            />
+          </div>
         </AdvancedFilterBar>
         </div>
 
