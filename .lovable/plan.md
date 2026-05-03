@@ -216,9 +216,9 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - ✅ **Compras**: `PedidosCompra` agora injeta `isAdmin = isAdmin || can("compras:aprovar") || can("compras:cancelar")` no `PedidoCompraDrawer` — gating real por permissão sem refactor da prop.
 
 ### Fase 6 — Integrações & evoluções
-- Cartões: fatura→lançamento (RPC + UI).
-- DDA/boleto: definição + MVP.
-- Avaliar OFX para conciliação.
+- ✅ Cartões: RPC `gerar_fatura_cartao` agora agrega despesas vinculadas em uma fatura consolidada (`origem_tipo='cartao_fatura'`), idempotente por `cartao_fatura_id`. UI: botão "Gerar fatura" por cartão em `/cartoes-credito` com seletor de competência.
+- ✅ DDA/boleto: parser local `src/lib/boleto.ts` (linha digitável 47/48 dig → valor + vencimento) e `BoletoReaderModal` integrado ao formulário de lançamento (botão "Ler boleto" para tipo Pagar; preenche valor/vencimento e anexa linha digitável às observações).
+- Avaliar OFX para conciliação. (pendente)
 
 ### Fase 7 — Limpeza técnica
 - Quebrar hooks/services grandes.
