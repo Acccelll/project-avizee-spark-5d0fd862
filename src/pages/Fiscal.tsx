@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
+import { MonthPicker } from "@/components/filters/MonthPicker";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -1139,26 +1140,8 @@ const Fiscal = () => {
           <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status ERP" className="w-[180px]" />
           <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
           <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] uppercase font-semibold text-muted-foreground">Emissão</span>
-            <input
-              type="month"
-              value={emissaoMes}
-              onChange={(e) => setEmissaoMes(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              aria-label="Filtrar por mês de emissão"
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] uppercase font-semibold text-muted-foreground">Vencimento</span>
-            <input
-              type="month"
-              value={vencimentoMes}
-              onChange={(e) => setVencimentoMes(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              aria-label="Filtrar por mês de vencimento"
-            />
-          </div>
+          <MonthPicker label="Emissão" value={emissaoMes} onChange={setEmissaoMes} />
+          <MonthPicker label="Vencimento" value={vencimentoMes} onChange={setVencimentoMes} />
         </AdvancedFilterBar>
         </div>
 
