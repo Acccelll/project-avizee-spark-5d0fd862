@@ -194,7 +194,7 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - ✅ Removido `src/pages/Faturamento.legacy.tsx` (sem referências no código).
 - ✅ Plug `QuickAddTransportadoraModal` em `RemessaForm` (botão + ao lado do select; recarrega lista após criar).
 - ✅ Plug `QuickAddFormaPagamentoModal` em `Clientes` (link "Cadastrar nova forma" abaixo do select).
-- Pendente: auditoria V2 wrappers e EmptyState vs DetailEmpty (próximas iterações).
+- ✅ Auditoria EmptyState vs DetailEmpty: drawers/views (Cliente, Fornecedor, Produto, Funcionário, Transportadora, FormaPagamento, GrupoEconomico, EstoquePosicao, ContaBancaria, Financeiro) migrados para `DetailEmpty` (memória `empty-state-vs-detail-empty`).
 - Pendente: mobile fine-tuning (Comercial/Configurações/Financeiro).
 
 ### Fase 5 — Permissões & segurança operacional
