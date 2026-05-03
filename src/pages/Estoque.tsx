@@ -429,7 +429,7 @@ const Estoque = () => {
         title="Estoque"
         subtitle="Central de saúde do estoque — saldos, rastreabilidade e ajustes controlados"
         headerActions={
-          <Button variant="outline" size="sm" className="gap-2 max-sm:hidden" onClick={() => setActiveTab("ajuste")} title="Atalho — em mobile use a tab abaixo" data-help-id="estoque.ajusteBtn">
+          <Button variant="outline" size="sm" className="gap-2 max-sm:hidden" onClick={() => setActiveTab("ajuste")} disabled={!canAjustar} title={canAjustar ? "Atalho — em mobile use a tab abaixo" : "Você não tem permissão para ajustar estoque"} data-help-id="estoque.ajusteBtn">
             <SlidersHorizontal className="h-4 w-4" />
             Ajuste Manual
           </Button>
