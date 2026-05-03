@@ -54,7 +54,18 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
       sortable: true,
       render: (l: Lancamento) => {
         const nome = l.tipo === "receber" ? l.clientes?.nome_razao_social : l.fornecedores?.nome_razao_social;
-        if (!nome) return <span className="text-muted-foreground text-xs">—</span>;
+        if (!nome) {
+          // Fallbacks: lançamento de fatura de cartão ou conta bancária
+          const banco = l.contas_bancarias?.bancos?.nome;
+          const conta = l.contas_bancarias?.descricao;
+          if (banco || conta) {
+            return <span className="text-muted-foreground text-xs italic">{[banco, conta].filter(Boolean).join(" · ")}</span>;
+          }
+          if ((l as Lancamento & { cartao_id?: string | null }).cartao_id) {
+            return <span className="text-muted-foreground text-xs italic">Fatura de cartão</span>;
+          }
+          return <span className="text-muted-foreground text-xs">—</span>;
+        }
         return <span className="font-medium text-sm">{nome}</span>;
       },
     },
