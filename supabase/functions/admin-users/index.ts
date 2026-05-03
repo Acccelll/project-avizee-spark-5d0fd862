@@ -307,6 +307,17 @@ async function setUserActiveStatus(serviceClient: any, userId: string, ativo: bo
   if (error) throw error;
   // Replica em profiles.ativo para queries client-side simples
   await serviceClient.from("profiles").update({ ativo, updated_at: new Date().toISOString() }).eq("id", userId);
+
+  // Ao **inativar**, revogar sessões ativas — caso contrário, o usuário banido
+  // continua com JWT válido até o access token expirar (~1h). Não bloqueia o
+  // fluxo se falhar (banido já não consegue renovar refresh token).
+  if (!ativo) {
+    try {
+      await serviceClient.auth.admin.signOut(userId, "global");
+    } catch (signOutErr) {
+      console.warn("[admin-users] signOut on deactivate failed", signOutErr);
+    }
+  }
 }
 
 async function insertAudit(
