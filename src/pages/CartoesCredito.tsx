@@ -21,6 +21,7 @@ import {
   updateCartao,
   inativarCartao,
   getCartaoInUseCounts,
+  gerarFaturaCartao,
   type CartaoCredito,
 } from "@/services/cartoesCredito.service";
 import { listBancosAtivos } from "@/services/contasBancarias.service";
@@ -28,7 +29,8 @@ import type { Tables } from "@/integrations/supabase/types";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { CreditCard, CheckCircle, Ban, Wallet } from "lucide-react";
+import { CreditCard, CheckCircle, Ban, Wallet, FileText } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type Banco = Tables<"bancos">;
 
@@ -66,6 +68,13 @@ export default function CartoesCredito() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [selected, setSelected] = useState<CartaoCredito | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [faturaOpen, setFaturaOpen] = useState(false);
+  const [faturaCartao, setFaturaCartao] = useState<CartaoCredito | null>(null);
+  const [faturaCompetencia, setFaturaCompetencia] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [faturaSaving, setFaturaSaving] = useState(false);
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<CartaoForm>(emptyForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -198,6 +207,31 @@ export default function CartoesCredito() {
     }
   };
 
+  const openFatura = (c: CartaoCredito) => {
+    setFaturaCartao(c);
+    setFaturaOpen(true);
+  };
+
+  const handleGerarFatura = async () => {
+    if (!faturaCartao) return;
+    setFaturaSaving(true);
+    try {
+      const res = await gerarFaturaCartao(faturaCartao.id, faturaCompetencia);
+      if (!res.ok) {
+        toast.error(res.erro || "Falha ao gerar fatura");
+      } else {
+        toast.success(
+          `Fatura ${faturaCompetencia} gerada — total ${formatCurrency(res.valor_total || 0)}`,
+        );
+        setFaturaOpen(false);
+      }
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setFaturaSaving(false);
+    }
+  };
+
   const columns = [
     {
       key: "nome",
@@ -288,12 +322,53 @@ export default function CartoesCredito() {
           showColumnToggle
           onEdit={openEdit}
           onDelete={handleDelete}
+          rowExtraActions={(c: CartaoCredito) => (
+            c.ativo
+              ? [
+                  {
+                    label: "Gerar fatura",
+                    icon: FileText,
+                    onClick: () => openFatura(c),
+                  },
+                ]
+              : []
+          )}
           mobileIdentifierKey="nome"
           mobileStatusKey="ativo"
           emptyTitle="Nenhum cartão cadastrado"
           emptyDescription="Cadastre um cartão para gerar faturas e amarrar lançamentos."
         />
       </ModulePage>
+
+      <Dialog open={faturaOpen} onOpenChange={(o) => !o && setFaturaOpen(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Gerar fatura — {faturaCartao?.nome}</DialogTitle>
+            <DialogDescription>
+              Agrega lançamentos do cartão na competência e cria um título consolidado no Financeiro.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Competência (YYYY-MM)</Label>
+              <Input
+                type="month"
+                value={faturaCompetencia}
+                onChange={(e) => setFaturaCompetencia(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A operação é idempotente — pode ser repetida; o título será atualizado se ainda estiver em aberto.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setFaturaOpen(false)}>Cancelar</Button>
+            <Button onClick={handleGerarFatura} disabled={faturaSaving}>
+              {faturaSaving ? "Gerando..." : "Gerar fatura"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <FormModal
         open={modalOpen}
