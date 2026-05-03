@@ -780,6 +780,7 @@ const Fiscal = () => {
                 valor: d.valor,
               })),
               p_forma_pagamento: formaPag,
+              p_cartao_id: form.cartao_id || null,
             } as never);
             if (rpcErr) throw rpcErr;
             toast.success(
@@ -797,6 +798,35 @@ const Fiscal = () => {
           !xmlOriginInfo?.cobranca?.duplicatas?.length
         ) {
           toast.info("XML sem duplicatas/condição financeira clara — informe a condição manualmente.");
+        } else if (
+          form.tipo === "entrada" &&
+          form.gera_financeiro &&
+          form.forma_pagamento === "cartao_credito" &&
+          form.cartao_id
+        ) {
+          // NF de entrada manual (sem XML) com cartão de crédito → gerar parcelas
+          // a partir do plano do editor (ou parcela única se à vista).
+          const duplicatas =
+            form.condicao_pagamento === "a_prazo" && parcelasPlano.length > 0
+              ? parcelasPlano.map((p, i) => ({
+                  numero: String(i + 1),
+                  vencimento: p.vencimento,
+                  valor: p.valor,
+                }))
+              : [{ numero: "1", vencimento: form.data_emissao, valor: savedTotal }];
+          try {
+            const { error: rpcErr } = await supabase.rpc("gerar_financeiro_nfe_entrada", {
+              p_nota_id: nfId,
+              p_duplicatas: duplicatas,
+              p_forma_pagamento: "cartao_credito",
+              p_cartao_id: form.cartao_id,
+            } as never);
+            if (rpcErr) throw rpcErr;
+            toast.success(`${duplicatas.length} parcela(s) lançada(s) na fatura do cartão.`);
+          } catch (rpcErr) {
+            logger.error("[fiscal] gerar financeiro cartao:", rpcErr);
+            toast.warning("NF salva, mas houve falha ao gerar parcelas no cartão.");
+          }
         }
       } else if (selected) {
         await registrarEventoFiscal({
