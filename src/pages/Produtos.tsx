@@ -125,6 +125,8 @@ const Produtos = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 350);
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
+  const { can } = useCan();
+  const canExcluir = can("produtos:excluir");
   const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({
     table: "produtos",
     searchTerm: debouncedSearch,
@@ -829,7 +831,7 @@ const Produtos = () => {
           showColumnToggle={true}
           onView={openView}
           onEdit={openEdit}
-          onDelete={(p) => remove(p.id)}
+          onDelete={canExcluir ? (p) => remove(p.id) : undefined}
           deleteBehavior="soft"
           mobileIdentifierKey="codigo_interno"
           mobileStatusKey="ativo"
