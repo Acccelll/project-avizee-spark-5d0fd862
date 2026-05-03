@@ -95,3 +95,23 @@ export async function listFaturasPorCartao(cartaoId: string): Promise<CartaoFatu
   if (error) throw error;
   return (data || []) as CartaoFatura[];
 }
+
+/**
+ * Agrega lançamentos do cartão na competência YYYY-MM, materializando uma
+ * fatura consolidada como lançamento "a pagar" no Financeiro.
+ * RPC idempotente — pode ser chamada várias vezes no mesmo período.
+ */
+export async function gerarFaturaCartao(
+  cartaoId: string,
+  competencia: string,
+): Promise<{ ok: boolean; valor_total?: number; fatura_id?: string; erro?: string }> {
+  const { data, error } = await supabase.rpc("gerar_fatura_cartao", {
+    p_cartao_id: cartaoId,
+    p_competencia: competencia,
+  });
+  if (error) throw error;
+  return (data as { ok: boolean; valor_total?: number; fatura_id?: string; erro?: string }) ?? {
+    ok: false,
+    erro: "Sem retorno",
+  };
+}
