@@ -840,6 +840,40 @@ const Fiscal = () => {
     () => (statusUrlParam ? statusUrlParam.split(",").map((s) => s.trim()).filter(Boolean) : []),
     [statusUrlParam],
   );
+
+  // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
+  useEffect(() => {
+    if (tipoParam !== "entrada" || !vencimentoMes) {
+      setVencimentoNotaIds(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const start = vencimentoMes + "-01";
+      const [y, m] = vencimentoMes.split("-").map(Number);
+      const endDate = new Date(y, m, 0);
+      const end = endDate.toISOString().slice(0, 10);
+      const { data: rows, error } = await supabase
+        .from("financeiro_lancamentos")
+        .select("nota_fiscal_id")
+        .eq("ativo", true)
+        .not("nota_fiscal_id", "is", null)
+        .gte("data_vencimento", start)
+        .lte("data_vencimento", end);
+      if (cancelled) return;
+      if (error) {
+        setVencimentoNotaIds(new Set());
+        return;
+      }
+      const set = new Set<string>();
+      (rows || []).forEach((r) => {
+        if (r.nota_fiscal_id) set.add(r.nota_fiscal_id as string);
+      });
+      setVencimentoNotaIds(set);
+    })();
+    return () => { cancelled = true; };
+  }, [tipoParam, vencimentoMes]);
+
   const filteredData = useMemo(() => {
     const query = consultaSearch.trim().toLowerCase();
     return data.filter((n) => {
