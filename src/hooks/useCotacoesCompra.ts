@@ -20,6 +20,8 @@ import {
 } from "@/components/compras/cotacaoCompraTypes";
 import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 import * as ccs from "@/services/cotacoesCompra.service";
+import { useCotacoesEnrichment } from "@/hooks/compras/useCotacoesEnrichment";
+import { useCotacaoPropostas } from "@/hooks/compras/useCotacaoPropostas";
 
 export function useCotacoesCompra() {
   const navigate = useNavigate();
@@ -45,14 +47,6 @@ export function useCotacoesCompra() {
   const [viewItems, setViewItems] = useState<CotacaoItem[]>([]);
   const [viewPropostas, setViewPropostas] = useState<Proposta[]>([]);
 
-  const [addingProposal, setAddingProposal] = useState<string | null>(null);
-  const [proposalForm, setProposalForm] = useState({
-    fornecedor_id: "",
-    preco_unitario: 0,
-    prazo_entrega_dias: "",
-    observacoes: "",
-  });
-
   // KPIs
   const kpis = useMemo(() => {
     const emCotacao = data.filter((c) => ["aberta", "em_analise"].includes(canonicalCotacaoStatus(c.status))).length;
@@ -61,52 +55,22 @@ export function useCotacoesCompra() {
     return { total: data.length, emCotacao, aguardandoAprovacao, convertidas };
   }, [data]);
 
-  // Per-row enrichment: items count, supplier count, winner
-  const [summaries, setSummaries] = useState<Record<string, CotacaoSummary>>({});
+  const summaries = useCotacoesEnrichment(data);
 
-  // Stable string key derived from the loaded IDs
-  const enrichmentKey = useMemo(() => data.map((c) => c.id).join(","), [data]);
-
-  useEffect(() => {
-    if (!enrichmentKey) return;
-    const ids = enrichmentKey.split(",");
-    Promise.all([
-      ccs.listCotacaoItensEnrichment(ids),
-      ccs.listCotacaoPropostasEnrichment(ids),
-    ]).then(([itens, propostas]) => {
-      const map: Record<string, CotacaoSummary> = {};
-      for (const id of ids) {
-        const cItens = (itens || []).filter((i: { cotacao_compra_id: string }) => i.cotacao_compra_id === id);
-        const cPropostas = (propostas || []).filter((p: { cotacao_compra_id: string }) => p.cotacao_compra_id === id);
-        const fornecedorIds = [...new Set(cPropostas.map((p: { fornecedor_id: string }) => p.fornecedor_id))];
-        const fornUniq = fornecedorIds.length;
-        const selecionadas = cPropostas.filter((p: { selecionado: boolean }) => p.selecionado);
-        const vencIds = [...new Set(selecionadas.map((p: { fornecedor_id: string }) => p.fornecedor_id))];
-        const vencNome =
-          vencIds.length === 1
-            ? ((cPropostas.find(
-                (p: { fornecedor_id: string; selecionado: boolean }) =>
-                  p.fornecedor_id === vencIds[0] && p.selecionado
-              ) as { fornecedores?: { nome_razao_social: string } } | undefined)?.fornecedores?.nome_razao_social ?? null)
-            : vencIds.length > 1
-            ? `${vencIds.length} fornecedores`
-            : null;
-        const produtosText = (cItens as Array<{ produtos?: { nome?: string | null; codigo_interno?: string | null; sku?: string | null } | null }>)
-          .map((i) => [i.produtos?.nome, i.produtos?.codigo_interno, i.produtos?.sku].filter(Boolean).join(" "))
-          .join(" ")
-          .toLowerCase();
-        map[id] = {
-          itens_count: cItens.length,
-          fornecedores_count: fornUniq,
-          vencedor_nome: vencNome,
-          tem_vencedor: selecionadas.length > 0,
-          fornecedor_ids: fornecedorIds,
-          produtos_text: produtosText,
-        };
-      }
-      setSummaries(map);
-    }).catch(() => { /* silent – enrichment is best-effort */ });
-  }, [enrichmentKey]);
+  const propostasOps = useCotacaoPropostas({
+    selected,
+    viewPropostas,
+    setViewPropostas,
+  });
+  const {
+    addingProposal,
+    setAddingProposal,
+    proposalForm,
+    setProposalForm,
+    handleAddProposal,
+    handleSelectProposal,
+    handleDeleteProposal,
+  } = propostasOps;
 
   // Drawer summary stats
   const drawerStats = useMemo(() => {
@@ -242,59 +206,6 @@ export function useCotacoesCompra() {
     if (!selected) return;
     const propostas = await ccs.listCotacaoPropostas(selected.id);
     setViewPropostas((propostas || []) as Proposta[]);
-  };
-
-  const handleAddProposal = async (itemId: string) => {
-    if (!proposalForm.fornecedor_id || !selected) {
-      toast.error("Selecione um fornecedor.");
-      return;
-    }
-    if (Number(proposalForm.preco_unitario) <= 0) {
-      toast.error("Preço unitário deve ser maior que zero.");
-      return;
-    }
-    // Block duplicate: same supplier + same item
-    const duplicado = viewPropostas.some(
-      (p) => p.item_id === itemId && p.fornecedor_id === proposalForm.fornecedor_id,
-    );
-    if (duplicado) {
-      toast.error("Este fornecedor já tem uma proposta para este item. Edite a proposta existente.");
-      return;
-    }
-    try {
-      await ccs.insertCotacaoProposta({
-        cotacao_compra_id: selected.id,
-        item_id: itemId,
-        fornecedor_id: proposalForm.fornecedor_id,
-        preco_unitario: proposalForm.preco_unitario,
-        prazo_entrega_dias: proposalForm.prazo_entrega_dias ? Number(proposalForm.prazo_entrega_dias) : null,
-        observacoes: proposalForm.observacoes || null,
-      });
-      toast.success("Proposta adicionada!");
-      setAddingProposal(null);
-      setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" });
-      await reloadPropostas();
-    } catch (err: unknown) {
-      notifyError(err);
-    }
-  };
-
-  const handleSelectProposal = async (propostaId: string, itemId: string) => {
-    if (!selected) return;
-    try {
-      await ccs.selectCotacaoProposta({ cotacaoId: selected.id, itemId, propostaId });
-      toast.success("Fornecedor selecionado!");
-      await reloadPropostas();
-    } catch (err: unknown) {
-      notifyError(err);
-    }
-  };
-
-  const handleDeleteProposal = async (propostaId: string) => {
-    if (!selected) return;
-    await ccs.deleteCotacaoProposta(propostaId);
-    toast.success("Proposta removida");
-    await reloadPropostas();
   };
 
   const handleSendForApproval = async () => {
