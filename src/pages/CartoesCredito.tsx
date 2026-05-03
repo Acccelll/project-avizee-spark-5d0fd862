@@ -322,17 +322,20 @@ export default function CartoesCredito() {
           showColumnToggle
           onEdit={openEdit}
           onDelete={handleDelete}
-          rowExtraActions={(c: CartaoCredito) => (
-            c.ativo
-              ? [
-                  {
-                    label: "Gerar fatura",
-                    icon: FileText,
-                    onClick: () => openFatura(c),
-                  },
-                ]
-              : []
-          )}
+          rowExtraActions={(c: CartaoCredito) =>
+            c.ativo ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openFatura(c);
+                }}
+              >
+                <FileText className="w-3.5 h-3.5 mr-1" /> Gerar fatura
+              </Button>
+            ) : null
+          }
           mobileIdentifierKey="nome"
           mobileStatusKey="ativo"
           emptyTitle="Nenhum cartão cadastrado"
