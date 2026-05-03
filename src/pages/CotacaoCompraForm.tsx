@@ -40,14 +40,14 @@ import {
   statusLabels,
 } from "@/components/compras/cotacaoCompraTypes";
 import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
-import type { Database } from "@/integrations/supabase/types";
+import type { TableRow } from "@/types/domain";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { validarTransicaoCotacao } from "@/lib/comprasTransitions";
 
-type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
-type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
+type ProdutoRow = TableRow<"produtos">;
+type FornecedorRow = TableRow<"fornecedores">;
 
 export default function CotacaoCompraForm() {
   const navigate = useNavigate();

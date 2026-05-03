@@ -22,7 +22,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { statusPedidoCompra } from "@/lib/statusSchema";
 import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
 import { pedidoNumero } from "@/components/compras/pedidoCompraTypes";
-import type { Database } from "@/integrations/supabase/types";
+import type { TableRow } from "@/types/domain";
 import {
   getPedidoCompra,
   listPedidoCompraItens,
@@ -37,9 +37,9 @@ import { useSalvarPedidoCompra } from "@/pages/comercial/hooks/useSalvarPedidoCo
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { validarTransicaoPedidoCompra } from "@/lib/comprasTransitions";
 
-type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"] & { preco_custo?: number | null };
-type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
-type FormasPagRow = Database["public"]["Tables"]["formas_pagamento"]["Row"];
+type ProdutoRow = TableRow<"produtos"> & { preco_custo?: number | null };
+type FornecedorRow = TableRow<"fornecedores">;
+type FormasPagRow = TableRow<"formas_pagamento">;
 
 /** Statuses that can only be assigned via workflow actions, not the form. */
 const WORKFLOW_ONLY_STATUSES = ["recebido", "parcialmente_recebido", "cancelado", "aguardando_recebimento", "enviado_ao_fornecedor"];

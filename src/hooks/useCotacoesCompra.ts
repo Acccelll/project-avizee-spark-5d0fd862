@@ -9,7 +9,7 @@ import { notifyError } from "@/utils/errorMessages";
 import { validateForm } from "@/lib/validationSchemas";
 import { cotacaoCompraSchema, validateCotacaoItems } from "@/lib/cotacaoCompraSchema";
 import { useGerarPedidoCompra } from "@/pages/comercial/hooks/useGerarPedidoCompra";
-import type { Database } from "@/integrations/supabase/types";
+import type { TableRow } from "@/types/domain";
 import {
   type CotacaoCompra,
   type CotacaoItem,
@@ -311,13 +311,13 @@ export function useCotacoesCompra() {
     }
   };
 
-  const produtoOptions = (produtosCrud.data as Database["public"]["Tables"]["produtos"]["Row"][]).map((p) => ({
+  const produtoOptions = (produtosCrud.data as TableRow<"produtos">[]).map((p) => ({
     id: p.id,
     label: p.nome,
     sublabel: p.codigo_interno || p.sku || "",
   }));
 
-  const fornecedorOptions = (fornecedoresCrud.data as Database["public"]["Tables"]["fornecedores"]["Row"][]).map((f) => ({
+  const fornecedorOptions = (fornecedoresCrud.data as TableRow<"fornecedores">[]).map((f) => ({
     id: f.id,
     label: f.nome_razao_social,
     sublabel: f.cpf_cnpj || "",

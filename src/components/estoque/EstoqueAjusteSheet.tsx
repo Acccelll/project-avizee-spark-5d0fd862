@@ -15,9 +15,9 @@ import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, ChevronsUpDown, ShieldAlert, CircleAlert } from "lucide-react";
-import type { Database } from "@/integrations/supabase/types";
+import type { TableRow } from "@/types/domain";
 
-type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
+type ProdutoRow = TableRow<"produtos">;
 
 type TipoAjuste = "entrada" | "saida" | "ajuste";
 

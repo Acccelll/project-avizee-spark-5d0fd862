@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/table";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { Database } from "@/integrations/supabase/types";
+import type { TableRow as DbRow } from "@/types/domain";
 
-type NotaFiscalRow = Database["public"]["Tables"]["notas_fiscais"]["Row"];
+type NotaFiscalRow = DbRow<"notas_fiscais">;
 
 export interface CteFormData {
   numero?: string;

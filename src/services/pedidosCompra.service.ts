@@ -1,14 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import type { TableRow } from "@/types/domain";
 
-export type PedidoCompraRow = Database["public"]["Tables"]["pedidos_compra"]["Row"] & {
+export type PedidoCompraRow = TableRow<"pedidos_compra"> & {
   fornecedores?: { nome_razao_social: string | null; cpf_cnpj: string | null } | null;
 };
 
-export type PedidoCompraItemRow =
-  Database["public"]["Tables"]["pedidos_compra_itens"]["Row"] & {
-    produtos?: { nome: string | null; codigo_interno: string | null } | null;
-  };
+export type PedidoCompraItemRow = TableRow<"pedidos_compra_itens"> & {
+  produtos?: { nome: string | null; codigo_interno: string | null } | null;
+};
 
 export interface FornecedorAtivo {
   id: string;
