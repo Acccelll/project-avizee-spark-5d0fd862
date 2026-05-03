@@ -28,7 +28,7 @@ import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { toast } from "sonner";
 import { formatNumber, formatCurrency } from "@/lib/format";
-import type { Database } from "@/integrations/supabase/types";
+import type { TableRow } from "@/types/domain";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
   DollarSign, SlidersHorizontal, ChevronsUpDown, Info, CircleAlert,
@@ -42,7 +42,7 @@ import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
 import { useCan } from "@/hooks/useCan";
 import { logger } from "@/lib/logger";
 
-type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
+type ProdutoRow = TableRow<"produtos">;
 
 interface Movimento {
   id: string; produto_id: string; tipo: string; quantidade: number;
