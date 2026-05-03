@@ -23,6 +23,7 @@ import type { Period } from "@/components/filters/periodTypes";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCan } from "@/hooks/useCan";
 import { Send } from "lucide-react";
 import { sendForApproval, approveOrcamento, duplicateOrcamento } from "@/services/orcamentos.service";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
@@ -187,6 +188,8 @@ const Orcamentos = () => {
   const setHistoricoFilter = (v: string) => setFilters({ historico: v === "todos" ? "" : v });
   const { data: clientesList = [] } = useClientesRef();
   const { isAdmin } = useIsAdmin();
+  const { can } = useCan();
+  const canAprovar = can("orcamentos:aprovar") || isAdmin;
   const sendLock = useActionLock();
   const approveLock = useActionLock();
   const convertLock = useActionLock();
@@ -217,8 +220,8 @@ const Orcamentos = () => {
   };
 
   const handleApprove = async (orc: Orcamento) => {
-    if (!isAdmin) {
-      toast.error("Somente administradores podem aprovar orçamentos.");
+    if (!canAprovar) {
+      toast.error("Você não tem permissão para aprovar orçamentos.");
       return;
     }
     await approveLock.run(async () => {
@@ -472,7 +475,7 @@ const Orcamentos = () => {
                   </Button>
                 )}
                 {canApproveOrcamento(o.status) && (
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin || approveLock.pending} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!canAprovar || approveLock.pending} title={!canAprovar ? "Você não tem permissão para aprovar" : ""}>
                     <CheckCircle className="w-3 h-3" /> Aprovar
                   </Button>
                 )}
@@ -537,8 +540,8 @@ const Orcamentos = () => {
                     size="lg"
                     variant="default"
                     className="h-11 w-full gap-2 text-sm"
-                    disabled={!isAdmin || approveLock.pending}
-                    title={!isAdmin ? "Somente admins podem aprovar" : ""}
+                    disabled={!canAprovar || approveLock.pending}
+                    title={!canAprovar ? "Você não tem permissão para aprovar" : ""}
                     onClick={(e) => { e.stopPropagation(); handleApprove(o); }}
                   >
                     <CheckCircle className="w-4 h-4" /> Aprovar

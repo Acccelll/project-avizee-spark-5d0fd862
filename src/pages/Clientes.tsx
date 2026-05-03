@@ -39,6 +39,7 @@ import { UF_OPTIONS } from "@/constants/brasil";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useCan } from "@/hooks/useCan";
 import { ClienteEnderecosTab } from "./clientes/components/ClienteEnderecosTab";
 import { ClienteComunicacoesTab } from "./clientes/components/ClienteComunicacoesTab";
 import { ClienteTransportadorasTab } from "./clientes/components/ClienteTransportadorasTab";
@@ -115,6 +116,8 @@ const Clientes = () => {
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
+  const { can } = useCan();
+  const canExcluir = can("clientes:excluir");
 
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Cliente>({
     table: "clientes",
@@ -393,7 +396,7 @@ const Clientes = () => {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={(c) => remove(c.id)}
+            onDelete={canExcluir ? (c) => remove(c.id) : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"

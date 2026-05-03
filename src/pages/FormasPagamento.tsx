@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useCan } from "@/hooks/useCan";
 import { toast } from "sonner";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { Switch } from "@/components/ui/switch";
@@ -76,6 +77,8 @@ export default function FormasPagamento() {
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<FormaPagamentoForm>(emptyForm);
   const { saving, submit } = useSubmitLock();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const { can } = useCan();
+  const canExcluir = can("formas_pagamento:excluir");
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
@@ -313,7 +316,7 @@ export default function FormasPagamento() {
           showColumnToggle={true}
           onView={openView}
           onEdit={openEdit}
-          onDelete={(f) => { setSelected(f); setDeleteConfirmOpen(true); }}
+          onDelete={canExcluir ? (f) => { setSelected(f); setDeleteConfirmOpen(true); } : undefined}
           deleteBehavior="soft"
           mobileIdentifierKey="tipo"
           mobileStatusKey="ativo"

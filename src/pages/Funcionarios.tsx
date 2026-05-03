@@ -29,6 +29,7 @@ import { useEffect } from "react";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useCan } from "@/hooks/useCan";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { logger } from "@/lib/logger";
@@ -97,6 +98,8 @@ export default function Funcionarios() {
   const { saving: submitting, submit } = useSubmitLock();
   const { isUnique: cpfUnico, isLoading: cpfChecking } = useDocumentoUnico("cpf", form.cpf, selected?.id, "funcionarios");
   const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
+  const { can } = useCan();
+  const canExcluir = can("administracao:visualizar"); // funcionários: gerenciados por admin/RH
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [tipoContratoFilters, setTipoContratoFilters] = useState<string[]>([]);
 
@@ -332,7 +335,7 @@ export default function Funcionarios() {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={(f) => remove(f.id)}
+            onDelete={canExcluir ? (f) => remove(f.id) : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cargo"
             mobileStatusKey="ativo"

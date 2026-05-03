@@ -42,6 +42,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { notifyError } from "@/utils/errorMessages";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useCan } from "@/hooks/useCan";
 import { transportadoraSchema, validateForm } from "@/lib/validationSchemas";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
@@ -114,6 +115,8 @@ export default function Transportadoras() {
   );
   const { saving, submit } = useSubmitLock();
   const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
+  const { can } = useCan();
+  const canExcluir = can("transportadoras:excluir");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [modalCliCount, setModalCliCount] = useState(0);
   const [modalRemCount, setModalRemCount] = useState(0);
@@ -437,7 +440,7 @@ export default function Transportadoras() {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={(t) => { setSelected(t); setDeleteConfirmOpen(true); }}
+            onDelete={canExcluir ? (t) => { setSelected(t); setDeleteConfirmOpen(true); } : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
