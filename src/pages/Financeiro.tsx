@@ -74,7 +74,7 @@ const Financeiro = () => {
   const clientesCrud = useSupabaseCrud<Cliente>({ table: "clientes" });
   const fornecedoresCrud = useSupabaseCrud<Fornecedor>({ table: "fornecedores" });
 
-  const { contasBancarias, contasContabeis } = useFinanceiroAuxiliares();
+  const { contasBancarias, contasContabeis, cartoes } = useFinanceiroAuxiliares();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -140,6 +140,8 @@ const Financeiro = () => {
     setOrigemFilters,
     formaPagamentoFilters,
     setFormaPagamentoFilters,
+    cartaoFilters,
+    setCartaoFilters,
     period,
     setPeriod,
     mes,
@@ -151,7 +153,8 @@ const Financeiro = () => {
     bancoOpts,
     origemOpts,
     formaPagamentoOpts,
-  } = useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatus });
+    cartaoOpts,
+  } = useFinanceiroFiltros({ data, contasBancarias, cartoes, getLancamentoStatus });
 
   const statusOpts = statusToOptions(statusFinanceiroSchema);
 
@@ -298,6 +301,7 @@ const Financeiro = () => {
             setBancoFilters([]);
             setOrigemFilters([]);
             setFormaPagamentoFilters([]);
+            setCartaoFilters([]);
           }}
           count={filteredData.length}
           extra={selectedIds.length > 0 ? (
@@ -317,6 +321,9 @@ const Financeiro = () => {
           <MultiSelect options={bancoOpts} selected={bancoFilters} onChange={setBancoFilters} placeholder="Bancos" className="w-[200px]" />
           <MultiSelect options={origemOpts} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[200px]" />
           <MultiSelect options={formaPagamentoOpts} selected={formaPagamentoFilters} onChange={setFormaPagamentoFilters} placeholder="Forma de pagamento" className="w-[220px]" />
+          {cartaoOpts.length > 0 && (
+            <MultiSelect options={cartaoOpts} selected={cartaoFilters} onChange={setCartaoFilters} placeholder="Cartão" className="w-[200px]" />
+          )}
         </AdvancedFilterBar>
         </div>
 
