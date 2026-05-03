@@ -146,6 +146,7 @@ const Clientes = () => {
   const [enderecosCount, setEnderecosCount] = useState(0);
   const [comunicacoesCount, setComunicacoesCount] = useState(0);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddFormaPagOpen, setQuickAddFormaPagOpen] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -748,6 +749,15 @@ const Clientes = () => {
                       {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.id}>{fp.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => setQuickAddFormaPagOpen(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> Cadastrar nova forma
+                  </Button>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
