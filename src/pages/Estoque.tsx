@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
+import { useCan } from "@/hooks/useCan";
 import { logger } from "@/lib/logger";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
