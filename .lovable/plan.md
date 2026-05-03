@@ -213,7 +213,7 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - ✅ Gate `can("faturamento_fiscal:criar")|"pedidos:editar"` em **Pedidos** (botão Gerar NF desktop+mobile).
 - ✅ Gate `can("faturamento_fiscal:cancelar"|"admin_fiscal")` em **Fiscal** (Estornar NF no DropdownMenu).
 - ✅ Gate `can("estoque:editar")` em **Estoque** (botão Ajuste Manual desabilitado + bloqueio em `abrirAjusteRapido`).
-- ⏳ **Compras**: `PedidosCompra` segue gating via `isAdmin` injetado no drawer (Cancelar/Aprovar/Rejeitar). Migrar para `compras:cancelar`/`compras:aprovar` em iteração futura.
+- ✅ **Compras**: `PedidosCompra` agora injeta `isAdmin = isAdmin || can("compras:aprovar") || can("compras:cancelar")` no `PedidoCompraDrawer` — gating real por permissão sem refactor da prop.
 
 ### Fase 6 — Integrações & evoluções
 - Cartões: fatura→lançamento (RPC + UI).
