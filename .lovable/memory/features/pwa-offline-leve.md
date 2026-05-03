@@ -34,12 +34,18 @@ sensíveis que mudam de estado constantemente devem sempre ir à rede.
 
 ## Manifest
 
-- `name: "Sistema AviZee"`, `short_name: "AviZee"`, `theme_color: "#0F766E"`.
+- `name: "Sistema AviZee"`, `short_name: "AviZee"`.
+- Cores oficiais da marca: `theme_color: "#b2592c"` (primária),
+  `background_color: "#690500"` (secundária — splash screen).
+  **Atenção:** manifest fields são "pinados" no momento da instalação.
+  Quem já tem o app instalado precisa reinstalar para ver novas cores.
 - Ícones em `public/images/`: `pwa-192.png`, `pwa-512.png`, `pwa-512-maskable.png`
   (com padding extra para safe zone do Android).
 - `display: standalone`, `start_url: "/"`, `lang: pt-BR`.
-- `index.html` carrega o manifest, `apple-touch-icon` e meta tags
-  `apple-mobile-web-app-*` para iOS Safari.
+- `index.html` carrega o manifest, `apple-touch-icon` (incluindo 180×180
+  para iOS) e meta tags `apple-mobile-web-app-*` para iOS Safari.
+  `apple-mobile-web-app-status-bar-style: black-translucent` integra
+  a status bar com o tom escuro da marca.
 
 ## UI components
 
@@ -53,6 +59,11 @@ sensíveis que mudam de estado constantemente devem sempre ir à rede.
   `beforeinstallprompt`, renderiza card flutuante no canto inferior direito.
   Variante `inline` disponível para reuso em headers/configurações.
   Persistência da decisão "Agora não" em `localStorage[avizee.pwa.install.dismissed]`.
+  **iOS Safari**: como não dispara `beforeinstallprompt`, detectamos iOS
+  + `!standalone` e renderizamos o mesmo card com botão "Ver como" que
+  abre um Dialog guiado (Compartilhar → Adicionar à Tela de Início →
+  Adicionar). Em outros browsers no iPhone (Chrome iOS) o guia ainda
+  aparece mas instrui o usuário a abrir o link no Safari.
 
 Tudo montado em `src/App.tsx`. Não há acoplamento com auth — o prompt
 aparece independentemente de login (instalar a shell antes de logar é OK).
@@ -62,8 +73,8 @@ aparece independentemente de login (instalar a shell antes de logar é OK).
 - Sem **Background Sync** ou conflito de mutations offline: o usuário vê
   banner offline e desabilita ações; quando volta online, recarrega manualmente.
   Decisão consciente para esta primeira versão (escopo "leve").
-- **iOS Safari** não dispara `beforeinstallprompt` — usuário precisa do
-  fluxo manual ("Compartilhar → Adicionar à tela inicial"). Não temos
-  guia in-app para isso ainda; pode entrar numa próxima onda.
+- **iOS Safari**: agora há guia in-app dedicado (Dialog com 3 passos
+  ilustrados via ícones lucide `Share`/`Plus`). Acionado pelo próprio
+  `InstallPwaButton`.
 - **Update flow**: `registerType: "prompt"` evita updates silenciosos.
   O usuário decide quando recarregar — preserva trabalho em forms abertos.
