@@ -8,6 +8,8 @@ import { ParcelasFiscalEditor } from "@/pages/fiscal/components/ParcelasFiscalEd
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Upload, KeyRound, ScanLine } from "lucide-react";
+import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
+import { calcularFaturaParaData, calcularFaturasParcelas } from "@/lib/cartaoFatura";
 import { SummaryCard } from "@/components/SummaryCard";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
@@ -97,6 +99,7 @@ interface FiscalForm {
   ordem_venda_id: string;
   conta_contabil_id: string;
   modelo_documento: string;
+  cartao_id: string;
   frete_valor: number;
   icms_valor: number;
   ipi_valor: number;
@@ -113,7 +116,7 @@ const emptyForm: FiscalForm = {
   tipo: "entrada", numero: "", serie: "1", chave_acesso: "", data_emissao: new Date().toISOString().split("T")[0],
   fornecedor_id: "", cliente_id: "", valor_total: 0, status: "pendente", observacoes: "",
   movimenta_estoque: true, gera_financeiro: true, forma_pagamento: "", condicao_pagamento: "a_vista",
-  ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55",
+  ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55", cartao_id: "",
   frete_valor: 0, icms_valor: 0, ipi_valor: 0, pis_valor: 0, cofins_valor: 0,
   icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual",
 };
