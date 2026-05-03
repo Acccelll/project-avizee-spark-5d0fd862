@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/table";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { TableRow } from "@/types/domain";
+import type { TableRow as DbRow } from "@/types/domain";
 
-type NotaFiscalRow = TableRow<"notas_fiscais">;
+type NotaFiscalRow = DbRow<"notas_fiscais">;
 
 export interface CteFormData {
   numero?: string;
