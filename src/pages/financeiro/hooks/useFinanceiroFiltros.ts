@@ -5,6 +5,7 @@ import type { MultiSelectOption } from "@/components/ui/MultiSelect";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import type { ContaBancaria, Lancamento } from "@/types/domain";
+import type { CartaoCredito } from "@/services/cartoesCredito.service";
 import {
   FORMA_PAGAMENTO_OPTIONS,
   FORMA_PAGAMENTO_LABELS,
@@ -30,16 +31,18 @@ const origemLabelMap: Record<string, string> = {
 interface Params {
   data: Lancamento[];
   contasBancarias: ContaBancaria[];
+  cartoes?: CartaoCredito[];
   getLancamentoStatus: (l: Lancamento) => string;
 }
 
-export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatus }: Params) {
+export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getLancamentoStatus }: Params) {
   const [searchParams, setSearchParams] = useSearchParams();
   const tipoParam = searchParams.get("tipo");
   const statusParam = searchParams.get("status");
   const bancoParam = searchParams.get("banco");
   const origemParam = searchParams.get("origem");
   const formaParam = searchParams.get("forma");
+  const cartaoParam = searchParams.get("cartao");
   const periodParam = searchParams.get("period");
   const mesParam = searchParams.get("mes");
 
@@ -55,6 +58,9 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
   );
   const [formaPagamentoFilters, setFormaPagamentoFilters] = useState<string[]>(
     formaParam ? formaParam.split(",") : [],
+  );
+  const [cartaoFilters, setCartaoFilters] = useState<string[]>(
+    cartaoParam ? cartaoParam.split(",") : [],
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
@@ -81,6 +87,8 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
         else next.delete("origem");
         if (formaPagamentoFilters.length) next.set("forma", formaPagamentoFilters.join(","));
         else next.delete("forma");
+        if (cartaoFilters.length) next.set("cartao", cartaoFilters.join(","));
+        else next.delete("cartao");
         if (period !== "30d") next.set("period", period);
         else next.delete("period");
         if (mes) next.set("mes", mes);
@@ -89,7 +97,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
       },
       { replace: true },
     );
-  }, [searchTerm, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, period, mes, setSearchParams]);
+  }, [searchTerm, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, cartaoFilters, period, mes, setSearchParams]);
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -118,6 +126,10 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
         const canon = normalizeFormaPagamento(l.forma_pagamento) ?? "outros";
         if (!formaPagamentoFilters.includes(canon)) return false;
       }
+      if (cartaoFilters.length > 0) {
+        const cid = (l as Lancamento & { cartao_id?: string | null }).cartao_id;
+        if (!cid || !cartaoFilters.includes(cid)) return false;
+      }
 
       if (query) {
         const haystack = [
@@ -138,7 +150,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
 
       return true;
     });
-  }, [data, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, searchTerm, period, mes, getLancamentoStatus]);
+  }, [data, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, cartaoFilters, searchTerm, period, mes, getLancamentoStatus]);
 
   const activeFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -189,8 +201,18 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
       }),
     );
 
+    cartaoFilters.forEach((filter) => {
+      const cartao = cartoes.find((c) => c.id === filter);
+      chips.push({
+        key: "cartao",
+        label: "Cartão",
+        value: [filter],
+        displayValue: cartao ? cartao.nome : filter,
+      });
+    });
+
     return chips;
-  }, [tipoFilters, statusFilters, bancoFilters, origemFilters, formaPagamentoFilters, contasBancarias]);
+  }, [tipoFilters, statusFilters, bancoFilters, origemFilters, formaPagamentoFilters, cartaoFilters, contasBancarias, cartoes]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters((prev) => prev.filter((v) => v !== value));
@@ -198,6 +220,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     if (key === "banco") setBancoFilters((prev) => prev.filter((v) => v !== value));
     if (key === "origem") setOrigemFilters((prev) => prev.filter((v) => v !== value));
     if (key === "forma") setFormaPagamentoFilters((prev) => prev.filter((v) => v !== value));
+    if (key === "cartao") setCartaoFilters((prev) => prev.filter((v) => v !== value));
   };
 
   const tipoOpts: MultiSelectOption[] = [
@@ -220,6 +243,10 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     label: o.label,
     value: o.value,
   }));
+  const cartaoOpts: MultiSelectOption[] = cartoes.map((c) => ({
+    label: c.nome + (c.bancos?.nome ? ` · ${c.bancos.nome}` : ""),
+    value: c.id,
+  }));
 
   return {
     selectedIds,
@@ -236,6 +263,8 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     setOrigemFilters,
     formaPagamentoFilters,
     setFormaPagamentoFilters,
+    cartaoFilters,
+    setCartaoFilters,
     period,
     setPeriod,
     mes,
@@ -247,5 +276,6 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     bancoOpts,
     origemOpts,
     formaPagamentoOpts,
+    cartaoOpts,
   };
 }
