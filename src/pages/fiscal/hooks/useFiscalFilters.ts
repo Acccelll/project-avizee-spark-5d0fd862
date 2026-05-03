@@ -22,6 +22,8 @@ const origemLabels: Record<string, string> = {
 
 export interface NotaFiscalFilterInput {
   tipo: string;
+  id?: string;
+  data_emissao?: string | null;
   modelo_documento: string | null;
   status: string;
   status_sefaz: string | null;
@@ -39,6 +41,11 @@ export interface UseFiscalFiltersOptions {
   tipoFromUrl?: string | null;
   /** Filtro vindo da URL via ?status=rascunho,pendente */
   statusFromUrl?: string[];
+  /** Default do filtro mês de emissão (YYYY-MM). Use null/'' para desligar default. */
+  defaultEmissaoMes?: string | null;
+  /** IDs de notas cujo vencimento financeiro intersecta o mês selecionado.
+   * Quando `vencimentoMes` está setado, este set é aplicado. */
+  vencimentoNotaIds?: Set<string> | null;
 }
 
 /**
@@ -49,7 +56,7 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
   data: T[],
   options: UseFiscalFiltersOptions = {},
 ) {
-  const { tipoFromUrl = null, statusFromUrl = [] } = options;
+  const { tipoFromUrl = null, statusFromUrl = [], defaultEmissaoMes = null, vencimentoNotaIds = null } = options;
 
   const [consultaSearch, setConsultaSearch] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
@@ -57,6 +64,8 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
+  const [emissaoMes, setEmissaoMes] = useState<string>(defaultEmissaoMes ?? "");
+  const [vencimentoMes, setVencimentoMes] = useState<string>("");
 
   const filteredData = useMemo(() => {
     const query = consultaSearch.trim().toLowerCase();
@@ -82,6 +91,9 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
         !statusSefazFilters.includes(n.status_sefaz || "nao_enviada")
       )
         return false;
+      if (emissaoMes && (n.data_emissao || "").slice(0, 7) !== emissaoMes) return false;
+      if (vencimentoMes && vencimentoNotaIds && n.id && !vencimentoNotaIds.has(n.id)) return false;
+      if (vencimentoMes && !vencimentoNotaIds) return false;
       if (!query) return true;
       const parceiro =
         n.tipo === "entrada"
@@ -109,10 +121,19 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
     origemFilters,
     statusSefazFilters,
     statusFromUrl,
+    emissaoMes,
+    vencimentoMes,
+    vencimentoNotaIds,
   ]);
 
   const activeFilterChips = useMemo(() => {
     const chips: FilterChip[] = [];
+    if (emissaoMes) {
+      chips.push({ key: "emissao_mes", label: "Emissão", value: [emissaoMes], displayValue: emissaoMes });
+    }
+    if (vencimentoMes) {
+      chips.push({ key: "vencimento_mes", label: "Vencimento", value: [vencimentoMes], displayValue: vencimentoMes });
+    }
     tipoFilters.forEach((f) =>
       chips.push({
         key: "tipo",
@@ -160,10 +181,14 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
     statusFilters,
     origemFilters,
     statusSefazFilters,
+    emissaoMes,
+    vencimentoMes,
   ]);
 
   const removeFilter = useCallback((key: string, value?: string) => {
     if (!value) return;
+    if (key === "emissao_mes") setEmissaoMes("");
+    if (key === "vencimento_mes") setVencimentoMes("");
     if (key === "tipo") setTipoFilters((prev) => prev.filter((v) => v !== value));
     if (key === "modelo")
       setModeloFilters((prev) => prev.filter((v) => v !== value));
@@ -182,6 +207,8 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
     setStatusFilters([]);
     setOrigemFilters([]);
     setStatusSefazFilters([]);
+    setEmissaoMes("");
+    setVencimentoMes("");
   }, []);
 
   return {
@@ -202,6 +229,11 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
     setStatusFilters,
     setOrigemFilters,
     setStatusSefazFilters,
+    // novos filtros de mês
+    emissaoMes,
+    setEmissaoMes,
+    vencimentoMes,
+    setVencimentoMes,
     // helpers
     removeFilter,
     clearAll,
