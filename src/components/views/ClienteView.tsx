@@ -20,7 +20,6 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
-import { EmptyState } from "@/components/ui/empty-state";
 
 interface Props {
   id: string;
@@ -187,7 +186,7 @@ export function ClienteView({ id }: Props) {
         <TabsContent value="vendas" className="space-y-3 mt-3">
           <SectionTitle icon={FileText}>Últimos Pedidos</SectionTitle>
           {vendas.length === 0 ? (
-            <EmptyState icon={FileText} title="Nenhum pedido encontrado" description="Este cliente ainda não possui pedidos de venda." />
+            <DetailEmpty icon={FileText} title="Nenhum pedido encontrado" message="Este cliente ainda não possui pedidos de venda." />
           ) : (
             <div className="space-y-2">
               {vendas.map((v) => (
@@ -207,7 +206,7 @@ export function ClienteView({ id }: Props) {
 
           <SectionTitle icon={FileText} className="mt-5">Notas Fiscais de Saída</SectionTitle>
           {notasSaida.length === 0 ? (
-            <EmptyState icon={FileText} title="Nenhuma nota de saída" description="Este cliente ainda não possui notas fiscais de saída emitidas ou migradas." />
+            <DetailEmpty icon={FileText} title="Nenhuma nota de saída" message="Este cliente ainda não possui notas fiscais de saída emitidas ou migradas." />
           ) : (
             <div className="space-y-2">
               {notasSaida.map((nf) => (
@@ -250,7 +249,7 @@ export function ClienteView({ id }: Props) {
            <div className="space-y-3">
              <SectionTitle>Lançamentos Recentes</SectionTitle>
              {financeiro.length === 0 ? (
-               <EmptyState icon={CreditCard} title="Nenhum lançamento" description="Sem lançamentos financeiros vinculados a este cliente." />
+               <DetailEmpty icon={CreditCard} title="Nenhum lançamento" message="Sem lançamentos financeiros vinculados a este cliente." />
              ) : (
                <div className="space-y-2">
                  {financeiro.map((f) => (
@@ -275,7 +274,7 @@ export function ClienteView({ id }: Props) {
         <TabsContent value="contatos" className="space-y-3 mt-3">
            <SectionTitle icon={MessageSquare}>Histórico de Contatos</SectionTitle>
            {comunicacao.length === 0 ? (
-             <EmptyState icon={MessageSquare} title="Nenhum contato registrado" description="Registros de comunicação aparecerão aqui." />
+             <DetailEmpty icon={MessageSquare} title="Nenhum contato registrado" message="Registros de comunicação aparecerão aqui." />
            ) : (
              <div className="space-y-4">
                {comunicacao.map((c) => (
@@ -296,7 +295,7 @@ export function ClienteView({ id }: Props) {
         <TabsContent value="logistica" className="space-y-3 mt-3">
            <SectionTitle icon={Truck}>Transportadoras de Preferência</SectionTitle>
            {transportadoras.length === 0 ? (
-             <EmptyState icon={Truck} title="Nenhuma transportadora vinculada" description="Defina transportadoras preferenciais para este cliente." />
+             <DetailEmpty icon={Truck} title="Nenhuma transportadora vinculada" message="Defina transportadoras preferenciais para este cliente." />
            ) : (
              <div className="space-y-3">
                {transportadoras.map((t) => (

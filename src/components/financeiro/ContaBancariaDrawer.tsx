@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerActionBar } from "@/components/ui/DrawerActionBar";
-import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Edit,
@@ -316,10 +316,10 @@ export function ContaBancariaDrawer({
                   <Skeleton tone="card" className="h-10 w-3/4" />
                 </div>
               ) : lancamentos.length === 0 && baixas.length === 0 && caixaMovs.length === 0 ? (
-                <EmptyState
+                <DetailEmpty
                   icon={Clock}
                   title="Nenhuma movimentação registrada"
-                  description="Esta conta ainda não está vinculada a lançamentos ou baixas."
+                  message="Esta conta ainda não está vinculada a lançamentos ou baixas."
                 />
               ) : (
                 <>

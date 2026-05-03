@@ -8,7 +8,6 @@ import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
@@ -325,7 +324,7 @@ export function ProdutoView({ id }: Props) {
             <ShoppingCart className="w-3.5 h-3.5" /> Fornecedores Vinculados
           </h4>
           {fornecedoresProd.length === 0 ? (
-            <EmptyState icon={ShoppingCart} title="Nenhum fornecedor vinculado" description="Nenhum fornecedor vinculado a este produto" />
+            <DetailEmpty icon={ShoppingCart} title="Nenhum fornecedor vinculado" message="Nenhum fornecedor vinculado a este produto" />
           ) : (
             <div className="space-y-2">
             {fornecedoresProd.map((f, idx: number) => (
@@ -544,7 +543,7 @@ export function ProdutoView({ id }: Props) {
         {/* Tab: Vendas */}
         <TabsContent value="vendas" className="space-y-3 mt-3">
           {historicoVendas.length === 0 ? (
-            <EmptyState icon={FileText} title="Nenhuma venda registrada" description="Este produto ainda não foi vendido em notas fiscais de saída" />
+            <DetailEmpty icon={FileText} title="Nenhuma venda registrada" message="Este produto ainda não foi vendido em notas fiscais de saída" />
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { DrawerActionBar } from "@/components/ui/DrawerActionBar";
-import { EmptyState } from "@/components/ui/empty-state";
 import { DetailEmpty } from "@/components/ui/DetailStates";
 import { Edit, Trash2, CreditCard, RotateCcw, AlertCircle, Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
@@ -251,10 +250,10 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
             {loadingBaixas ? (
               <p className="text-sm text-muted-foreground text-center py-4">Carregando baixas...</p>
             ) : baixasList.length === 0 ? (
-              <EmptyState
+              <DetailEmpty
                 icon={Receipt}
                 title="Nenhuma baixa registrada"
-                description={canBaixa ? "Registre uma baixa para acompanhar o pagamento." : undefined}
+                message={canBaixa ? "Registre uma baixa para acompanhar o pagamento." : undefined}
                 action={canBaixa ? (
                   <Button size="sm" variant="outline" className="gap-2" disabled={actionPending} onClick={() => runAction(() => onBaixa(selected))}>
                     <CreditCard className="h-3.5 w-3.5" /> Registrar Baixa

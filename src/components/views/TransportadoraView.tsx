@@ -8,7 +8,6 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Truck, Edit, Trash2, MapPin, Phone, Mail, Building2,
   Star, Package, AlertTriangle, Users, FileText,
@@ -271,7 +270,7 @@ export function TransportadoraView({ id }: Props) {
 
         <TabsContent value="clientes" className="space-y-2 mt-3">
           {clientes.length === 0 ? (
-            <EmptyState icon={Users} title="Nenhum cliente vinculado" description="Esta transportadora ainda não está atrelada a clientes." />
+            <DetailEmpty icon={Users} title="Nenhum cliente vinculado" message="Esta transportadora ainda não está atrelada a clientes." />
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
@@ -332,7 +331,7 @@ export function TransportadoraView({ id }: Props) {
             </div>
           )}
           {remessas.length === 0 ? (
-            <EmptyState icon={Package} title="Nenhuma remessa" description="Nenhuma remessa foi vinculada a esta transportadora." />
+            <DetailEmpty icon={Package} title="Nenhuma remessa" message="Nenhuma remessa foi vinculada a esta transportadora." />
           ) : (
             <div className="space-y-1 max-h-[400px] overflow-y-auto">
               {remessas.map((r) => {

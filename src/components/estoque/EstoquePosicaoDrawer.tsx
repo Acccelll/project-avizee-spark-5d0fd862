@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
-import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { getOrigemConfig, getTipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 import {
@@ -253,10 +253,10 @@ export function EstoquePosicaoDrawer({
       {loadingMovimentos ? (
         <p className="text-sm text-muted-foreground">Carregando movimentações...</p>
       ) : movsProduto.length === 0 ? (
-        <EmptyState
+        <DetailEmpty
           icon={Package}
           title="Nenhuma movimentação registrada"
-          description="As movimentações de entrada, saída e ajuste aparecerão aqui."
+          message="As movimentações de entrada, saída e ajuste aparecerão aqui."
         />
       ) : (
         movsProduto.map((m) => (
@@ -305,10 +305,10 @@ export function EstoquePosicaoDrawer({
   const tabVinculos = (
     <div className="space-y-4">
       {vinculos.length === 0 ? (
-        <EmptyState
+        <DetailEmpty
           icon={Package}
           title="Nenhum vínculo encontrado"
-          description="Movimentações recentes não estão vinculadas a documentos."
+          message="Movimentações recentes não estão vinculadas a documentos."
         />
       ) : (
         <ViewSection title="Documentos vinculados">

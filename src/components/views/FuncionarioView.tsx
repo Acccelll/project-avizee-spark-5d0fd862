@@ -7,7 +7,6 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Users, Edit, Trash2, DollarSign, CalendarDays, FileText,
   AlertTriangle, CheckCircle2,
@@ -265,10 +264,10 @@ export function FuncionarioView({ id }: Props) {
 
         <TabsContent value="folha" className="space-y-2 mt-3">
           {folhas.length === 0 ? (
-            <EmptyState
+            <DetailEmpty
               icon={FileText}
               title="Nenhuma folha registrada"
-              description="Registre uma competência na página de Funcionários."
+              message="Registre uma competência na página de Funcionários."
             />
           ) : (
             <div className="space-y-2">
@@ -329,10 +328,10 @@ export function FuncionarioView({ id }: Props) {
 
         <TabsContent value="financeiro" className="space-y-2 mt-3">
           {lancamentos.length === 0 ? (
-            <EmptyState
+            <DetailEmpty
               icon={DollarSign}
               title="Sem lançamentos"
-              description="Nenhum lançamento financeiro vinculado a este funcionário."
+              message="Nenhum lançamento financeiro vinculado a este funcionário."
             />
           ) : (
             <div className="space-y-2">

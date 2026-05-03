@@ -9,7 +9,6 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
@@ -208,7 +207,7 @@ export function FornecedorView({ id }: Props) {
           )}
           <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><ShoppingBag className="h-3.5 w-3.5" /> Últimos Pedidos de Compra</h4>
           {compras.length === 0 ? (
-            <EmptyState icon={ShoppingBag} title="Nenhum pedido de compra" description="Nenhum pedido de compra encontrado para este fornecedor" />
+            <DetailEmpty icon={ShoppingBag} title="Nenhum pedido de compra" message="Nenhum pedido de compra encontrado para este fornecedor" />
           ) : (
             <div className="space-y-2">
               {compras.map((c) => (
@@ -248,7 +247,7 @@ export function FornecedorView({ id }: Props) {
           </div>
           <h4 className="font-semibold flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><FileText className="h-3.5 w-3.5" /> Lançamentos Recentes</h4>
           {financeiro.length === 0 ? (
-            <EmptyState icon={CreditCard} title="Nenhum lançamento financeiro" description="Nenhum lançamento financeiro registrado para este fornecedor" />
+            <DetailEmpty icon={CreditCard} title="Nenhum lançamento financeiro" message="Nenhum lançamento financeiro registrado para este fornecedor" />
           ) : (
             <div className="space-y-2">
               {financeiro.map((f) => (
@@ -273,7 +272,7 @@ export function FornecedorView({ id }: Props) {
         <TabsContent value="produtos" className="space-y-3 mt-3">
           <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><Package className="h-3.5 w-3.5" /> Produtos Fornecidos</h4>
           {produtos.length === 0 ? (
-            <EmptyState icon={Package} title="Nenhum produto vinculado" description="Nenhum produto vinculado a este fornecedor" />
+            <DetailEmpty icon={Package} title="Nenhum produto vinculado" message="Nenhum produto vinculado a este fornecedor" />
           ) : (
             <div className="space-y-2">
               {produtos.map((p) => (
