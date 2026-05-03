@@ -1,7 +1,6 @@
-import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, X } from "lucide-react";
+import { Calendar as CalendarIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -33,13 +32,15 @@ export function MonthPicker({ value, onChange, label, yearsBack = 3, className }
   const selectedYear = value ? Number(value.split("-")[0]) : currentYear;
   const selectedMonth = value ? Number(value.split("-")[1]) : null;
 
-  const years = useMemo(
-    () => Array.from({ length: yearsBack + 1 }, (_, i) => currentYear - i),
-    [currentYear, yearsBack],
-  );
-
   const set = (y: number, m: number) => {
     onChange(`${y}-${String(m).padStart(2, "0")}`);
+  };
+
+  const minYear = currentYear - yearsBack;
+  const maxYear = currentYear + 1;
+  const stepYear = (delta: number) => {
+    const next = Math.min(maxYear, Math.max(minYear, selectedYear + delta));
+    set(next, selectedMonth ?? currentMonth);
   };
 
   const hasValue = !!value;
@@ -77,25 +78,38 @@ export function MonthPicker({ value, onChange, label, yearsBack = 3, className }
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="start">
+      <PopoverContent className="w-60 p-3" align="start">
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               {label}
             </span>
-            <div className="flex gap-1">
-              {years.map((y) => (
-                <Button
-                  key={y}
-                  type="button"
-                  size="sm"
-                  variant={selectedYear === y ? "default" : "ghost"}
-                  className="h-7 px-2 text-xs"
-                  onClick={() => set(y, selectedMonth ?? currentMonth)}
-                >
-                  {y}
-                </Button>
-              ))}
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                disabled={selectedYear <= minYear}
+                onClick={() => stepYear(-1)}
+                aria-label="Ano anterior"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-sm font-semibold tabular-nums min-w-[3ch] text-center">
+                {selectedYear}
+              </span>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                disabled={selectedYear >= maxYear}
+                onClick={() => stepYear(1)}
+                aria-label="Próximo ano"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-1.5">
