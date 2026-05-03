@@ -850,12 +850,16 @@ const Fiscal = () => {
       if (statusFromUrl.length > 0 && !statusFromUrl.includes(n.status)) return false;
       if (origemFilters.length > 0 && !origemFilters.includes(n.origem || "manual")) return false;
       if (statusSefazFilters.length > 0 && !statusSefazFilters.includes(n.status_sefaz || "nao_enviada")) return false;
+      if (tipoParam === "entrada" && emissaoMes && (n.data_emissao || "").slice(0, 7) !== emissaoMes) return false;
+      if (tipoParam === "entrada" && vencimentoMes) {
+        if (!vencimentoNotaIds || !vencimentoNotaIds.has(n.id)) return false;
+      }
       if (!query) return true;
       const parceiro = n.tipo === "entrada" ? n.fornecedores?.nome_razao_social : n.clientes?.nome_razao_social;
       const haystack = [n.numero, n.serie, n.chave_acesso, parceiro, n.ordens_venda?.numero].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters, statusFromUrl]);
+  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters, statusFromUrl, emissaoMes, vencimentoMes, vencimentoNotaIds]);
 
   // KPIs — sobre os dados filtrados (consistente com a grid)
   const kpis = useMemo(() => {
@@ -871,13 +875,19 @@ const Fiscal = () => {
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
+    if (tipoParam === "entrada" && emissaoMes) {
+      chips.push({ key: "emissao_mes", label: "Emissão", value: [emissaoMes], displayValue: emissaoMes });
+    }
+    if (tipoParam === "entrada" && vencimentoMes) {
+      chips.push({ key: "vencimento_mes", label: "Vencimento", value: [vencimentoMes], displayValue: vencimentoMes });
+    }
     tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "entrada" ? "Entrada" : "Saída" }));
     modeloFilters.forEach(f => chips.push({ key: "modelo", label: "Modelo", value: [f], displayValue: modeloLabels[f] || f }));
     statusFilters.forEach(f => chips.push({ key: "status", label: "Status ERP", value: [f], displayValue: getFiscalInternalStatus(f).label }));
     origemFilters.forEach(f => chips.push({ key: "origem", label: "Origem", value: [f], displayValue: origemLabels[f] || f }));
     statusSefazFilters.forEach(f => chips.push({ key: "status_sefaz", label: "Status SEFAZ", value: [f], displayValue: getFiscalSefazStatus(f).label }));
     return chips;
-  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters]);
+  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters, emissaoMes, vencimentoMes, tipoParam]);
 
   const handleRemoveFiscalFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
@@ -885,6 +895,8 @@ const Fiscal = () => {
     if (key === "status") setStatusFilters(prev => prev.filter(v => v !== value));
     if (key === "origem") setOrigemFilters(prev => prev.filter(v => v !== value));
     if (key === "status_sefaz") setStatusSefazFilters(prev => prev.filter(v => v !== value));
+    if (key === "emissao_mes") setEmissaoMes("");
+    if (key === "vencimento_mes") setVencimentoMes("");
   };
 
   const tipoOptions: MultiSelectOption[] = [{ label: "Entrada", value: "entrada" }, { label: "Saída", value: "saida" }];
