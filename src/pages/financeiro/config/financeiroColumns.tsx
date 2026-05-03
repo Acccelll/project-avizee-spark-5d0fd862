@@ -74,16 +74,25 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
       mobileCard: true,
       label: "Descrição",
       sortable: true,
-      render: (l: Lancamento) => (
-        <div className="space-y-0.5">
-          <span className="text-sm">{displayDescricao(l)}</span>
-          {(l.parcela_numero ?? 0) > 0 && (
-            <span className="text-[10px] text-muted-foreground font-mono block">
-              Parcela {l.parcela_numero}/{l.parcela_total}
-            </span>
-          )}
-        </div>
-      ),
+      render: (l: Lancamento) => {
+        const hasParcelas = (l.parcela_total ?? 0) > 1 && (l.parcela_numero ?? 0) > 0;
+        return (
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-sm">{displayDescricao(l)}</span>
+              {hasParcelas && (
+                <Badge
+                  variant="outline"
+                  className="border-info/40 text-info bg-info/5 text-[10px] font-mono px-1.5 py-0 h-4 leading-none"
+                  title={`Parcela ${l.parcela_numero} de ${l.parcela_total}`}
+                >
+                  {l.parcela_numero}/{l.parcela_total}
+                </Badge>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "data_vencimento",
