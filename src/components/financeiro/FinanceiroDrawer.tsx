@@ -195,7 +195,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                 tone="destructive"
                 icon={AlertCircle}
                 title={isCR ? "Conta a receber em atraso" : "Conta a pagar em atraso"}
-                message={
+                description={
                   diasAtraso > 0
                     ? `Vencimento em ${vencimento?.toLocaleDateString("pt-BR")} — ${diasAtraso} dia(s) de atraso.`
                     : `Vencimento em ${vencimento?.toLocaleDateString("pt-BR")}.`

@@ -374,7 +374,7 @@ export function EstoquePosicaoDrawer({
           tone="destructive"
           icon={ShieldAlert}
           title={situacao === "zerado" ? "Sem Estoque" : "Abaixo do Estoque Mínimo"}
-          message={
+          description={
             situacao === "zerado"
               ? "Este item está com saldo zero. Considere acionar uma ordem de reposição."
               : `Saldo atual (${formatNumber(atual)}) está abaixo do mínimo definido (${formatNumber(minimo)}). Avalie a necessidade de reposição.`
@@ -385,14 +385,14 @@ export function EstoquePosicaoDrawer({
           tone="warning"
           icon={AlertTriangle}
           title="Em Atenção"
-          message={`Saldo próximo ao mínimo (${formatNumber(atual)} / mín. ${formatNumber(minimo)}). Monitore e antecipe a reposição se necessário.`}
+          description={`Saldo próximo ao mínimo (${formatNumber(atual)} / mín. ${formatNumber(minimo)}). Monitore e antecipe a reposição se necessário.`}
         />
       ) : (
         <DrawerStatusBanner
           tone="success"
           icon={CheckCircle}
           title="Estoque Normal"
-          message="Saldo dentro dos parâmetros. Nenhuma ação imediata necessária."
+          description="Saldo dentro dos parâmetros. Nenhuma ação imediata necessária."
         />
       )}
 
