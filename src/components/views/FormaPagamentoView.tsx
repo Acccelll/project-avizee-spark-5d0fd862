@@ -8,7 +8,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import {
   CreditCard, Edit, Trash2, Wallet, TrendingUp, Users,
   Banknote, FileText, QrCode, ArrowLeftRight, HelpCircle,
@@ -265,7 +265,7 @@ export function FormaPagamentoView({ id }: Props) {
 
         <TabsContent value="clientes" className="space-y-2 mt-3">
           {clientes.length === 0 ? (
-            <EmptyState icon={Users} title="Nenhum cliente vinculado" description="Nenhum cliente usa esta forma como padrão." />
+            <DetailEmpty icon={Users} title="Nenhum cliente vinculado" message="Nenhum cliente usa esta forma como padrão." />
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
@@ -351,7 +351,7 @@ export function FormaPagamentoView({ id }: Props) {
           }
         }}
         title="Inativar forma de pagamento"
-        description={
+        message={
           usoLancamentos > 0 || clientes.length > 0
             ? `Esta forma é usada em ${usoLancamentos} lançamento(s) e ${clientes.length} cliente(s). Ao inativar, ela deixará de aparecer em novas seleções, mas o histórico será preservado.`
             : `Tem certeza que deseja inativar "${forma.descricao}"? Você pode reativá-la a qualquer momento.`

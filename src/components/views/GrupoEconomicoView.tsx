@@ -9,7 +9,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import { Building2, Edit, Trash2, MapPin, Users, AlertTriangle, CheckCircle2, ShieldAlert, Star } from "lucide-react";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
@@ -236,7 +236,7 @@ export function GrupoEconomicoView({ id }: Props) {
 
         <TabsContent value="empresas" className="space-y-2 mt-3">
           {empresas.length === 0 ? (
-            <EmptyState icon={Users} title="Nenhuma empresa vinculada" description="Vincule clientes a este grupo na tela de Cadastros › Clientes." />
+            <DetailEmpty icon={Users} title="Nenhuma empresa vinculada" message="Vincule clientes a este grupo na tela de Cadastros › Clientes." />
           ) : (
             <div className="space-y-1">
               {empresas.map((e) => (
@@ -278,7 +278,7 @@ export function GrupoEconomicoView({ id }: Props) {
             </div>
           </div>
           {financeiro.length === 0 && (
-            <EmptyState icon={CheckCircle2} title="Sem títulos em aberto" description="Nenhuma empresa do grupo possui lançamentos a receber pendentes." />
+            <DetailEmpty icon={CheckCircle2} title="Sem títulos em aberto" message="Nenhuma empresa do grupo possui lançamentos a receber pendentes." />
           )}
         </TabsContent>
 
@@ -313,7 +313,7 @@ export function GrupoEconomicoView({ id }: Props) {
           }
         }}
         title="Inativar grupo econômico"
-        description={
+        message={
           empresas.length > 0
             ? `Este grupo possui ${empresas.length} empresa(s) vinculada(s). Ao inativar, ele deixará de aparecer em novas seleções, mas as empresas continuam existindo.`
             : `Tem certeza que deseja inativar "${grupo.nome}"? Você pode reativá-lo a qualquer momento.`

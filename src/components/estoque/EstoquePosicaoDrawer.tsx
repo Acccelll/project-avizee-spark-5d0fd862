@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
-import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { getOrigemConfig, getTipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 import {
@@ -253,10 +253,10 @@ export function EstoquePosicaoDrawer({
       {loadingMovimentos ? (
         <p className="text-sm text-muted-foreground">Carregando movimentações...</p>
       ) : movsProduto.length === 0 ? (
-        <EmptyState
+        <DetailEmpty
           icon={Package}
           title="Nenhuma movimentação registrada"
-          description="As movimentações de entrada, saída e ajuste aparecerão aqui."
+          message="As movimentações de entrada, saída e ajuste aparecerão aqui."
         />
       ) : (
         movsProduto.map((m) => (
@@ -305,10 +305,10 @@ export function EstoquePosicaoDrawer({
   const tabVinculos = (
     <div className="space-y-4">
       {vinculos.length === 0 ? (
-        <EmptyState
+        <DetailEmpty
           icon={Package}
           title="Nenhum vínculo encontrado"
-          description="Movimentações recentes não estão vinculadas a documentos."
+          message="Movimentações recentes não estão vinculadas a documentos."
         />
       ) : (
         <ViewSection title="Documentos vinculados">
@@ -374,7 +374,7 @@ export function EstoquePosicaoDrawer({
           tone="destructive"
           icon={ShieldAlert}
           title={situacao === "zerado" ? "Sem Estoque" : "Abaixo do Estoque Mínimo"}
-          description={
+          message={
             situacao === "zerado"
               ? "Este item está com saldo zero. Considere acionar uma ordem de reposição."
               : `Saldo atual (${formatNumber(atual)}) está abaixo do mínimo definido (${formatNumber(minimo)}). Avalie a necessidade de reposição.`
@@ -385,14 +385,14 @@ export function EstoquePosicaoDrawer({
           tone="warning"
           icon={AlertTriangle}
           title="Em Atenção"
-          description={`Saldo próximo ao mínimo (${formatNumber(atual)} / mín. ${formatNumber(minimo)}). Monitore e antecipe a reposição se necessário.`}
+          message={`Saldo próximo ao mínimo (${formatNumber(atual)} / mín. ${formatNumber(minimo)}). Monitore e antecipe a reposição se necessário.`}
         />
       ) : (
         <DrawerStatusBanner
           tone="success"
           icon={CheckCircle}
           title="Estoque Normal"
-          description="Saldo dentro dos parâmetros. Nenhuma ação imediata necessária."
+          message="Saldo dentro dos parâmetros. Nenhuma ação imediata necessária."
         />
       )}
 
