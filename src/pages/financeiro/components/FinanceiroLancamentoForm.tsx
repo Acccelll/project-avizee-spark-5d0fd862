@@ -1,10 +1,13 @@
 import type { FormEvent } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Barcode } from "lucide-react";
+import { BoletoReaderModal } from "@/components/financeiro/BoletoReaderModal";
 import { formatCurrency } from "@/lib/format";
 import type { Cliente, Fornecedor } from "@/types/domain";
 import type { ContaContabil, LancamentoForm } from "@/pages/financeiro/types";
@@ -55,6 +58,7 @@ export function FinanceiroLancamentoForm({
 
   const isStatusReadonly = STATUS_READONLY.has(form.status);
   const selectStatusValue = form.status === "vencido" ? "aberto" : form.status;
+  const [boletoOpen, setBoletoOpen] = useState(false);
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -220,10 +224,32 @@ export function FinanceiroLancamentoForm({
       )}
 
       <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => updateField("observacoes", e.target.value)} /></div>
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-between items-center gap-2">
+        {form.tipo === "pagar" ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setBoletoOpen(true)}>
+            <Barcode className="w-3.5 h-3.5 mr-1" /> Ler boleto
+          </Button>
+        ) : <span />}
+        <div className="flex gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
         <Button type="submit" disabled={saving || isStatusReadonly}>{saving ? "Salvando..." : "Salvar"}</Button>
+        </div>
       </div>
+      <BoletoReaderModal
+        open={boletoOpen}
+        onClose={() => setBoletoOpen(false)}
+        onApply={(r) => {
+          setForm({
+            ...form,
+            valor: r.valor,
+            data_vencimento: r.vencimento,
+            forma_pagamento: form.forma_pagamento || "boleto",
+            observacoes: form.observacoes
+              ? `${form.observacoes}\nLinha digitável: ${r.linhaDigitavel}`
+              : `Linha digitável: ${r.linhaDigitavel}`,
+          });
+        }}
+      />
     </form>
   );
 }
