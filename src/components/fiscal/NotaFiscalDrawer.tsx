@@ -1070,6 +1070,16 @@ export function NotaFiscalDrawer({
         }}
       />
     )}
+    {selected && (
+      <EditarPagamentoNotaModal
+        open={editarPagamentoOpen}
+        onClose={() => setEditarPagamentoOpen(false)}
+        nota={selected}
+        onSaved={() => {
+          onPermanentlyDeleted?.();
+        }}
+      />
+    )}
     </>
   );
 }
