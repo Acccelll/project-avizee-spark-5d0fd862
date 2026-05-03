@@ -5,6 +5,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useState } from "react";
 import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
+import { EditarPagamentoNotaModal } from "@/components/fiscal/EditarPagamentoNotaModal";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
 import { DetailEmpty } from "@/components/ui/DetailStates";
@@ -112,6 +113,8 @@ interface NotaFiscalDrawerProps {
   onDanfe: (nf: NotaFiscal) => void;
   /** Chamado após exclusão permanente bem-sucedida (admin). */
   onPermanentlyDeleted?: () => void;
+  /** Chamado quando o drawer precisa que a lista pai recarregue (sem fechar). */
+  onRefresh?: () => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -119,7 +122,7 @@ interface NotaFiscalDrawerProps {
 export function NotaFiscalDrawer({
   open, onClose, selected,
   onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe,
-  onPermanentlyDeleted,
+  onPermanentlyDeleted, onRefresh,
 }: NotaFiscalDrawerProps) {
   const selectedId = selected?.id ?? null;
 
@@ -154,6 +157,7 @@ export function NotaFiscalDrawer({
   const isMobile = useIsMobile();
   const { isAdmin } = useIsAdmin();
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
+  const [editarPagamentoOpen, setEditarPagamentoOpen] = useState(false);
 
   if (!open || !selected) return null;
 
@@ -315,6 +319,14 @@ export function NotaFiscalDrawer({
             </span>
           </ViewField>
         </div>
+        {!["cancelada", "cancelada_sefaz", "inativada"].includes(selected.status) && (
+          <div className="mt-3 flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => setEditarPagamentoOpen(true)}>
+              <Edit className="h-3.5 w-3.5 mr-1.5" />
+              Editar pagamento
+            </Button>
+          </div>
+        )}
       </ViewSection>
 
       {selected.observacoes && (
@@ -1057,6 +1069,16 @@ export function NotaFiscalDrawer({
         onDeleted={() => {
           onPermanentlyDeleted?.();
           onClose();
+        }}
+      />
+    )}
+    {selected && (
+      <EditarPagamentoNotaModal
+        open={editarPagamentoOpen}
+        onClose={() => setEditarPagamentoOpen(false)}
+        nota={selected}
+        onSaved={() => {
+          onRefresh?.();
         }}
       />
     )}

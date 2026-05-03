@@ -194,6 +194,11 @@ const Fiscal = () => {
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
+  // Filtros de mês — apenas em Notas de Entrada (default emissão = mês atual)
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const [emissaoMes, setEmissaoMes] = useState<string>(currentMonth);
+  const [vencimentoMes, setVencimentoMes] = useState<string>("");
+  const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
   // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
   const [traducaoLinhas, setTraducaoLinhas] = useState<TraducaoLinha[]>([]);
@@ -835,6 +840,40 @@ const Fiscal = () => {
     () => (statusUrlParam ? statusUrlParam.split(",").map((s) => s.trim()).filter(Boolean) : []),
     [statusUrlParam],
   );
+
+  // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
+  useEffect(() => {
+    if (tipoParam !== "entrada" || !vencimentoMes) {
+      setVencimentoNotaIds(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const start = vencimentoMes + "-01";
+      const [y, m] = vencimentoMes.split("-").map(Number);
+      const endDate = new Date(y, m, 0);
+      const end = endDate.toISOString().slice(0, 10);
+      const { data: rows, error } = await supabase
+        .from("financeiro_lancamentos")
+        .select("nota_fiscal_id")
+        .eq("ativo", true)
+        .not("nota_fiscal_id", "is", null)
+        .gte("data_vencimento", start)
+        .lte("data_vencimento", end);
+      if (cancelled) return;
+      if (error) {
+        setVencimentoNotaIds(new Set());
+        return;
+      }
+      const set = new Set<string>();
+      (rows || []).forEach((r) => {
+        if (r.nota_fiscal_id) set.add(r.nota_fiscal_id as string);
+      });
+      setVencimentoNotaIds(set);
+    })();
+    return () => { cancelled = true; };
+  }, [tipoParam, vencimentoMes]);
+
   const filteredData = useMemo(() => {
     const query = consultaSearch.trim().toLowerCase();
     return data.filter((n) => {
@@ -845,12 +884,16 @@ const Fiscal = () => {
       if (statusFromUrl.length > 0 && !statusFromUrl.includes(n.status)) return false;
       if (origemFilters.length > 0 && !origemFilters.includes(n.origem || "manual")) return false;
       if (statusSefazFilters.length > 0 && !statusSefazFilters.includes(n.status_sefaz || "nao_enviada")) return false;
+      if (tipoParam === "entrada" && emissaoMes && (n.data_emissao || "").slice(0, 7) !== emissaoMes) return false;
+      if (tipoParam === "entrada" && vencimentoMes) {
+        if (!vencimentoNotaIds || !vencimentoNotaIds.has(n.id)) return false;
+      }
       if (!query) return true;
       const parceiro = n.tipo === "entrada" ? n.fornecedores?.nome_razao_social : n.clientes?.nome_razao_social;
       const haystack = [n.numero, n.serie, n.chave_acesso, parceiro, n.ordens_venda?.numero].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters, statusFromUrl]);
+  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters, statusFromUrl, emissaoMes, vencimentoMes, vencimentoNotaIds]);
 
   // KPIs — sobre os dados filtrados (consistente com a grid)
   const kpis = useMemo(() => {
@@ -866,13 +909,19 @@ const Fiscal = () => {
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
+    if (tipoParam === "entrada" && emissaoMes) {
+      chips.push({ key: "emissao_mes", label: "Emissão", value: [emissaoMes], displayValue: emissaoMes });
+    }
+    if (tipoParam === "entrada" && vencimentoMes) {
+      chips.push({ key: "vencimento_mes", label: "Vencimento", value: [vencimentoMes], displayValue: vencimentoMes });
+    }
     tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "entrada" ? "Entrada" : "Saída" }));
     modeloFilters.forEach(f => chips.push({ key: "modelo", label: "Modelo", value: [f], displayValue: modeloLabels[f] || f }));
     statusFilters.forEach(f => chips.push({ key: "status", label: "Status ERP", value: [f], displayValue: getFiscalInternalStatus(f).label }));
     origemFilters.forEach(f => chips.push({ key: "origem", label: "Origem", value: [f], displayValue: origemLabels[f] || f }));
     statusSefazFilters.forEach(f => chips.push({ key: "status_sefaz", label: "Status SEFAZ", value: [f], displayValue: getFiscalSefazStatus(f).label }));
     return chips;
-  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters]);
+  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters, emissaoMes, vencimentoMes, tipoParam]);
 
   const handleRemoveFiscalFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
@@ -880,6 +929,8 @@ const Fiscal = () => {
     if (key === "status") setStatusFilters(prev => prev.filter(v => v !== value));
     if (key === "origem") setOrigemFilters(prev => prev.filter(v => v !== value));
     if (key === "status_sefaz") setStatusSefazFilters(prev => prev.filter(v => v !== value));
+    if (key === "emissao_mes") setEmissaoMes("");
+    if (key === "vencimento_mes") setVencimentoMes("");
   };
 
   const tipoOptions: MultiSelectOption[] = [{ label: "Entrada", value: "entrada" }, { label: "Saída", value: "saida" }];
@@ -1081,7 +1132,7 @@ const Fiscal = () => {
           searchPlaceholder="Buscar por número, chave ou parceiro..."
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
-          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); }}
+          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); setEmissaoMes(""); setVencimentoMes(""); }}
           count={filteredData.length}
         >
           {!tipoParam && <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />}
@@ -1089,6 +1140,30 @@ const Fiscal = () => {
           <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status ERP" className="w-[180px]" />
           <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
           <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
+          {tipoParam === "entrada" && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] uppercase font-semibold text-muted-foreground">Emissão</span>
+              <input
+                type="month"
+                value={emissaoMes}
+                onChange={(e) => setEmissaoMes(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                aria-label="Filtrar por mês de emissão"
+              />
+            </div>
+          )}
+          {tipoParam === "entrada" && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] uppercase font-semibold text-muted-foreground">Vencimento</span>
+              <input
+                type="month"
+                value={vencimentoMes}
+                onChange={(e) => setVencimentoMes(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                aria-label="Filtrar por mês de vencimento"
+              />
+            </div>
+          )}
         </AdvancedFilterBar>
         </div>
 
@@ -1407,6 +1482,7 @@ const Fiscal = () => {
         onDevolucao={openDevolucao}
         onDanfe={(nf) => { setDrawerOpen(false); openDanfe(nf); }}
         onPermanentlyDeleted={() => { setDrawerOpen(false); fetchData(); }}
+        onRefresh={fetchData}
       />
 
       {/* Devolução Dialog */}
