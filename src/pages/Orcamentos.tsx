@@ -10,7 +10,7 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightCircle, CheckCircle, FileText, DollarSign, Clock, BarChart3, AlertTriangle, Eye } from "lucide-react";
+import { ArrowRightCircle, CheckCircle, FileText, DollarSign, Clock, BarChart3, AlertTriangle, Eye, Pencil } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -489,6 +489,29 @@ const Orcamentos = () => {
               </>
             )}
             mobileStatusKey="status"
+            mobileIdentifierKey="numero"
+            mobileInlineActions={(o) => (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-10 w-10 p-0"
+                  onClick={(e) => { e.stopPropagation(); pushView("orcamento", o.id); }}
+                  aria-label="Ver detalhes"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-10 w-10 p-0"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/orcamentos/${o.id}`); }}
+                  aria-label="Editar"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
             mobilePrimaryAction={(o) => {
               if (canConvertOrcamento(o.status)) {
                 return (

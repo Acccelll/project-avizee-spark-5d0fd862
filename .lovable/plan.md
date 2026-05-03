@@ -195,7 +195,7 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - ✅ Plug `QuickAddTransportadoraModal` em `RemessaForm` (botão + ao lado do select; recarrega lista após criar).
 - ✅ Plug `QuickAddFormaPagamentoModal` em `Clientes` (link "Cadastrar nova forma" abaixo do select).
 - ✅ Auditoria EmptyState vs DetailEmpty: drawers/views (Cliente, Fornecedor, Produto, Funcionário, Transportadora, FormaPagamento, GrupoEconomico, EstoquePosicao, ContaBancaria, Financeiro) migrados para `DetailEmpty` (memória `empty-state-vs-detail-empty`).
-- Pendente: mobile fine-tuning (Comercial/Configurações/Financeiro).
+- ✅ Mobile fine-tuning: Configurações já cobre tabs/shortLabel/sticky-save (perfil/segurança); Financeiro já tem cards mobile + bottom-sheets; Comercial (Orçamentos/Pedidos) ganhou `mobileIdentifierKey` (nº) + `mobileInlineActions` (Ver/Editar).
 
 ### Fase 5 — Permissões & segurança operacional
 - Mapa de gaps `can()` por módulo.
