@@ -117,8 +117,14 @@ const Estoque = () => {
   const [ajusteSheetOpen, setAjusteSheetOpen] = useState(false);
   const [ajusteSheetProdutoId, setAjusteSheetProdutoId] = useState<string | null>(null);
   const [ajusteSheetTipo, setAjusteSheetTipo] = useState<"entrada" | "saida" | "ajuste">("entrada");
+  const { can } = useCan();
+  const canAjustar = can("estoque:editar");
 
   const abrirAjusteRapido = (produtoId: string, tipo: "entrada" | "saida" | "ajuste" = "entrada") => {
+    if (!canAjustar) {
+      toast.error("Você não tem permissão para ajustar estoque.");
+      return;
+    }
     setAjusteSheetProdutoId(produtoId);
     setAjusteSheetTipo(tipo);
     setAjusteSheetOpen(true);
