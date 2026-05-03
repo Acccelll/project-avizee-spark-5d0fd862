@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -13,7 +13,6 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   type CotacaoCompra,
   type CotacaoItem,
-  type CotacaoSummary,
   type Proposta,
   type LocalItem,
   buildEmptyForm,
