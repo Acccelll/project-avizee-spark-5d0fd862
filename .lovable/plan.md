@@ -1,90 +1,226 @@
-# Correções no Módulo Financeiro
+# Revisão Geral do ERP AviZee — Diagnóstico e Plano
 
-## Diagnóstico
-
-### 1) Lançamentos "com -" (coluna Pessoa em branco)
-Todos os 36 lançamentos importados têm `fornecedor_id` (entradas) ou `cliente_id` (saídas) preenchidos. O "—" aparece quando o `useSupabaseCrud` não traz a relação aninhada esperada, ou quando o lançamento é de origem manual sem contraparte. Confirmei que os lançamentos da importação têm pessoa correta no banco — o problema é visual, causado por:
-- A coluna `parceiro` em `financeiroColumns.tsx` só lê `l.clientes?.nome_razao_social` ou `l.fornecedores?.nome_razao_social`, mas se a query falha de join (ou se houve criação fora do hook), o nome não aparece.
-- O `displayDescricao` em alguns casos antigos cai em "Lançamento sem descrição" quando vê `[object Object]`.
-
-### 2) Lançamentos duplicados
-- Os 36 lançamentos da importação têm `nota_fiscal_id` único por parcela — **não são duplicados** (parcelas 1/3, 2/3, 3/3 de uma mesma NF). A UI exibe "NF X - Parc. n/total" mas pode dar impressão de duplicidade.
-- Existe **1 NF duplicada de fato** no cadastro: `numero=11`, `fornecedor=bf12ccf7-...` aparece 2x em `notas_fiscais` (não importada por nós, é dado preexistente).
-- Falta uma **constraint única** em `notas_fiscais` para `(chave_acesso)` e/ou `(numero, serie, fornecedor_id, tipo)` para evitar reincidência.
-
-### 3) Filtro de tipo de cartão de crédito não funciona
-A página `/financeiro` (`src/pages/Financeiro.tsx`) tem filtros de Tipo, Status, Bancos, Origem, Forma de Pagamento — **não existe filtro por cartão**. Existia conceitualmente em uma versão anterior; foi removido durante refatoração. Há `cartoes_credito` carregados via `useFinanceiroAuxiliares`, mas nenhum `MultiSelect` de cartões está montado.
-
-### 4) Não dá para criar conta bancária
-RLS atual de `public.contas_bancarias`:
-```
-cb_insert: WITH CHECK has_role(auth.uid(),'admin')   -- só admin
-cb_update: USING admin OR financeiro
-cb_select: USING admin OR financeiro
-```
-O usuário `financeiro@avizee.com.br` tem role `financeiro` (não admin), portanto consegue ver/editar mas **não consegue inserir** novas contas. A política está inconsistente com update/select.
+> Baseado no estado real do projeto inspecionado (rotas em `src/App.tsx`, 184 migrations, ~120 tabelas/views públicas, ~60 páginas, ~50 services). Itens não confirmados estão marcados como **pendente de validação**.
 
 ---
 
-## Plano de correção
+## 1. Resumo executivo
 
-### A) Banco de dados (migrations)
+O AviZee é um ERP modular (React + Vite + Tailwind + Supabase/Lovable Cloud) com cobertura ampla: cadastros, comercial, compras, logística, fiscal, financeiro, faturamento, relatórios (workbook/apresentação), social e administração. A base é **funcional e consistente**, com padrões já estabelecidos (V2 wrappers, STATUS_VARIANT_MAP, useSupabaseCrud, RLS + RBAC via `user_permissions`).
 
-1. **Ajustar RLS de `contas_bancarias`** — permitir INSERT também para role `financeiro`:
-   ```sql
-   DROP POLICY cb_insert ON public.contas_bancarias;
-   CREATE POLICY cb_insert ON public.contas_bancarias
-     FOR INSERT TO authenticated
-     WITH CHECK (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'financeiro'));
-   ```
+Os pontos de atenção atuais são:
+- **Financeiro:** após a importação de NF-e, alguns ajustes finos de UX permanecem (filtros, coluna Pessoa, criação de contas) — já parcialmente corrigidos. A base de dados **não tem duplicidade real** por (NF, parcela), confirmado por query (`dup_nf_parc=0`, `nf_dup_chave=0`).
+- **Fiscal:** importação XML está estável e idempotente, mas geração financeira a partir da NF tem regras dispersas e a UI de DDA/boleto é incompleta.
+- **Cadastros:** vínculo banco↔fornecedor↔conta bancária é frouxo (sem FK obrigatória de `contas_bancarias.banco_id` para `bancos`/`fornecedores`).
+- **UI/UX:** já há padronização (V2), mas sobram telas legadas (`Faturamento.legacy.tsx`) e pequenas inconsistências mobile.
+- **Qualidade técnica:** 184 migrations acumuladas, alguns hooks/serviços grandes; sem riscos de build aparentes, mas com débito de organização.
 
-2. **Constraint anti-duplicidade em `notas_fiscais`**:
-   ```sql
-   CREATE UNIQUE INDEX IF NOT EXISTS uq_notas_fiscais_chave
-     ON public.notas_fiscais(chave_acesso) WHERE chave_acesso IS NOT NULL;
-   CREATE UNIQUE INDEX IF NOT EXISTS uq_notas_fiscais_num_serie_emit
-     ON public.notas_fiscais(numero, COALESCE(serie,''), COALESCE(fornecedor_id::text, cliente_id::text), tipo)
-     WHERE status <> 'cancelada';
-   ```
+Nenhum risco crítico de perda de dados foi identificado neste momento.
 
-3. **Limpar NF duplicada `numero=11`** — manter a mais antiga, soft-delete (status='cancelada') na duplicada, somente se não tiver lançamentos/movimentos vinculados.
+## 2. Mapa de módulos (estado real)
 
-### B) Frontend
+| Módulo | Rotas principais | Tabelas-chave |
+|---|---|---|
+| Dashboard | `/` | views agregadas |
+| Cadastros | `/produtos` `/clientes` `/fornecedores` `/transportadoras` `/funcionarios` `/formas-pagamento` `/grupos-economicos` `/socios` | produtos, clientes, fornecedores, transportadoras, funcionarios, formas_pagamento, grupos_economicos, socios |
+| Comercial | `/orcamentos` `/pedidos` | orcamentos, ordens_venda |
+| Compras | `/cotacoes-compra` `/pedidos-compra` | cotacoes_compra, pedidos_compra, recebimentos_compra |
+| Logística | `/logistica` `/remessas/*` | remessas, remessa_etiquetas, frete_simulacoes |
+| Estoque | `/estoque` | estoque_movimentos, vw_estoque_posicao |
+| Fiscal | `/fiscal` `/fiscal/novo` `/fiscal/:id` `/fiscal/distdfe-historico` `/fiscal/dashboard` | notas_fiscais, notas_fiscais_itens, nfe_distribuicao, eventos_fiscais |
+| Faturamento | `/faturamento` `/faturamento/cadastros` `/faturamento/emitir` | matriz_fiscal, naturezas_operacao |
+| Financeiro | `/financeiro` `/contas-bancarias` `/cartoes-credito` `/fluxo-caixa` `/conciliacao` `/contas-contabeis-plano` `/financeiro/budget` | financeiro_lancamentos, financeiro_baixas, contas_bancarias, cartoes_credito, cartao_faturas, conciliacao_bancaria |
+| Relatórios | `/relatorios` `/relatorios/workbook-gerencial` `/relatorios/apresentacao-gerencial` | vw_workbook_*, vw_apresentacao_* |
+| Administração | `/administracao` `/migracao-dados` `/auditoria` `/admin/audit-duplicidades` | user_roles, user_permissions, auditoria_logs, app_configuracoes |
+| Configurações | `/configuracoes` `/perfil` (alias) | user_preferences, empresa_config |
+| Social | `/social` (feature flag) | social_contas, social_posts |
 
-4. **Adicionar filtro "Cartão"** na barra de filtros do `/financeiro`:
-   - Em `useFinanceiroFiltros.ts`: novo state `cartaoFilters`, leitura de `?cartao=` no URL, opção `cartaoOpts` populada via `auxiliares.cartoes`, filtro em `filteredData` por `l.cartao_id`.
-   - Em `Financeiro.tsx`: novo `<MultiSelect placeholder="Cartão">` ao lado do filtro de Forma de pagamento.
-   - Chip ativo + remoção.
+## 3. Principais riscos identificados
 
-5. **Robustecer coluna Pessoa** em `financeiroColumns.tsx`:
-   - Fallback para `l.cartao_id` → nome do cartão (lançamento de fatura).
-   - Se `nota_fiscal_id` existir e não houver pessoa, mostrar "Cliente/Fornecedor da NF" como link.
+1. **Vínculo frouxo banco/fornecedor/conta bancária** — risco de inconsistência futura na conciliação e em DDA.
+2. **Geração financeira a partir da NF** — regras espalhadas; risco de divergência condição×parcelas×forma_pagamento (especialmente "à vista").
+3. **Telas legadas em produção** (`Faturamento.legacy.tsx`) — risco de retrabalho e confusão de UX.
+4. **Permissões "Em breve"** — algumas rotas/ações abertas sem gate visível ao usuário (pendente de validação por módulo).
+5. **Cartões de crédito** — `cartoes_credito` existe mas tabela está vazia (0 linhas). Fluxo fatura×lançamento ainda incompleto.
+6. **Conciliação bancária** — UI funcional, mas dependência forte de regras de matching ainda não documentadas.
+7. **Migrations acumuladas (184)** — não é risco operacional, mas dificulta manutenção e onboarding.
 
-6. **Robustecer `displayDescricao`** — já tem cascata, garantir que cubra também `null`/`undefined`.
+## 4. Diagnóstico por módulo (resumido)
 
-### C) Auditoria de duplicatas
+> Para cada item: **P** = Prioridade (C/A/M/B), **Tipo** = (DB/Code/UX/Decisão).
 
-7. Rodar query no console e mostrar relatório CSV em `/mnt/documents/auditoria-duplicidades-fiscal.csv` listando NFs duplicadas (chave, numero, fornecedor, valores) para o usuário decidir manualmente quais cancelar.
+### Cadastros
+- [A][DB] FK e UNIQUE em `contas_bancarias(banco_id → bancos.id)` e vínculo opcional `fornecedor_id` para representar "banco como fornecedor".
+- [M][UX] Padronizar Quick-Add em todos os pickers (cliente/produto/fornecedor já existem; faltam transportadora e forma_pagamento — pendente de validação).
+- [M][Code] Validar regras de unicidade no front (CPF/CNPJ, código produto) com Zod uniforme.
+
+### Comercial (Orçamentos/Pedidos)
+- [M][UX] Conferir consistência de status (STATUS_VARIANT_MAP) entre orçamento e pedido.
+- [M][Code] Verificar conversão Orçamento→Pedido (idempotência) — pendente de validação.
+
+### Compras
+- [M][Code] Recebimento parcial e atualização de estoque por `recebimentos_compra_itens` (revisar trigger atual).
+- [B][UX] Padronizar drawer de cotação propostas.
+
+### Logística
+- [B][UX] Unificar estados vazios em `/logistica` (3 abas).
+- [A][Code] Etiqueta Correios — confirmar bucket `etiquetas-correios` ativo e fluxo de cancelamento.
+
+### Estoque
+- [A][DB] Reforçar `trg_estoque_movimentos_sync` (já existe) com testes; checar reconciliação `estoque_atual` vs `vw_estoque_posicao`.
+
+### Fiscal (ver §6)
+### Financeiro (ver §5)
+
+### Faturamento
+- [C][Code] Remover/ocultar `Faturamento.legacy.tsx` se não houver mais consumo.
+- [A][Decisão] Confirmar quais ações do wizard de emissão NF-e devem ficar como "Em breve".
+
+### Relatórios / Workbook / Apresentação
+- [M][Code] Validar consistência de fontes (vw_apresentacao_* vs vw_workbook_*).
+- [B][UX] Carregamento progressivo (skeletons) em slides pesados.
+
+### Administração / Configurações
+- [A][Code] Auditoria de revogação de sessões (admin-users edge function) — confirmar funcionamento.
+- [M][UX] `/perfil` ainda é alias legado — manter ou remover? **Decisão do usuário**.
+
+### Social
+- [B][Decisão] Manter feature flag `VITE_FEATURE_SOCIAL` ou promover a 1ª classe.
+
+## 5. Financeiro — diagnóstico aprofundado
+
+**Confirmado por query no banco real:**
+- `financeiro_lancamentos`: 481 linhas; **0 duplicatas** por (nota_fiscal_id, parcela_numero) entre ativos.
+- `notas_fiscais`: 394 linhas; **0 duplicatas** por chave_acesso.
+- `contas_bancarias`: 2 linhas; `cartoes_credito`: 0.
+
+**Conclusão sobre "duplicidade":** o que o usuário observou na tela são **parcelas legítimas** (1/3, 2/3, 3/3) — não há duplicação real no banco. UX precisa diferenciar visualmente (badge de parcela já existe mas pode estar discreto).
+
+**Pontos a tratar:**
+1. [C][UX] Coluna Pessoa: já corrigida com fallback (Banco/Cartão/"—" só em casos sem nada). Validar com o usuário.
+2. [C][DB] Filtro `cartao` no MultiSelect: já restaurado. Validar.
+3. [C][DB] Permissão de criar conta bancária: já liberada para role `financeiro`. Validar.
+4. [A][UX] **Indicador visual de parcela** nas linhas (ex: "2/3" como sufixo do título e ordenação sugerida por documento_pai_id).
+5. [A][Code] Revisar lógica de "à vista" — atualmente importação cria com `status='aberto'`, `valor_pago=0`. Confirmar regra: à vista importado deve nascer aberto (para baixa manual) ou pago automaticamente quando vier de NF-e marcada como liquidada?
+6. [A][Code] Baixa em lote: validar comportamento quando títulos têm contas bancárias diferentes.
+7. [A][Code] Conciliação: revisar matching `vw_conciliacao_eventos_financeiros` × extrato.
+8. [M][DB] Cartão de crédito × Fatura × Lançamento: definir RPC `gerar_fatura_cartao(mes, ano)` antes de habilitar UI.
+9. [M][UX] Filtros: persistir últimos filtros por usuário (já temos `useDataTablePrefs`).
+10. [B][Code] Limpar `financeiro_lancamentos_backup_20260428` após validação.
+
+**Riscos de regressão:** mexer em RPCs de baixa (multi-item) sem testes pode quebrar histórico. Toda alteração precisa preservar `financeiro_baixas` como log imutável.
+
+## 6. Fiscal — diagnóstico aprofundado
+
+**Funcional:**
+- Importação XML idempotente (chave_acesso UNIQUE).
+- DistDFe sync (`nfe_distdfe_sync`), histórico em `/fiscal/distdfe-historico`.
+- Eventos fiscais (`eventos_fiscais`, `nota_fiscal_eventos`).
+
+**Incompleto / a revisar:**
+1. [A][Code] Geração de financeiro a partir da NF: regra de detecção de condição (à vista/parcelado/boleto) e mapeamento para `forma_pagamento_id`.
+2. [A][UX] DDA/boleto: campo presente mas sem UI de upload/leitura; manter como "Em breve" até definição.
+3. [M][Code] Consulta por chave + QR: validar fallback quando SEFAZ rejeita.
+4. [M][DB] Garantir trigger que impede edição de NF autorizada (somente eventos de cancelamento).
+5. [B][UX] FiscalDashboard: revisar cards e fontes.
+
+**Decisão operacional necessária:** quando a NF fiscal entrar como "à vista pago no ato", deve gerar lançamento `pago` ou `aberto`?
+
+## 7. UI/UX e responsividade
+
+- [A][UX] Remover/arquivar `Faturamento.legacy.tsx`.
+- [M][UX] Padronizar `EmptyState` vs `DetailEmpty` (memória já existe — auditar uso real).
+- [M][UX] Mobile: revisar tabs com `shortLabel` em Configurações e Comercial (já documentado).
+- [M][UX] Auditar uso de wrappers V2 — toda nova tela deve usar `DataTableV2`, `ViewDrawerV2`, `FormModal`, `AdvancedFilterBar`, `SummaryCard`, `StatusBadge`.
+- [B][UX] Ações primárias vs secundárias: revisar drawers do Financeiro/Fiscal.
+
+## 8. Banco / Migrations
+
+- [A][DB] **Migration nova:** FK `contas_bancarias.banco_id` → `bancos.id` (nullable mas constrained); coluna `fornecedor_id` opcional para representar "banco como fornecedor".
+- [A][DB] **Migration nova:** índice composto `financeiro_lancamentos(documento_pai_id, parcela_numero)` para acelerar render por grupo.
+- [M][DB] Auditar `chk_` constraints em status (memória já existe — validar cobertura).
+- [M][DB] Revisar `search_path = public` em todas as funções (rodar `supabase--linter`).
+- [B][DB] Squashing futuro de migrations (apenas plano, não imediato).
+
+## 9. Permissões
+
+- [A][Code] Auditar uso de `can(resource, action)` em ações sensíveis (excluir, cancelar, baixar). Mapear gaps por módulo.
+- [M][Code] Padronizar exibição "Em breve" com `<DisabledByPermission reason="em_breve" />` (criar wrapper se não existir).
+- [M][DB] Revisar matriz de `user_permissions` por role: admin, financeiro, estoquista, vendedor.
+
+## 10. Integrações
+
+| Integração | Estado | Ação |
+|---|---|---|
+| XML/NF-e (sefaz-proxy) | Funcional | Documentar limites de timeout |
+| Correios (etiqueta) | Funcional | Validar cancelamento |
+| Cartões | Não iniciado | Definir modelo fatura×lançamento |
+| Bancos (extrato) | Conciliação manual | Avaliar OFX no futuro |
+| AI Gateway | Funcional (apresentação) | OK |
+| Email (pgmq) | Funcional | OK |
+
+## 11. Qualidade técnica
+
+- [A][Code] Quebrar hooks/services >500 linhas (mapear via `wc -l src/hooks/* src/services/*` na execução).
+- [M][Code] Eliminar `@ts-nocheck` remanescentes.
+- [M][Code] Centralizar tipagem em `src/types/domain.ts` (já é convenção — auditar drift).
+- [B][Code] Remover `Faturamento.legacy.tsx`, `OrcamentoForm.test.tsx` se obsoleto, mocks não usados.
 
 ---
 
-## Arquivos afetados
+## Plano de execução em fases
 
-```text
-supabase/migrations/<timestamp>_fix_contas_bancarias_rls.sql        (novo)
-supabase/migrations/<timestamp>_uniq_notas_fiscais.sql              (novo)
-src/pages/financeiro/hooks/useFinanceiroFiltros.ts                  (filtro cartão)
-src/pages/financeiro/hooks/useFinanceiroAuxiliares.ts               (já carrega cartões)
-src/pages/Financeiro.tsx                                            (MultiSelect cartão)
-src/pages/financeiro/config/financeiroColumns.tsx                   (fallback pessoa)
-src/lib/displayLancamento.ts                                        (cobertura null)
-/mnt/documents/auditoria-duplicidades-fiscal.csv                    (artifact)
-```
+### Fase 1 — Estabilização crítica
+**Objetivo:** garantir que financeiro/fiscal/importação não geram dados incorretos.
+- Validar correções recentes (Pessoa column, filtro cartão, criar conta bancária).
+- Confirmar regra "à vista importado" (decisão do usuário).
+- Adicionar indicador visual de parcela no grid financeiro.
+- Linter Supabase + corrigir `search_path`.
+**Aceite:** zero regressão; usuário valida visualmente os 3 pontos.
 
-## Notas técnicas
+### Fase 2 — Financeiro & Fiscal
+- Revisar geração de financeiro a partir de NF (RPC documentada).
+- Conciliação: melhorar matching e UI.
+- Cartão de crédito MVP: cadastro + fatura placeholder ("Em breve" claro).
+- Limpar `financeiro_lancamentos_backup_20260428` após auditoria.
 
-- Não vou recriar/duplicar lançamentos já importados — eles têm `nota_fiscal_id` único e estão corretos.
-- A unique index em `notas_fiscais` será **parcial** (`WHERE status <> 'cancelada'`) para não bloquear estornos legítimos.
-- A nova policy de INSERT segue o padrão das demais policies do módulo (admin OR financeiro).
+### Fase 3 — Cadastros & relacionamentos
+- Migration FK `contas_bancarias.banco_id` e vínculo opcional fornecedor.
+- Padronizar Quick-Add nos pickers faltantes.
+- Validações Zod uniformes (CPF/CNPJ/código).
 
-Aprove para eu aplicar.
+### Fase 4 — UI/UX & padronização
+- Remover legacy (`Faturamento.legacy.tsx`).
+- Auditar V2 wrappers em todas as telas.
+- Mobile fine-tuning (Comercial/Configurações/Financeiro).
+- EmptyState vs DetailEmpty audit.
+
+### Fase 5 — Permissões & segurança operacional
+- Mapa de gaps `can()` por módulo.
+- Wrapper `<EmBreve>` consistente.
+- Revisar admin-users (revogação de sessão).
+
+### Fase 6 — Integrações & evoluções
+- Cartões: fatura→lançamento (RPC + UI).
+- DDA/boleto: definição + MVP.
+- Avaliar OFX para conciliação.
+
+### Fase 7 — Limpeza técnica
+- Quebrar hooks/services grandes.
+- Centralização de tipos.
+- Plano de squashing de migrations.
+
+---
+
+## Pontos que precisam de decisão do usuário
+
+1. **À vista importado da NF:** nascer `aberto` (atual) ou `pago` quando a NF indicar liquidação no ato?
+2. **`/perfil` legado:** manter alias ou remover?
+3. **Cartão de crédito MVP:** quais cartões cadastrar primeiro? Bandeiras suportadas?
+4. **DDA/boleto:** habilitar leitura de boleto agora ou manter "Em breve"?
+5. **Social:** promover ou manter atrás de feature flag?
+6. **Faturamento legacy:** confirmar remoção?
+
+## Próximo prompt recomendado (para iniciar Fase 1)
+
+> "Execute a Fase 1: (a) rodar supabase linter e corrigir search_path nas funções; (b) adicionar coluna visual de parcela (ex: '2/3') no grid `/financeiro` ordenando por documento_pai_id; (c) responder minhas decisões: à vista importado deve nascer aberto, /perfil pode ser removido, faturamento legacy pode ser removido. Aplique migrations e mostre testes manuais a serem feitos."
