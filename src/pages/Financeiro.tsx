@@ -6,6 +6,7 @@ import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { FormModal } from "@/components/FormModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermissionGate } from "@/components/PermissionGate";
 import { SummaryCard } from "@/components/SummaryCard";
 import { PeriodFilter } from "@/components/filters/PeriodFilter";
 import { MonthFilter } from "@/components/filters/MonthFilter";
@@ -351,19 +352,21 @@ const Financeiro = () => {
                 const es = getLancamentoStatus(l);
                 if (es === "pago" || es === "cancelado") return null;
                 return (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5 whitespace-nowrap"
-                    aria-label={`Baixar lançamento: ${l.descricao}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setBaixaParcialTarget(l);
-                      setBaixaParcialOpen(true);
-                    }}
-                  >
-                    <CreditCard className="h-3 w-3" /> Baixar
-                  </Button>
+                  <PermissionGate resource="financeiro" action="baixar" mode="disable">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5 whitespace-nowrap"
+                      aria-label={`Baixar lançamento: ${l.descricao}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBaixaParcialTarget(l);
+                        setBaixaParcialOpen(true);
+                      }}
+                    >
+                      <CreditCard className="h-3 w-3" /> Baixar
+                    </Button>
+                  </PermissionGate>
                 );
               }}
               mobileStatusKey="status"
@@ -372,17 +375,19 @@ const Financeiro = () => {
                 const es = getLancamentoStatus(l);
                 if (es === "pago" || es === "cancelado") return null;
                 return (
-                  <Button
-                    size="sm"
-                    className="w-full h-11 gap-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setBaixaParcialTarget(l);
-                      setBaixaParcialOpen(true);
-                    }}
-                  >
-                    <CreditCard className="h-4 w-4" /> Baixar
-                  </Button>
+                  <PermissionGate resource="financeiro" action="baixar" mode="disable">
+                    <Button
+                      size="sm"
+                      className="w-full h-11 gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBaixaParcialTarget(l);
+                        setBaixaParcialOpen(true);
+                      }}
+                    >
+                      <CreditCard className="h-4 w-4" /> Baixar
+                    </Button>
+                  </PermissionGate>
                 );
               }}
               mobileInlineActions={(l) => (

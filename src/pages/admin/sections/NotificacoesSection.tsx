@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useSectionConfig } from "@/pages/admin/hooks/useSectionConfig";
-import { Badge } from "@/components/ui/badge";
+import { EmBreve } from "@/components/EmBreve";
 import { Info } from "lucide-react";
 
 const DEFAULTS = {
@@ -44,7 +44,7 @@ export function NotificacoesSection() {
         <div className="flex-1">
           <p className="font-medium flex items-center gap-2">
             Disparo automático
-            <Badge variant="outline" className="border-warning/40 text-warning text-[10px] uppercase tracking-wider">Em breve</Badge>
+            <EmBreve />
           </p>
           <p className="text-xs">
             As preferências definidas aqui são persistidas como política global, mas o cron de envio (resumo diário, alertas) ainda não está ativo. Avisos críticos continuam saindo apenas pelos fluxos transacionais existentes.

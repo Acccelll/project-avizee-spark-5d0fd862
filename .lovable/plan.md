@@ -198,9 +198,16 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - ✅ Mobile fine-tuning: Configurações já cobre tabs/shortLabel/sticky-save (perfil/segurança); Financeiro já tem cards mobile + bottom-sheets; Comercial (Orçamentos/Pedidos) ganhou `mobileIdentifierKey` (nº) + `mobileInlineActions` (Ver/Editar).
 
 ### Fase 5 — Permissões & segurança operacional
-- Mapa de gaps `can()` por módulo.
-- Wrapper `<EmBreve>` consistente.
-- Revisar admin-users (revogação de sessão).
+- ✅ Wrapper `<EmBreve>` criado em `src/components/EmBreve.tsx` (modo `badge` + `wrap` com Tooltip + disabled). Aplicado em `Fiscal.tsx` (Buscar por chave / QR), `BackupSection`, `NotificacoesSection`.
+- ✅ Gates `can()` no Financeiro: ações **Baixar** (rowExtraActions + mobilePrimaryAction) usam `<PermissionGate resource="financeiro" action="baixar" mode="disable">`; `FinanceiroDrawer` agora respeita `financeiro:baixar` (Baixa/Estorno), `financeiro:editar` (Editar) e `financeiro:cancelar|excluir` (Cancelar). Botões somem para quem não tem permissão.
+- 🔎 Mapa de gaps `can()` por módulo (próximas iterações):
+  - **Cadastros (Clientes/Fornecedores/Produtos/Transportadoras/Funcionários):** `onDelete` no `DataTable` chama `remove(id)` direto — recomendar envolver botão Excluir com `<PermissionGate resource="<recurso>" action="excluir" mode="disable">` ou validar no service.
+  - **Comercial (Orçamentos/Pedidos):** Aprovar/Cancelar/Converter sem `can()` visível — adicionar `pedidos:aprovar`, `pedidos:cancelar`, `orcamentos:aprovar`.
+  - **Compras:** Recebimento parcial e cancelamento de pedido sem gate (`compras:confirmar`, `compras:cancelar`).
+  - **Estoque:** Ajustes manuais devem exigir `estoque:editar` (atual sem verificação no UI).
+  - **Fiscal:** Cancelamento NF / Carta de correção precisam `faturamento_fiscal:cancelar` e `faturamento_fiscal:admin_fiscal`.
+  - **Administração:** já gated via `AdminRoute`. Revogação de sessão (admin-users) — confirmar logs.
+- ⏳ Revisão admin-users (revogação de sessão): edge function `supabase/functions/admin-users/index.ts` (662 linhas) — auditoria pendente.
 
 ### Fase 6 — Integrações & evoluções
 - Cartões: fatura→lançamento (RPC + UI).

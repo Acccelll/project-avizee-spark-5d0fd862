@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { Lancamento } from "@/types/domain";
 import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
+import { useCan } from "@/hooks/useCan";
 import { getOrigemLabel } from "@/lib/financeiro";
 
 interface Baixa {
@@ -83,12 +84,16 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const { pending: actionPending, run: runAction } = useActionLock();
+  const { can } = useCan();
+  const canPermBaixar = can("financeiro:baixar");
+  const canPermEditar = can("financeiro:editar");
+  const canPermCancelar = can("financeiro:cancelar") || can("financeiro:excluir");
 
   // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
   if (!open || !selected) return null;
 
-  const canBaixa = effectiveStatus !== "pago" && effectiveStatus !== "cancelado";
-  const canEstorno = effectiveStatus === "pago" || effectiveStatus === "parcial";
+  const canBaixa = canPermBaixar && effectiveStatus !== "pago" && effectiveStatus !== "cancelado";
+  const canEstorno = canPermBaixar && (effectiveStatus === "pago" || effectiveStatus === "parcial");
 
   const isCR = selected.tipo === "receber";
   const valorTotal = Number(selected.valor);
@@ -171,19 +176,19 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
               pending: actionPending,
               tone: "warning" as const,
             }] : []),
-            {
+            ...(canPermEditar ? [{
               icon: Edit,
               tooltip: "Editar",
               onClick: () => runAction(() => { onEdit(selected); onClose(); }),
               pending: actionPending,
-            },
+            }] : []),
           ]}
-          destructive={{
+          destructive={canPermCancelar ? {
             icon: Trash2,
-            tooltip: "Excluir",
+            tooltip: "Cancelar",
             onClick: () => runAction(() => { onDelete(selected.id); onClose(); }),
             pending: actionPending,
-          }}
+          } : undefined}
         />
       }
       tabs={[
