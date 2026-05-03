@@ -24,6 +24,7 @@ import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
 import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { useCan } from "@/hooks/useCan";
 import { statusPedido } from "@/lib/statusSchema";
 import { verificarEstoquePedido } from "@/utils/comercialStock";
 import type { StockShortfall } from "@/types/comercial";
@@ -97,6 +98,8 @@ const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const faturarPedido = useFaturarPedido();
+  const { can } = useCan();
+  const canFaturar = can("faturamento_fiscal:criar") || can("pedidos:editar");
   const qc = useQueryClient();
   const { data: rawData, loading, fetchData } = useSupabaseCrud({
     table: "ordens_venda", select: "*, clientes(nome_razao_social), orcamentos(numero)",
@@ -426,7 +429,7 @@ const Pedidos = () => {
           onView={handleView}
           onEdit={(p) => navigate(`/pedidos/${p.id}`)}
           rowExtraActions={(p) => (
-            canFaturarPedido(p) ? (
+            canFaturarPedido(p) && canFaturar ? (
               <Button
                 size="sm"
                 variant="default"
@@ -463,7 +466,7 @@ const Pedidos = () => {
             </div>
           )}
           mobilePrimaryAction={(p) => {
-            if (!canFaturarPedido(p)) return null;
+            if (!canFaturarPedido(p) || !canFaturar) return null;
             return (
               <Button
                 size="lg"
