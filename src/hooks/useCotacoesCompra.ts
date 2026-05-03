@@ -201,12 +201,6 @@ export function useCotacoesCompra() {
     setLocalItems(localItems.filter((i) => i._localId !== localId));
   };
 
-  const reloadPropostas = async () => {
-    if (!selected) return;
-    const propostas = await ccs.listCotacaoPropostas(selected.id);
-    setViewPropostas((propostas || []) as Proposta[]);
-  };
-
   const handleSendForApproval = async () => {
     if (!selected) return;
     try {
