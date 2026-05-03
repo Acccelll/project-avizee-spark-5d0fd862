@@ -223,9 +223,9 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 ### Fase 7 — Limpeza técnica
 - ✅ `useCotacoesCompra` (477→381 linhas) — extraídos `useCotacoesEnrichment` (effect de summaries) e `useCotacaoPropostas` (form/handlers add/select/delete) em `src/hooks/compras/`.
 - ✅ `usePedidosCompra` (534→462 linhas) — extraído `useCompraLifecycle` (solicitar/aprovar/rejeitar/enviado/cancelar/deleteSelected) em `src/hooks/compras/`.
-- 🔎 Auditoria drift em `src/types/domain.ts`:
-  - `src/types/{comercial,cadastros,erp,orcamento}.ts` mantêm tipos **escopo-UI** (joins/picks/mini) — coexistem legitimamente com `domain.ts` (não há duplicação de aliases canônicos).
-  - 9 arquivos ainda usam inline `Database["public"]["Tables"][...]["Row"]` que poderiam vir de `domain.ts` (services/orcamentos, services/pedidosCompra, services/estoque, hooks/useCotacoesCompra, pages: Estoque, CotacaoCompraForm, PedidoCompraForm, fiscal/Cte, components/estoque/EstoqueAjusteSheet). Substituição é mecânica e não-bloqueante — agendar como cleanup incremental.
+- ✅ Auditoria drift em `src/types/domain.ts`:
+  - `src/types/{comercial,cadastros,erp,orcamento}.ts` mantêm tipos **escopo-UI** (joins/picks/mini) — coexistem legitimamente com `domain.ts`.
+  - Migrados 8 arquivos para `TableRow<...>`/`TableInsert<...>` de `@/types/domain` (services/pedidosCompra, services/estoque, hooks/useCotacoesCompra, pages: Estoque, CotacaoCompraForm, PedidoCompraForm, fiscal/Cte com alias `DbRow` p/ não conflitar com shadcn `TableRow`, components/estoque/EstoqueAjusteSheet). `services/orcamentos.service.ts` mantém uso inline (`Json` derivado de coluna específica).
 - ⏳ Plano de squashing de migrations (apenas plano, não imediato).
 
 ---
