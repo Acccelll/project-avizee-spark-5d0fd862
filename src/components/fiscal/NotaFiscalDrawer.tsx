@@ -113,6 +113,8 @@ interface NotaFiscalDrawerProps {
   onDanfe: (nf: NotaFiscal) => void;
   /** Chamado após exclusão permanente bem-sucedida (admin). */
   onPermanentlyDeleted?: () => void;
+  /** Chamado quando o drawer precisa que a lista pai recarregue (sem fechar). */
+  onRefresh?: () => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -120,7 +122,7 @@ interface NotaFiscalDrawerProps {
 export function NotaFiscalDrawer({
   open, onClose, selected,
   onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe,
-  onPermanentlyDeleted,
+  onPermanentlyDeleted, onRefresh,
 }: NotaFiscalDrawerProps) {
   const selectedId = selected?.id ?? null;
 
@@ -1076,7 +1078,7 @@ export function NotaFiscalDrawer({
         onClose={() => setEditarPagamentoOpen(false)}
         nota={selected}
         onSaved={() => {
-          onPermanentlyDeleted?.();
+          onRefresh?.();
         }}
       />
     )}
