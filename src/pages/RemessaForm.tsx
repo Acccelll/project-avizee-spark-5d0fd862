@@ -30,12 +30,13 @@ import {
 } from "@/services/logistica/lookups.service";
 import { statusRemessa } from "@/lib/statusSchema";
 import { toast } from "sonner";
-import { Save, Truck } from "lucide-react";
+import { Save, Truck, Plus } from "lucide-react";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { PageShell } from "@/components/PageShell";
 import { EtiquetaCorreiosCard } from "@/components/logistica/EtiquetaCorreiosCard";
+import { QuickAddTransportadoraModal } from "@/components/QuickAddTransportadoraModal";
 
 type Cliente = LookupRef;
 type Transportadora = LookupRef;
@@ -106,6 +107,7 @@ export default function RemessaFormPage() {
   const [ordensVenda, setOrdensVenda] = useState<OrdemVenda[]>([]);
   const [pedidosCompra, setPedidosCompra] = useState<PedidoCompra[]>([]);
   const [notasFiscais, setNotasFiscais] = useState<NotaFiscal[]>([]);
+  const [quickAddTranspOpen, setQuickAddTranspOpen] = useState(false);
 
   useEffect(() => {
     const loadLookups = async () => {
@@ -243,14 +245,27 @@ export default function RemessaFormPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Transportadora *</Label>
-                    <Select value={form.transportadora_id} onValueChange={(v) => setF({ transportadora_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>
-                        {transportadoras.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>{t.nome_razao_social}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-1">
+                      <Select value={form.transportadora_id} onValueChange={(v) => setF({ transportadora_id: v })}>
+                        <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          {transportadoras.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>{t.nome_razao_social}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => setQuickAddTranspOpen(true)}
+                        aria-label="Cadastrar nova transportadora"
+                        title="Cadastrar nova"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Cliente</Label>
@@ -394,6 +409,15 @@ export default function RemessaFormPage() {
           </form>
         )}
       {confirmDialog}
+      <QuickAddTransportadoraModal
+        open={quickAddTranspOpen}
+        onClose={() => setQuickAddTranspOpen(false)}
+        onCreated={async (id) => {
+          const updated = await listTransportadorasAtivas();
+          setTransportadoras(updated);
+          setF({ transportadora_id: id });
+        }}
+      />
     </PageShell>
   );
 }

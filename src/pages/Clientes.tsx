@@ -33,6 +33,7 @@ import {
   Info, Loader2, Calendar, Mail, Users, UserCheck,
   MessageSquare, Home,
 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
@@ -42,6 +43,7 @@ import { ClienteEnderecosTab } from "./clientes/components/ClienteEnderecosTab";
 import { ClienteComunicacoesTab } from "./clientes/components/ClienteComunicacoesTab";
 import { ClienteTransportadorasTab } from "./clientes/components/ClienteTransportadorasTab";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
+import { QuickAddFormaPagamentoModal } from "@/components/QuickAddFormaPagamentoModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -144,6 +146,7 @@ const Clientes = () => {
   const [enderecosCount, setEnderecosCount] = useState(0);
   const [comunicacoesCount, setComunicacoesCount] = useState(0);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddFormaPagOpen, setQuickAddFormaPagOpen] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -418,6 +421,17 @@ const Clientes = () => {
           setQuickAddOpen(false);
           fetchData();
           toast.success("Cliente cadastrado com sucesso");
+        }}
+      />
+
+      <QuickAddFormaPagamentoModal
+        open={quickAddFormaPagOpen}
+        onClose={() => setQuickAddFormaPagOpen(false)}
+        onCreated={async (id) => {
+          const fp = await listFormasPagamentoAtivas();
+          setFormasPagamento(fp as FormaPagamentoBasic[]);
+          updateForm({ forma_pagamento_id: id });
+          setQuickAddFormaPagOpen(false);
         }}
       />
 
@@ -746,6 +760,15 @@ const Clientes = () => {
                       {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.id}>{fp.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => setQuickAddFormaPagOpen(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> Cadastrar nova forma
+                  </Button>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
