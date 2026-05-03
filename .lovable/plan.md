@@ -208,6 +208,8 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
   - **Fiscal:** Cancelamento NF / Carta de correção precisam `faturamento_fiscal:cancelar` e `faturamento_fiscal:admin_fiscal`.
   - **Administração:** já gated via `AdminRoute`. Revogação de sessão (admin-users) — confirmar logs.
 - ⏳ Revisão admin-users (revogação de sessão): edge function `supabase/functions/admin-users/index.ts` (662 linhas) — auditoria pendente.
+- ✅ Gates `can()` em **cadastros** (Excluir oculto sem permissão): Clientes (`clientes:excluir`), Fornecedores (`fornecedores:excluir`), Produtos (`produtos:excluir`), Transportadoras (`transportadoras:excluir`), FormasPagamento (`formas_pagamento:excluir`), Funcionários (`administracao:visualizar`), GruposEconomicos (`clientes:excluir|administracao:visualizar`).
+- ✅ Gate `can("orcamentos:aprovar")` em **Comercial/Orcamentos** (Aprovar desktop+mobile) — substitui check `isAdmin` puro por permissão real, com fallback admin.
 
 ### Fase 6 — Integrações & evoluções
 - Cartões: fatura→lançamento (RPC + UI).
