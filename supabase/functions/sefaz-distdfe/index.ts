@@ -214,24 +214,19 @@ type SoapVariant = "soap12" | "soap11";
 
 function envelopeSoap(distDFeInt: string, variant: SoapVariant): string {
   const inner = distDFeInt.replace(/<\?xml[^?]*\?>\s*/g, "").trim();
-  // Header nfeCabecMsg — exigido pelo binding SOAP do NFeDistribuicaoDFe (AN).
-  // O cliente oficial ZeusAutomacao/DFe.NET e a referência da SEFAZ enviam
-  // este header com cUF (código IBGE da UF do interessado) + versaoDados=1.35.
-  // Sua omissão causa, em alguns CNPJs, o IIS do AN derrubar a conexão antes
-  // de gerar SOAP Fault — sintoma idêntico ao "Connection reset by peer"
-  // observado em prod. cUF é extraído do cUFAutor presente no distDFeInt.
-  const cUFMatch = inner.match(/<cUFAutor>(\d{2})<\/cUFAutor>/);
-  const cUF = cUFMatch ? cUFMatch[1] : "91";
-  const cabec =
-    `<nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
-    `<cUF>${cUF}</cUF><versaoDados>1.35</versaoDados>` +
-    `</nfeCabecMsg>`;
+  // ATENÇÃO — NÃO REINTRODUZIR <nfeCabecMsg>.
+  // O WSDL do NFeDistribuicaoDFe (AN) NÃO declara `nfeCabecMsg` — apenas
+  // `nfeDadosMsg` dentro de `nfeDistDFeInteresse`. Diferente dos serviços
+  // de Autorização/Consulta protocolo, enviar o header faz o IIS do AN
+  // derrubar a conexão TCP antes de gerar SOAP Fault — causa raiz dos
+  // "Connection reset by peer" observados em prod (abr–mai/2026).
+  // `cUFAutor` (UF do interessado) vai apenas no corpo `distDFeInt`,
+  // nunca no envelope. Ver `mem/features/fiscal-consulta-por-chave.md`.
   if (variant === "soap12") {
     return `<?xml version="1.0" encoding="UTF-8"?>` +
       `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope" ` +
       `xmlns:xsd="http://www.w3.org/2001/XMLSchema" ` +
       `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
-      `<soap12:Header>${cabec}</soap12:Header>` +
       `<soap12:Body>` +
       `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
       `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
@@ -243,7 +238,6 @@ function envelopeSoap(distDFeInt: string, variant: SoapVariant): string {
     `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ` +
     `xmlns:xsd="http://www.w3.org/2001/XMLSchema" ` +
     `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
-    `<soap:Header>${cabec}</soap:Header>` +
     `<soap:Body>` +
     `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
     `<nfeDadosMsg>${inner}</nfeDadosMsg>` +
