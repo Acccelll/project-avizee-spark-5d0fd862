@@ -33,6 +33,7 @@ import {
   Info, Loader2, Calendar, Mail, Users, UserCheck,
   MessageSquare, Home,
 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
@@ -42,6 +43,7 @@ import { ClienteEnderecosTab } from "./clientes/components/ClienteEnderecosTab";
 import { ClienteComunicacoesTab } from "./clientes/components/ClienteComunicacoesTab";
 import { ClienteTransportadorasTab } from "./clientes/components/ClienteTransportadorasTab";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
+import { QuickAddFormaPagamentoModal } from "@/components/QuickAddFormaPagamentoModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { useIsMobile } from "@/hooks/use-mobile";
