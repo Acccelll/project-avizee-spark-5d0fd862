@@ -1207,7 +1207,7 @@ const Fiscal = () => {
                         <ArrowLeftRight className="h-4 w-4 mr-2" /> Devolução
                       </DropdownMenuItem>
                     )}
-                    {canEstornarFiscal(n.status) && (
+                    {canEstornarFiscal(n.status) && canEstornarNF && (
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
