@@ -424,6 +424,17 @@ const Clientes = () => {
         }}
       />
 
+      <QuickAddFormaPagamentoModal
+        open={quickAddFormaPagOpen}
+        onClose={() => setQuickAddFormaPagOpen(false)}
+        onCreated={async (id) => {
+          const fp = await listFormasPagamentoAtivas();
+          setFormasPagamento(fp as FormaPagamentoBasic[]);
+          updateForm({ forma_pagamento_id: id });
+          setQuickAddFormaPagOpen(false);
+        }}
+      />
+
       <FormModal
         open={modalOpen}
         onClose={async () => {
