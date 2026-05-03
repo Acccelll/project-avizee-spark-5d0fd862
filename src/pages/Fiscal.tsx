@@ -1377,8 +1377,22 @@ const Fiscal = () => {
           </Collapsible>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2"><Label>Forma de Pagamento</Label>
-              <Select value={form.forma_pagamento} onValueChange={(v) => setForm({ ...form, forma_pagamento: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="cartao">Cartão</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>
+              <Select value={form.forma_pagamento} onValueChange={(v) => setForm({ ...form, forma_pagamento: v, cartao_id: v === "cartao_credito" ? form.cartao_id : "" })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="cartao_credito">Cartão de Crédito</SelectItem><SelectItem value="cartao_debito">Cartão de Débito</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>
             </div>
+            {form.forma_pagamento === "cartao_credito" && (
+              <div className="space-y-2"><Label>Cartão *</Label>
+                <Select value={form.cartao_id || ""} onValueChange={(v) => setForm({ ...form, cartao_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o cartão..." /></SelectTrigger>
+                  <SelectContent>
+                    {cartoes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome}{c.ultimos4 ? ` ····${c.ultimos4}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2"><Label>Condição</Label>
               <Select value={form.condicao_pagamento} onValueChange={(v) => setForm({ ...form, condicao_pagamento: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="a_vista">À Vista</SelectItem><SelectItem value="a_prazo">A Prazo</SelectItem></SelectContent></Select>
             </div>
@@ -1401,6 +1415,24 @@ const Fiscal = () => {
               onParcelasChange={setParcelasPlano}
             />
           )}
+          {form.forma_pagamento === "cartao_credito" && form.cartao_id && form.gera_financeiro && (() => {
+            const cartao = cartoes.find((c) => c.id === form.cartao_id);
+            if (!cartao) return null;
+            const n = form.condicao_pagamento === "a_prazo" ? Math.max(parcelas, 1) : 1;
+            const previews = calcularFaturasParcelas(form.data_emissao, cartao.dia_fechamento, cartao.dia_vencimento, n);
+            return (
+              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+                <p className="font-medium text-foreground">Faturas previstas para este cartão:</p>
+                <ul className="space-y-0.5 text-muted-foreground">
+                  {previews.map((p, i) => (
+                    <li key={i}>
+                      Parcela {i + 1}/{n} — competência {p.competencia} · fecha {p.dataFechamento.toLocaleDateString("pt-BR")} · vence <strong>{p.dataVencimento.toLocaleDateString("pt-BR")}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
           {contasContabeis.length > 0 && (
             <div className="space-y-2"><Label>Conta Contábil Geral (fallback para itens sem conta)</Label>
               <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => setForm({ ...form, conta_contabil_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}</SelectContent></Select>
