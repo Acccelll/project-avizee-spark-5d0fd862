@@ -337,6 +337,7 @@ const Fiscal = () => {
       forma_pagamento: n.forma_pagamento || "", condicao_pagamento: n.condicao_pagamento || "a_vista",
       ordem_venda_id: n.ordem_venda_id || "", conta_contabil_id: n.conta_contabil_id || "",
       modelo_documento: n.modelo_documento || "55",
+      cartao_id: (n as { cartao_id?: string | null }).cartao_id || "",
       frete_valor: n.frete_valor || 0, icms_valor: n.icms_valor || 0, ipi_valor: n.ipi_valor || 0,
       pis_valor: n.pis_valor || 0, cofins_valor: n.cofins_valor || 0, icms_st_valor: n.icms_st_valor || 0,
       desconto_valor: n.desconto_valor || 0, outras_despesas: n.outras_despesas || 0,
