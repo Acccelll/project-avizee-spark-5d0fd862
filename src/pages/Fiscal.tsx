@@ -27,6 +27,7 @@ import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical,
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { EmBreve } from "@/components/EmBreve";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
@@ -1025,32 +1026,28 @@ const Fiscal = () => {
         addButtonHelpId="fiscal.novoBtn"
         headerActions={<>
           <input ref={xmlInputRef} type="file" accept=".xml" className="hidden" onChange={handleXmlImport} />
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => toast.info("Funcionalidade em breve")}
-            disabled
-            aria-label="Buscar NF-e pela chave de acesso (em breve)"
-            title="Em breve"
-          >
-            <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-            <span className="hidden xs:inline">Buscar por </span>chave
-            <span className="ml-1 hidden md:inline text-[10px] uppercase opacity-70">Em breve</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => toast.info("Funcionalidade em breve")}
-            disabled
-            aria-label="Ler chave por código de barras ou QR Code (em breve)"
-            title="Em breve"
-          >
-            <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-            <span className="hidden xs:inline">Ler </span>QR/Código
-            <span className="ml-1 hidden md:inline text-[10px] uppercase opacity-70">Em breve</span>
-          </Button>
+          <EmBreve mode="wrap" tooltip="Buscar NF-e pela chave de acesso — em breve.">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 min-h-11 md:min-h-9 px-3"
+              aria-label="Buscar NF-e pela chave de acesso (em breve)"
+            >
+              <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
+              <span className="hidden xs:inline">Buscar por </span>chave
+            </Button>
+          </EmBreve>
+          <EmBreve mode="wrap" tooltip="Ler chave por código de barras ou QR Code — em breve.">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 min-h-11 md:min-h-9 px-3"
+              aria-label="Ler chave por código de barras ou QR Code (em breve)"
+            >
+              <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
+              <span className="hidden xs:inline">Ler </span>QR/Código
+            </Button>
+          </EmBreve>
           <Button
             variant="outline"
             size="sm"
