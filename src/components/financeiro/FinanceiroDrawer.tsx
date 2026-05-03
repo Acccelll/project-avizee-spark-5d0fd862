@@ -8,7 +8,6 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { DrawerActionBar } from "@/components/ui/DrawerActionBar";
 import { DetailEmpty } from "@/components/ui/DetailStates";
-import { DetailEmpty } from "@/components/ui/DetailStates";
 import { Edit, Trash2, CreditCard, RotateCcw, AlertCircle, Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";

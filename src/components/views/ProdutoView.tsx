@@ -8,7 +8,6 @@ import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { DetailEmpty } from "@/components/ui/DetailStates";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";

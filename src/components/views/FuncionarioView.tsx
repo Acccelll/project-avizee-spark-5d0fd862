@@ -7,7 +7,6 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DetailEmpty } from "@/components/ui/DetailStates";
 import {
   Users, Edit, Trash2, DollarSign, CalendarDays, FileText,
   AlertTriangle, CheckCircle2,

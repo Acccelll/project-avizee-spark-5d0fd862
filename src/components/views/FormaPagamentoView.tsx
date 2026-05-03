@@ -8,7 +8,6 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DetailEmpty } from "@/components/ui/DetailStates";
 import {
   CreditCard, Edit, Trash2, Wallet, TrendingUp, Users,
   Banknote, FileText, QrCode, ArrowLeftRight, HelpCircle,

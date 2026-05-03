@@ -8,7 +8,6 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DetailEmpty } from "@/components/ui/DetailStates";
 import {
   Truck, Edit, Trash2, MapPin, Phone, Mail, Building2,
   Star, Package, AlertTriangle, Users, FileText,
