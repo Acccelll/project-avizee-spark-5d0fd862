@@ -185,9 +185,10 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - Limpar `financeiro_lancamentos_backup_20260428` após auditoria.
 
 ### Fase 3 — Cadastros & relacionamentos
-- Migration FK `contas_bancarias.banco_id` e vínculo opcional fornecedor.
-- Padronizar Quick-Add nos pickers faltantes.
-- Validações Zod uniformes (CPF/CNPJ/código).
+- ✅ `contas_bancarias.banco_id` agora `NOT NULL`; índices em `banco_id` e `fornecedor_id`.
+- ✅ Quick-Add criado para Transportadora (`QuickAddTransportadoraModal`) e Forma de Pagamento (`QuickAddFormaPagamentoModal`).
+- ✅ Validações Zod uniformes já cobertas em `src/lib/validationSchemas.ts` (cliente/fornecedor/produto/transportadora) — DV de CPF/CNPJ via `validators.ts`.
+- Pendente: integrar os novos modais nos pickers reais (RemessaForm, OrcamentoForm, EmitirNFeWizard) — Fase 4.
 
 ### Fase 4 — UI/UX & padronização
 - Remover legacy (`Faturamento.legacy.tsx`).
