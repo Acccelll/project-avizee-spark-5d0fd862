@@ -226,7 +226,7 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - ✅ Auditoria drift em `src/types/domain.ts`:
   - `src/types/{comercial,cadastros,erp,orcamento}.ts` mantêm tipos **escopo-UI** (joins/picks/mini) — coexistem legitimamente com `domain.ts`.
   - Migrados 8 arquivos para `TableRow<...>`/`TableInsert<...>` de `@/types/domain` (services/pedidosCompra, services/estoque, hooks/useCotacoesCompra, pages: Estoque, CotacaoCompraForm, PedidoCompraForm, fiscal/Cte com alias `DbRow` p/ não conflitar com shadcn `TableRow`, components/estoque/EstoqueAjusteSheet). `services/orcamentos.service.ts` mantém uso inline (`Json` derivado de coluna específica).
-- ⏳ Plano de squashing de migrations (apenas plano, não imediato).
+- ✅ Plano de squashing de migrations documentado em `docs/migrations-squash-plan.md` (188 migrations; estratégia em 3 fases A/B/C; recomendação: executar Fase A — baseline `pg_dump --schema-only` + drift check — e adiar Fase C). Não destrutivo nesta iteração.
 
 ---
 
