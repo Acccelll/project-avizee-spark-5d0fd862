@@ -2883,129 +2883,6 @@ export type Database = {
           },
         ]
       }
-      financeiro_lancamentos_backup_20260428: {
-        Row: {
-          ativo: boolean
-          banco: string | null
-          cartao: string | null
-          centro_custo_id: string | null
-          cliente_id: string | null
-          codigo_fluxo_origem: string | null
-          conta_bancaria_id: string | null
-          conta_contabil_id: string | null
-          created_at: string
-          data_emissao: string | null
-          data_pagamento: string | null
-          data_vencimento: string
-          descricao: string | null
-          documento_pai_id: string | null
-          forma_pagamento: string | null
-          forma_pagamento_id: string | null
-          fornecedor_id: string | null
-          funcionario_id: string | null
-          id: string
-          motivo_estorno: string | null
-          nome_abreviado_origem: string | null
-          nota_fiscal_id: string | null
-          observacoes: string | null
-          origem_descricao: string | null
-          origem_id: string | null
-          origem_tabela: string | null
-          origem_tipo: string
-          parcela_numero: number | null
-          parcela_total: number | null
-          pedido_compra_id: string | null
-          saldo_restante: number | null
-          status: string | null
-          tipo: string
-          tipo_baixa: string | null
-          titulo: string | null
-          updated_at: string
-          valor: number
-          valor_pago: number | null
-        }
-        Insert: {
-          ativo?: boolean
-          banco?: string | null
-          cartao?: string | null
-          centro_custo_id?: string | null
-          cliente_id?: string | null
-          codigo_fluxo_origem?: string | null
-          conta_bancaria_id?: string | null
-          conta_contabil_id?: string | null
-          created_at?: string
-          data_emissao?: string | null
-          data_pagamento?: string | null
-          data_vencimento: string
-          descricao?: string | null
-          documento_pai_id?: string | null
-          forma_pagamento?: string | null
-          forma_pagamento_id?: string | null
-          fornecedor_id?: string | null
-          funcionario_id?: string | null
-          id?: string
-          motivo_estorno?: string | null
-          nome_abreviado_origem?: string | null
-          nota_fiscal_id?: string | null
-          observacoes?: string | null
-          origem_descricao?: string | null
-          origem_id?: string | null
-          origem_tabela?: string | null
-          origem_tipo?: string
-          parcela_numero?: number | null
-          parcela_total?: number | null
-          pedido_compra_id?: string | null
-          saldo_restante?: number | null
-          status?: string | null
-          tipo?: string
-          tipo_baixa?: string | null
-          titulo?: string | null
-          updated_at?: string
-          valor?: number
-          valor_pago?: number | null
-        }
-        Update: {
-          ativo?: boolean
-          banco?: string | null
-          cartao?: string | null
-          centro_custo_id?: string | null
-          cliente_id?: string | null
-          codigo_fluxo_origem?: string | null
-          conta_bancaria_id?: string | null
-          conta_contabil_id?: string | null
-          created_at?: string
-          data_emissao?: string | null
-          data_pagamento?: string | null
-          data_vencimento?: string
-          descricao?: string | null
-          documento_pai_id?: string | null
-          forma_pagamento?: string | null
-          forma_pagamento_id?: string | null
-          fornecedor_id?: string | null
-          funcionario_id?: string | null
-          id?: string
-          motivo_estorno?: string | null
-          nome_abreviado_origem?: string | null
-          nota_fiscal_id?: string | null
-          observacoes?: string | null
-          origem_descricao?: string | null
-          origem_id?: string | null
-          origem_tabela?: string | null
-          origem_tipo?: string
-          parcela_numero?: number | null
-          parcela_total?: number | null
-          pedido_compra_id?: string | null
-          saldo_restante?: number | null
-          status?: string | null
-          tipo?: string
-          tipo_baixa?: string | null
-          titulo?: string | null
-          updated_at?: string
-          valor?: number
-          valor_pago?: number | null
-        }
-        Relationships: []
-      }
       folha_pagamento: {
         Row: {
           competencia: string
@@ -8827,6 +8704,10 @@ export type Database = {
       gerar_devolucao_nota_fiscal: {
         Args: { p_itens?: Json; p_nf_origem_id: string }
         Returns: string
+      }
+      gerar_fatura_cartao: {
+        Args: { p_cartao_id: string; p_competencia: string }
+        Returns: Json
       }
       gerar_financeiro_folha:
         | {
