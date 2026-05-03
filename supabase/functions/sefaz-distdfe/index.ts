@@ -469,19 +469,19 @@ Deno.serve(async (req) => {
     //      derrube a integração mesmo com mTLS nativo funcionando.
     const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL")?.trim();
     const proxySecret = Deno.env.get("SEFAZ_MTLS_PROXY_SECRET")?.trim();
-    // Gate de transporte: liga automaticamente o Worker mTLS sempre que URL +
-    // SECRET estiverem presentes. Para FORÇAR fallback ao deno-mtls (debug),
-    // setar SEFAZ_USE_MTLS_PROXY=0 ou "off"/"no"/"false".
+    // Gate de transporte (opt-in): o Worker mTLS só é usado quando
+    // SEFAZ_USE_MTLS_PROXY estiver EXPLICITAMENTE setada como 1/true/yes/on/sim.
+    // Default (variável ausente) = deno-mtls direto contra a SEFAZ com o A1
+    // do Vault. Motivo: deploys sem Worker configurado estavam falhando com
+    // WORKER_CONFIG_MISSING porque a flag era opt-out (lógica invertida).
     const proxyFlagRaw = (Deno.env.get("SEFAZ_USE_MTLS_PROXY") ?? "").trim()
       .replace(/^["']|["']$/g, "").toLowerCase();
-    const proxyDisabled = ["0", "false", "no", "off", "nao", "não"].includes(proxyFlagRaw);
-    const proxyEnabled = !proxyDisabled;
+    const proxyEnabled = ["1", "true", "yes", "on", "sim"].includes(proxyFlagRaw);
     const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
 
     // Telemetria do gate de transporte (sem expor segredos).
     log.info("transporte resolvido", {
       proxyEnabled,
-      proxyDisabled,
       proxyFlagLen: proxyFlagRaw.length,
       hasProxyUrl: !!proxyUrl,
       hasProxySecret: !!proxySecret,
