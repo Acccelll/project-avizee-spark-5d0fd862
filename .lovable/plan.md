@@ -191,10 +191,11 @@ Nenhum risco crítico de perda de dados foi identificado neste momento.
 - Pendente: integrar os novos modais nos pickers reais (RemessaForm, OrcamentoForm, EmitirNFeWizard) — Fase 4.
 
 ### Fase 4 — UI/UX & padronização
-- Remover legacy (`Faturamento.legacy.tsx`).
-- Auditar V2 wrappers em todas as telas.
-- Mobile fine-tuning (Comercial/Configurações/Financeiro).
-- EmptyState vs DetailEmpty audit.
+- ✅ Removido `src/pages/Faturamento.legacy.tsx` (sem referências no código).
+- ✅ Plug `QuickAddTransportadoraModal` em `RemessaForm` (botão + ao lado do select; recarrega lista após criar).
+- ✅ Plug `QuickAddFormaPagamentoModal` em `Clientes` (link "Cadastrar nova forma" abaixo do select).
+- Pendente: auditoria V2 wrappers e EmptyState vs DetailEmpty (próximas iterações).
+- Pendente: mobile fine-tuning (Comercial/Configurações/Financeiro).
 
 ### Fase 5 — Permissões & segurança operacional
 - Mapa de gaps `can()` por módulo.
