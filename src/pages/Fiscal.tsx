@@ -28,7 +28,6 @@ import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical,
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { EmBreve } from "@/components/EmBreve";
 import { useCan } from "@/hooks/useCan";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
