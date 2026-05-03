@@ -254,12 +254,14 @@ const Fiscal = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [ovs, contas] = await Promise.all([
+      const [ovs, contas, cs] = await Promise.all([
         listOrdensVendaParaFiscal(),
         listContasContabeisLancaveis(),
+        listCartoesAtivos().catch(() => []),
       ]);
       setOrdensVenda(ovs);
       setContasContabeis(contas);
+      setCartoes(cs);
     };
     load();
   }, []);
