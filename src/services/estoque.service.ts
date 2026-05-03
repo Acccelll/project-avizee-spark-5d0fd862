@@ -1,10 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import type { TableRow, TableInsert } from "@/types/domain";
 
-export type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
-export type EstoqueMovimentoRow = Database["public"]["Tables"]["estoque_movimentos"]["Row"];
-export type EstoqueMovimentoInsert =
-  Database["public"]["Tables"]["estoque_movimentos"]["Insert"];
+export type ProdutoRow = TableRow<"produtos">;
+export type EstoqueMovimentoRow = TableRow<"estoque_movimentos">;
+export type EstoqueMovimentoInsert = TableInsert<"estoque_movimentos">;
 
 export interface EstoqueMovimento extends EstoqueMovimentoRow {
   produtos?: { nome: string; sku: string | null } | null;
