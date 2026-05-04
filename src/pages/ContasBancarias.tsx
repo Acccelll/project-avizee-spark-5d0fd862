@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -44,8 +46,93 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
-  CheckCircle, Ban, Building2,
+  CheckCircle, Ban, Building2, ChevronsUpDown, Check,
 } from "lucide-react";
+function formatCnpj(v: string | null | undefined): string {
+  if (!v) return "";
+  const d = v.replace(/\D/g, "");
+  if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+  return v;
+}
+
+interface FornecedorComboboxProps {
+  fornecedores: Array<{ id: string; nome_razao_social: string; cpf_cnpj?: string | null }>;
+  value: string;
+  onChange: (v: string) => void;
+}
+
+function FornecedorCombobox({ fornecedores, value, onChange }: FornecedorComboboxProps) {
+  const [open, setOpen] = useState(false);
+  const selected = fornecedores.find((f) => f.id === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate">
+            {selected ? selected.nome_razao_social : "Buscar fornecedor por nome ou CNPJ..."}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command
+          filter={(itemValue, search) => {
+            const s = search.toLowerCase();
+            return itemValue.toLowerCase().includes(s) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder="Nome, razão social ou CNPJ..." />
+          <CommandList>
+            <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="__none__ nenhum"
+                onSelect={() => {
+                  onChange("");
+                  setOpen(false);
+                }}
+              >
+                <Check className={"mr-2 h-4 w-4 " + (value ? "opacity-0" : "opacity-100")} />
+                <span className="text-muted-foreground">Nenhum</span>
+              </CommandItem>
+              {fornecedores.map((f) => {
+                const cnpj = formatCnpj(f.cpf_cnpj);
+                const itemKey = `${f.nome_razao_social} ${cnpj} ${f.cpf_cnpj ?? ""}`;
+                return (
+                  <CommandItem
+                    key={f.id}
+                    value={itemKey}
+                    onSelect={() => {
+                      onChange(f.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={
+                        "mr-2 h-4 w-4 " + (value === f.id ? "opacity-100" : "opacity-0")
+                      }
+                    />
+                    <div className="flex flex-col">
+                      <span>{f.nome_razao_social}</span>
+                      {cnpj && <span className="text-xs text-muted-foreground">{cnpj}</span>}
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
 interface Banco {
   id: string;
@@ -66,7 +153,7 @@ interface ContaBancaria {
   };
 }
 
-interface FornecedorOption { id: string; nome_razao_social: string }
+interface FornecedorOption { id: string; nome_razao_social: string; cpf_cnpj?: string | null }
 
 interface InUseCounts {
   lancamentos: number;
@@ -142,6 +229,7 @@ const ContasBancarias = () => {
         (f as FornecedorOption[]).map((x) => ({
           id: x.id,
           nome_razao_social: x.nome_razao_social,
+          cpf_cnpj: x.cpf_cnpj ?? null,
         })),
       );
     } catch (err) {
@@ -302,6 +390,15 @@ const ContasBancarias = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.banco_id || !form.descricao) { toast.error("Banco e descrição são obrigatórios"); return; }
+    // Vínculo com fornecedor é obrigatório para novos bancos (sem fornecedor já cadastrado).
+    if (mode === "create") {
+      const bancoAtual = bancos.find((b) => b.id === form.banco_id);
+      const jaTinha = !!bancoAtual?.fornecedor_id;
+      if (!jaTinha && !form.banco_fornecedor_id) {
+        toast.error("Vincule o banco a um fornecedor (obrigatório para novos bancos).");
+        return;
+      }
+    }
     if (mode === "edit" && selected) {
       const willDeactivate = !form.ativo && selected.ativo;
       const inUse = inUseCounts.lancamentos > 0 || inUseCounts.baixas > 0 || inUseCounts.caixaMovs > 0;
@@ -490,25 +587,12 @@ const ContasBancarias = () => {
             )}
           </div>
           <div className="space-y-2">
-            <Label>Fornecedor do banco (DDA)</Label>
-            <Select
-              value={form.banco_fornecedor_id || "nenhum"}
-              onValueChange={(v) =>
-                updateForm({ banco_fornecedor_id: v === "nenhum" ? "" : v })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione fornecedor..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nenhum">Nenhum</SelectItem>
-                {fornecedores.map((f) => (
-                  <SelectItem key={f.id} value={f.id}>
-                    {f.nome_razao_social}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Fornecedor do banco (DDA) *</Label>
+            <FornecedorCombobox
+              fornecedores={fornecedores}
+              value={form.banco_fornecedor_id}
+              onChange={(v) => updateForm({ banco_fornecedor_id: v })}
+            />
             <p className="text-[11px] text-muted-foreground">
               Vincula o banco a um fornecedor (ex.: Itaú → "Banco Itaú S.A."). Boletos
               DDA do banco passam a sugerir este fornecedor automaticamente. O vínculo
