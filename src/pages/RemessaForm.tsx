@@ -271,10 +271,14 @@ export default function RemessaFormPage() {
                   <div className="space-y-2">
                     <Label>Cliente</Label>
                     <AutocompleteSearch
-                      options={clientes.map((c) => ({ id: c.id, label: c.nome_razao_social }))}
+                      options={clientes.map((c) => ({
+                        id: c.id,
+                        label: c.nome_razao_social,
+                        sublabel: c.cpf_cnpj ?? undefined,
+                      }))}
                       value={form.cliente_id}
                       onChange={(v) => setF({ cliente_id: v })}
-                      placeholder="Buscar cliente por nome..."
+                      placeholder="Buscar cliente por nome ou CNPJ..."
                     />
                   </div>
                 </div>
