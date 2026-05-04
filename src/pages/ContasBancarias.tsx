@@ -46,7 +46,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
-  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2,
+  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2,
 } from "lucide-react";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -252,6 +252,21 @@ const ContasBancarias = () => {
     () => contasAtivas.reduce((s, c) => s + Number(c.saldo_atual || 0), 0),
     [contasAtivas],
   );
+
+  // Bancos ativos sem fornecedor vinculado (DDA) — alerta administrativo.
+  const bancosSemFornecedor = useMemo(
+    () => bancos.filter((b) => b.ativo && !b.fornecedor_id),
+    [bancos],
+  );
+
+  const openEditByBancoId = (bancoId: string) => {
+    const conta = contas.find((c) => c.banco_id === bancoId && c.ativo) ?? contas.find((c) => c.banco_id === bancoId);
+    if (conta) {
+      openEdit(conta);
+    } else {
+      toast.info("Este banco não possui conta cadastrada. Crie uma conta para vincular o fornecedor.");
+    }
+  };
 
   // Filter options derived from loaded accounts (same source as filtering logic)
   const tipoOptions = useMemo<MultiSelectOption[]>(() => {
@@ -534,6 +549,36 @@ const ContasBancarias = () => {
             />
           )}
         </AdvancedFilterBar>
+
+        {isAdmin && bancosSemFornecedor.length > 0 && (
+          <Alert className="border-warning/40 bg-warning/5 [&>svg]:text-warning">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-xs space-y-2">
+              <p className="font-semibold text-foreground">
+                {bancosSemFornecedor.length} banco(s) sem fornecedor vinculado (DDA)
+              </p>
+              <p className="text-muted-foreground">
+                Boletos DDA precisam de um fornecedor vinculado ao banco para sugerir a contraparte
+                automaticamente. Vincule cada banco abaixo a um fornecedor cadastrado.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {bancosSemFornecedor.map((b) => (
+                  <Button
+                    key={b.id}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => openEditByBancoId(b.id)}
+                  >
+                    <Link2 className="w-3 h-3" />
+                    {b.nome}
+                  </Button>
+                ))}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <DataTable
           columns={columns}
