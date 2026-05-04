@@ -390,6 +390,15 @@ const ContasBancarias = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.banco_id || !form.descricao) { toast.error("Banco e descrição são obrigatórios"); return; }
+    // Vínculo com fornecedor é obrigatório para novos bancos (sem fornecedor já cadastrado).
+    if (mode === "create") {
+      const bancoAtual = bancos.find((b) => b.id === form.banco_id);
+      const jaTinha = !!bancoAtual?.fornecedor_id;
+      if (!jaTinha && !form.banco_fornecedor_id) {
+        toast.error("Vincule o banco a um fornecedor (obrigatório para novos bancos).");
+        return;
+      }
+    }
     if (mode === "edit" && selected) {
       const willDeactivate = !form.ativo && selected.ativo;
       const inUse = inUseCounts.lancamentos > 0 || inUseCounts.baixas > 0 || inUseCounts.caixaMovs > 0;
