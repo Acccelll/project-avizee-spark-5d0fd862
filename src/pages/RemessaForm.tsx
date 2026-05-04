@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRemessas, getRemessaById } from "@/services/logistica/remessas.service";
 import type { Remessa } from "@/services/logistica/remessas.service";
@@ -269,15 +270,12 @@ export default function RemessaFormPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Cliente</Label>
-                    <Select value={form.cliente_id || "none"} onValueChange={(v) => setF({ cliente_id: v === "none" ? "" : v })}>
-                      <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {clientes.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome_razao_social}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <AutocompleteSearch
+                      options={clientes.map((c) => ({ id: c.id, label: c.nome_razao_social }))}
+                      value={form.cliente_id}
+                      onChange={(v) => setF({ cliente_id: v })}
+                      placeholder="Buscar cliente por nome..."
+                    />
                   </div>
                 </div>
 

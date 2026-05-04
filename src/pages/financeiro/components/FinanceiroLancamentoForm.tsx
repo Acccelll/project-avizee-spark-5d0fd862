@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Barcode } from "lucide-react";
@@ -161,24 +162,30 @@ export function FinanceiroLancamentoForm({
         </div>
         {form.tipo === "receber" && (
           <div className="space-y-2"><Label>Cliente</Label>
-            <Select value={form.cliente_id || "nenhum"} onValueChange={(v) => updateField("cliente_id", v === "nenhum" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nenhum">Selecione...</SelectItem>
-                {clientes.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_razao_social}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <AutocompleteSearch
+              options={clientes.map((c) => ({
+                id: c.id,
+                label: c.nome_razao_social,
+                sublabel: c.cpf_cnpj ?? undefined,
+              }))}
+              value={form.cliente_id ?? ""}
+              onChange={(v) => updateField("cliente_id", v)}
+              placeholder="Buscar cliente por nome ou CNPJ..."
+            />
           </div>
         )}
         {form.tipo === "pagar" && (
           <div className="space-y-2"><Label>Fornecedor</Label>
-            <Select value={form.fornecedor_id || "nenhum"} onValueChange={(v) => updateField("fornecedor_id", v === "nenhum" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nenhum">Selecione...</SelectItem>
-                {fornecedores.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome_razao_social}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <AutocompleteSearch
+              options={fornecedores.map((f) => ({
+                id: f.id,
+                label: f.nome_razao_social,
+                sublabel: f.cpf_cnpj ?? undefined,
+              }))}
+              value={form.fornecedor_id ?? ""}
+              onChange={(v) => updateField("fornecedor_id", v)}
+              placeholder="Buscar fornecedor por nome ou CNPJ..."
+            />
           </div>
         )}
       </div>

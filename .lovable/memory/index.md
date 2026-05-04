@@ -128,3 +128,5 @@
 
 - [Manual e Tour Cobertura](mem://produto/manual-tour-cobertura) — Doutrina de cobertura mínima de manuais e tours por módulo; core ≥5 steps, anchors padrão, bump de version
 - [Etiqueta Simples Logística](mem://features/etiqueta-simples-logistica) — PDF A4 4-up só remetente/destinatário, jsPDF, sem persistência, com pré-visualização em Dialog
+
+- [Busca Cliente/Fornecedor](mem://tech/busca-de-cliente-padrao) — Sempre AutocompleteSearch (+ ClientSelector lupa); nunca <Select> com lista completa

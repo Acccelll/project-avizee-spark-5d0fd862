@@ -7,7 +7,7 @@ type: feature
 Funcionalidade puramente operacional para impressão física de volumes.
 
 - **Service:** `src/services/logistica/etiquetasSimples.service.ts` (`prepararEtiquetasSimples`, `gerarPdfEtiquetasSimplesA4`, `montarItensEtiqueta`, `validarEtiquetas`).
-- **Preview:** `src/components/logistica/EtiquetaSimplesPreviewDialog.tsx` — abre Dialog com iframe do PDF (mesmo padrão de pré-visualização do orçamento) e botões Baixar/Imprimir.
+- **Preview:** `src/components/logistica/EtiquetaSimplesPreviewDialog.tsx` — render **mock HTML A4 (210×297mm)** em grade 2×2 (mesmo padrão do orçamento). PDF (jsPDF) só é gerado no clique de **Baixar PDF** ou **Imprimir** (abre `blob:` em nova aba). **Não usar `<iframe src="blob:">`** — Chrome bloqueia o plugin de PDF dentro do preview embed/sandbox e mostra ícone de documento quebrado.
 - **UI:** Aba Remessas em `/logistica` — coluna "Etiqueta simples" por linha, ação no ViewDrawerV2 e botão em lote (`selectable` ativo) na barra de filtros.
 - **Remetente:** `empresa_config` (logo via `logo_url` embarcada no PDF como dataURL).
 - **Destinatário:** `clientes` via `remessas.cliente_id` (endereço do cadastro).
