@@ -34,6 +34,9 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { CreditCard, CheckCircle, Ban, Wallet, FileText, Receipt } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { Trash2 } from "lucide-react";
 
 type Banco = Tables<"bancos">;
 
