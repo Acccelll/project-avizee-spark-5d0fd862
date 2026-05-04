@@ -488,9 +488,35 @@ export default function CartoesCredito() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
+                        onClick={async () => {
                           setBaixaFatura(f);
                           setBaixaData(new Date().toISOString().split("T")[0]);
+                          setBaixaForma("boleto_dda");
+                          setBaixaLancsLoading(true);
+                          try {
+                            const { data, error } = await supabase
+                              .from("financeiro_lancamentos")
+                              .select("id, descricao, valor, valor_pago, saldo_restante, status, data_vencimento, origem_tipo, ativo")
+                              .eq("cartao_fatura_id", f.id)
+                              .eq("ativo", true)
+                              .neq("origem_tipo", "cartao_fatura")
+                              .order("data_vencimento");
+                            if (error) throw error;
+                            setBaixaLancamentos(
+                              (data || []).map((l: any) => ({
+                                id: l.id,
+                                descricao: l.descricao,
+                                valor: Number(l.valor || 0),
+                                saldo: Number(l.saldo_restante ?? Number(l.valor || 0) - Number(l.valor_pago || 0)),
+                                status: l.status,
+                                data_vencimento: l.data_vencimento,
+                              })),
+                            );
+                          } catch (e) {
+                            notifyError(e);
+                          } finally {
+                            setBaixaLancsLoading(false);
+                          }
                         }}
                       >
                         Baixar
