@@ -498,14 +498,20 @@ const Produtos = () => {
       mobilePrimary: true,
       label: "Produto",
       sortable: true,
-      render: (p: Produto) => (
-        <div>
-          <span className="font-medium text-sm">{p.nome}</span>
-          {p.sku && (
-            <p className="text-[11px] text-muted-foreground font-mono leading-tight">{p.sku}</p>
-          )}
-        </div>
-      ),
+      render: (p: Produto) => {
+        // Evita repetir na segunda linha o mesmo valor já mostrado na coluna "Código".
+        // A coluna Código exibe codigo_interno || sku, então só mostramos o SKU
+        // aqui quando ele existir E for diferente do codigo_interno.
+        const showSku = !!p.sku && p.sku !== p.codigo_interno;
+        return (
+          <div>
+            <span className="font-medium text-sm">{p.nome}</span>
+            {showSku && (
+              <p className="text-[11px] text-muted-foreground font-mono leading-tight">{p.sku}</p>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "unidade_medida",
@@ -848,7 +854,7 @@ const Produtos = () => {
         size="xl"
         mode={mode}
         createHint="Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar."
-        identifier={mode === "edit" && editingProduct ? (editingProduct.sku || editingProduct.codigo_interno || undefined) : undefined}
+        identifier={mode === "edit" && editingProduct ? (editingProduct.codigo_interno || editingProduct.sku || undefined) : undefined}
         status={mode === "edit" && editingProduct ? <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && editingProduct?.updated_at ? [
           { label: `Atualizado em ${formatDate(editingProduct.updated_at)}` },

@@ -430,11 +430,12 @@ export function EstoquePosicaoDrawer({
       open={open}
       onClose={onClose}
       title={produto.nome}
-      subtitle={
-        produto.sku || produto.codigo_interno
-          ? `${produto.sku ? `SKU: ${produto.sku}` : ""}${produto.sku && produto.codigo_interno ? " · " : ""}${produto.codigo_interno ? `Cód: ${produto.codigo_interno}` : ""}`
-          : undefined
-      }
+      subtitle={(() => {
+        const partes: string[] = [];
+        if (produto.codigo_interno) partes.push(`Cód: ${produto.codigo_interno}`);
+        if (produto.sku && produto.sku !== produto.codigo_interno) partes.push(`SKU: ${produto.sku}`);
+        return partes.length ? partes.join(" · ") : undefined;
+      })()}
       badge={<SituacaoBadge situacao={situacao} />}
       summary={summary}
       tabs={[
