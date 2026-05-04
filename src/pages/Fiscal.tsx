@@ -52,6 +52,7 @@ import {
 } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
+import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
@@ -186,21 +187,12 @@ const Fiscal = () => {
   const [intervaloDias, setIntervaloDias] = useState<number>(30);
   const [parcelasPlano, setParcelasPlano] = useState<import("@/pages/fiscal/components/ParcelasFiscalEditor").ParcelaPlano[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [consultaSearch, setConsultaSearch] = useState("");
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
   const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [danfeOpen, setDanfeOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<Record<string, unknown> | null>(null);
-  const [modeloFilters, setModeloFilters] = useState<string[]>([]);
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
-  const [tipoFilters, setTipoFilters] = useState<string[]>([]);
-  const [origemFilters, setOrigemFilters] = useState<string[]>([]);
-  const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
-  // Filtros de mês — Notas de Entrada e Saída (sem default)
-  const [emissaoMes, setEmissaoMes] = useState<string>("");
-  const [vencimentoMes, setVencimentoMes] = useState<string>("");
   const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
   // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
