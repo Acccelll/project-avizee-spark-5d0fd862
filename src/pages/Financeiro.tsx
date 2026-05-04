@@ -174,7 +174,51 @@ const Financeiro = () => {
     setEstornoMotivo,
   } = useFinanceiroActions({ filteredData, getLancamentoStatus, create, update, fetchData });
 
-  const kpis = useFinanceiroKpis({ filteredData, getLancamentoStatus, hojeStr });
+  const kpisLocal = useFinanceiroKpis({ filteredData, getLancamentoStatus, hojeStr });
+
+  // E7.3: KPIs server-side via RPC `kpis_financeiro` para se manter coerentes
+  // mesmo quando a listagem usar paginação. Os filtros aplicados aqui devem
+  // espelhar os mesmos do `useFinanceiroFiltros` (server-friendly apenas).
+  const kpisDateRange = useMemo(() => {
+    const monthRange = monthToRange(mes);
+    if (monthRange) return { from: monthRange.from, to: monthRange.to };
+    if (period === "todos") return { from: null as string | null, to: null as string | null };
+    if (period === "vencidos") return { from: null as string | null, to: hojeStr };
+    const { dateFrom, dateTo } = periodToFinancialRange(period);
+    return { from: dateFrom, to: dateTo };
+  }, [period, mes, hojeStr]);
+
+  const formasCanonicas = useMemo(
+    () => formaPagamentoFilters.map((f) => normalizeFormaPagamento(f) ?? f),
+    [formaPagamentoFilters],
+  );
+
+  const { data: kpisRpc } = useFinanceiroKpisRpc({
+    dateFrom: kpisDateRange.from,
+    dateTo: kpisDateRange.to,
+    tipos: tipoFilters,
+    status: period === "vencidos" ? ["vencido"] : statusFilters,
+    bancos: bancoFilters,
+    origens: origemFilters,
+    formas: formasCanonicas,
+    cartoes: cartaoFilters,
+    search: searchTerm,
+  });
+
+  const kpis = useMemo(
+    () => ({
+      aVencer: kpisRpc?.a_vencer ?? kpisLocal.aVencer,
+      venceHoje: kpisRpc?.vence_hoje ?? kpisLocal.venceHoje,
+      vencido: kpisRpc?.vencido ?? kpisLocal.vencido,
+      pagoNoPeriodo: kpisRpc?.pago ?? kpisLocal.pagoNoPeriodo,
+      parcialCount: kpisRpc?.parcial ?? kpisLocal.parcialCount,
+      totalAVencer: kpisRpc?.total_a_vencer ?? kpisLocal.totalAVencer,
+      totalVencido: kpisRpc?.total_vencido ?? kpisLocal.totalVencido,
+      totalPago: kpisRpc?.total_pago ?? kpisLocal.totalPago,
+      totalParcial: kpisRpc?.total_parcial ?? kpisLocal.totalParcial,
+    }),
+    [kpisRpc, kpisLocal],
+  );
 
   const openCreate = () => {
     setMode("create");
