@@ -275,7 +275,7 @@ export function ClienteView({ id }: Props) {
                        <p className="text-[10px] text-muted-foreground">Vencimento: {formatDate(f.data_vencimento)}</p>
                      </div>
                      <div className="text-right">
-                       <p className={`font-bold ${f.status === 'pago' ? 'text-success' : f.status === 'vencido' ? 'text-destructive' : ''}`}>
+                     <p className={`font-bold ${f.status === 'pago' ? 'text-success' : (getEffectiveStatus(f.status ?? '', f.data_vencimento ?? '', new Date()) === 'vencido') ? 'text-destructive' : ''}`}>
                          {formatCurrency(f.saldo_restante || f.valor)}
                        </p>
                        <StatusBadge status={f.status} className="h-3.5 text-[9px]" />
