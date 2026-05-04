@@ -3,49 +3,7 @@
 // The ALLOWED_ORIGIN env var MUST be set in production with the real application domain.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createLogger } from "../_shared/logger.ts";
-
-// Lista de origens permitidas. Pode ser estendida via env `ALLOWED_ORIGIN`
-// (lista separada por vírgula). Suporta:
-//  - lovableproject.com / lovable.app (preview e publicação Lovable)
-//  - sistema.avizee.com.br (custom domain atual)
-//  - localhost para desenvolvimento
-const STATIC_ALLOWED_PATTERNS: RegExp[] = [
-  /^https?:\/\/localhost(?::\d+)?$/i,
-  /^https?:\/\/127\.0\.0\.1(?::\d+)?$/i,
-  /\.lovableproject\.com$/i,
-  /\.lovable\.app$/i,
-  /\.lovable\.dev$/i,
-  /^https?:\/\/sistema\.avizee\.com\.br$/i,
-];
-
-const ENV_ALLOWED = (Deno.env.get("ALLOWED_ORIGIN") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-function isOriginAllowed(origin: string | null): boolean {
-  if (!origin) return false;
-  if (ENV_ALLOWED.includes(origin)) return true;
-  try {
-    const url = new URL(origin);
-    if (STATIC_ALLOWED_PATTERNS.some((re) => re.test(origin) || re.test(url.host) || re.test(url.hostname))) {
-      return true;
-    }
-  } catch {
-    // ignore parse errors
-  }
-  return false;
-}
-
-function buildCorsHeaders(origin: string | null): Record<string, string> {
-  const allow = origin && isOriginAllowed(origin) ? origin : "*";
-  return {
-    "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Vary": "Origin",
-  };
-}
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 const INACTIVE_BAN_DURATION = "876000h";
 
