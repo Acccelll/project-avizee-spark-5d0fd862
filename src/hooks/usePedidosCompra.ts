@@ -382,7 +382,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       // Toast simples — usuário já será redirecionado para /fiscal logo abaixo,
       // onde o OriginContextBanner mostra o caminho de volta.
       toast.success("Recebimento registrado!", {
-        description: "Estoque atualizado e financeiro gerado. Vinculando NF de entrada...",
+        description:
+          "Estoque atualizado. Lance a NF de entrada para gerar o contas a pagar.",
         duration: 5000,
       });
       setDrawerOpen(false);
