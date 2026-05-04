@@ -127,3 +127,4 @@
 - [Multi-tenant Ondas 1-4](mem://features/multi-tenant-onda1) — empresa_id + RLS por tenant em todas as tabelas de domínio (cadastros, comercial, compras, estoque, conciliação, financeiro, fiscal)
 
 - [Manual e Tour Cobertura](mem://produto/manual-tour-cobertura) — Doutrina de cobertura mínima de manuais e tours por módulo; core ≥5 steps, anchors padrão, bump de version
+- [Etiqueta Simples Logística](mem://features/etiqueta-simples-logistica) — PDF A4 4-up só remetente/destinatário, jsPDF, sem persistência, com pré-visualização em Dialog
