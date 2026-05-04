@@ -11,6 +11,8 @@ import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Edit, Trash2, User, Mail, MapPin, FileText, CreditCard, MessageSquare, Truck, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
@@ -48,6 +50,8 @@ interface ClienteDetail {
 export function ClienteView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
+  const { isAdmin } = useIsAdmin();
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
@@ -121,6 +125,17 @@ export function ClienteView({ id }: Props) {
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Excluir cliente" onClick={() => setDeleteConfirmOpen(true)}>
           <Trash2 className="h-3.5 w-3.5" /> Excluir
         </Button>
+        {isAdmin && selected.ativo === false && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir cliente permanentemente"
+            onClick={() => setPermDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
+          </Button>
+        )}
       </>
     ) : undefined,
   });
@@ -342,6 +357,25 @@ export function ClienteView({ id }: Props) {
         }
         title="Excluir cliente"
         description={`Tem certeza que deseja excluir "${selected?.nome_razao_social || ""}"? Esta ação não pode ser desfeita.`}
+      />
+
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="clientes"
+        id={id}
+        entityLabel="cliente"
+        recordName={selected?.nome_razao_social || id}
+        warning="Ação administrativa. Remove o cliente do banco — não é inativação."
+        sideEffects={[
+          vendas.length > 0 || notasSaida.length > 0 || financeiro.length > 0
+            ? "Há vendas, notas fiscais ou lançamentos vinculados. A exclusão será bloqueada."
+            : "Nenhum vínculo operacional detectado.",
+        ]}
+        onDeleted={() => {
+          invalidate(["clientes"]);
+          clearStack();
+        }}
       />
     </div>
   );
