@@ -840,7 +840,7 @@ const FluxoCaixa = () => {
                   <SelectItem value="dinheiro">Dinheiro</SelectItem>
                   <SelectItem value="pix">PIX</SelectItem>
                   <SelectItem value="transferencia">Transferência</SelectItem>
-                  <SelectItem value="boleto">Boleto</SelectItem>
+                  <SelectItem value="boleto_dda">Boleto/DDA</SelectItem>
                   <SelectItem value="cartao_debito">Cartão Débito</SelectItem>
                   <SelectItem value="cartao_credito">Cartão Crédito</SelectItem>
                   <SelectItem value="cheque">Cheque</SelectItem>

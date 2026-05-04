@@ -9,10 +9,16 @@ export const pagamentoLabels: Record<string, string> = {
   a_vista: "À Vista",
   a_prazo: "A Prazo",
   pix: "Pix",
-  boleto: "Boleto",
-  cartao: "Cartão",
+  boleto: "Boleto/DDA",
+  boleto_dda: "Boleto/DDA",
+  cartao: "Cartão de Crédito",
+  cartao_credito: "Cartão de Crédito",
+  cartao_debito: "Cartão de Débito",
   cheque: "Cheque",
   transferencia: "Transferência",
+  cobranca_automatica: "Cobrança Automática",
+  debito_automatico: "Débito Automático",
+  outros: "Outros",
 };
 
 /** Human-readable labels for freight responsibility types. */

@@ -42,8 +42,9 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
             <SelectContent>
               <SelectItem value="a_vista">À Vista</SelectItem>
               <SelectItem value="a_prazo">A Prazo</SelectItem>
-              <SelectItem value="boleto">Boleto</SelectItem>
-              <SelectItem value="cartao">Cartão</SelectItem>
+              <SelectItem value="boleto_dda">Boleto/DDA</SelectItem>
+              <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+              <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
               <SelectItem value="pix">PIX</SelectItem>
               <SelectItem value="transferencia">Transferência</SelectItem>
             </SelectContent>

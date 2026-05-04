@@ -16,7 +16,7 @@ import { useSectionConfig } from "@/pages/admin/hooks/useSectionConfig";
 
 const DEFAULTS = {
   condicaoPadrao: "30 dias",
-  formaPagamentoPadrao: "boleto",
+  formaPagamentoPadrao: "boleto_dda",
   bancoPadrao: "Inter",
   permitirBaixaParcial: true,
 };
