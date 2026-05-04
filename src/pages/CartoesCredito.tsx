@@ -275,7 +275,7 @@ export default function CartoesCredito() {
     setBaixaSaving(true);
     try {
       const res = await baixarFaturaCartao(baixaFatura.id, baixaContaId, baixaData);
-      toast.success(`${res.length} lançamento(s) baixado(s)`);
+      toast.success(`${res.processados} lançamento(s) baixado(s) — total ${res.valor_total.toFixed(2)}`);
       setBaixaFatura(null);
       setBaixaContaId("");
       if (faturasListCartao) {

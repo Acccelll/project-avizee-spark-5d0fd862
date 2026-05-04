@@ -9,6 +9,11 @@ export interface RegistrarBaixaParams {
   formaPagamento: string;
   contaBancariaId: string;
   observacoes?: string | null;
+  desconto?: number;
+  juros?: number;
+  multa?: number;
+  abatimento?: number;
+  grupoBaixaId?: string | null;
 }
 
 export async function registrarBaixaFinanceira(params: RegistrarBaixaParams): Promise<string> {
@@ -19,9 +24,58 @@ export async function registrarBaixaFinanceira(params: RegistrarBaixaParams): Pr
     p_forma_pagamento: params.formaPagamento,
     p_conta_bancaria_id: params.contaBancariaId,
     p_observacoes: params.observacoes ?? undefined,
-  });
+    p_desconto: params.desconto ?? 0,
+    p_juros: params.juros ?? 0,
+    p_multa: params.multa ?? 0,
+    p_abatimento: params.abatimento ?? 0,
+    p_grupo_baixa_id: params.grupoBaixaId ?? undefined,
+  } as never);
   if (error) throw error;
   return data as string;
+}
+
+/* -------- Baixa em lote (RPC oficial) -------- */
+
+export interface BaixaLoteItemRpc {
+  lancamento_id: string;
+  valor_pago: number;
+  data_baixa?: string;
+  forma_pagamento?: string;
+  conta_bancaria_id?: string;
+  observacoes?: string | null;
+  desconto?: number;
+  juros?: number;
+  multa?: number;
+  abatimento?: number;
+}
+
+export interface RegistrarBaixaLoteParams {
+  items: BaixaLoteItemRpc[];
+  dataBaixa: string;
+  formaPagamento: string;
+  contaBancariaId: string;
+  observacoes?: string | null;
+}
+
+export interface RegistrarBaixaLoteResult {
+  grupo_id: string;
+  processados: number;
+  ignorados: number;
+  erros: string[];
+}
+
+export async function registrarBaixaLoteFinanceira(
+  params: RegistrarBaixaLoteParams,
+): Promise<RegistrarBaixaLoteResult> {
+  const { data, error } = await supabase.rpc("registrar_baixa_lote_financeira", {
+    p_items: params.items as never,
+    p_data_baixa: params.dataBaixa,
+    p_forma_pagamento: params.formaPagamento,
+    p_conta_bancaria_id: params.contaBancariaId,
+    p_observacoes: params.observacoes ?? undefined,
+  } as never);
+  if (error) throw error;
+  return data as unknown as RegistrarBaixaLoteResult;
 }
 
 export async function estornarBaixaFinanceira(input: {
