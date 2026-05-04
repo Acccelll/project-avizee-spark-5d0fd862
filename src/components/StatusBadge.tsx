@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   FileEdit, Clock, CheckCircle, Cog, CheckCheck,
   AlertTriangle, XCircle, AlarmClock, Ban, Send, FileSearch, GitMerge, FileDown,
-  Hourglass, PackageCheck, Receipt, type LucideIcon,
+  Hourglass, PackageCheck, Receipt, Truck, RotateCcw, History, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getStatusVariant, type StatusVariant, STATUS_VARIANT_MAP } from '@/types/ui';
@@ -53,6 +53,20 @@ const statusMeta: Record<string, StatusMeta> = {
   rejeitado:            { icon: XCircle, label: 'Rejeitado' },
   rejeitada:            { icon: XCircle, label: 'Rejeitada' },
   aguardando_aprovacao: { icon: Clock, label: 'Aguardando Aprovação' },
+  aguardando_recebimento: { icon: Clock, label: 'Aguardando Recebimento' },
+  parcialmente_recebido: { icon: AlertTriangle, label: 'Parcialmente Recebido' },
+  faturada_parcial:     { icon: AlertTriangle, label: 'Faturado Parcial' },
+  enviado_ao_fornecedor:{ icon: Send, label: 'Enviado ao Fornecedor' },
+  separado:             { icon: PackageCheck, label: 'Separado' },
+  em_transporte:        { icon: Truck, label: 'Em Transporte' },
+  coletado:             { icon: PackageCheck, label: 'Coletado' },
+  postado:              { icon: Send, label: 'Postado' },
+  devolvido:            { icon: RotateCcw, label: 'Devolvido' },
+  estornado:            { icon: RotateCcw, label: 'Estornado' },
+  inutilizada:          { icon: Ban, label: 'Inutilizada' },
+  autorizada:           { icon: CheckCircle, label: 'Autorizada' },
+  historico:            { icon: History, label: 'Histórico' },
+  denegada:             { icon: XCircle, label: 'Denegada' },
   expirado:             { icon: AlarmClock, label: 'Expirado' },
   vencido:              { icon: AlarmClock, label: 'Vencido' },
   vencida:              { icon: AlarmClock, label: 'Vencida' },
