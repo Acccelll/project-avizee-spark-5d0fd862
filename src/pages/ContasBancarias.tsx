@@ -211,6 +211,8 @@ const ContasBancarias = () => {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [inUseCounts, setInUseCounts] = useState<InUseCounts>({ lancamentos: 0, baixas: 0, caixaMovs: 0 });
   const [confirmInactivate, setConfirmInactivate] = useState(false);
+  const { isAdmin } = useIsAdmin();
+  const [permDeleteTarget, setPermDeleteTarget] = useState<ContaBancaria | null>(null);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState("");
