@@ -43,10 +43,13 @@ import type { Lancamento, Cliente, Fornecedor } from "@/types/domain";
 import { useFinanceiroAuxiliares } from "@/pages/financeiro/hooks/useFinanceiroAuxiliares";
 import { useFinanceiroFiltros } from "@/pages/financeiro/hooks/useFinanceiroFiltros";
 import { useFinanceiroKpis } from "@/pages/financeiro/hooks/useFinanceiroKpis";
+import { useFinanceiroKpisRpc } from "@/pages/financeiro/hooks/useFinanceiroKpisRpc";
 import { useFinanceiroActions } from "@/pages/financeiro/hooks/useFinanceiroActions";
 import { buildFinanceiroColumns } from "@/pages/financeiro/config/financeiroColumns";
 import { FinanceiroLancamentoForm } from "@/pages/financeiro/components/FinanceiroLancamentoForm";
 import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/types";
+import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
+import { normalizeFormaPagamento } from "@/lib/financeiro";
 
 const Financeiro = () => {
   const { id: paramId } = useParams<{ id?: string }>();
