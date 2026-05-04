@@ -37,6 +37,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type Banco = Tables<"bancos">;
 
@@ -90,6 +91,11 @@ export default function CartoesCredito() {
   const [baixaContaId, setBaixaContaId] = useState("");
   const [baixaData, setBaixaData] = useState(() => new Date().toISOString().split("T")[0]);
   const [baixaSaving, setBaixaSaving] = useState(false);
+  const [baixaForma, setBaixaForma] = useState<string>("boleto_dda");
+  const [baixaLancamentos, setBaixaLancamentos] = useState<
+    Array<{ id: string; descricao: string; valor: number; saldo: number; status: string; data_vencimento: string }>
+  >([]);
+  const [baixaLancsLoading, setBaixaLancsLoading] = useState(false);
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<CartaoForm>(emptyForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -274,7 +280,7 @@ export default function CartoesCredito() {
     }
     setBaixaSaving(true);
     try {
-      const res = await baixarFaturaCartao(baixaFatura.id, baixaContaId, baixaData);
+      const res = await baixarFaturaCartao(baixaFatura.id, baixaContaId, baixaData, baixaForma);
       toast.success(`${res.processados} lançamento(s) baixado(s) — total ${res.valor_total.toFixed(2)}`);
       setBaixaFatura(null);
       setBaixaContaId("");
@@ -482,9 +488,35 @@ export default function CartoesCredito() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
+                        onClick={async () => {
                           setBaixaFatura(f);
                           setBaixaData(new Date().toISOString().split("T")[0]);
+                          setBaixaForma("boleto_dda");
+                          setBaixaLancsLoading(true);
+                          try {
+                            const { data, error } = await supabase
+                              .from("financeiro_lancamentos")
+                              .select("id, descricao, valor, valor_pago, saldo_restante, status, data_vencimento, origem_tipo, ativo")
+                              .eq("cartao_fatura_id", f.id)
+                              .eq("ativo", true)
+                              .neq("origem_tipo", "cartao_fatura")
+                              .order("data_vencimento");
+                            if (error) throw error;
+                            setBaixaLancamentos(
+                              (data || []).map((l: any) => ({
+                                id: l.id,
+                                descricao: l.descricao,
+                                valor: Number(l.valor || 0),
+                                saldo: Number(l.saldo_restante ?? Number(l.valor || 0) - Number(l.valor_pago || 0)),
+                                status: l.status,
+                                data_vencimento: l.data_vencimento,
+                              })),
+                            );
+                          } catch (e) {
+                            notifyError(e);
+                          } finally {
+                            setBaixaLancsLoading(false);
+                          }
                         }}
                       >
                         Baixar
@@ -499,7 +531,7 @@ export default function CartoesCredito() {
       </Dialog>
 
       <Dialog open={!!baixaFatura} onOpenChange={(o) => !o && setBaixaFatura(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Baixar fatura {baixaFatura?.competencia}</DialogTitle>
             <DialogDescription>
@@ -507,22 +539,63 @@ export default function CartoesCredito() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-2">
-              <Label>Conta bancária *</Label>
-              <Select value={baixaContaId} onValueChange={setBaixaContaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {contasBancarias.filter((c) => c.ativo).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.bancos?.nome} — {c.descricao}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2 col-span-2">
+                <Label>Conta bancária *</Label>
+                <Select value={baixaContaId} onValueChange={setBaixaContaId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {contasBancarias.filter((c) => c.ativo).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.bancos?.nome} — {c.descricao}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Data da baixa *</Label>
+                <Input type="date" value={baixaData} onChange={(e) => setBaixaData(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Forma de pagamento</Label>
+                <Select value={baixaForma} onValueChange={setBaixaForma}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="boleto_dda">Boleto/DDA</SelectItem>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="transferencia">Transferência</SelectItem>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Data da baixa *</Label>
-              <Input type="date" value={baixaData} onChange={(e) => setBaixaData(e.target.value)} />
+            <div className="space-y-1">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Lançamentos da fatura
+              </Label>
+              {baixaLancsLoading ? (
+                <p className="text-xs text-muted-foreground py-3 text-center">Carregando...</p>
+              ) : baixaLancamentos.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-3 text-center">Sem lançamentos abertos.</p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto border rounded-md divide-y text-xs">
+                  {baixaLancamentos.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between px-2 py-1.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{l.descricao}</p>
+                        <p className="text-muted-foreground">
+                          Vence {new Date(l.data_vencimento).toLocaleDateString("pt-BR")} • {l.status}
+                        </p>
+                      </div>
+                      <span className="ml-2 font-medium tabular-nums">
+                        {formatCurrency(l.saldo)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Total previsto: <strong>{formatCurrency(Number(baixaFatura?.valor_total || 0))}</strong>

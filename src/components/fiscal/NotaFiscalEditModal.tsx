@@ -838,8 +838,9 @@ export function NotaFiscalEditModal({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                        <SelectItem value="boleto">Boleto</SelectItem>
-                        <SelectItem value="cartao">Cartão</SelectItem>
+                        <SelectItem value="boleto_dda">Boleto/DDA</SelectItem>
+                        <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                        <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
                         <SelectItem value="pix">PIX</SelectItem>
                         <SelectItem value="transferencia">
                           Transferência
