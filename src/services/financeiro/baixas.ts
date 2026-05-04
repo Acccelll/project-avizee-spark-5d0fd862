@@ -7,7 +7,6 @@
  *
  * Extraído de `src/services/financeiro.service.ts` (Fase 5 — limpeza estrutural).
  */
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { calcularPagamentoParcialLote } from "@/lib/financeiro";
 import { notifyError } from "@/utils/errorMessages";
