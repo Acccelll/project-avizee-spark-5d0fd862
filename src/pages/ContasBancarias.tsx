@@ -493,25 +493,12 @@ const ContasBancarias = () => {
             )}
           </div>
           <div className="space-y-2">
-            <Label>Fornecedor do banco (DDA)</Label>
-            <Select
-              value={form.banco_fornecedor_id || "nenhum"}
-              onValueChange={(v) =>
-                updateForm({ banco_fornecedor_id: v === "nenhum" ? "" : v })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione fornecedor..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nenhum">Nenhum</SelectItem>
-                {fornecedores.map((f) => (
-                  <SelectItem key={f.id} value={f.id}>
-                    {f.nome_razao_social}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Fornecedor do banco (DDA) *</Label>
+            <FornecedorCombobox
+              fornecedores={fornecedores}
+              value={form.banco_fornecedor_id}
+              onChange={(v) => updateForm({ banco_fornecedor_id: v })}
+            />
             <p className="text-[11px] text-muted-foreground">
               Vincula o banco a um fornecedor (ex.: Itaú → "Banco Itaú S.A."). Boletos
               DDA do banco passam a sugerir este fornecedor automaticamente. O vínculo
