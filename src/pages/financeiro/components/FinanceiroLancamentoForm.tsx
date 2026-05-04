@@ -30,13 +30,13 @@ interface Props {
   onSubmit: (e: FormEvent) => void;
 }
 
-// Status persistidos editáveis: aberto/pago/cancelado.
-// "parcial" é somente leitura (derivado de baixas).
-// "vencido" é estado efetivo derivado, nunca persistido — não aparece no Select.
-// "estornado" foi descontinuado pelo modelo canônico (backfilled para cancelado).
-const STATUS_READONLY = new Set(["parcial"]);
+// Status editáveis no formulário: apenas `aberto` e `cancelado`.
+// `pago` e `parcial` são DERIVADOS de baixas (trigger trg_sync_financeiro_saldo).
+// `vencido` é estado efetivo derivado, nunca persistido.
+const STATUS_READONLY = new Set(["parcial", "pago"]);
 const STATUS_BADGE_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   parcial: "secondary",
+  pago: "default",
 };
 
 export function FinanceiroLancamentoForm({
@@ -83,11 +83,13 @@ export function FinanceiroLancamentoForm({
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="aberto">Aberto</SelectItem>
-                <SelectItem value="pago">Pago</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
           )}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Status <strong>Pago/Parcial</strong> é derivado das baixas. Use <strong>Baixar</strong> para liquidar.
+          </p>
           {form.status === "vencido" && (
             <p className="text-[11px] text-warning mt-1">Status efetivo: <strong>Vencido</strong> (salvo como Aberto)</p>
           )}
@@ -107,7 +109,7 @@ export function FinanceiroLancamentoForm({
         <div className="space-y-2"><Label>Valor *</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => updateField("valor", Number(e.target.value))} required /></div>
         <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => updateField("data_vencimento", e.target.value)} required /></div>
         <div className="space-y-2"><Label>Data Pagamento</Label><Input type="date" value={form.data_pagamento} onChange={(e) => updateField("data_pagamento", e.target.value)} /></div>
-        <div className="space-y-2"><Label>Conta Bancária {form.status === "pago" ? "*" : ""}</Label>
+        <div className="space-y-2"><Label>Conta Bancária</Label>
           <Select value={form.conta_bancaria_id || "nenhum"} onValueChange={(v) => updateField("conta_bancaria_id", v === "nenhum" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
             <SelectContent>
@@ -191,12 +193,6 @@ export function FinanceiroLancamentoForm({
               {contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}
             </SelectContent>
           </Select>
-        </div>
-      )}
-
-      {form.status === "pago" && (!form.data_pagamento || !form.forma_pagamento || !form.conta_bancaria_id) && (
-        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 text-sm text-warning">
-          ⚠️ Para confirmar como Pago, preencha Data de Pagamento, Forma de Pagamento e Conta Bancária.
         </div>
       )}
 
