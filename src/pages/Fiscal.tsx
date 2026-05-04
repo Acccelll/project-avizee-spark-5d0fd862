@@ -49,6 +49,7 @@ import {
 import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
+import { useFiscalKpis } from "@/pages/fiscal/hooks/useFiscalKpis";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
@@ -931,17 +932,35 @@ const Fiscal = () => {
     return () => { cancelled = true; };
   }, [vencimentoMes]);
 
-  // KPIs — sobre os dados filtrados (consistente com a grid)
-  const kpis = useMemo(() => {
-    const total = filteredData.length;
-    const pendentes = filteredData.filter(n => n.status === "pendente").length;
-    // Status com efeito ativo (Fase 8 — U3): confirmada + autorizada + importada.
-    const confirmadas = filteredData.filter(n =>
-      ["confirmada", "autorizada", "importada"].includes(n.status)
-    ).length;
-    const valorTotal = filteredData.reduce((s, n) => s + Number(n.valor_total || 0), 0);
-    return { total, pendentes, confirmadas, valorTotal };
-  }, [filteredData]);
+  // KPIs — agora vêm da RPC `kpis_fiscal`, refletindo o universo total filtrado
+  // server-side (não apenas os 1000 primeiros que o hook traz). Isso garante
+  // que cards continuem corretos quando a paginação real for ativada.
+  const kpisDateRange = useMemo(() => {
+    if (!emissaoMes) return { dateFrom: null as string | null, dateTo: null as string | null };
+    const start = `${emissaoMes}-01`;
+    const [y, m] = emissaoMes.split("-").map(Number);
+    const end = new Date(y, m, 0).toISOString().slice(0, 10);
+    return { dateFrom: start, dateTo: end };
+  }, [emissaoMes]);
+
+  const { data: kpisRpc } = useFiscalKpis({
+    dateFrom: kpisDateRange.dateFrom,
+    dateTo: kpisDateRange.dateTo,
+    tipos: tipoParam ? [tipoParam] : (tipoFilters.length ? tipoFilters : null),
+    status: statusFromUrl.length ? statusFromUrl : (statusFilters.length ? statusFilters : null),
+    modelos: modeloFilters.length ? modeloFilters : null,
+    search: consultaSearch || null,
+  });
+
+  const kpis = useMemo(
+    () => ({
+      total: kpisRpc?.totalCount ?? 0,
+      pendentes: kpisRpc?.pendente ?? 0,
+      confirmadas: kpisRpc?.confirmadas_efetivas ?? 0,
+      valorTotal: kpisRpc?.total_valor ?? 0,
+    }),
+    [kpisRpc],
+  );
 
   const tipoOptions: MultiSelectOption[] = [{ label: "Entrada", value: "entrada" }, { label: "Saída", value: "saida" }];
   const modeloOptions: MultiSelectOption[] = Object.entries(modeloLabels).map(([v, l]) => ({ label: l, value: v }));
