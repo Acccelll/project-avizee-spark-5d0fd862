@@ -531,7 +531,7 @@ export default function CartoesCredito() {
       </Dialog>
 
       <Dialog open={!!baixaFatura} onOpenChange={(o) => !o && setBaixaFatura(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Baixar fatura {baixaFatura?.competencia}</DialogTitle>
             <DialogDescription>
@@ -539,22 +539,63 @@ export default function CartoesCredito() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-2">
-              <Label>Conta bancária *</Label>
-              <Select value={baixaContaId} onValueChange={setBaixaContaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {contasBancarias.filter((c) => c.ativo).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.bancos?.nome} — {c.descricao}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2 col-span-2">
+                <Label>Conta bancária *</Label>
+                <Select value={baixaContaId} onValueChange={setBaixaContaId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {contasBancarias.filter((c) => c.ativo).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.bancos?.nome} — {c.descricao}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Data da baixa *</Label>
+                <Input type="date" value={baixaData} onChange={(e) => setBaixaData(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Forma de pagamento</Label>
+                <Select value={baixaForma} onValueChange={setBaixaForma}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="boleto_dda">Boleto/DDA</SelectItem>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="transferencia">Transferência</SelectItem>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Data da baixa *</Label>
-              <Input type="date" value={baixaData} onChange={(e) => setBaixaData(e.target.value)} />
+            <div className="space-y-1">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Lançamentos da fatura
+              </Label>
+              {baixaLancsLoading ? (
+                <p className="text-xs text-muted-foreground py-3 text-center">Carregando...</p>
+              ) : baixaLancamentos.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-3 text-center">Sem lançamentos abertos.</p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto border rounded-md divide-y text-xs">
+                  {baixaLancamentos.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between px-2 py-1.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{l.descricao}</p>
+                        <p className="text-muted-foreground">
+                          Vence {new Date(l.data_vencimento).toLocaleDateString("pt-BR")} • {l.status}
+                        </p>
+                      </div>
+                      <span className="ml-2 font-medium tabular-nums">
+                        {formatCurrency(l.saldo)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Total previsto: <strong>{formatCurrency(Number(baixaFatura?.valor_total || 0))}</strong>
