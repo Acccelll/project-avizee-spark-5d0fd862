@@ -665,6 +665,22 @@ export default function CartoesCredito() {
         </form>
       </FormModal>
       {confirmDialog}
+      <PermanentDeleteDialog
+        open={!!permDeleteTarget}
+        onClose={() => setPermDeleteTarget(null)}
+        table="cartoes_credito"
+        id={permDeleteTarget?.id || ""}
+        entityLabel="cartão"
+        recordName={permDeleteTarget?.nome || ""}
+        warning="Ação administrativa. Remove o cartão do banco — não é inativação."
+        sideEffects={[
+          "Faturas e lançamentos vinculados ao cartão impedem a exclusão.",
+        ]}
+        onDeleted={() => {
+          setPermDeleteTarget(null);
+          fetchData();
+        }}
+      />
     </>
   );
 }
