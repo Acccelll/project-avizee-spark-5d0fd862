@@ -2,7 +2,7 @@ import { Construction } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface EmBreveProps {
-  modulo: string;
+  modulo?: string;
   descricao?: string;
 }
 
@@ -10,7 +10,7 @@ interface EmBreveProps {
  * Tela placeholder para módulos marcados como "Em breve".
  * Mantém a rota viva (não quebra deep links) sem expor funcionalidade real.
  */
-export function EmBreve({ modulo, descricao }: EmBreveProps) {
+export function EmBreve({ modulo = "Recurso", descricao }: EmBreveProps) {
   return (
     <div className="container mx-auto p-6 max-w-2xl">
       <Card>
