@@ -12,7 +12,7 @@ import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { Edit, Trash2, User, Mail, MapPin, FileText, CreditCard, MessageSquare, Truck, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
@@ -52,7 +52,7 @@ export function ClienteView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
-  const { isAdmin } = useIsAdmin();
+  const { canHardDelete: isAdmin } = useCanHardDelete();
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();

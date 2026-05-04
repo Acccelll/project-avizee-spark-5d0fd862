@@ -10,7 +10,7 @@ import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
@@ -38,7 +38,7 @@ export function FornecedorView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
-  const { isAdmin } = useIsAdmin();
+  const { canHardDelete: isAdmin } = useCanHardDelete();
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();

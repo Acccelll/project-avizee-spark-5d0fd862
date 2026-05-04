@@ -35,7 +35,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { CreditCard, CheckCircle, Ban, Wallet, FileText, Receipt } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -99,7 +99,7 @@ export default function CartoesCredito() {
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<CartaoForm>(emptyForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
-  const { isAdmin } = useIsAdmin();
+  const { canHardDelete: isAdmin } = useCanHardDelete();
   const [permDeleteTarget, setPermDeleteTarget] = useState<CartaoCredito | null>(null);
 
   const fetchData = async () => {

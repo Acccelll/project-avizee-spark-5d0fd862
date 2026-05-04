@@ -5,3 +5,4 @@
 - [Certificado digital A1](mem://features/certificado-digital-a1) — Upload .pfx em dbavizee/certificados/empresa.pfx; senha em Vault via RPC admin; sefaz-proxy lê via assinar-e-enviar-vault
 - [Roles cumulativos](mem://auth/roles-cumulativos) — user_roles aceita múltiplos por usuário; UI distingue padrão+secundários; admin nunca secundário
 - [Consulta NF-e por chave](mem://features/fiscal-consulta-por-chave) — Busca local em nfe_distribuicao + sync sefaz-distdfe; importXml aceita File|string
+- [Gate Hard Delete](mem://security/gate-hard-delete) — useCanHardDelete (admin estrito) para destrutivo; useIsAdmin segue para telas admin
