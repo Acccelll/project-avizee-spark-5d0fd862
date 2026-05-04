@@ -212,4 +212,61 @@ describe("useSupabaseCrud", () => {
     expect(query.insert).toHaveBeenCalledWith({ nome: "Novo Produto", ativo: true });
     expect(successToast).toHaveBeenCalledWith("Registro criado com sucesso!");
   });
+
+  it("aplica dateRange como gte/lte na coluna informada", async () => {
+    const { query } = createQueryMock([]);
+    fromMock.mockReturnValue(query);
+
+    renderHook(
+      () =>
+        useSupabaseCrud<"financeiro_lancamentos">({
+          table: "financeiro_lancamentos",
+          dateRange: { column: "data_vencimento", from: "2025-01-01", to: "2025-01-31" },
+          hasAtivo: false,
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() =>
+      expect(query.gte).toHaveBeenCalledWith("data_vencimento", "2025-01-01"),
+    );
+    expect(query.lte).toHaveBeenCalledWith("data_vencimento", "2025-01-31");
+  });
+
+  it("aplica statusFilter como IN quando há valores", async () => {
+    const { query } = createQueryMock([]);
+    fromMock.mockReturnValue(query);
+
+    renderHook(
+      () =>
+        useSupabaseCrud<"financeiro_lancamentos">({
+          table: "financeiro_lancamentos",
+          statusFilter: { column: "status", values: ["aberto", "vencido"] },
+          hasAtivo: false,
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() =>
+      expect(query.in).toHaveBeenCalledWith("status", ["aberto", "vencido"]),
+    );
+  });
+
+  it("ignora statusFilter quando values é vazio", async () => {
+    const { query } = createQueryMock([]);
+    fromMock.mockReturnValue(query);
+
+    renderHook(
+      () =>
+        useSupabaseCrud<"financeiro_lancamentos">({
+          table: "financeiro_lancamentos",
+          statusFilter: { column: "status", values: [] },
+          hasAtivo: false,
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(fromMock).toHaveBeenCalled());
+    expect(query.in).not.toHaveBeenCalledWith("status", expect.anything());
+  });
 });
