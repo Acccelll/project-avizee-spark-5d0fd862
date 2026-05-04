@@ -1,8 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, Download, AlertTriangle, Printer, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Loader2,
+  Download,
+  AlertTriangle,
+  Printer,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Minus,
+  Plus,
+  Maximize2,
+  Copy,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -34,6 +49,11 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
   const [invalidas, setInvalidas] = useState<EtiquetaInvalida[]>([]);
   const [pageIdx, setPageIdx] = useState(0);
   const [busy, setBusy] = useState<null | "pdf" | "print">(null);
+  const [copias, setCopias] = useState<Record<string, number>>({});
+  // null = ajustar à tela (auto), número = zoom manual (0.25..1.5)
+  const [zoom, setZoom] = useState<number | null>(null);
+  const [autoScale, setAutoScale] = useState(0.5);
+  const previewAreaRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open || remessaIds.length === 0) return;
@@ -49,6 +69,12 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
         const { validas, invalidas } = validarEtiquetas(itens);
         setValidas(validas);
         setInvalidas(invalidas);
+        // auto-fill: distribuir 4 vagas igualmente
+        const n = validas.length;
+        const padrao = n === 0 ? 1 : Math.max(1, Math.floor(4 / n));
+        const map: Record<string, number> = {};
+        for (const v of validas) map[v.remessaId] = padrao;
+        setCopias(map);
       })
       .catch((err) => {
         if (!cancelled) toast.error((err as Error).message || "Falha ao gerar etiquetas");
@@ -67,16 +93,47 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
     [],
   );
 
+  // expande aplicando o nº de cópias por remessa, mantendo ordem
+  const expandidas = useMemo(() => {
+    const out: EtiquetaSimplesItem[] = [];
+    for (const it of validas) {
+      const n = Math.max(0, Math.min(20, copias[it.remessaId] ?? 1));
+      for (let i = 0; i < n; i++) out.push(it);
+    }
+    return out;
+  }, [validas, copias]);
+
   const PER_PAGE = 4;
-  const totalPages = Math.max(1, Math.ceil(validas.length / PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(expandidas.length / PER_PAGE));
+  const safePageIdx = Math.min(pageIdx, totalPages - 1);
   const pageItems = useMemo(
-    () => validas.slice(pageIdx * PER_PAGE, pageIdx * PER_PAGE + PER_PAGE),
-    [validas, pageIdx],
+    () => expandidas.slice(safePageIdx * PER_PAGE, safePageIdx * PER_PAGE + PER_PAGE),
+    [expandidas, safePageIdx],
   );
 
+  // Calcula escala "ajustar à tela" baseada no container
+  useLayoutEffect(() => {
+    const el = previewAreaRef.current;
+    if (!el) return;
+    const compute = () => {
+      const cw = el.clientWidth - 48; // padding lateral
+      const ch = el.clientHeight - 48;
+      // 1mm ≈ 3.7795px @96dpi
+      const MM = 3.7795275591;
+      const fit = Math.min(cw / (210 * MM), ch / (297 * MM));
+      setAutoScale(Math.max(0.2, Math.min(1.5, fit * 0.96)));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open]);
+
+  const effectiveZoom = zoom ?? autoScale;
+
   async function buildBlob(): Promise<Blob | null> {
-    if (validas.length === 0) return null;
-    return await gerarPdfEtiquetasSimplesA4(validas);
+    if (expandidas.length === 0) return null;
+    return await gerarPdfEtiquetasSimplesA4(expandidas);
   }
 
   const handleDownload = async () => {
@@ -90,7 +147,7 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
       a.download = fileName;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(`${validas.length} etiqueta(s) baixadas em PDF A4.`);
+      toast.success(`${expandidas.length} etiqueta(s) baixadas em PDF A4.`);
     } catch (e) {
       toast.error((e as Error).message || "Falha ao gerar PDF");
     } finally {
@@ -114,6 +171,31 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
     }
   };
 
+  const setCopiasGlobal = (n: number) => {
+    const v = Math.max(0, Math.min(20, n));
+    setCopias((prev) => {
+      const out: Record<string, number> = {};
+      for (const r of validas) out[r.remessaId] = v;
+      return out;
+    });
+    setPageIdx(0);
+  };
+  const autoFill = () => {
+    const n = validas.length;
+    const padrao = n === 0 ? 1 : Math.max(1, Math.floor(4 / n));
+    const map: Record<string, number> = {};
+    for (const v of validas) map[v.remessaId] = padrao;
+    setCopias(map);
+    setPageIdx(0);
+  };
+
+  // valor exibido no input global: comum se todos iguais, senão "—"
+  const copiasComuns = (() => {
+    if (validas.length === 0) return 1;
+    const first = copias[validas[0].remessaId] ?? 1;
+    return validas.every((r) => (copias[r.remessaId] ?? 1) === first) ? first : null;
+  })();
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 flex flex-col gap-0">
@@ -123,8 +205,8 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
             <DialogDescription className="text-xs">
               {loading
                 ? "Gerando pré-visualização…"
-                : validas.length > 0
-                  ? `${validas.length} etiqueta(s) — A4 retrato, 4 por página${totalPages > 1 ? ` (página ${pageIdx + 1}/${totalPages})` : ""}.`
+                : expandidas.length > 0
+                  ? `${expandidas.length} etiqueta(s) · ${validas.length} remessa(s) · folha ${safePageIdx + 1}/${totalPages}`
                   : "Nenhuma etiqueta pôde ser gerada."}
             </DialogDescription>
           </div>
@@ -133,7 +215,7 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
               size="sm"
               variant="outline"
               onClick={handlePrint}
-              disabled={busy !== null || validas.length === 0}
+              disabled={busy !== null || expandidas.length === 0}
               className="gap-1.5"
             >
               {busy === "print" ? (
@@ -146,7 +228,7 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
             <Button
               size="sm"
               onClick={handleDownload}
-              disabled={busy !== null || validas.length === 0}
+              disabled={busy !== null || expandidas.length === 0}
               className="gap-1.5"
             >
               {busy === "pdf" ? (
@@ -162,7 +244,103 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 bg-muted/30 relative overflow-auto">
+        {/* Barra de controles: cópias + zoom */}
+        {!loading && validas.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b bg-background text-xs">
+            <div className="flex items-center gap-2">
+              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+              <Label htmlFor="copias-input" className="text-xs">
+                Cópias por remessa
+              </Label>
+              <Input
+                id="copias-input"
+                type="number"
+                min={0}
+                max={20}
+                value={copiasComuns ?? ""}
+                placeholder={copiasComuns === null ? "—" : ""}
+                onChange={(e) => setCopiasGlobal(Number(e.target.value) || 0)}
+                className="h-7 w-16 text-xs"
+              />
+              <Button size="sm" variant="outline" onClick={autoFill} className="h-7 text-xs">
+                Auto preencher A4
+              </Button>
+              {validas.length > 1 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs">
+                      Personalizar por remessa
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="start">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium">Quantas cópias de cada remessa?</p>
+                      <div className="max-h-64 overflow-auto space-y-1.5">
+                        {validas.map((r) => (
+                          <div key={r.remessaId} className="flex items-center gap-2">
+                            <span className="flex-1 truncate text-xs" title={r.destinatario.nome}>
+                              <span className="font-mono text-muted-foreground mr-1">
+                                {r.remessaRef}
+                              </span>
+                              {r.destinatario.nome}
+                            </span>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={20}
+                              value={copias[r.remessaId] ?? 0}
+                              onChange={(e) => {
+                                const v = Math.max(0, Math.min(20, Number(e.target.value) || 0));
+                                setCopias((p) => ({ ...p, [r.remessaId]: v }));
+                                setPageIdx(0);
+                              }}
+                              className="h-7 w-16 text-xs"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 ml-auto">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => setZoom(Math.max(0.25, (zoom ?? autoScale) - 0.1))}
+                aria-label="Diminuir zoom"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs tabular-nums w-12 text-center">
+                {Math.round(effectiveZoom * 100)}%
+              </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => setZoom(Math.min(1.5, (zoom ?? autoScale) + 0.1))}
+                aria-label="Aumentar zoom"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs gap-1"
+                onClick={() => setZoom(null)}
+                title="Ajustar à tela"
+              >
+                <Maximize2 className="h-3.5 w-3.5" /> Ajustar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div ref={previewAreaRef} className="flex-1 min-h-0 bg-neutral-200 dark:bg-neutral-800 relative overflow-auto">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground gap-2 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" /> Gerando pré-visualização…
@@ -188,30 +366,45 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
             </div>
           )}
 
-          {!loading && validas.length > 0 && (
+          {!loading && expandidas.length > 0 && (
             <div className="min-h-full flex flex-col items-center gap-3 py-6 px-4">
-              <FolhaA4Preview itens={pageItems} />
+              <div
+                style={{
+                  width: `calc(210mm * ${effectiveZoom})`,
+                  height: `calc(297mm * ${effectiveZoom})`,
+                }}
+                className="shrink-0"
+              >
+                <div
+                  style={{
+                    transform: `scale(${effectiveZoom})`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  <FolhaA4Preview itens={pageItems} />
+                </div>
+              </div>
               {totalPages > 1 && (
-                <div className="flex items-center gap-2 sticky bottom-2 bg-background/80 backdrop-blur rounded-full border px-2 py-1">
+                <div className="flex items-center gap-2 sticky bottom-2 bg-background/90 backdrop-blur rounded-full border px-2 py-1 shadow-md">
                   <Button
                     size="icon"
                     variant="ghost"
                     className="h-7 w-7"
                     onClick={() => setPageIdx((p) => Math.max(0, p - 1))}
-                    disabled={pageIdx === 0}
+                    disabled={safePageIdx === 0}
                     aria-label="Página anterior"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-xs tabular-nums px-1">
-                    {pageIdx + 1} / {totalPages}
+                    Folha {safePageIdx + 1} / {totalPages}
                   </span>
                   <Button
                     size="icon"
                     variant="ghost"
                     className="h-7 w-7"
                     onClick={() => setPageIdx((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={pageIdx >= totalPages - 1}
+                    disabled={safePageIdx >= totalPages - 1}
                     aria-label="Próxima página"
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -221,9 +414,14 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
             </div>
           )}
 
-          {!loading && validas.length === 0 && (
+          {!loading && expandidas.length === 0 && validas.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground p-6 text-center">
               Não foi possível gerar nenhuma etiqueta. Corrija os dados listados e tente novamente.
+            </div>
+          )}
+          {!loading && expandidas.length === 0 && validas.length > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground p-6 text-center">
+              Defina pelo menos 1 cópia para alguma remessa.
             </div>
           )}
         </div>
@@ -248,7 +446,7 @@ function FolhaA4Preview({ itens }: { itens: EtiquetaSimplesItem[] }) {
 
   return (
     <div
-      className="bg-white shadow-2xl border"
+      className="bg-white shadow-2xl border border-neutral-300"
       style={{
         width: "210mm",
         height: "297mm",
