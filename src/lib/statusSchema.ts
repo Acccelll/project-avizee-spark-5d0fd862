@@ -1,4 +1,14 @@
-// Centralized status definitions for all ERP modules
+// Centralized status definitions for all ERP modules.
+//
+// E8 — Cores aqui DEVEM espelhar `STATUS_VARIANT_MAP` em `src/types/ui.ts`,
+// que é a fonte única de verdade para o tom do StatusBadge. Esta tabela
+// alimenta apenas filtros (MultiSelect/labels). Convenção:
+//   variant `muted`        → color `"secondary"` (compat com BadgeVariant antigo)
+//   variant `success`      → "success"
+//   variant `warning`      → "warning"
+//   variant `info`         → "info"
+//   variant `destructive`  → "destructive"
+//   variant `primary`      → "primary"
 
 export const statusOrcamento: Record<string, { label: string; color: string }> = {
   rascunho: { label: "Rascunho", color: "secondary" },
@@ -7,7 +17,7 @@ export const statusOrcamento: Record<string, { label: string; color: string }> =
   convertido: { label: "Convertido em Pedido", color: "success" },
   rejeitado: { label: "Rejeitado", color: "destructive" },
   cancelado: { label: "Cancelado", color: "destructive" },
-  expirado: { label: "Expirado", color: "warning" },
+  expirado: { label: "Expirado", color: "destructive" },
   historico: { label: "Histórico", color: "secondary" },
 };
 
@@ -47,7 +57,7 @@ export const statusNotaFiscal: Record<string, { label: string; color: string }> 
 
 export const statusFinanceiro: Record<string, { label: string; color: string }> = {
   aberto: { label: "Em Aberto", color: "warning" },
-  parcial: { label: "Parcialmente Pago", color: "info" },
+  parcial: { label: "Parcialmente Pago", color: "warning" },
   pago: { label: "Pago", color: "success" },
   vencido: { label: "Vencido", color: "destructive" },
   cancelado: { label: "Cancelado", color: "secondary" },
@@ -66,8 +76,8 @@ export const statusRemessa: Record<string, { label: string; color: string }> = {
 
 export const statusCotacaoCompra: Record<string, { label: string; color: string }> = {
   rascunho: { label: "Rascunho", color: "secondary" },
-  aberta: { label: "Aberta", color: "info" },
-  em_analise: { label: "Em Análise", color: "warning" },
+  aberta: { label: "Aberta", color: "warning" },
+  em_analise: { label: "Em Análise", color: "info" },
   aguardando_aprovacao: { label: "Aguardando Aprovação", color: "warning" },
   aprovada: { label: "Aprovada", color: "success" },
   convertida: { label: "Convertida em Pedido", color: "success" },
