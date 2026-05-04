@@ -6,3 +6,6 @@
 - [Roles cumulativos](mem://auth/roles-cumulativos) — user_roles aceita múltiplos por usuário; UI distingue padrão+secundários; admin nunca secundário
 - [Consulta NF-e por chave](mem://features/fiscal-consulta-por-chave) — Busca local em nfe_distribuicao + sync sefaz-distdfe; importXml aceita File|string
 - [Gate Hard Delete](mem://security/gate-hard-delete) — useCanHardDelete (admin estrito) para destrutivo; useIsAdmin segue para telas admin
+- [Consumo de Convite](mem://security/consumo-convite-signup) — handle_new_user consome invites atomicamente e aplica role no signup
+- [Lançamento Pago Exige Baixa](mem://security/lancamento-pago-requer-baixa) — Trigger bloqueia status pago/parcial sem registro em financeiro_baixas
+- [Storage dbavizee Prefixos](mem://security/storage-dbavizee-prefixos) — Policies por prefixo canônico (templates/apresentacoes/workbooks/fiscal/users)

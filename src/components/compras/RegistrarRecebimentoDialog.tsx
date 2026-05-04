@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { todayISO } from "@/lib/dateUtils";
 import { notifyError } from "@/utils/errorMessages";
-import { Loader2, PackageCheck } from "lucide-react";
+import { Loader2, PackageCheck, Info } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -157,6 +157,13 @@ export function RegistrarRecebimentoDialog({ open, onClose, pedidoId, pedidoNume
             Ajuste a quantidade a receber por item. Itens com pendência zero são ignorados.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex items-start gap-2 rounded-lg border border-info/40 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
+          <Info className="h-4 w-4 mt-0.5 text-info shrink-0" />
+          <span>
+            O recebimento <strong>atualiza o estoque</strong> e registra a compra. O <strong>contas a pagar</strong> será gerado ao confirmar a <strong>NF de entrada</strong> vinculada.
+          </span>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
