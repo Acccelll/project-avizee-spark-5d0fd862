@@ -27,4 +27,4 @@ Os filtros enviados ao RPC devem espelhar exatamente o que o `useSupabaseCrud` a
 ## Adoção
 
 - **Fiscal.tsx**: já consome `useFiscalKpis` (em `src/pages/fiscal/hooks/useFiscalKpis.ts`). Cards "Total / Valor Total / Pendentes / Confirmadas" são alimentados pela RPC; a contagem `confirmadas_efetivas` agrega `confirmada + autorizada + importada` por paridade com a regra do ERP.
-- **Financeiro.tsx**: pendente — próxima sessão (E7.3) introduz `useFinanceiroKpis` baseado em `kpis_financeiro`.
+- **Financeiro.tsx**: consome `useFinanceiroKpisRpc` (em `src/pages/financeiro/hooks/useFinanceiroKpisRpc.ts`). Os cards "A Vencer / Vence Hoje / Vencidos / Parcialmente Baixados / Pagos" agora vêm da RPC `kpis_financeiro`, com fallback para o cálculo local (`useFinanceiroKpis`) enquanto a query carrega. Filtros de período (`PeriodFilter`/`MonthFilter`) são convertidos via `periodToFinancialRange`/`monthToRange`; `period === "vencidos"` força `status=["vencido"]` e `dateTo=hoje`. Formas de pagamento são canonicalizadas via `normalizeFormaPagamento` antes de enviar para a RPC.
