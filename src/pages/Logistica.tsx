@@ -580,7 +580,8 @@ export default function Logistica() {
     { key: "data_postagem", label: "Postagem", render: (r: Remessa) => r.data_postagem ? format(new Date(r.data_postagem + "T00:00:00"), "dd/MM/yyyy") : "—" },
     { key: "status_transporte", label: "Status", render: (r: Remessa) => {
       const s = r.status_transporte ?? "";
-      return <StatusBadge status={remessaStatusMap[s]?.color ?? s} />;
+      // E8: passar a chave canônica do status; StatusBadge resolve cor via STATUS_VARIANT_MAP.
+      return <StatusBadge status={s} label={remessaStatusMap[s]?.label} />;
     }},
     { key: "etiqueta", label: "Etiqueta", render: (r: Remessa) => {
       const et = etiquetasMap[r.id];
