@@ -691,6 +691,23 @@ const ContasBancarias = () => {
         onDelete={(c) => handleDelete(c)}
       />
       {confirmDialog}
+      <PermanentDeleteDialog
+        open={!!permDeleteTarget}
+        onClose={() => setPermDeleteTarget(null)}
+        table="bancos"
+        id={permDeleteTarget?.banco_id || ""}
+        entityLabel="banco / conta bancária"
+        recordName={permDeleteTarget?.descricao || permDeleteTarget?.bancos?.nome || ""}
+        warning="Ação administrativa. Remove o banco do banco de dados — não é inativação. Lançamentos, baixas e movimentos de caixa vinculados impedirão a exclusão."
+        sideEffects={[
+          "Contas bancárias do mesmo banco",
+          "Lançamentos, baixas e movimentos de caixa vinculados impedem exclusão.",
+        ]}
+        onDeleted={() => {
+          setPermDeleteTarget(null);
+          fetchData();
+        }}
+      />
     </>
   );
 };
