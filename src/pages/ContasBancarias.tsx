@@ -46,7 +46,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
-  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2,
+  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2, Link2,
 } from "lucide-react";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -252,6 +252,21 @@ const ContasBancarias = () => {
     () => contasAtivas.reduce((s, c) => s + Number(c.saldo_atual || 0), 0),
     [contasAtivas],
   );
+
+  // Bancos ativos sem fornecedor vinculado (DDA) — alerta administrativo.
+  const bancosSemFornecedor = useMemo(
+    () => bancos.filter((b) => b.ativo && !b.fornecedor_id),
+    [bancos],
+  );
+
+  const openEditByBancoId = (bancoId: string) => {
+    const conta = contas.find((c) => c.banco_id === bancoId && c.ativo) ?? contas.find((c) => c.banco_id === bancoId);
+    if (conta) {
+      openEdit(conta);
+    } else {
+      toast.info("Este banco não possui conta cadastrada. Crie uma conta para vincular o fornecedor.");
+    }
+  };
 
   // Filter options derived from loaded accounts (same source as filtering logic)
   const tipoOptions = useMemo<MultiSelectOption[]>(() => {
