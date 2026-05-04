@@ -37,6 +37,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type Banco = Tables<"bancos">;
 
