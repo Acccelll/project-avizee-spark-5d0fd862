@@ -1,0 +1,1 @@
+ALTER VIEW public.vw_cartao_fatura_total SET (security_invoker = true);
