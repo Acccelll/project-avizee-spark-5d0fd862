@@ -22,14 +22,17 @@ import {
   inativarCartao,
   getCartaoInUseCounts,
   gerarFaturaCartao,
+  listFaturasPorCartao,
+  baixarFaturaCartao,
+  type CartaoFatura,
   type CartaoCredito,
 } from "@/services/cartoesCredito.service";
-import { listBancosAtivos } from "@/services/contasBancarias.service";
+import { listBancosAtivos, listContasBancarias, type ContaBancaria } from "@/services/contasBancarias.service";
 import type { Tables } from "@/integrations/supabase/types";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { CreditCard, CheckCircle, Ban, Wallet, FileText } from "lucide-react";
+import { CreditCard, CheckCircle, Ban, Wallet, FileText, Receipt } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type Banco = Tables<"bancos">;
@@ -75,6 +78,15 @@ export default function CartoesCredito() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [faturaSaving, setFaturaSaving] = useState(false);
+  const [faturasListOpen, setFaturasListOpen] = useState(false);
+  const [faturasListCartao, setFaturasListCartao] = useState<CartaoCredito | null>(null);
+  const [faturasList, setFaturasList] = useState<CartaoFatura[]>([]);
+  const [faturasLoading, setFaturasLoading] = useState(false);
+  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
+  const [baixaFatura, setBaixaFatura] = useState<CartaoFatura | null>(null);
+  const [baixaContaId, setBaixaContaId] = useState("");
+  const [baixaData, setBaixaData] = useState(() => new Date().toISOString().split("T")[0]);
+  const [baixaSaving, setBaixaSaving] = useState(false);
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<CartaoForm>(emptyForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -232,6 +244,46 @@ export default function CartoesCredito() {
     }
   };
 
+  const openFaturasList = async (c: CartaoCredito) => {
+    setFaturasListCartao(c);
+    setFaturasListOpen(true);
+    setFaturasLoading(true);
+    try {
+      const [fs, cbs] = await Promise.all([
+        listFaturasPorCartao(c.id),
+        contasBancarias.length ? Promise.resolve(contasBancarias) : listContasBancarias(),
+      ]);
+      setFaturasList(fs);
+      if (!contasBancarias.length) setContasBancarias(cbs);
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setFaturasLoading(false);
+    }
+  };
+
+  const handleBaixarFatura = async () => {
+    if (!baixaFatura || !baixaContaId || !baixaData) {
+      toast.error("Selecione conta bancária e data");
+      return;
+    }
+    setBaixaSaving(true);
+    try {
+      const res = await baixarFaturaCartao(baixaFatura.id, baixaContaId, baixaData);
+      toast.success(`${res.length} lançamento(s) baixado(s)`);
+      setBaixaFatura(null);
+      setBaixaContaId("");
+      if (faturasListCartao) {
+        const fs = await listFaturasPorCartao(faturasListCartao.id);
+        setFaturasList(fs);
+      }
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setBaixaSaving(false);
+    }
+  };
+
   const columns = [
     {
       key: "nome",
@@ -324,16 +376,28 @@ export default function CartoesCredito() {
           onDelete={handleDelete}
           rowExtraActions={(c: CartaoCredito) =>
             c.ativo ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openFatura(c);
-                }}
-              >
-                <FileText className="w-3.5 h-3.5 mr-1" /> Gerar fatura
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openFaturasList(c);
+                  }}
+                >
+                  <Receipt className="w-3.5 h-3.5 mr-1" /> Faturas
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openFatura(c);
+                  }}
+                >
+                  <FileText className="w-3.5 h-3.5 mr-1" /> Gerar fatura
+                </Button>
+              </div>
             ) : null
           }
           mobileIdentifierKey="nome"
@@ -368,6 +432,89 @@ export default function CartoesCredito() {
             <Button variant="outline" onClick={() => setFaturaOpen(false)}>Cancelar</Button>
             <Button onClick={handleGerarFatura} disabled={faturaSaving}>
               {faturaSaving ? "Gerando..." : "Gerar fatura"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={faturasListOpen} onOpenChange={(o) => !o && setFaturasListOpen(false)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Faturas — {faturasListCartao?.nome}</DialogTitle>
+            <DialogDescription>
+              Ciclo: dia {faturasListCartao?.dia_fechamento} (fechamento) / dia {faturasListCartao?.dia_vencimento} (vencimento).
+            </DialogDescription>
+          </DialogHeader>
+          {faturasLoading ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>
+          ) : faturasList.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma fatura encontrada.</p>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto divide-y border rounded-md">
+              {faturasList.map((f) => (
+                <div key={f.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <div>
+                    <p className="font-medium">{f.competencia}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Vence {new Date(f.data_vencimento).toLocaleDateString("pt-BR")} • {formatCurrency(Number(f.valor_total || 0))}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={f.status} />
+                    {f.status !== "paga" && Number(f.valor_total || 0) > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setBaixaFatura(f);
+                          setBaixaData(new Date().toISOString().split("T")[0]);
+                        }}
+                      >
+                        Baixar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!baixaFatura} onOpenChange={(o) => !o && setBaixaFatura(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Baixar fatura {baixaFatura?.competencia}</DialogTitle>
+            <DialogDescription>
+              Quita em lote todos os lançamentos da fatura, debitando da conta bancária escolhida.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Conta bancária *</Label>
+              <Select value={baixaContaId} onValueChange={setBaixaContaId}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {contasBancarias.filter((c) => c.ativo).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.bancos?.nome} — {c.descricao}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Data da baixa *</Label>
+              <Input type="date" value={baixaData} onChange={(e) => setBaixaData(e.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Total previsto: <strong>{formatCurrency(Number(baixaFatura?.valor_total || 0))}</strong>
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setBaixaFatura(null)}>Cancelar</Button>
+            <Button onClick={handleBaixarFatura} disabled={baixaSaving || !baixaContaId}>
+              {baixaSaving ? "Processando..." : "Confirmar baixa"}
             </Button>
           </div>
         </DialogContent>
