@@ -37,13 +37,24 @@ export default function PedidosCompra() {
   // Drill-down from Dashboard: ?atrasadas=1 → narrows to pedidos that are still
   // awaiting receipt (the closest semantic match — "atrasado" is not a real
   // status, just a temporal interpretation).
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     if (searchParams.get("atrasadas") === "1") {
       filters.setRecebimentoFilters((prev) => (prev.includes("aguardando") ? prev : ["aguardando", "parcial"]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- drill-down one-shot via ?atrasadas=1; filters.setRecebimentoFilters é setter estável
   }, [searchParams]);
+
+  // Atalho rápido: /pedidos-compra?new=1 abre o formulário de criação.
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      ctx.openCreate();
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot por mount; openCreate estável.
+  }, []);
 
   const statusOptions = useMemo<MultiSelectOption[]>(
     () => Object.entries(statusLabels).map(([k, v]) => ({ value: k, label: v })),

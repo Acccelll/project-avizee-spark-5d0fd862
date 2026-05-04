@@ -48,6 +48,7 @@ interface FinanceiroAggRow {
   status: string | null;
   saldo_restante: number | null;
   valor: number;
+  data_vencimento?: string | null;
 }
 
 interface GrupoDetail {
@@ -100,10 +101,11 @@ export function GrupoEconomicoView({ id }: Props) {
     if (empresaIds.length > 0) {
       const { data: fin } = await supabase
         .from("financeiro_lancamentos")
-        .select("cliente_id, status, saldo_restante, valor")
+        .select("cliente_id, status, saldo_restante, valor, data_vencimento")
         .in("cliente_id", empresaIds)
         .eq("tipo", "receber")
-        .in("status", ["aberto", "vencido", "parcial"])
+        // "vencido" é derivado pela data — basta filtrar abertos/parciais aqui.
+        .in("status", ["aberto", "parcial"])
         .abortSignal(signal);
       financeiro = (fin as FinanceiroAggRow[]) || [];
     }
@@ -128,7 +130,15 @@ export function GrupoEconomicoView({ id }: Props) {
     (acc, f) => acc + (Number(f.saldo_restante ?? f.valor) || 0),
     0,
   );
-  const titulosVencidos = financeiro.filter((f) => f.status === "vencido").length;
+  // Derivado: aberto/parcial cuja data_vencimento está no passado.
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const titulosVencidos = financeiro.filter((f) => {
+    if (!f.data_vencimento) return false;
+    const dv = new Date(f.data_vencimento);
+    dv.setHours(0, 0, 0, 0);
+    return dv < hoje;
+  }).length;
 
   const riskInfo = (() => {
     if (titulosVencidos > 0) {

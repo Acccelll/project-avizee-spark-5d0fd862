@@ -10,10 +10,12 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
-import { flatNavItems, quickActions } from '@/lib/navigation';
+import { flatNavItems, quickActions, navSections } from '@/lib/navigation';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useCan } from '@/hooks/useCan';
+import { useVisibleNavSections } from '@/hooks/useVisibleNavSections';
+import { toast } from 'sonner';
 import { useRelationalNavigation, type EntityType } from '@/contexts/RelationalNavigationContext';
 
 interface GlobalSearchProps {
@@ -69,6 +71,30 @@ function highlight(text: string, term: string) {
 export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const navigate = useNavigate();
   const { can } = useCan();
+  const visibleSections = useVisibleNavSections();
+  const visibleSectionKeys = useMemo(() => new Set(visibleSections.map((s) => s.key)), [visibleSections]);
+  // Mapa path-base → leaf, para checar `disabled` rapidamente sem percorrer árvore.
+  const disabledPaths = useMemo(() => {
+    const set = new Set<string>();
+    for (const sec of navSections) {
+      if (sec.disabled && sec.directPath) set.add(sec.directPath.split('?')[0]);
+      for (const grp of sec.items) {
+        for (const it of grp.items) {
+          if (it.disabled) set.add(it.path.split('?')[0]);
+        }
+      }
+    }
+    return set;
+  }, []);
+  const isPathDisabled = (path: string) => {
+    const base = path.split('?')[0];
+    if (disabledPaths.has(base)) return true;
+    // Marca também sub-rotas de path desabilitado (ex.: /faturamento/cadastros).
+    for (const d of disabledPaths) {
+      if (base === d || base.startsWith(`${d}/`)) return true;
+    }
+    return false;
+  };
   const { pushView } = useRelationalNavigation();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
@@ -132,14 +158,17 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
 
   const navigationResults = useMemo(
     () =>
-      flatNavItems.map((item) => ({
+      flatNavItems
+        .filter((item) => !item.sectionKey || visibleSectionKeys.has(item.sectionKey))
+        .map((item) => ({
         id: item.path,
         title: item.title,
         category: 'Navegação',
         subtitle: item.section ? `${item.section} · ${item.subgroup}` : 'Navegação',
         path: item.path,
+        disabled: isPathDisabled(item.path),
       })),
-    [],
+    [visibleSectionKeys, disabledPaths],
   );
 
   const filteredNavigation = useMemo(() => {
@@ -152,13 +181,24 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     const enriched = [
       ...quickActions,
       { id: 'nova-venda', title: 'Novo Pedido', description: 'Ver pedidos e faturamento', path: '/pedidos', shortcut: '⌃⇧N' },
-      { id: 'nova-nota', title: 'Nova Nota Fiscal', description: 'Abrir emissão fiscal', path: '/fiscal?tipo=saida', shortcut: '⌃⇧N' },
+      { id: 'nova-nota', title: 'Nova Nota Fiscal', description: 'Abrir emissão fiscal', path: '/fiscal?tipo=saida', shortcut: '⌃⇧N', requires: 'faturamento_fiscal:editar' as const },
       { id: 'novo-produto-atalho', title: 'Novo Produto', description: 'Ir para cadastro de produto', path: '/produtos', shortcut: '⌃⇧P' },
-    ];
+    ] as Array<typeof quickActions[number] & { requires?: string }>;
     if (!search.trim()) return enriched;
     const term = search.toLowerCase();
     return enriched.filter((item) => `${item.title} ${item.description}`.toLowerCase().includes(term));
   }, [search]);
+
+  // Aplica filtro de permissão (`requires`) e oculta ações apontando para módulos "Em breve".
+  const allowedActions = useMemo(
+    () =>
+      filteredActions.filter((item) => {
+        if (item.requires && !can(item.requires as never)) return false;
+        if (isPathDisabled(item.path)) return false;
+        return true;
+      }),
+    [filteredActions, can, disabledPaths],
+  );
 
   const groupedEntities = useMemo(() => {
     const groups: Record<string, EntityResult[]> = {};
@@ -178,6 +218,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   };
 
   const handleSelect = (path: string) => {
+    if (isPathDisabled(path)) {
+      toast.info('Recurso em breve', { description: 'Este módulo está em construção.' });
+      onOpenChange(false);
+      return;
+    }
     persistRecent(search);
     onOpenChange(false);
     navigate(path);
@@ -211,11 +256,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           </CommandGroup>
         )}
 
-        {filteredActions.length > 0 && (
+        {allowedActions.length > 0 && (
           <>
             <CommandSeparator />
             <CommandGroup heading="Ações rápidas">
-              {filteredActions.map((item) => (
+              {allowedActions.map((item) => (
                 <CommandItem key={item.id} onSelect={() => handleSelect(item.path)}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   <div className="flex flex-col">
@@ -252,7 +297,12 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
             <CommandItem key={item.id} onSelect={() => handleSelect(item.path)}>
               <Search className="mr-2 h-4 w-4" />
               <div className="flex flex-col">
-                <span>{highlight(item.title, search)}</span>
+                <span>
+                  {highlight(item.title, search)}
+                  {item.disabled && (
+                    <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Em breve</span>
+                  )}
+                </span>
                 <span className="text-xs text-muted-foreground">{highlight(item.subtitle, search)}</span>
               </div>
             </CommandItem>

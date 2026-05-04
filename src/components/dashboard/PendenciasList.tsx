@@ -54,7 +54,8 @@ async function fetchPendencias(rangeFrom?: string, rangeTo?: string): Promise<Pe
     .from('financeiro_lancamentos')
     .select('id, tipo, descricao, valor, data_vencimento, status, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_contabeis(codigo, descricao)')
     .eq('ativo', true)
-    .in('status', ['aberto', 'vencido'])
+    // "vencido" é derivado: buscamos abertos/parciais e calculamos no front via data_vencimento.
+    .in('status', ['aberto', 'parcial'])
     .gte('data_vencimento', lower)
     .lte('data_vencimento', upper)
     .order('data_vencimento', { ascending: true })
