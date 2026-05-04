@@ -6,7 +6,6 @@ import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
 import { ParcelasFiscalEditor } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
-import { Upload, KeyRound, ScanLine } from "lucide-react";
 import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
 import { calcularFaturaParaData, calcularFaturasParcelas } from "@/lib/cartaoFatura";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -55,6 +54,7 @@ import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
+import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -1089,40 +1089,13 @@ const Fiscal = () => {
   return (
     <><ModulePage title={tipoConfig.title} subtitle={tipoConfig.subtitle} addLabel={tipoConfig.addLabel} onAdd={openCreate}
         addButtonHelpId="fiscal.novoBtn"
-        headerActions={<>
-          <input ref={xmlInputRef} type="file" accept=".xml" className="hidden" onChange={handleXmlImport} />
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 min-h-11 md:min-h-9 px-3 opacity-60"
-            onClick={() => toast.info("Buscar por chave — em breve.", { description: "Integração SEFAZ em construção." })}
-            aria-label="Buscar NF-e pela chave de acesso"
-            aria-disabled
-          >
-            <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-            <span className="hidden xs:inline">Buscar por </span>chave
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 min-h-11 md:min-h-9 px-3 opacity-60"
-            onClick={() => toast.info("Leitor de QR/Código — em breve.", { description: "Captura por câmera em construção." })}
-            aria-label="Ler chave por código de barras ou QR Code"
-            aria-disabled
-          >
-            <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
-            <span className="hidden xs:inline">Ler </span>QR/Código
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => xmlInputRef.current?.click()}
-            aria-label="Importar XML de NF-e"
-          >
-            <Upload className="h-4 w-4 md:h-3.5 md:w-3.5" /> <span className="hidden xs:inline">Importar </span>XML
-          </Button>
-        </>}
+        headerActions={
+          <FiscalToolbarActions
+            ref={xmlInputRef}
+            onXmlChange={handleXmlImport}
+            onImportClick={() => xmlInputRef.current?.click()}
+          />
+        }
       >
         {pedidoCompraOriginId && (
           <OriginContextBanner
