@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface LookupRef {
   id: string;
   nome_razao_social: string;
+  cpf_cnpj?: string | null;
 }
 
 export interface DocumentoRef {
@@ -24,7 +25,7 @@ export interface NotaFiscalRef extends DocumentoRef {
 export async function listClientesAtivos(): Promise<LookupRef[]> {
   const { data, error } = await supabase
     .from("clientes")
-    .select("id,nome_razao_social")
+    .select("id,nome_razao_social,cpf_cnpj")
     .eq("ativo", true);
   if (error) throw new Error(error.message);
   return (data ?? []) as LookupRef[];
@@ -33,7 +34,7 @@ export async function listClientesAtivos(): Promise<LookupRef[]> {
 export async function listTransportadorasAtivas(): Promise<LookupRef[]> {
   const { data, error } = await supabase
     .from("transportadoras")
-    .select("id,nome_razao_social")
+    .select("id,nome_razao_social,cpf_cnpj")
     .eq("ativo", true);
   if (error) throw new Error(error.message);
   return (data ?? []) as LookupRef[];
