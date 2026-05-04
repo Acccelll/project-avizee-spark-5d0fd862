@@ -1,16 +1,30 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useCan } from "@/hooks/useCan";
 
+/**
+ * `useIsAdmin` — papel ADMIN real (estrito).
+ *
+ * Use para gates de funcionalidade sensível (ex.: ações em ContasBancarias,
+ * MigracaoDados, etc.). Não aceita `administracao:visualizar` como atalho.
+ *
+ * Para gates de navegação/rota (Sidebar e AdminRoute), use
+ * `useCanViewAdmin`, que aceita o override individual.
+ */
 export function useIsAdmin() {
   const { hasRole, loading, permissionsLoaded } = useAuth();
-  const { can } = useCan();
-  // Aguarda tanto o carregamento da sessão quanto das permissões
-  // antes de retornar isAdmin=false — evita redirect indevido para
-  // admins reais cujas roles ainda não foram buscadas do banco.
-  //
-  // Aceita override individual via permissão `administracao:visualizar`
-  // — alinha o hook com `AdminRoute`, que já libera acesso para esse par,
-  // evitando incoerência entre guard (libera) e UI (esconde badges).
-  const isAdmin = hasRole("admin") || can("administracao:visualizar");
+  const isAdmin = hasRole("admin");
   return { isAdmin, loading: loading || !permissionsLoaded };
+}
+
+/**
+ * `useCanViewAdmin` — admin real OU permissão `administracao:visualizar`.
+ *
+ * Use apenas para liberar visualização de áreas administrativas
+ * (rota /admin, item de menu). Nunca para ações destrutivas.
+ */
+export function useCanViewAdmin() {
+  const { hasRole, loading, permissionsLoaded } = useAuth();
+  const { can } = useCan();
+  const canView = hasRole("admin") || can("administracao:visualizar");
+  return { canView, loading: loading || !permissionsLoaded };
 }
