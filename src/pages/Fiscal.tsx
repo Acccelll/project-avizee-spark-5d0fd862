@@ -6,7 +6,6 @@ import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
 import { ParcelasFiscalEditor } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
-import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Upload, KeyRound, ScanLine } from "lucide-react";
 import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
 import { calcularFaturaParaData, calcularFaturasParcelas } from "@/lib/cartaoFatura";
@@ -894,7 +893,6 @@ const Fiscal = () => {
     vencimentoMes,
     setVencimentoMes,
     removeFilter: handleRemoveFiscalFilter,
-    clearAll: clearAllFiscalFilters,
   } = useFiscalFilters(data, {
     tipoFromUrl: tipoParam,
     statusFromUrl,
