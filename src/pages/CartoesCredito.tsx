@@ -93,6 +93,8 @@ export default function CartoesCredito() {
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<CartaoForm>(emptyForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const { isAdmin } = useIsAdmin();
+  const [permDeleteTarget, setPermDeleteTarget] = useState<CartaoCredito | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -401,6 +403,18 @@ export default function CartoesCredito() {
                   <FileText className="w-3.5 h-3.5 mr-1" /> Gerar fatura
                 </Button>
               </div>
+            ) : isAdmin ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPermDeleteTarget(c);
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir definitivamente
+              </Button>
             ) : null
           }
           mobileIdentifierKey="nome"
