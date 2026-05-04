@@ -72,91 +72,11 @@ export function criarPlanoBaixaLote(params: BaixaLoteParams): BaixaPlanItem[] {
     const saldo = Number(found.saldo_restante != null ? found.saldo_restante : found.valor);
     const valor = Number(found.valor);
     const valorPago = tipoBaixa === "total" ? saldo : calcularPagamentoParcialLote(saldo, ratio);
-    const novoSaldo = tipoBaixa === "total" ? 0 : calcularNovoSaldo(saldo, valorPago, 0);
-    const novoStatus = tipoBaixa === "total" ? "pago" : statusPosBaixa(novoSaldo);
+    const novoSaldo = Math.max(0, saldo - valorPago);
+    const novoStatus: "pago" | "parcial" = novoSaldo <= 0.005 ? "pago" : "parcial";
 
     return { id, saldo, valor, valorPago, novoSaldo, novoStatus };
   });
-}
-
-async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLoteParams) {
-  const ovr = params.overrides?.[item.id] ?? {};
-  const dataPagamento = ovr.data_baixa ?? params.baixaDate;
-  const formaPagamento = ovr.forma_pagamento ?? params.formaPagamento;
-  const contaBancariaId = ovr.conta_bancaria_id ?? params.contaBancariaId;
-  const payload: LancamentoUpdate = {
-    status: item.novoStatus,
-    data_pagamento: item.novoStatus === "pago" ? dataPagamento : null,
-    valor_pago: item.valor - item.novoSaldo,
-    tipo_baixa: params.tipoBaixa,
-    forma_pagamento: formaPagamento,
-    conta_bancaria_id: contaBancariaId,
-    saldo_restante: item.novoSaldo,
-  };
-
-  const { data, error } = await supabase
-    .from("financeiro_lancamentos")
-    .update(payload)
-    .eq("id", item.id)
-    .select("id")
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data?.id) {
-    throw new Error(`Falha ao atualizar lançamento ${item.id}. Nenhuma linha afetada.`);
-  }
-}
-
-async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
-  const ovr = params.overrides?.[item.id] ?? {};
-  const payload: BaixaInsert = {
-    lancamento_id: item.id,
-    valor_pago: ovr.valor_pago ?? item.valorPago,
-    data_baixa: ovr.data_baixa ?? params.baixaDate,
-    forma_pagamento: ovr.forma_pagamento ?? params.formaPagamento,
-    conta_bancaria_id: ovr.conta_bancaria_id ?? params.contaBancariaId,
-    observacoes: ovr.observacoes ?? null,
-  };
-  const { data, error } = await supabase
-    .from("financeiro_baixas")
-    .insert(payload)
-    .select("id")
-    .maybeSingle();
-
-  if (error) throw error;
-  const inserted = data as { id?: string } | null;
-  if (!inserted?.id) {
-    throw new Error(`Falha ao inserir baixa para lançamento ${item.id}.`);
-  }
-}
-
-async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean | null> {
-  if (params.overrides && Object.keys(params.overrides).length > 0) {
-    return null;
-  }
-  // Assinatura legada da RPC ainda usa argumentos individuais; tipos gerados
-  // declaram apenas `p_items: Json`. Cast minimalista até regerar os types.
-  const args = {
-    p_selected_ids: params.selectedIds,
-    p_tipo_baixa: params.tipoBaixa,
-    p_valor_pago_baixa: params.valorPagoBaixa,
-    p_total_baixa: params.totalBaixa,
-    p_baixa_date: params.baixaDate,
-    p_forma_pagamento: params.formaPagamento,
-    p_conta_bancaria_id: params.contaBancariaId,
-  } as unknown as { p_items: never };
-  const { error } = await supabase.rpc("financeiro_processar_baixa_lote", args);
-
-  if (!error) return true;
-
-  if (
-    String(error.message || "").toLowerCase().includes("function financeiro_processar_baixa_lote") ||
-    error.code === "PGRST202"
-  ) {
-    return null;
-  }
-
-  throw error;
 }
 
 export async function processarBaixaLote(params: BaixaLoteParams): Promise<boolean> {
