@@ -11,6 +11,7 @@ import { useRegistrarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { formatCurrency } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
+import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 
 interface ContaBancaria {
   id: string;
@@ -134,19 +135,17 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       // Valor líquido efetivo da baixa (considera desconto/juros/multa/abatimento).
       // A RPC `registrar_baixa_financeira` é a fonte oficial: atualiza saldo do lançamento,
       // saldo da conta bancária e gera movimento de caixa atomicamente.
-      const obsParts: string[] = [];
-      if (observacoes) obsParts.push(observacoes);
-      if (desconto) obsParts.push(`Desconto: ${desconto.toFixed(2)}`);
-      if (juros) obsParts.push(`Juros: ${juros.toFixed(2)}`);
-      if (multa) obsParts.push(`Multa: ${multa.toFixed(2)}`);
-      if (abatimento) obsParts.push(`Abatimento: ${abatimento.toFixed(2)}`);
       await registrarBaixa.mutateAsync({
         lancamentoId: lancamento.id,
         valorPago,
         dataBaixa,
         formaPagamento,
         contaBancariaId,
-        observacoes: obsParts.length ? obsParts.join(" | ") : null,
+        observacoes: observacoes || null,
+        desconto,
+        juros,
+        multa,
+        abatimento,
       });
       onSuccess();
       onClose();
@@ -283,11 +282,9 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Selecione...</SelectItem>
-                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="boleto">Boleto</SelectItem>
-                    <SelectItem value="cartao">Cartão</SelectItem>
-                    <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="transferencia">Transferência</SelectItem>
+                    {FORMA_PAGAMENTO_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
