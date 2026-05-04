@@ -524,7 +524,6 @@ const ContasBancarias = () => {
         }
       >
         <AdvancedFilterBar
-          {...{}}
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Buscar por nome, banco, agência, conta ou titular..."
@@ -550,6 +549,36 @@ const ContasBancarias = () => {
             />
           )}
         </AdvancedFilterBar>
+
+        {isAdmin && bancosSemFornecedor.length > 0 && (
+          <Alert className="border-warning/40 bg-warning/5 [&>svg]:text-warning">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-xs space-y-2">
+              <p className="font-semibold text-foreground">
+                {bancosSemFornecedor.length} banco(s) sem fornecedor vinculado (DDA)
+              </p>
+              <p className="text-muted-foreground">
+                Boletos DDA precisam de um fornecedor vinculado ao banco para sugerir a contraparte
+                automaticamente. Vincule cada banco abaixo a um fornecedor cadastrado.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {bancosSemFornecedor.map((b) => (
+                  <Button
+                    key={b.id}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => openEditByBancoId(b.id)}
+                  >
+                    <Link2 className="w-3 h-3" />
+                    {b.nome}
+                  </Button>
+                ))}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <DataTable
           columns={columns}
