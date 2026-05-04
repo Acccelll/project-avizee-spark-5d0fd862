@@ -139,8 +139,10 @@ export function ProdutoView({ id }: Props) {
         title={selected.nome}
         meta={
           <>
-            {selected.sku && <span className="font-mono">SKU: {selected.sku}</span>}
             {selected.codigo_interno && <span className="font-mono">Cód: {selected.codigo_interno}</span>}
+            {selected.sku && selected.sku !== selected.codigo_interno && (
+              <span className="font-mono">SKU: {selected.sku}</span>
+            )}
           </>
         }
         badges={
