@@ -501,7 +501,7 @@ const Produtos = () => {
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((p) => {
+    const filtered = data.filter((p) => {
       const isComposto = Boolean(p.eh_composto);
       const situacao = getSituacaoEstoque(p);
 
@@ -530,6 +530,30 @@ const Produtos = () => {
 
       return true;
     });
+
+    const deduped = new Map<string, Produto>();
+
+    for (const produto of filtered) {
+      const key = [
+        normalizeProductCode(produto.codigo_interno || produto.sku),
+        String(produto.nome || "").trim().toUpperCase(),
+        String(produto.tipo_item || "produto"),
+      ].join("::");
+
+      if (!key.replace(/::/g, "")) {
+        deduped.set(produto.id, produto);
+        continue;
+      }
+
+      const existing = deduped.get(key);
+      deduped.set(key, existing ? pickCanonicalProduto(existing, produto) : produto);
+    }
+
+    return Array.from(deduped.values()).map<ProdutoTableRow>((produto) => ({
+      ...produto,
+      display_codigo: getProdutoDisplayCodigo(produto),
+      display_sku_secundario: getProdutoDisplaySkuSecundario(produto),
+    }));
   }, [data, ativoFilters, estoqueFilters, tipoFilters, tipoItemFilters, grupoFilters]);
 
   const columns = [
@@ -537,9 +561,9 @@ const Produtos = () => {
       key: "codigo_interno",
       label: "Código",
       sortable: true,
-      render: (p: Produto) => (
+      render: (p: ProdutoTableRow) => (
         <span className="font-mono text-xs text-muted-foreground">
-          {p.codigo_interno || p.sku || "—"}
+          {p.display_codigo}
         </span>
       ),
     },
@@ -548,16 +572,12 @@ const Produtos = () => {
       mobilePrimary: true,
       label: "Produto",
       sortable: true,
-      render: (p: Produto) => {
-        // Evita repetir na segunda linha o mesmo valor já mostrado na coluna "Código".
-        // A coluna Código exibe codigo_interno || sku, então só mostramos o SKU
-        // aqui quando ele existir E for diferente do codigo_interno.
-        const showSku = !!p.sku && p.sku !== p.codigo_interno;
+      render: (p: ProdutoTableRow) => {
         return (
           <div>
             <span className="font-medium text-sm">{p.nome}</span>
-            {showSku && (
-              <p className="text-[11px] text-muted-foreground font-mono leading-tight">{p.sku}</p>
+            {p.display_sku_secundario && (
+              <p className="text-[11px] text-muted-foreground font-mono leading-tight">{p.display_sku_secundario}</p>
             )}
           </div>
         );
