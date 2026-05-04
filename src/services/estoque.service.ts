@@ -24,6 +24,10 @@ export interface EstoquePosicaoRow {
   estoque_reservado: number;
 }
 
+function isLegacySku(value: string | null | undefined): boolean {
+  return /^0+[A-Z0-9]+$/i.test(String(value ?? "").trim()) && /[A-Z]/i.test(String(value ?? "").trim());
+}
+
 export async function fetchProdutosEstoque(): Promise<ProdutoRow[]> {
   const { data, error } = await supabase
     .from("produtos")
@@ -32,7 +36,7 @@ export async function fetchProdutosEstoque(): Promise<ProdutoRow[]> {
     .order("nome");
 
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []).filter((produto) => !isLegacySku(produto.sku));
 }
 
 /**
@@ -57,7 +61,7 @@ export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
     .order("produto_nome");
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as EstoquePosicaoRow[];
+  return ((data ?? []) as unknown as EstoquePosicaoRow[]).filter((row) => !isLegacySku(row.sku));
 }
 
 export async function fetchMovimentacoes(): Promise<EstoqueMovimento[]> {
