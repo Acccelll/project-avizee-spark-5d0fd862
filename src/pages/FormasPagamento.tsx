@@ -65,7 +65,7 @@ interface FormaPagamentoForm {
 }
 
 const emptyForm: FormaPagamentoForm = {
-  descricao: "", prazo_dias: 0, parcelas: 1, intervalos_dias: [], gera_financeiro: true, tipo: "boleto", observacoes: "", ativo: true,
+  descricao: "", prazo_dias: 0, parcelas: 1, intervalos_dias: [], gera_financeiro: true, tipo: "boleto_dda", observacoes: "", ativo: true,
 };
 
 export default function FormasPagamento() {
@@ -371,12 +371,15 @@ export default function FormasPagamento() {
                   <Select value={form.tipo} onValueChange={(v) => updateForm({ tipo: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pix">PIX</SelectItem>
-                      <SelectItem value="boleto">Boleto</SelectItem>
-                      <SelectItem value="cartao">Cartão</SelectItem>
                       <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="boleto_dda">Boleto/DDA</SelectItem>
+                      <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                      <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
                       <SelectItem value="transferencia">Transferência</SelectItem>
-                      <SelectItem value="outro">Outro</SelectItem>
+                      <SelectItem value="cobranca_automatica">Cobrança Automática</SelectItem>
+                      <SelectItem value="debito_automatico">Débito Automático</SelectItem>
+                      <SelectItem value="outros">Outros</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -23,11 +23,11 @@ interface QuickAddFormaPagamentoModalProps {
   onCreated: (id: string) => void;
 }
 
-const TIPOS = ["boleto", "pix", "cartao", "dinheiro", "transferencia", "cheque", "outros"];
+import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 
 const empty = {
   descricao: "",
-  tipo: "boleto",
+  tipo: "boleto_dda",
   prazo_dias: 0,
   parcelas: 1,
   gera_financeiro: true,
@@ -135,9 +135,9 @@ export function QuickAddFormaPagamentoModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPOS.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
+                  {FORMA_PAGAMENTO_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

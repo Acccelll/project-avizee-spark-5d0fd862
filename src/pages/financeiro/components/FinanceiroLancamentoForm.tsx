@@ -239,7 +239,7 @@ export function FinanceiroLancamentoForm({
             ...form,
             valor: r.valor,
             data_vencimento: r.vencimento,
-            forma_pagamento: form.forma_pagamento || "boleto",
+            forma_pagamento: form.forma_pagamento || "boleto_dda",
             observacoes: form.observacoes
               ? `${form.observacoes}\nLinha digitável: ${r.linhaDigitavel}`
               : `Linha digitável: ${r.linhaDigitavel}`,
