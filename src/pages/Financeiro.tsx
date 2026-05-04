@@ -552,6 +552,7 @@ const Financeiro = () => {
         onClose={() => setBaixaParcialOpen(false)}
         lancamento={baixaParcialTarget}
         contasBancarias={contasBancarias}
+        cartoes={cartoes}
         onSuccess={() => {
           invalidateAfterBaixa();
         }}

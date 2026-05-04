@@ -36,7 +36,7 @@ export function FinanceiroCalendar({ data, onBaixaSuccess }: Props) {
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [baixaTarget, setBaixaTarget] = useState<Lancamento | null>(null);
-  const { contasBancarias } = useFinanceiroAuxiliares();
+  const { contasBancarias, cartoes } = useFinanceiroAuxiliares();
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, Lancamento[]>();
@@ -238,6 +238,7 @@ export function FinanceiroCalendar({ data, onBaixaSuccess }: Props) {
         onClose={() => setBaixaTarget(null)}
         lancamento={baixaTarget as never}
         contasBancarias={contasBancarias}
+        cartoes={cartoes}
         onSuccess={() => {
           setBaixaTarget(null);
           setSheetOpen(false);

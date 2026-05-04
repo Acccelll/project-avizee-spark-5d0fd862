@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
+import type { CartaoCredito } from "@/services/cartoesCredito.service";
 
 interface ContaBancaria {
   id: string;
@@ -43,10 +44,11 @@ interface BaixaParcialDialogProps {
     status: string;
   } | null;
   contasBancarias: ContaBancaria[];
+  cartoes?: CartaoCredito[];
   onSuccess: () => void;
 }
 
-export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias, onSuccess }: BaixaParcialDialogProps) {
+export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias, cartoes = [], onSuccess }: BaixaParcialDialogProps) {
   const [valorPago, setValorPago] = useState(0);
   const [desconto, setDesconto] = useState(0);
   const [juros, setJuros] = useState(0);
@@ -55,6 +57,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const [dataBaixa, setDataBaixa] = useState(new Date().toISOString().split("T")[0]);
   const [formaPagamento, setFormaPagamento] = useState("");
   const [contaBancariaId, setContaBancariaId] = useState("");
+  const [cartaoId, setCartaoId] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [saving, setSaving] = useState(false);
   const [baixasAnteriores, setBaixasAnteriores] = useState<Baixa[]>([]);
@@ -89,6 +92,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       setDataBaixa(new Date().toISOString().split("T")[0]);
       setFormaPagamento("");
       setContaBancariaId("");
+      setCartaoId("");
       setObservacoes("");
       loadBaixas(lancamentoId);
     }
@@ -113,6 +117,8 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
     if (valorPago > saldoAtual) { toast.error("Valor pago não pode exceder o saldo restante"); return; }
     if (!formaPagamento) { toast.error("Forma de pagamento é obrigatória"); return; }
     if (!contaBancariaId) { toast.error("Conta bancária é obrigatória"); return; }
+    const isCartao = formaPagamento === "cartao_credito" || formaPagamento === "cartao_debito";
+    if (isCartao && cartoes.length > 0 && !cartaoId) { toast.error("Selecione o cartão utilizado"); return; }
 
     setSaving(true);
     try {
@@ -141,7 +147,12 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
         dataBaixa,
         formaPagamento,
         contaBancariaId,
-        observacoes: observacoes || null,
+        observacoes: (() => {
+          const cartao = cartaoId ? cartoes.find((c) => c.id === cartaoId) : null;
+          const tag = cartao ? `[Cartão: ${cartao.nome}${cartao.ultimos4 ? ` ••••${cartao.ultimos4}` : ""}]` : "";
+          const base = observacoes?.trim() || "";
+          return [tag, base].filter(Boolean).join(" ").trim() || null;
+        })(),
         desconto,
         juros,
         multa,
@@ -158,6 +169,8 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   };
 
   const totalJaPago = baixasAnteriores.reduce((s, b) => s + Number(b.valor_pago || 0), 0);
+  const isCartao = formaPagamento === "cartao_credito" || formaPagamento === "cartao_debito";
+  const cartoesAtivos = cartoes.filter((c) => c.ativo);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -300,6 +313,30 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                   </SelectContent>
                 </Select>
               </div>
+              {isCartao && (
+                <div className="col-span-2 sm:col-span-3 space-y-1.5">
+                  <Label className="text-xs">
+                    Cartão {cartoesAtivos.length > 0 ? "*" : ""}
+                  </Label>
+                  {cartoesAtivos.length > 0 ? (
+                    <Select value={cartaoId || "none"} onValueChange={(v) => setCartaoId(v === "none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="Selecione cartão..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Selecione...</SelectItem>
+                        {cartoesAtivos.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}{c.ultimos4 ? ` •••• ${c.ultimos4}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      Nenhum cartão cadastrado. Cadastre em Financeiro → Cartões para vincular à baixa.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">
