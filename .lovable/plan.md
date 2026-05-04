@@ -1,111 +1,126 @@
-## Diagnóstico (estado atual confirmado)
+# Diagnóstico e Plano de Execução
 
-- `registrar_baixa_financeira` (individual): completa — insere baixa, ajusta saldo bancário, gera caixa.
-- `financeiro_processar_baixa_lote`: insere baixa + UPDATE manual no lançamento, **não atualiza `contas_bancarias.saldo_atual` nem cria `caixa_movimentos`**. Falha prata-corrente: lote “fica pago” mas o banco não reflete.
-- `baixar_fatura_cartao`: insere baixas item-a-item, **não toca em `contas_bancarias` nem `caixa_movimentos`** e usa coluna inexistente `valor` em `financeiro_baixas` (só existe `valor_pago`) — está quebrada.
-- `financeiro_baixas` tem apenas `valor_pago`. Não há `desconto`, `juros`, `multa`, `abatimento`, `valor_movimento_bancario`, `grupo_baixa_id`.
-- `BaixaParcialDialog` calcula desconto/juros/multa/abatimento mas envia tudo só em `observacoes`. O valor movimentado no banco fica errado quando há desconto/juros.
-- `BaixaLoteModal` usa formas legadas (`boleto`, `cartao`, `cheque`).
-- `FinanceiroLancamentoForm` permite escolher status “Pago” diretamente — pode marcar pago sem baixa.
-- `cartao_fatura_para_data`: regra hoje é `dia >= fechamento → próxima fatura`. O usuário quer `dia > fechamento → próxima` (fechamento inclusivo).
-- `cartao_faturas.valor_total`: gravado por `gerar_fatura_cartao`, mas inconsistente porque essa RPC ainda usa `tipo='despesa'` (que viola `chk_fin_lanc_tipo` permitindo só `pagar/receber`) — efeito colateral pré-existente.
-- `Financeiro.tsx` já passa `cartoes` para `FinanceiroLancamentoForm` (item 4 já parcialmente OK), mas Fiscal/NotaFiscalEditModal ainda exibem `boleto` legado.
+## 1. Diagnóstico (problemas confirmados)
 
-## Migrations (banco)
+| # | Item | Estado atual | Problema |
+|---|---|---|---|
+| 1 | Faturamento/Chave/QR | Rotas `/faturamento`, `/faturamento/cadastros`, `/faturamento/emitir` ativas em `App.tsx`; botões "Buscar por Chave" e "Ler QR/Código" funcionais em `Fiscal.tsx` (linhas 1127, 1141) | Operacional, mas deveria estar "Em breve" |
+| 2 | `/pedidos-compra/novo` | Existe apenas `/pedidos-compra/:id` (App.tsx L157) | `:id = "novo"` carrega registro inexistente |
+| 3 | Status `vencido` | `PendenciasList.tsx` faz `.in('status', ['aberto','vencido'])`; `GrupoEconomicoView` idem; `FornecedorView`/`ClienteView` filtram `status === 'vencido'` | Status persistido em alguns pontos, derivado em outros — inconsistente |
+| 4 | GlobalSearch | Filtra entidades por permissão, mas `filteredNavigation` e `filteredActions` ignoram `requires` e módulos disabled | Expõe ações/módulos indevidos |
+| 5 | Exclusão definitiva | `useIsAdmin` aceita `administracao:visualizar` como equivalente a admin | Permissão genérica concede destrutivo |
+| 6 | Formas de pagamento | Coexistem `boleto`/`cartao` (legado) e `boleto_dda`/`cartao_credito`/`cartao_debito` em `FormasPagamento.tsx`, `FluxoCaixa.tsx`, `EditarPagamentoNotaModal.tsx`, `OrcamentoCondicoesCard.tsx`, `QuickAddFormaPagamentoModal.tsx`, `admin/sections/FinanceiroSection.tsx` | Divergência entre módulos |
+| 7 | Parser XML | Dois parsers (`src/lib/nfeXmlParser.ts` e `src/services/fiscal/nfeXmlParser.service.ts`) | Duplicação; extração financeira (pag/dup/cobr) precisa consolidação |
+| 8 | Bancos × Fornecedores | `bancos.fornecedor_id` já existe (migration 20260501005820); UI sem busca/vínculo explícito | Coluna sem fluxo de UI |
+| 9 | Componentes grandes | `Fiscal.tsx` (>1500 linhas), `OrcamentoForm.tsx`, `EmitirNFeWizard.tsx`, `NotaFiscalEditModal.tsx`, `Conciliacao.tsx`, `Logistica.tsx`, `Produtos.tsx`, `DataTable.tsx` | Manutenção difícil |
 
-1. **`financeiro_baixas` — colunas financeiras reais**
-   - `desconto`, `juros`, `multa`, `abatimento` numeric(15,2) DEFAULT 0
-   - `valor_movimento_bancario` numeric(15,2) — quanto realmente entrou/saiu da conta
-   - `grupo_baixa_id` uuid (FK → `financeiro_baixa_lotes`)
-   - Backfill: `valor_movimento_bancario := valor_pago` em registros existentes.
+## 2. Severidade
 
-2. **`financeiro_baixa_lotes`** (novo agrupador)
-   - `id`, `tipo` text CHECK in (`individual`,`lote`,`fatura_cartao`,`conciliacao`), `data_pagamento`, `conta_bancaria_id`, `forma_pagamento`, `valor_total`, `cartao_fatura_id` (nullable), `observacoes`, `usuario_id`, `created_at`.
-   - RLS: SELECT/INSERT por authenticated; ajustes apenas via RPC.
+- **Críticos** (bloqueiam UX/segurança): #1, #2, #5
+- **Alto impacto** (inconsistência de dados/relatórios): #3, #4, #6, #7
+- **Melhorias**: #8, #9
 
-3. **RPC `registrar_baixa_financeira` v2** — passa a aceitar `p_desconto`, `p_juros`, `p_multa`, `p_abatimento`, `p_grupo_baixa_id` (opcional). Calcula:
-   - `valor_baixado_titulo = p_valor_pago` (quanto liquida do título)
-   - `valor_movimento = valor_baixado - desconto + juros + multa - abatimento`
-   - Ajusta `contas_bancarias.saldo_atual` por `valor_movimento` (e não `valor_pago`).
-   - `caixa_movimentos.valor = valor_movimento`.
-   - Persiste todos os campos em `financeiro_baixas`.
-   - Mantém assinatura antiga via DEFAULT 0 (compatível com chamadas atuais).
+## 3. Tipos de alteração
 
-4. **RPC `registrar_baixa_lote_financeira`** (nova, oficial) — recebe `p_items jsonb`, `p_data_baixa`, `p_forma_pagamento`, `p_conta_bancaria_id`, `p_observacoes`. Faz:
-   - Cria 1 `financeiro_baixa_lotes` (tipo `lote`).
-   - Para cada item, chama `registrar_baixa_financeira` com `grupo_baixa_id` setado, garantindo que cada baixa atualize banco/caixa.
-   - Bloqueia status `pago`/`cancelado`.
-   - Retorna `{ grupo_id, processados, ignorados, erros }`.
-   - `financeiro_processar_baixa_lote` antiga: mantida como wrapper que delega à nova (back-compat).
+- **Migrations**: nova permissão `excluir_definitivo`; normalização legada `boleto→boleto_dda` e `cartao→cartao_credito` em tabelas de dados (com rollback seguro); índice e validação em `bancos.fornecedor_id` (NOT NULL futuro).
+- **Apenas código**: GlobalSearch, status vencido derivado, atalho pedidos-compra, parser XML, refatorações.
+- **UI/UX**: badges "Em breve" em Faturamento/Chave/QR, dialogs informativos, busca de fornecedor para bancos.
 
-5. **RPC `baixar_fatura_cartao` v2**
-   - Cria `financeiro_baixa_lotes` (tipo `fatura_cartao`, com `cartao_fatura_id`).
-   - Para cada lançamento aberto/parcial vinculado, chama `registrar_baixa_financeira` com `grupo_baixa_id`.
-   - Gera **um único** `caixa_movimentos` consolidado pelo total da fatura (e não 1 por item) — Opção A do prompt. Implementação: as baixas individuais não criam caixa; o lote insere o movimento consolidado.
-   - Atualiza `cartao_faturas.status='paga'` quando todos quitados.
-   - Aceita `p_forma_pagamento` (default `boleto_dda`).
+## 4. Riscos
 
-6. **RPC `cartao_fatura_para_data`** — alterar `IF v_dia_lanc >= v_cartao.dia_fechamento` para `>` (fechamento inclusivo).
+- Normalização de `forma_pagamento` em produção pode quebrar relatórios legados → usar UPDATE idempotente + view de compatibilidade temporária.
+- `excluir_definitivo` mal aplicado → bloquear até verificar em ambiente de teste.
+- Refatorar `Fiscal.tsx`/`OrcamentoForm.tsx` em PRs separados; testar smoke a cada extração.
 
-7. **VIEW `vw_cartao_fatura_total`** — fonte de verdade do total da fatura:
-   `SELECT cartao_fatura_id, SUM(valor) FROM financeiro_lancamentos WHERE cartao_fatura_id IS NOT NULL AND ativo AND origem_tipo <> 'cartao_fatura' GROUP BY 1`
-   - `cartao_faturas.valor_total` continua materializado, mas service/UI lê da view para conferência.
+## 5. Plano em fases
 
-8. **RPC `estornar_baixa_financeira` v2** — usa `valor_movimento_bancario` (fallback `valor_pago`) para reverter banco/caixa. Quando há `grupo_baixa_id`, oferece também `estornar_grupo_baixa(p_grupo_id)`.
+### Fase 1 — Correções críticas e de navegação
 
-## Service layer (`src/services/financeiro/baixaRpc.ts`, `baixas.ts`)
+**5.1 Faturamento/Chave/QR como "Em breve"**
+- `src/lib/navigation.ts`: marcar item Faturamento com `disabled: true` e `badge: 'Em breve'` (mover para padrão `directPath` desabilitado, manter na lista para não quebrar `headerIcons`).
+- `src/App.tsx`: substituir os elementos das rotas `/faturamento`, `/faturamento/cadastros`, `/faturamento/emitir` por componente `<EmBreve modulo="Faturamento"/>` (criar em `src/components/EmBreve.tsx`). **Não remover** os imports lazy — apenas comentar com `// @em-breve` para preservar estrutura.
+- `src/pages/Fiscal.tsx`: nos botões "Buscar por Chave" (L1127) e "Ler QR/Código" (L1141), substituir `onClick` por handler que dispara `toast.info('Em breve')`; aplicar `disabled` visual mantendo aria-label.
+- `src/components/navigation/GlobalSearch.tsx`: filtrar `flatNavItems` removendo itens cuja seção tenha `disabled: true`; bloquear seleção e exibir badge "Em breve".
 
-- `RegistrarBaixaParams` ganha `desconto?`, `juros?`, `multa?`, `abatimento?`, `grupoBaixaId?`.
-- Nova função `registrarBaixaLoteFinanceira({ items, dataBaixa, formaPagamento, contaBancariaId, observacoes })`.
-- `processarBaixaLote` em `baixas.ts`: remove fallback estrutural (UPDATE+INSERT). Usa exclusivamente a nova RPC; em erro, propaga.
-- Nova função `baixarFaturaCartao(faturaId, contaBancariaId, dataBaixa, formaPagamento)` aceitando forma.
+**5.2 Atalho `/pedidos-compra/novo`** — Opção B (menor risco)
+- `src/lib/navigation.ts`: alterar quickAction `novo-pedido-compra` para `path: '/pedidos-compra'` adicionando query `?new=1`, ou para a rota de criação existente do módulo Compras (verificar `PedidosCompra.tsx` para o gatilho atual de criação).
+- Confirmação alternativa (Opção A): adicionar `<Route path="/pedidos-compra/novo" element={<PedidoCompraForm/>}/>` ANTES de `:id` em `App.tsx`. Decidir após inspecionar `PedidoCompraForm` quanto ao tratamento de `id === 'novo'`.
 
-## UI
+**5.3 GlobalSearch — permissões e estado**
+- Em `GlobalSearch.tsx`:
+  - `filteredActions`: filtrar `quickActions` com `item.requires ? can(item.requires) : true`.
+  - `filteredNavigation`: filtrar `flatNavItems` por:
+    - permissão de seção (mapear `sectionKey → resource`, reutilizar `useVisibleNavSections`);
+    - excluir seções `disabled` ou cujo `directPath` esteja em "Em breve".
+  - Recent searches: ao selecionar entidade/ação que aponte para módulo desabilitado, abrir aviso "Em breve".
 
-### `BaixaParcialDialog.tsx`
-- Envia `desconto/juros/multa/abatimento` como campos reais.
-- Forma de pagamento usa `FORMA_PAGAMENTO_OPTIONS` canônicas (remove `boleto`/`cartao` legados).
+**5.4 Status vencido derivado**
+- `src/lib/financeiro.ts`: garantir export `getEffectiveStatus(status, vencimento, hoje)` retornando `'vencido'` quando `(status === 'aberto' || 'parcial') && vencimento < hoje`.
+- Substituir queries:
+  - `src/components/dashboard/PendenciasList.tsx` L57: `.in('status', ['aberto','vencido'])` → `.in('status', ['aberto','parcial'])` e calcular vencido por data.
+  - `src/components/views/GrupoEconomicoView.tsx` L106 idem.
+  - `FornecedorView.tsx` / `ClienteView.tsx`: usar `getEffectiveStatus`.
+- `src/lib/statusSchema.ts`: marcar `vencido` como derivado (comentário/flag), manter no enum apenas para exibição.
+- Manter cron `marcar_lancamentos_vencidos` apenas como fallback (avaliar deprecar em fase 2).
 
-### `BaixaLoteModal.tsx`
-- Passa a chamar `registrarBaixaLoteFinanceira` (via `processarBaixaLote`).
-- Forma de pagamento canônica.
-- Bloquear seleção/processamento de itens com status `pago`/`cancelado` (filtro defensivo já no modal além do server-side).
+**Critérios de aceite Fase 1**
+- Botões Chave/QR não executam ação real.
+- `/faturamento*` mostra tela "Em breve".
+- Quick action "Novo Pedido de Compra" abre criação correta.
+- Busca global respeita permissões e oculta módulos "Em breve".
+- Nenhuma tela depende de `status='vencido'` persistido.
 
-### `FinanceiroLancamentoForm.tsx`
-- Remover opção “Pago” do `Select` de status.
-- Status efetivo `pago`/`parcial` exibido como badge somente leitura quando vier do banco.
-- Manter “Aberto” e “Cancelado” como únicos editáveis.
-- Ajustar `useFinanceiroActions.handleSubmit`: remover validações de “status pago” e remover `data_pagamento`/`conta_bancaria_id` da edição direta (continuam no fluxo de baixa).
+---
 
-### `CartoesCredito.tsx` — diálogo “Baixar fatura”
-- Adicionar campo `forma_pagamento` (default `boleto_dda`) e `observacoes`.
-- Mostrar lista de lançamentos da fatura antes de confirmar.
-- Total recalculado a partir da view (display) e usado como `valor_total` do lote.
+### Fase 2 — Padronização de formas de pagamento e baixas
 
-### `Fiscal.tsx` / `NotaFiscalEditModal.tsx`
-- Substituir `boleto` por `boleto_dda`, manter `cartao_credito`/`cartao_debito`.
-- Já existe seleção de cartão em `Fiscal.tsx` para `cartao_credito` e validação. Ajuste apenas das opções do select.
+- **Migration**: UPDATE idempotente em `financeiro_lancamentos.forma_pagamento`, `financeiro_baixas.forma_pagamento`, `nota_fiscal_pagamentos.forma_pagamento`, mapeando `boleto→boleto_dda`, `cartao→cartao_credito` (default conservador, com log).
+- Atualizar UIs: `FormasPagamento.tsx`, `FluxoCaixa.tsx`, `EditarPagamentoNotaModal.tsx`, `OrcamentoCondicoesCard.tsx`, `QuickAddFormaPagamentoModal.tsx`, `OrcamentoPdfTemplate*.tsx`, `OrcamentoPublico.tsx`, `admin/sections/FinanceiroSection.tsx`, `utils/comercial.ts` para usar valores canônicos.
+- Centralizar enum em `src/lib/financeiro.ts` (`FORMAS_PAGAMENTO_CANONICAS`).
+- Validar fluxo de baixas (individual/lote/fatura) já alinhado às RPCs unificadas anteriores.
 
-## Testes
+### Fase 3 — Bancos × Fornecedores e cartões
 
-Adicionar/atualizar em `src/services/financeiro/__tests__/`:
-- `baixaIndividual.test.ts`: total, parcial, com desconto/juros/multa/abatimento, valor_movimento_bancario calculado.
-- `baixaLote.test.ts`: cria grupo, atualiza banco/caixa por item, bloqueia pagos/cancelados.
-- `baixaFatura.test.ts`: baixa todos lançamentos, fatura → paga, caixa consolidado único, status pago derivado.
-- `formaPagamentoForm.test.ts`: `FinanceiroLancamentoForm` não permite status pago.
+- UI em `ContasBancarias.tsx`/`Bancos`: campo de busca de fornecedor (CNPJ, razão social, fantasia) + botão "Vincular fornecedor existente".
+- Listar bancos sem `fornecedor_id` em alerta administrativo.
+- Após cobertura ≥95%, migration que torna `fornecedor_id NOT NULL`.
+- Reforçar fluxo de cartões/faturas (já parcialmente implementado).
 
-## Critérios de aceite
+### Fase 4 — Parser XML e geração financeira
 
-- `financeiro_baixas` armazena desconto/juros/multa/abatimento e `valor_movimento_bancario`.
-- Baixa individual e lote atualizam `contas_bancarias.saldo_atual` e `caixa_movimentos`.
-- Lote cria `financeiro_baixa_lotes` (1 grupo) e baixas vinculadas pelo `grupo_baixa_id`.
-- Baixa de fatura: 1 grupo (`tipo=fatura_cartao`), N baixas, **1** movimento de caixa consolidado.
-- Status “Pago” não aparece no select do form; derivado por trigger `trg_sync_financeiro_saldo`.
-- `cartao_fatura_para_data` usa fechamento inclusivo (`>`).
-- Forma de pagamento canônica em todas as telas (sem `boleto`/`cartao` legados).
-- Compatibilidade preservada: chamadas antigas a `registrar_baixa_financeira` continuam funcionando (novos params com DEFAULT 0).
+- Consolidar `src/lib/nfeXmlParser.ts` + `src/services/fiscal/nfeXmlParser.service.ts` em um único módulo (`src/services/fiscal/nfeXmlParser.service.ts` como fonte; `lib/nfeXmlParser.ts` reexporta).
+- Garantir extração de `pag/detPag`, `cobr/fat`, `dup`, vencimentos, parcelas.
+- Em `useNFeXmlImport`: ao gerar financeiro, usar forma canônica (`boleto_dda`/`cartao_credito`); exigir cartão cadastrado quando cartão de crédito; idempotência por chave da nota.
 
-## Fora de escopo (registrar como dívida técnica)
+### Fase 5 — Exclusão definitiva ADM
 
-- Reescrever `gerar_fatura_cartao` para usar `tipo='pagar'` em vez de `'despesa'` (viola `chk_fin_lanc_tipo`). Manter como melhoria separada para não acoplar à reforma de baixas.
-- Reescrita completa da conciliação por grupo de baixa — adiciono apenas `grupo_baixa_id` como gancho; UI de conciliação por lote fica para iteração futura.
+- Migration: criar permissão `excluir_definitivo` (em `permissions` + RLS de `permanent_delete_*` RPCs).
+- `useIsAdmin.ts`/`AdminRoute.tsx`: para destrutivo usar `hasRole('admin') && can('excluir_definitivo')`; manter `administracao:visualizar` apenas para acesso a telas admin.
+- Revisar `permanentDeleteRecord` em `fiscal.service.ts` para cobrir `financeiro_lancamentos`, `notas_fiscais`, `orcamentos`, `pedidos`, `clientes`, `fornecedores`, `produtos` via RPC transacional que remove vínculos exclusivos.
+- Auditoria: registrar em `audit_log` toda exclusão definitiva.
+
+### Fase 6 — Refatoração técnica
+
+Ordem por risco × ganho:
+
+1. **`Fiscal.tsx`** — extrair: `useFiscalFilters`, `useFiscalActions`, `FiscalToolbar`, `FiscalChaveSection`. Risco: alto (muitos drawers); testar com smoke `fluxo-fiscal`.
+2. **`OrcamentoForm.tsx`** — extrair `useOrcamentoForm`, `OrcamentoItemsTable`, `OrcamentoTotalsPanel`. Smoke `fluxo-venda`.
+3. **`EmitirNFeWizard.tsx`** — separar steps em arquivos próprios (já wizard).
+4. **`NotaFiscalEditModal.tsx`** + **`NotaFiscalDrawer.tsx`** — compartilhar `useNotaFiscalEditor`.
+5. **`Conciliacao.tsx`** — separar parser OFX, lista, ações.
+6. **`Produtos.tsx`** / **`Logistica.tsx`** / **`DataTable.tsx`** — extrações pontuais (hooks `usePrefs`, virtualização já isolada).
+
+Após cada extração: rodar `bunx vitest run` e smoke tests do módulo.
+
+## 6. Critérios de aceite por fase
+
+- **F1**: itens 5.1–5.4 acima.
+- **F2**: nenhuma referência a `'boleto'`/`'cartao'` legado fora de mapeamentos de exibição; relatórios reconhecem novos valores; baixas mantêm consistência banco/caixa.
+- **F3**: 100% dos bancos com `fornecedor_id` ou marcados em alerta; busca funcional; relatórios bancários inalterados.
+- **F4**: XML com duplicatas/boleto/cartão gera financeiro correto; sem duplicidade por reimport.
+- **F5**: apenas admin com `excluir_definitivo` executa exclusão; auditoria registrada; sem órfãos.
+- **F6**: arquivos alvo abaixo de 500 linhas; testes verdes.
+
+## 7. Próximo prompt recomendado (Fase 1)
+
+> "Executar Fase 1: criar `src/components/EmBreve.tsx`; substituir rotas `/faturamento*` em `App.tsx` por `<EmBreve modulo='Faturamento'/>`; marcar Faturamento como `disabled` + `badge: 'Em breve'` em `navigation.ts`; desabilitar botões Chave/QR em `Fiscal.tsx` exibindo toast 'Em breve'; corrigir quick action `novo-pedido-compra` (Opção B); em `GlobalSearch.tsx` filtrar `quickActions` por `requires` e `flatNavItems` por permissão+seções habilitadas; trocar queries `status='vencido'` por `['aberto','parcial']` + `getEffectiveStatus` em `PendenciasList.tsx`, `GrupoEconomicoView.tsx`, `FornecedorView.tsx`, `ClienteView.tsx`."
