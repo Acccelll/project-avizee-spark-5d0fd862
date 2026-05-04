@@ -16,7 +16,7 @@ import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 
@@ -74,7 +74,7 @@ const relacaoOrder: Record<string, number> = {
 export function GrupoEconomicoView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
-  const { isAdmin } = useIsAdmin();
+  const { canHardDelete: isAdmin } = useCanHardDelete();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);

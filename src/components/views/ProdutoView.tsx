@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
@@ -57,7 +57,7 @@ export function ProdutoView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
-  const { isAdmin } = useIsAdmin();
+  const { canHardDelete: isAdmin } = useCanHardDelete();
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();

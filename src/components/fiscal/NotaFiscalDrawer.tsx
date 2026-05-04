@@ -1,7 +1,7 @@
 import { ViewDrawerV2, ViewField, ViewSection, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useState } from "react";
 import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
@@ -155,7 +155,7 @@ export function NotaFiscalDrawer({
   const { pending: estornarPending, run: runEstornar } = useActionLock();
   const { pending: devolucaoPending, run: runDevolucao } = useActionLock();
   const isMobile = useIsMobile();
-  const { isAdmin } = useIsAdmin();
+  const { canHardDelete: isAdmin } = useCanHardDelete();
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
   const [editarPagamentoOpen, setEditarPagamentoOpen] = useState(false);
 
