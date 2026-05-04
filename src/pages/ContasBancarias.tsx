@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -44,7 +46,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
-  CheckCircle, Ban, Building2,
+  CheckCircle, Ban, Building2, ChevronsUpDown, Check,
 } from "lucide-react";
 
 interface Banco {
@@ -66,7 +68,7 @@ interface ContaBancaria {
   };
 }
 
-interface FornecedorOption { id: string; nome_razao_social: string }
+interface FornecedorOption { id: string; nome_razao_social: string; cpf_cnpj?: string | null }
 
 interface InUseCounts {
   lancamentos: number;
@@ -142,6 +144,7 @@ const ContasBancarias = () => {
         (f as FornecedorOption[]).map((x) => ({
           id: x.id,
           nome_razao_social: x.nome_razao_social,
+          cpf_cnpj: x.cpf_cnpj ?? null,
         })),
       );
     } catch (err) {
