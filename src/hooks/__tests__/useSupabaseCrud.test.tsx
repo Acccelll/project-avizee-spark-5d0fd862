@@ -34,6 +34,9 @@ function createQueryMock(initialData: Row[] = []) {
     __operation: null as "update" | "delete" | null,
     __eqCalls: [] as { column: string; value: any }[],
     __orFilter: null as string | null,
+    __gte: [] as { column: string; value: any }[],
+    __lte: [] as { column: string; value: any }[],
+    __in: [] as { column: string; values: any[] }[],
   };
 
   const applyPendingMutation = () => {
@@ -55,6 +58,18 @@ function createQueryMock(initialData: Row[] = []) {
     range: vi.fn(() => query),
     or: vi.fn((filter: string) => {
       query.__orFilter = filter;
+      return query;
+    }),
+    gte: vi.fn((column: string, value: any) => {
+      query.__gte.push({ column, value });
+      return query;
+    }),
+    lte: vi.fn((column: string, value: any) => {
+      query.__lte.push({ column, value });
+      return query;
+    }),
+    in: vi.fn((column: string, values: any[]) => {
+      query.__in.push({ column, values });
       return query;
     }),
     eq: vi.fn((column: string, value: any) => {
