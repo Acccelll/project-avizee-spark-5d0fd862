@@ -375,13 +375,25 @@ export type PermanentDeleteTable =
   | "transportadoras"
   | "formas_pagamento"
   | "grupos_economicos"
-  | "notas_fiscais";
+  | "notas_fiscais"
+  | "orcamentos"
+  | "clientes"
+  | "fornecedores"
+  | "produtos"
+  | "cartoes_credito"
+  | "bancos"
+  | "financeiro_lancamentos";
 
 export async function permanentDeleteRecord(
   table: PermanentDeleteTable,
   id: string,
 ): Promise<void> {
-  const { error } = await supabase.from(table).delete().eq("id", id);
+  // Usa RPC admin-only com cleanup de filhos exclusivos e bypass das triggers
+  // de proteção (ver migration hard_delete_record). Mantém validação server-side.
+  const { error } = await supabase.rpc("hard_delete_record" as never, {
+    p_table: table,
+    p_id: id,
+  } as never);
   if (error) throw error;
 }
 

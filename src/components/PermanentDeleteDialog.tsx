@@ -21,6 +21,8 @@ interface Props {
   recordName: string;
   /** Texto extra opcional (ex: dependências detectadas) acima do campo. */
   warning?: string;
+  /** Lista de efeitos colaterais (filhos que serão removidos junto). */
+  sideEffects?: string[];
   /** Chamado após exclusão bem-sucedida. */
   onDeleted: () => void;
 }
@@ -42,6 +44,7 @@ export function PermanentDeleteDialog({
   entityLabel,
   recordName,
   warning,
+  sideEffects,
   onDeleted,
 }: Props) {
   const [confirmText, setConfirmText] = useState("");
@@ -70,6 +73,11 @@ export function PermanentDeleteDialog({
           } catch (error) {
             // 23503 = foreign_key_violation
             const code = (error as { code?: string }).code;
+            if (code === "42501") {
+              throw new Error(
+                "Apenas administradores podem executar exclusão definitiva.",
+              );
+            }
             if (code === "23503") {
               throw new Error(
                 "Não é possível excluir: o registro está referenciado em outras tabelas (histórico, vínculos). Mantenha-o inativo.",
@@ -99,6 +107,18 @@ export function PermanentDeleteDialog({
           <p className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-2">
             {warning}
           </p>
+        )}
+        {sideEffects && sideEffects.length > 0 && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2.5 text-xs">
+            <p className="font-medium text-destructive mb-1">
+              Também serão removidos em definitivo:
+            </p>
+            <ul className="list-disc pl-4 space-y-0.5 text-foreground/90">
+              {sideEffects.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+          </div>
         )}
         <div className="space-y-1.5">
           <Label htmlFor="confirm-delete-input" className="text-xs">
