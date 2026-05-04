@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     }
 
     if (platform === "instagram_business") {
-      return await syncInstagram(accountId, body.access_token);
+      return await syncInstagram(accountId, body.access_token, corsHeaders);
     }
 
     if (platform === "linkedin_page") {
