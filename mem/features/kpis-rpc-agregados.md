@@ -23,3 +23,8 @@ const { data: kpis } = useQuery({
 ```
 
 Os filtros enviados ao RPC devem espelhar exatamente o que o `useSupabaseCrud` aplica na listagem para que cards e tabela permaneçam coerentes.
+
+## Adoção
+
+- **Fiscal.tsx**: já consome `useFiscalKpis` (em `src/pages/fiscal/hooks/useFiscalKpis.ts`). Cards "Total / Valor Total / Pendentes / Confirmadas" são alimentados pela RPC; a contagem `confirmadas_efetivas` agrega `confirmada + autorizada + importada` por paridade com a regra do ERP.
+- **Financeiro.tsx**: pendente — próxima sessão (E7.3) introduz `useFinanceiroKpis` baseado em `kpis_financeiro`.
