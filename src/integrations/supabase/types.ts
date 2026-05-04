@@ -2531,8 +2531,73 @@ export type Database = {
         }
         Relationships: []
       }
+      financeiro_baixa_lotes: {
+        Row: {
+          cartao_fatura_id: string | null
+          conta_bancaria_id: string | null
+          created_at: string
+          data_pagamento: string
+          empresa_id: string
+          forma_pagamento: string | null
+          id: string
+          observacoes: string | null
+          tipo: string
+          usuario_id: string | null
+          valor_total: number
+        }
+        Insert: {
+          cartao_fatura_id?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string
+          data_pagamento: string
+          empresa_id?: string
+          forma_pagamento?: string | null
+          id?: string
+          observacoes?: string | null
+          tipo: string
+          usuario_id?: string | null
+          valor_total?: number
+        }
+        Update: {
+          cartao_fatura_id?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string
+          data_pagamento?: string
+          empresa_id?: string
+          forma_pagamento?: string | null
+          id?: string
+          observacoes?: string | null
+          tipo?: string
+          usuario_id?: string | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_baixa_lotes_cartao_fatura_id_fkey"
+            columns: ["cartao_fatura_id"]
+            isOneToOne: false
+            referencedRelation: "cartao_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixa_lotes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixa_lotes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financeiro_baixas: {
         Row: {
+          abatimento: number
           conciliacao_data: string | null
           conciliacao_extrato_referencia: string | null
           conciliacao_status: string
@@ -2540,17 +2605,23 @@ export type Database = {
           conta_bancaria_id: string | null
           created_at: string
           data_baixa: string
+          desconto: number
           empresa_id: string
           estornada_em: string | null
           estornada_por: string | null
           forma_pagamento: string | null
+          grupo_baixa_id: string | null
           id: string
+          juros: number
           lancamento_id: string
           motivo_estorno: string | null
+          multa: number
           observacoes: string | null
+          valor_movimento_bancario: number | null
           valor_pago: number
         }
         Insert: {
+          abatimento?: number
           conciliacao_data?: string | null
           conciliacao_extrato_referencia?: string | null
           conciliacao_status?: string
@@ -2558,17 +2629,23 @@ export type Database = {
           conta_bancaria_id?: string | null
           created_at?: string
           data_baixa: string
+          desconto?: number
           empresa_id?: string
           estornada_em?: string | null
           estornada_por?: string | null
           forma_pagamento?: string | null
+          grupo_baixa_id?: string | null
           id?: string
+          juros?: number
           lancamento_id: string
           motivo_estorno?: string | null
+          multa?: number
           observacoes?: string | null
+          valor_movimento_bancario?: number | null
           valor_pago: number
         }
         Update: {
+          abatimento?: number
           conciliacao_data?: string | null
           conciliacao_extrato_referencia?: string | null
           conciliacao_status?: string
@@ -2576,14 +2653,19 @@ export type Database = {
           conta_bancaria_id?: string | null
           created_at?: string
           data_baixa?: string
+          desconto?: number
           empresa_id?: string
           estornada_em?: string | null
           estornada_por?: string | null
           forma_pagamento?: string | null
+          grupo_baixa_id?: string | null
           id?: string
+          juros?: number
           lancamento_id?: string
           motivo_estorno?: string | null
+          multa?: number
           observacoes?: string | null
+          valor_movimento_bancario?: number | null
           valor_pago?: number
         }
         Relationships: [
@@ -2599,6 +2681,13 @@ export type Database = {
             columns: ["conta_bancaria_id"]
             isOneToOne: false
             referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_grupo_baixa_id_fkey"
+            columns: ["grupo_baixa_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_baixa_lotes"
             referencedColumns: ["id"]
           },
           {
@@ -8068,6 +8157,22 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_cartao_fatura_total: {
+        Row: {
+          cartao_fatura_id: string | null
+          qtd_lancamentos: number | null
+          valor_total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_lancamentos_cartao_fatura_id_fkey"
+            columns: ["cartao_fatura_id"]
+            isOneToOne: false
+            referencedRelation: "cartao_faturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_conciliacao_eventos_financeiros: {
         Row: {
           baixa_id: string | null
@@ -8588,12 +8693,10 @@ export type Database = {
           p_conta_bancaria_id: string
           p_data_baixa?: string
           p_fatura_id: string
+          p_forma_pagamento?: string
+          p_observacoes?: string
         }
-        Returns: {
-          baixa_id: string
-          lancamento_id: string
-          valor: number
-        }[]
+        Returns: Json
       }
       buscar_municipio_ibge: {
         Args: { p_nome: string; p_uf: string }
@@ -8929,14 +9032,30 @@ export type Database = {
       }
       registrar_baixa_financeira: {
         Args: {
+          p_abatimento?: number
           p_conta_bancaria_id: string
           p_data_baixa: string
+          p_desconto?: number
           p_forma_pagamento: string
+          p_grupo_baixa_id?: string
+          p_juros?: number
           p_lancamento_id: string
+          p_multa?: number
           p_observacoes?: string
+          p_skip_caixa?: boolean
           p_valor_pago: number
         }
         Returns: string
+      }
+      registrar_baixa_lote_financeira: {
+        Args: {
+          p_conta_bancaria_id: string
+          p_data_baixa: string
+          p_forma_pagamento: string
+          p_items: Json
+          p_observacoes?: string
+        }
+        Returns: Json
       }
       registrar_recebimento_compra: {
         Args: {
