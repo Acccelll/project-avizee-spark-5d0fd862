@@ -28,6 +28,7 @@ import { EntregaDrawer } from "@/components/logistica/EntregaDrawer";
 import { RecebimentoDrawer } from "@/components/logistica/RecebimentoDrawer";
 import { RegistrarRecebimentoDialog } from "@/components/compras/RegistrarRecebimentoDialog";
 import { TrackingModal } from "@/pages/logistica/components/TrackingModal";
+import { EtiquetaSimplesPreviewDialog } from "@/components/logistica/EtiquetaSimplesPreviewDialog";
 import { statusRemessa } from "@/lib/statusSchema";
 import { useEntregas } from "@/pages/logistica/hooks/useEntregas";
 import type { Entrega } from "@/pages/logistica/hooks/useEntregas";
@@ -161,6 +162,8 @@ export default function Logistica() {
   const [remTranspFilters, setRemTranspFilters] = useState<string[]>([]);
   const [etiquetasMap, setEtiquetasMap] = useState<Record<string, RemessaEtiqueta>>({});
   const [printingBatch, setPrintingBatch] = useState(false);
+  const [selectedRemessaIds, setSelectedRemessaIds] = useState<string[]>([]);
+  const [etiquetaSimplesIds, setEtiquetaSimplesIds] = useState<string[] | null>(null);
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
   const [transportadorasLookup, setTransportadorasLookup] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
@@ -612,6 +615,17 @@ export default function Logistica() {
         <Search className="h-3.5 w-3.5" />Rastrear
       </Button>
     ) : <span className="text-muted-foreground text-xs">—</span> },
+    { key: "etiqueta_simples", label: "Etiqueta simples", render: (r: Remessa) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 gap-1.5 text-xs"
+        title="Gerar etiqueta simples (A4) para impressão"
+        onClick={(e) => { e.stopPropagation(); setEtiquetaSimplesIds([r.id]); }}
+      >
+        <Printer className="h-3.5 w-3.5" />Etiqueta
+      </Button>
+    )},
   ];
 
   const remSummaryItems = remSelected ? [
@@ -810,6 +824,19 @@ export default function Logistica() {
             <AdvancedFilterBar searchValue={remSearchTerm} onSearchChange={setRemSearchTerm} searchPlaceholder="Buscar por rastreio, cliente ou transportadora..." activeFilters={remActiveFilters} onRemoveFilter={handleRemoveRemFilter} onClearAll={() => { setRemStatusFilters([]); setRemTranspFilters([]); }} count={filteredRemessas.length}>
               <MultiSelect options={remStatusOptions} selected={remStatusFilters} onChange={setRemStatusFilters} placeholder="Status" className="w-[180px]" />
               <MultiSelect options={remTranspOptions} selected={remTranspFilters} onChange={setRemTranspFilters} placeholder="Transportadoras" className="w-[220px]" />
+              {canEdit && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={selectedRemessaIds.length === 0}
+                  onClick={() => setEtiquetaSimplesIds(selectedRemessaIds)}
+                  title="Gerar etiqueta simples (A4) das remessas selecionadas"
+                >
+                  <Printer className="h-3.5 w-3.5 mr-1.5" />
+                  Etiquetas simples{selectedRemessaIds.length > 0 ? ` (${selectedRemessaIds.length})` : ""}
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -855,6 +882,9 @@ export default function Logistica() {
               loading={remessasLoading}
               onView={openViewRemessa}
               onEdit={(r) => navigate(`/remessas/${r.id}`)}
+              selectable={canEdit}
+              selectedIds={selectedRemessaIds}
+              onSelectionChange={setSelectedRemessaIds}
               moduleKey="logistica-remessas"
               mobileStatusKey="status_transporte"
               mobileIdentifierKey="cliente_id"
@@ -901,6 +931,13 @@ export default function Logistica() {
         remessaId={trackingTarget?.remessaId}
       />
 
+      {/* Pré-visualização da Etiqueta Simples (A4 4-up) */}
+      <EtiquetaSimplesPreviewDialog
+        open={!!etiquetaSimplesIds}
+        remessaIds={etiquetaSimplesIds ?? []}
+        onClose={() => setEtiquetaSimplesIds(null)}
+      />
+
       {confirmDialog}
 
       {/* Remessa Detail Drawer */}
@@ -910,6 +947,7 @@ export default function Logistica() {
         title={remSelected?.codigo_rastreio ? `Remessa ${remSelected.codigo_rastreio}` : "Detalhes da Remessa"}
         actions={remSelected ? <>
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar remessa" onClick={() => { setRemDrawerOpen(false); navigate(`/remessas/${remSelected.id}`); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Etiqueta simples" onClick={() => setEtiquetaSimplesIds([remSelected.id])}><Printer className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Etiqueta simples</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir remessa" onClick={() => { setRemDrawerOpen(false); removeRemessa(remSelected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
         </> : undefined}
         summary={remSelected ? (
