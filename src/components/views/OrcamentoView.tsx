@@ -9,6 +9,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -56,6 +57,7 @@ interface Props {
 export function OrcamentoView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
   const [convertConfirmOpen, setConvertConfirmOpen] = useState(false);
   const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
   const [poNumberCliente, setPoNumberCliente] = useState("");
@@ -232,6 +234,17 @@ export function OrcamentoView({ id }: Props) {
         >
           <Trash2 className="h-3.5 w-3.5" /> Cancelar
         </Button>
+        {isAdmin && (
+          <Button
+            variant="ghost" size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir orçamento definitivamente"
+            onClick={() => setPermDeleteOpen(true)}
+            title="Remove o orçamento e seus vínculos do banco de dados (admin)"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
+          </Button>
+        )}
       </>
     ),
   } : {});
@@ -630,6 +643,24 @@ export function OrcamentoView({ id }: Props) {
           </div>
         </div>
       </CrossModuleActionDialog>
+
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="orcamentos"
+        id={id}
+        entityLabel="orçamento"
+        recordName={selected?.numero || id}
+        warning="Ação administrativa. Remove o registro do banco de dados — não é cancelamento."
+        sideEffects={[
+          "Itens do orçamento",
+          linkedOV ? `Pedido vinculado ${linkedOV.numero} e suas notas fiscais` : "Nenhum pedido vinculado",
+        ]}
+        onDeleted={() => {
+          invalidate(["orcamentos"]);
+          clearStack();
+        }}
+      />
     </div>
   );
 }
