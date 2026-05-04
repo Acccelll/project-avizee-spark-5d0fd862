@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     }
 
     if (platform === "linkedin_page") {
-      return await syncLinkedIn(accountId, body.access_token);
+      return await syncLinkedIn(accountId, body.access_token, corsHeaders);
     }
 
     return new Response(
@@ -62,7 +62,11 @@ Deno.serve(async (req) => {
   }
 });
 
-async function syncInstagram(accountId: string, tokenOverride?: string) {
+async function syncInstagram(
+  accountId: string,
+  tokenOverride: string | undefined,
+  corsHeaders: Record<string, string>,
+) {
   const token = tokenOverride || Deno.env.get("INSTAGRAM_ACCESS_TOKEN");
 
   if (!token) {
@@ -116,7 +120,11 @@ async function syncInstagram(accountId: string, tokenOverride?: string) {
   }
 }
 
-async function syncLinkedIn(accountId: string, tokenOverride?: string) {
+async function syncLinkedIn(
+  accountId: string,
+  tokenOverride: string | undefined,
+  corsHeaders: Record<string, string>,
+) {
   const token = tokenOverride || Deno.env.get("LINKEDIN_ACCESS_TOKEN");
 
   if (!token) {
