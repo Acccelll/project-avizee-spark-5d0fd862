@@ -31,9 +31,12 @@ const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
 
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
-const Faturamento = lazy(() => import("./pages/Faturamento"));
-const FaturamentoCadastros = lazy(() => import("./pages/faturamento/FaturamentoCadastros"));
-const EmitirNFeWizard = lazy(() => import("./pages/faturamento/EmitirNFeWizard"));
+// @em-breve — módulo Faturamento desativado (estados visuais "Em breve").
+// Imports preservados (comentados) para retomada futura sem reescrever rotas.
+// const Faturamento = lazy(() => import("./pages/Faturamento"));
+// const FaturamentoCadastros = lazy(() => import("./pages/faturamento/FaturamentoCadastros"));
+// const EmitirNFeWizard = lazy(() => import("./pages/faturamento/EmitirNFeWizard"));
+import { EmBreve } from "./components/EmBreve";
 const FiscalDetail = lazy(() => import("./pages/FiscalDetail"));
 const NotaFiscalForm = lazy(() => import("./pages/fiscal/NotaFiscalForm"));
 const DistDFeHistorico = lazy(() => import("./pages/fiscal/DistDFeHistorico"));
@@ -170,9 +173,9 @@ const App = () => (
                       <Route path="/pedidos/:id" element={<PermissionRoute resource="pedidos"><LazyPage><PedidoForm /></LazyPage></PermissionRoute>} />
                       <Route path="/estoque" element={<PermissionRoute resource="estoque"><LazyPage><Estoque /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><Fiscal /></LazyPage></PermissionRoute>} />
-                      <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><Faturamento /></LazyPage></PermissionRoute>} />
-                      <Route path="/faturamento/cadastros" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FaturamentoCadastros /></LazyPage></PermissionRoute>} />
-                      <Route path="/faturamento/emitir" element={<PermissionRoute resource="faturamento_fiscal" action="criar"><LazyPage><EmitirNFeWizard /></LazyPage></PermissionRoute>} />
+                      <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><EmBreve modulo="Faturamento" /></PermissionRoute>} />
+                      <Route path="/faturamento/cadastros" element={<PermissionRoute resource="faturamento_fiscal"><EmBreve modulo="Faturamento" descricao="Cadastros do módulo Faturamento estarão disponíveis em breve." /></PermissionRoute>} />
+                      <Route path="/faturamento/emitir" element={<PermissionRoute resource="faturamento_fiscal" action="criar"><EmBreve modulo="Faturamento" descricao="Emissão de NF-e pelo wizard estará disponível em breve." /></PermissionRoute>} />
                       <Route path="/fiscal/novo" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal/:id/editar" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />
