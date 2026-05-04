@@ -48,9 +48,6 @@ import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
   CheckCircle, Ban, Building2, ChevronsUpDown, Check,
 } from "lucide-react";
-import { useState as useStateAlias } from "react";
-import { Button as ButtonAlias } from "@/components/ui/button";
-
 function formatCnpj(v: string | null | undefined): string {
   if (!v) return "";
   const d = v.replace(/\D/g, "");
@@ -66,12 +63,12 @@ interface FornecedorComboboxProps {
 }
 
 function FornecedorCombobox({ fornecedores, value, onChange }: FornecedorComboboxProps) {
-  const [open, setOpen] = useStateAlias(false);
+  const [open, setOpen] = useState(false);
   const selected = fornecedores.find((f) => f.id === value);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <ButtonAlias
+        <Button
           type="button"
           variant="outline"
           role="combobox"
@@ -81,7 +78,7 @@ function FornecedorCombobox({ fornecedores, value, onChange }: FornecedorCombobo
             {selected ? selected.nome_razao_social : "Buscar fornecedor por nome ou CNPJ..."}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </ButtonAlias>
+        </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command
