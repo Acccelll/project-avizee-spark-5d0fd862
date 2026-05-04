@@ -50,6 +50,10 @@ export interface NavLeafItem {
   /** Optional per-leaf icon. Falls back to the parent section icon when omitted. */
   icon?: LucideIcon;
   keywords?: string[];
+  /** Optional pill (e.g. "Em breve"). When present, item is rendered as informational. */
+  badge?: string;
+  /** When true, item is rendered but not navigable; shows "Em breve" toast on click. */
+  disabled?: boolean;
 }
 
 export interface NavSubgroup {
