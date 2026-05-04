@@ -9,19 +9,13 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import {
-  calcularPagamentoParcialLote,
-  calcularNovoSaldo,
-  statusPosBaixa,
-} from "@/lib/financeiro";
+import { calcularPagamentoParcialLote } from "@/lib/financeiro";
 import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
-import type { Database } from "@/integrations/supabase/types";
-
-type LancamentoUpdate =
-  Database["public"]["Tables"]["financeiro_lancamentos"]["Update"];
-type BaixaInsert =
-  Database["public"]["Tables"]["financeiro_baixas"]["Insert"];
+import {
+  registrarBaixaLoteFinanceira,
+  type BaixaLoteItemRpc,
+} from "@/services/financeiro/baixaRpc";
 
 export interface BaixaItemOverride {
   data_baixa?: string;
@@ -167,31 +161,48 @@ async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean |
 
 export async function processarBaixaLote(params: BaixaLoteParams): Promise<boolean> {
   try {
-    const rpcResult = await processarBaixaLoteRpc(params);
-    if (rpcResult === true) {
-      toast.success(`${params.selectedIds.length} lançamento(s) processado(s) com sucesso!`);
-      return true;
-    }
-
+    // Filtra inválidos defensivamente
     const plano = criarPlanoBaixaLote(params);
 
-    const processados: string[] = [];
-    for (const item of plano) {
-      await ensureUpdateLancamento(item, params);
-      await ensureInsertBaixa(item, params);
-      processados.push(item.id);
-    }
+    const items: BaixaLoteItemRpc[] = plano.map((item) => {
+      const ovr = params.overrides?.[item.id] ?? {};
+      return {
+        lancamento_id: item.id,
+        valor_pago: ovr.valor_pago ?? item.valorPago,
+        data_baixa: ovr.data_baixa ?? params.baixaDate,
+        forma_pagamento: ovr.forma_pagamento ?? params.formaPagamento,
+        conta_bancaria_id: ovr.conta_bancaria_id ?? params.contaBancariaId,
+        observacoes: ovr.observacoes ?? null,
+      };
+    });
 
-    if (params.tipoBaixa === "total") {
-      toast.success(`${processados.length} lançamento(s) baixado(s) integralmente!`);
+    const result = await registrarBaixaLoteFinanceira({
+      items,
+      dataBaixa: params.baixaDate,
+      formaPagamento: params.formaPagamento,
+      contaBancariaId: params.contaBancariaId,
+    });
+
+    if (result.erros && result.erros.length > 0) {
+      toast.warning(
+        `${result.processados} processado(s), ${result.erros.length} erro(s): ${result.erros.slice(0, 2).join("; ")}`,
+      );
+    } else if (result.ignorados > 0) {
+      toast.success(
+        `${result.processados} baixado(s); ${result.ignorados} ignorado(s) (já pago/cancelado).`,
+      );
     } else {
-      toast.success(`Baixa parcial registrada para ${processados.length} lançamento(s)!`);
+      toast.success(`${result.processados} lançamento(s) baixado(s) com sucesso!`);
     }
-
-    return true;
+    return result.processados > 0;
   } catch (error) {
     logger.error("[financeiro] erro na baixa em lote:", error);
     notifyError(error);
     return false;
   }
+}
+
+// Mantido apenas para compatibilidade de imports — não usado mais.
+export async function _legacyProcessarBaixaLoteRpc(): Promise<null> {
+  return null;
 }
