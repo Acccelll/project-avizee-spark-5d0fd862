@@ -1123,9 +1123,10 @@ const Fiscal = () => {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => setBuscarChaveOpen(true)}
+            className="gap-1.5 min-h-11 md:min-h-9 px-3 opacity-60"
+            onClick={() => toast.info("Buscar por chave — em breve.", { description: "Integração SEFAZ em construção." })}
             aria-label="Buscar NF-e pela chave de acesso"
+            aria-disabled
           >
             <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
             <span className="hidden xs:inline">Buscar por </span>chave
@@ -1133,9 +1134,10 @@ const Fiscal = () => {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 min-h-11 md:min-h-9 px-3"
-            onClick={() => setScannerOpen(true)}
+            className="gap-1.5 min-h-11 md:min-h-9 px-3 opacity-60"
+            onClick={() => toast.info("Leitor de QR/Código — em breve.", { description: "Captura por câmera em construção." })}
             aria-label="Ler chave por código de barras ou QR Code"
+            aria-disabled
           >
             <ScanLine className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
             <span className="hidden xs:inline">Ler </span>QR/Código
