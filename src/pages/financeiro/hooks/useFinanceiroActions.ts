@@ -37,20 +37,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
         toast.error("Data de vencimento é obrigatória");
         return;
       }
-      if (form.status === "pago") {
-        if (!form.data_pagamento) {
-          toast.error("Data de pagamento é obrigatória para status Pago");
-          return;
-        }
-        if (!form.forma_pagamento) {
-          toast.error("Forma de pagamento é obrigatória para status Pago");
-          return;
-        }
-        if (!form.conta_bancaria_id) {
-          toast.error("Conta bancária é obrigatória para baixa");
-          return;
-        }
-      }
+      // Status `pago`/`parcial` é derivado das baixas — não validamos no form.
 
       setSaving(true);
 
