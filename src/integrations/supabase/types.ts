@@ -8814,6 +8814,10 @@ export type Database = {
           title: string
         }[]
       }
+      hard_delete_record: {
+        Args: { p_id: string; p_table: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
