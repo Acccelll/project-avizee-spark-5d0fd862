@@ -45,6 +45,10 @@ export interface NFeData {
   valorTotal: number;
   itens: NFeItem[];
   cobranca?: NFeCobranca;
+  /** Natureza da operação (ide/natOp). */
+  naturezaOperacao?: string | null;
+  /** Protocolo de autorização (protNFe/infProt/nProt) — quando o XML é o procNFe autorizado. */
+  protocolo?: string | null;
 }
 
 export interface NFeDuplicata {
@@ -140,6 +144,12 @@ export function parseNFeXml(xmlString: string): NFeData {
   // ICMSTot - totals
   const total = infNFe.getElementsByTagName("ICMSTot")[0];
 
+  // protNFe (presente apenas em procNFe autorizado)
+  const protNFe = doc.getElementsByTagName("protNFe")[0];
+  const infProt = protNFe?.getElementsByTagName("infProt")?.[0];
+  const protocolo = text(infProt || null, "nProt") || null;
+  const naturezaOperacao = text(ide, "natOp") || null;
+
   // cobr / dup
   const cobr = infNFe.getElementsByTagName("cobr")[0];
   const duplicatas: NFeDuplicata[] = [];
@@ -193,5 +203,7 @@ export function parseNFeXml(xmlString: string): NFeData {
     valorTotal: num(total, "vNF"),
     itens,
     cobranca: { fatura, duplicatas, tPag, aVista },
+    naturezaOperacao,
+    protocolo,
   };
 }
