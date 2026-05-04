@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/format";
 import { processarBaixaLote, type BaixaItemOverride } from "@/services/financeiro.service";
 import { Pencil, Check, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 
 interface ContaBancaria {
   id: string;
@@ -22,6 +23,7 @@ interface Lancamento {
   saldo_restante: number | null;
   tipo: string;
   data_vencimento: string;
+  status?: string;
   clientes?: { nome_razao_social: string };
   fornecedores?: { nome_razao_social: string };
 }
@@ -34,7 +36,12 @@ interface BaixaLoteModalProps {
   onSuccess: () => void;
 }
 
-export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBancarias, onSuccess }: BaixaLoteModalProps) {
+export function BaixaLoteModal({ open, onClose, selectedLancamentos: rawLancamentos, contasBancarias, onSuccess }: BaixaLoteModalProps) {
+  // Bloqueia pagos/cancelados defensivamente; o servidor também ignora.
+  const selectedLancamentos = useMemo(
+    () => rawLancamentos.filter((l) => l.status !== "pago" && l.status !== "cancelado"),
+    [rawLancamentos],
+  );
   const [baixaDate, setBaixaDate] = useState(new Date().toISOString().split("T")[0]);
   const [formaPagamento, setFormaPagamento] = useState("");
   const [contaBancaria, setContaBancaria] = useState("");
@@ -191,12 +198,9 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
                                 <Select value={draftOverride.forma_pagamento || ""} onValueChange={(v) => setDraftOverride(d => ({ ...d, forma_pagamento: v }))}>
                                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                                    <SelectItem value="pix">PIX</SelectItem>
-                                    <SelectItem value="boleto">Boleto</SelectItem>
-                                    <SelectItem value="cartao">Cartão</SelectItem>
-                                    <SelectItem value="transferencia">Transferência</SelectItem>
-                                    <SelectItem value="cheque">Cheque</SelectItem>
+                                    {FORMA_PAGAMENTO_OPTIONS.map((o) => (
+                                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -305,12 +309,9 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
                 <SelectTrigger className="h-11 sm:h-10"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Selecione...</SelectItem>
-                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                  <SelectItem value="pix">PIX</SelectItem>
-                  <SelectItem value="boleto">Boleto</SelectItem>
-                  <SelectItem value="cartao">Cartão</SelectItem>
-                  <SelectItem value="transferencia">Transferência</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
+                  {FORMA_PAGAMENTO_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
