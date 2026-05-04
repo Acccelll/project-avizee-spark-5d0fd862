@@ -21,6 +21,7 @@ import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type { FornecedorRow, CompraRow, FinanceiroLancamentoRow, ProdutoFornecedorRow } from "@/types/cadastros";
+import { getEffectiveStatus } from "@/lib/financeiro";
 
 interface Props {
   id: string;
@@ -61,10 +62,14 @@ export function FornecedorView({ id }: Props) {
 
   const ultCompra = compras.length > 0 ? compras[0].data_pedido : null;
   const volumeTotal = compras.reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
-  const vencidos = financeiro.filter((f) => f.status === "vencido");
+  // "vencido" derivado: aberto/parcial cuja data já passou.
+  const hojeDate = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+  const isVencido = (f: FinanceiroLancamentoRow) =>
+    getEffectiveStatus(f.status ?? "", f.data_vencimento ?? "", hojeDate) === "vencido";
+  const vencidos = financeiro.filter(isVencido);
   // B6 fix: incluir 'parcial' (alinhado a financeiro-migracao-saldos).
   const totalAberto = financeiro
-    .filter((f) => f.status === "aberto" || f.status === "vencido" || f.status === "parcial")
+    .filter((f) => f.status === "aberto" || f.status === "parcial")
     .reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
   const totalVencido = vencidos.reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
 
