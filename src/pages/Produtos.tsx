@@ -854,7 +854,7 @@ const Produtos = () => {
         size="xl"
         mode={mode}
         createHint="Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar."
-        identifier={mode === "edit" && editingProduct ? (editingProduct.sku || editingProduct.codigo_interno || undefined) : undefined}
+        identifier={mode === "edit" && editingProduct ? (editingProduct.codigo_interno || editingProduct.sku || undefined) : undefined}
         status={mode === "edit" && editingProduct ? <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && editingProduct?.updated_at ? [
           { label: `Atualizado em ${formatDate(editingProduct.updated_at)}` },
