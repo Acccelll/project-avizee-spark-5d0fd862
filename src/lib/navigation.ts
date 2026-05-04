@@ -99,7 +99,7 @@ export const quickActions: QuickAction[] = [
   { id: 'nova-cotacao', title: 'Novo Orçamento', description: 'Criar proposta comercial', path: '/orcamentos/novo', shortcut: '⌘N', requires: 'orcamentos:editar' },
   { id: 'novo-cliente', title: 'Novo Cliente', description: 'Abrir formulário de cliente', path: '/clientes?new=1', requires: 'clientes:editar' },
   { id: 'novo-produto', title: 'Novo Produto', description: 'Abrir formulário de produto', path: '/produtos?new=1', requires: 'produtos:editar' },
-  { id: 'novo-pedido-compra', title: 'Novo Pedido', description: 'Abrir pedido de compra', path: '/pedidos-compra/novo', requires: 'compras:editar' },
+  { id: 'novo-pedido-compra', title: 'Novo Pedido', description: 'Abrir pedido de compra', path: '/pedidos-compra?new=1', requires: 'compras:editar' },
   { id: 'nova-nota-saida', title: 'Nova Nota', description: 'Emitir nota fiscal de saída', path: '/fiscal?tipo=saida&new=1', requires: 'faturamento_fiscal:editar' },
   { id: 'baixa-financeira', title: 'Baixa Financeira', description: 'Abrir baixa em lote no Financeiro', path: '/financeiro?baixa=lote', requires: 'financeiro:baixar' },
 ];
@@ -194,7 +194,7 @@ export const navSections: NavSection[] = [
       {
         title: 'Documentos fiscais',
         items: [
-          { title: 'Faturamento (em breve)', path: '/faturamento', icon: Receipt, keywords: ['emissor', 'sebrae', 'painel', 'sefaz', 'wizard', 'kpi', 'em breve'] },
+          { title: 'Faturamento', path: '/faturamento', icon: Receipt, badge: 'Em breve', disabled: true, keywords: ['emissor', 'sebrae', 'painel', 'sefaz', 'wizard', 'kpi', 'em breve'] },
           { title: 'Dashboard Fiscal', path: '/fiscal/dashboard', icon: BarChart3, keywords: ['indicadores', 'kpi', 'icms', 'apuracao', 'distdfe', 'painel'] },
           { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: Receipt, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
           { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: Receipt, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
