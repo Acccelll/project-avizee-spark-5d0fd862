@@ -12,12 +12,31 @@ interface CrudFilter {
   operator?: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "like" | "ilike" | "in";
 }
 
+/** Range de datas (inclusivo nas duas pontas). Use para coluna ISO `date` ou `timestamptz`. */
+interface DateRangeFilter {
+  column: string;
+  /** ISO date string `YYYY-MM-DD` ou `YYYY-MM-DDTHH:mm:ssZ`. */
+  from?: string | null;
+  /** ISO date string `YYYY-MM-DD` ou `YYYY-MM-DDTHH:mm:ssZ`. */
+  to?: string | null;
+}
+
 interface UseCrudOptions {
   table: string;
   select?: string;
   orderBy?: string;
   ascending?: boolean;
   filter?: CrudFilter[];
+  /**
+   * Filtro server-side por intervalo de datas. Aplicado como `gte`/`lte`.
+   * Use em telas paginadas para que o range alimente o LIMIT/OFFSET corretamente.
+   */
+  dateRange?: DateRangeFilter;
+  /**
+   * Filtro server-side de status (`IN (...)`). Quando `statusValues` for vazio
+   * ou `undefined`, nenhum filtro é aplicado.
+   */
+  statusFilter?: { column: string; values: string[] };
   hasAtivo?: boolean;
   /**
    * Controls whether list queries apply `eq("ativo", true)`.
@@ -85,6 +104,8 @@ export function useSupabaseCrud<R = any>({
   orderBy = "created_at",
   ascending = false,
   filter = [],
+  dateRange,
+  statusFilter,
   hasAtivo = true,
   filterAtivo,
   softDelete,
@@ -103,11 +124,15 @@ export function useSupabaseCrud<R = any>({
   const shouldSoftDelete = softDelete ?? hasAtivo;
 
   const filterKey = JSON.stringify(filter);
+  const dateRangeKey = dateRange ? JSON.stringify(dateRange) : "";
+  const statusKey = statusFilter && statusFilter.values.length > 0
+    ? `${statusFilter.column}:${[...statusFilter.values].sort().join(",")}`
+    : "";
   const effectiveMode: "paged" | "all" = paginationMode ?? (pageSize ? "paged" : "all");
 
   const queryKey = useMemo(
-    () => [table, select, orderBy, ascending, filterKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
-    [table, select, orderBy, ascending, filterKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
+    () => [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
+    [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
   );
 
   type QueryResult = { rows: R[]; totalCount: number | null; hasMore: boolean; truncated: boolean };
@@ -127,6 +152,13 @@ export function useSupabaseCrud<R = any>({
           .select(select, { count: "exact" })
           .order(orderBy, { ascending });
         query = applyFilters(query, filter);
+        if (dateRange?.column) {
+          if (dateRange.from) query = query.gte(dateRange.column, dateRange.from);
+          if (dateRange.to) query = query.lte(dateRange.column, dateRange.to);
+        }
+        if (statusFilter && statusFilter.values.length > 0) {
+          query = query.in(statusFilter.column, statusFilter.values);
+        }
         const trimmedSearch = searchTerm.trim();
         if (trimmedSearch && searchColumns.length > 0) {
           const orFilter = searchColumns.map((col) => `${col}.ilike.%${trimmedSearch}%`).join(",");
