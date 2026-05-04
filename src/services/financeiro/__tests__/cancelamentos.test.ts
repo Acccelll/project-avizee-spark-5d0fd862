@@ -17,7 +17,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/utils/errorMessages", () => ({
   getUserFriendlyError: (e: unknown) => (e instanceof Error ? e.message : String(e)),
-  notifyError: vi.fn(),
+  notifyError: (e: unknown) => { toastError(e instanceof Error ? e.message : String(e)); },
 }));
 
 import { cancelarLancamento } from "@/services/financeiro/cancelamentos";

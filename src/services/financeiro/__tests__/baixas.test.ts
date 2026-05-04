@@ -25,7 +25,7 @@ vi.mock("@/lib/logger", () => ({
 
 vi.mock("@/utils/errorMessages", () => ({
   getUserFriendlyError: (e: unknown) => (e instanceof Error ? e.message : String(e)),
-  notifyError: vi.fn(),
+  notifyError: (e: unknown) => { toastError(e instanceof Error ? e.message : String(e)); },
 }));
 
 import { processarBaixaLote, type BaixaLoteParams } from "@/services/financeiro/baixas";
