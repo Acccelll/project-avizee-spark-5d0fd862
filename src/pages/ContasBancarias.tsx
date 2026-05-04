@@ -48,6 +48,94 @@ import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
   CheckCircle, Ban, Building2, ChevronsUpDown, Check,
 } from "lucide-react";
+import { useState as useStateAlias } from "react";
+import { Button as ButtonAlias } from "@/components/ui/button";
+
+function formatCnpj(v: string | null | undefined): string {
+  if (!v) return "";
+  const d = v.replace(/\D/g, "");
+  if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+  return v;
+}
+
+interface FornecedorComboboxProps {
+  fornecedores: Array<{ id: string; nome_razao_social: string; cpf_cnpj?: string | null }>;
+  value: string;
+  onChange: (v: string) => void;
+}
+
+function FornecedorCombobox({ fornecedores, value, onChange }: FornecedorComboboxProps) {
+  const [open, setOpen] = useStateAlias(false);
+  const selected = fornecedores.find((f) => f.id === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <ButtonAlias
+          type="button"
+          variant="outline"
+          role="combobox"
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate">
+            {selected ? selected.nome_razao_social : "Buscar fornecedor por nome ou CNPJ..."}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </ButtonAlias>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command
+          filter={(itemValue, search) => {
+            const s = search.toLowerCase();
+            return itemValue.toLowerCase().includes(s) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder="Nome, razão social ou CNPJ..." />
+          <CommandList>
+            <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="__none__ nenhum"
+                onSelect={() => {
+                  onChange("");
+                  setOpen(false);
+                }}
+              >
+                <Check className={"mr-2 h-4 w-4 " + (value ? "opacity-0" : "opacity-100")} />
+                <span className="text-muted-foreground">Nenhum</span>
+              </CommandItem>
+              {fornecedores.map((f) => {
+                const cnpj = formatCnpj(f.cpf_cnpj);
+                const itemKey = `${f.nome_razao_social} ${cnpj} ${f.cpf_cnpj ?? ""}`;
+                return (
+                  <CommandItem
+                    key={f.id}
+                    value={itemKey}
+                    onSelect={() => {
+                      onChange(f.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={
+                        "mr-2 h-4 w-4 " + (value === f.id ? "opacity-100" : "opacity-0")
+                      }
+                    />
+                    <div className="flex flex-col">
+                      <span>{f.nome_razao_social}</span>
+                      {cnpj && <span className="text-xs text-muted-foreground">{cnpj}</span>}
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
 interface Banco {
   id: string;
