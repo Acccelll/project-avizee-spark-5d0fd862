@@ -1,75 +1,34 @@
-/**
- * `EmBreve` — marcador padronizado para funcionalidades planejadas mas não
- * implementadas. Substitui badges/labels inline "Em breve" espalhados pelo
- * código (Fiscal, Admin, Faturamento) garantindo um único contrato visual e
- * de acessibilidade.
- *
- * Modos:
- *  - `badge` (default): apenas o pill "Em breve" (use ao lado de um título).
- *  - `wrap`: envolve um botão/elemento, força `disabled` + tooltip e mostra
- *    o pill ao lado. Usar para botões já visíveis (Buscar por chave, QR).
- *
- * @example
- * <EmBreve />                  // badge solto
- * <EmBreve mode="wrap"><Button>Buscar por chave</Button></EmBreve>
- */
-import { cloneElement, isValidElement, ReactElement, ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { Construction } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface EmBreveProps {
-  mode?: "badge" | "wrap";
-  /** Texto custom do tooltip (mode=wrap). */
-  tooltip?: string;
-  /** Classes extras no badge. */
-  className?: string;
-  children?: ReactNode;
+  modulo: string;
+  descricao?: string;
 }
 
-export function EmBreve({
-  mode = "badge",
-  tooltip = "Funcionalidade em desenvolvimento — disponível em breve.",
-  className,
-  children,
-}: EmBreveProps) {
-  const badge = (
-    <Badge
-      variant="outline"
-      className={cn(
-        "border-warning/40 text-warning text-[10px] uppercase tracking-wider font-medium",
-        className,
-      )}
-    >
-      Em breve
-    </Badge>
-  );
-
-  if (mode === "badge") return badge;
-
-  let disabledChild: ReactNode = children;
-  if (isValidElement(children)) {
-    disabledChild = cloneElement(children as ReactElement<Record<string, unknown>>, {
-      disabled: true,
-      "aria-disabled": true,
-      onClick: (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-      },
-    });
-  }
-
+/**
+ * Tela placeholder para módulos marcados como "Em breve".
+ * Mantém a rota viva (não quebra deep links) sem expor funcionalidade real.
+ */
+export function EmBreve({ modulo, descricao }: EmBreveProps) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="inline-flex items-center gap-1.5 cursor-not-allowed">
-          {disabledChild}
-          <span className="hidden md:inline">{badge}</span>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
-        <span className="text-xs leading-snug">{tooltip}</span>
-      </TooltipContent>
-    </Tooltip>
+    <div className="container mx-auto p-6 max-w-2xl">
+      <Card>
+        <CardContent className="flex flex-col items-center text-center gap-4 py-12">
+          <div className="rounded-full bg-muted p-4">
+            <Construction className="h-8 w-8 text-muted-foreground" aria-hidden />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-xl font-semibold">{modulo} — Em breve</h1>
+            <p className="text-sm text-muted-foreground max-w-md">
+              {descricao ??
+                "Este módulo está em construção. Acompanhe as próximas atualizações para disponibilidade."}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
+
+export default EmBreve;
