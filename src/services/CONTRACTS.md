@@ -22,7 +22,7 @@ obrigatória** (ver `src/services/_invalidationKeys.ts`).
 | Estornar NF | TS `estornarNotaFiscal` (sem RPC ainda) | mesmo | — | reverte estoque, cancela financeiros vinculados, reverte faturamento OV, marca NF cancelada | `fiscalLifecycle` |
 | Devolução NF | RPC `gerar_devolucao_nota_fiscal` | — | `useGerarDevolucaoNF` | cria NF de devolução vinculada à origem | `fiscalLifecycle` |
 | Cotação compra → Pedido compra | RPC `gerar_pedido_compra` | — | **`useGerarPedidoCompra`** | cria `pedidos_compra` + items, marca cotação como `convertida` | `geracaoPedidoCompra` |
-| Receber pedido compra | RPC `receber_compra` | — | direto via `usePedidosCompra.darEntrada` | insere estoque, gera financeiro a pagar, atualiza status | `recebimentoCompra` |
+| Receber pedido compra | RPC `receber_compra` | — | direto via `usePedidosCompra.darEntrada` | cria `compras` + `compras_itens`, insere `estoque_movimentos` (entrada), atualiza `pedidos_compra.status` (parcial/recebido), grava `auditoria_logs`. **NÃO gera `financeiro_lancamentos`** — o contas a pagar nasce ao confirmar a NF de entrada vinculada. | `recebimentoCompra` |
 | Salvar Pedido de Compra (header + itens) | RPC `replace_pedido_compra_itens` | TS `useSalvarPedidoCompra` | **`useSalvarPedidoCompra`** | atualiza cabeçalho + substitui itens atomicamente | `geracaoPedidoCompra` |
 | Baixa financeira | RPC `financeiro_processar_baixa_lote` | TS fallback | `useFinanceiroBaixar` | insere `financeiro_baixas`, atualiza status do lançamento, opcionalmente movimenta caixa | `baixaFinanceira` |
 | Estorno financeiro | RPC `financeiro_processar_estorno` | — | `useFinanceiroEstornar` | reverte baixa(s), atualiza status | `baixaFinanceira` |
