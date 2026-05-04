@@ -90,6 +90,11 @@ export default function CartoesCredito() {
   const [baixaContaId, setBaixaContaId] = useState("");
   const [baixaData, setBaixaData] = useState(() => new Date().toISOString().split("T")[0]);
   const [baixaSaving, setBaixaSaving] = useState(false);
+  const [baixaForma, setBaixaForma] = useState<string>("boleto_dda");
+  const [baixaLancamentos, setBaixaLancamentos] = useState<
+    Array<{ id: string; descricao: string; valor: number; saldo: number; status: string; data_vencimento: string }>
+  >([]);
+  const [baixaLancsLoading, setBaixaLancsLoading] = useState(false);
   const { saving, submit } = useSubmitLock();
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<CartaoForm>(emptyForm);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -274,7 +279,7 @@ export default function CartoesCredito() {
     }
     setBaixaSaving(true);
     try {
-      const res = await baixarFaturaCartao(baixaFatura.id, baixaContaId, baixaData);
+      const res = await baixarFaturaCartao(baixaFatura.id, baixaContaId, baixaData, baixaForma);
       toast.success(`${res.processados} lançamento(s) baixado(s) — total ${res.valor_total.toFixed(2)}`);
       setBaixaFatura(null);
       setBaixaContaId("");
