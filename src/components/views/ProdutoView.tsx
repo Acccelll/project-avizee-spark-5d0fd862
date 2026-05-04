@@ -8,6 +8,8 @@ import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
@@ -54,6 +56,8 @@ interface ProdutoDetail {
 export function ProdutoView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
+  const { isAdmin } = useIsAdmin();
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
@@ -182,6 +186,17 @@ export function ProdutoView({ id }: Props) {
           </TooltipTrigger>
           <TooltipContent>Excluir produto</TooltipContent>
         </Tooltip>
+        {isAdmin && selected.ativo === false && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir produto permanentemente"
+            onClick={() => setPermDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
+          </Button>
+        )}
       </>
     ) : undefined,
   });
@@ -611,6 +626,24 @@ export function ProdutoView({ id }: Props) {
           composicao.length > 0 ? "Este produto possui itens de composição." : "",
           (historicoCompras.length + historicoVendas.length) > 0 ? "Este produto possui histórico de notas fiscais." : "",
         ].filter(Boolean).join(" ")}
+      />
+
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="produtos"
+        id={id}
+        entityLabel="produto"
+        recordName={selected?.nome || id}
+        warning="Ação administrativa. Remove o produto do banco — não é inativação."
+        sideEffects={[
+          fornecedoresProd.length > 0 ? `${fornecedoresProd.length} vínculo(s) com fornecedor` : "Sem fornecedores vinculados",
+          composicao.length > 0 ? `${composicao.length} item(ns) de composição` : "Sem composição",
+          (historicoCompras.length + historicoVendas.length) > 0
+            ? "Histórico fiscal vinculado — exclusão será bloqueada."
+            : "Sem histórico fiscal.",
+        ]}
+        onDeleted={() => clearStack()}
       />
     </div>
   );

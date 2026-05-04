@@ -46,8 +46,10 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
-  CheckCircle, Ban, Building2, ChevronsUpDown, Check,
+  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2,
 } from "lucide-react";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 function formatCnpj(v: string | null | undefined): string {
   if (!v) return "";
   const d = v.replace(/\D/g, "");
@@ -209,6 +211,8 @@ const ContasBancarias = () => {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [inUseCounts, setInUseCounts] = useState<InUseCounts>({ lancamentos: 0, baixas: 0, caixaMovs: 0 });
   const [confirmInactivate, setConfirmInactivate] = useState(false);
+  const { isAdmin } = useIsAdmin();
+  const [permDeleteTarget, setPermDeleteTarget] = useState<ContaBancaria | null>(null);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState("");
@@ -540,6 +544,21 @@ const ContasBancarias = () => {
           onView={(c) => { setSelected(c); setDrawerOpen(true); }}
           onEdit={openEdit}
           onDelete={handleDelete}
+          rowExtraActions={(c: ContaBancaria) =>
+            isAdmin && !c.ativo ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPermDeleteTarget(c);
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir definitivamente
+              </Button>
+            ) : null
+          }
           mobileIdentifierKey="agencia_conta"
           mobileStatusKey="ativo"
           emptyTitle="Nenhuma conta bancária encontrada"
@@ -672,6 +691,23 @@ const ContasBancarias = () => {
         onDelete={(c) => handleDelete(c)}
       />
       {confirmDialog}
+      <PermanentDeleteDialog
+        open={!!permDeleteTarget}
+        onClose={() => setPermDeleteTarget(null)}
+        table="bancos"
+        id={permDeleteTarget?.banco_id || ""}
+        entityLabel="banco / conta bancária"
+        recordName={permDeleteTarget?.descricao || permDeleteTarget?.bancos?.nome || ""}
+        warning="Ação administrativa. Remove o banco do banco de dados — não é inativação. Lançamentos, baixas e movimentos de caixa vinculados impedirão a exclusão."
+        sideEffects={[
+          "Contas bancárias do mesmo banco",
+          "Lançamentos, baixas e movimentos de caixa vinculados impedem exclusão.",
+        ]}
+        onDeleted={() => {
+          setPermDeleteTarget(null);
+          fetchData();
+        }}
+      />
     </>
   );
 };

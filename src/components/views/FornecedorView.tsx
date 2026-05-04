@@ -9,6 +9,8 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
@@ -34,6 +36,8 @@ interface FornecedorDetail {
 export function FornecedorView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
+  const { isAdmin } = useIsAdmin();
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
@@ -114,6 +118,17 @@ export function FornecedorView({ id }: Props) {
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Excluir fornecedor" onClick={() => setDeleteConfirmOpen(true)}>
           <Trash2 className="h-3.5 w-3.5" /> Excluir
         </Button>
+        {isAdmin && selected.ativo === false && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir fornecedor permanentemente"
+            onClick={() => setPermDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
+          </Button>
+        )}
       </>
     ) : undefined,
   });
@@ -343,6 +358,25 @@ export function FornecedorView({ id }: Props) {
         }
         title="Excluir fornecedor"
         description={deleteDescription}
+      />
+
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="fornecedores"
+        id={id}
+        entityLabel="fornecedor"
+        recordName={selected?.nome_razao_social || id}
+        warning="Ação administrativa. Remove o fornecedor do banco — não é inativação."
+        sideEffects={[
+          compras.length > 0 || financeiro.length > 0 || produtos.length > 0
+            ? "Há pedidos de compra, lançamentos ou produtos vinculados. A exclusão será bloqueada."
+            : "Nenhum vínculo operacional detectado.",
+        ]}
+        onDeleted={() => {
+          invalidate(["fornecedores"]);
+          clearStack();
+        }}
       />
     </div>
   );
