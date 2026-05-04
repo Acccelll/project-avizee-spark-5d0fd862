@@ -72,6 +72,7 @@ function createQueryMock(initialData: Row[] = []) {
       query.__in.push({ column, values });
       return query;
     }),
+    abortSignal: vi.fn(() => query),
     eq: vi.fn((column: string, value: any) => {
       query.__eqCalls.push({ column, value });
       if (column === "id") {
