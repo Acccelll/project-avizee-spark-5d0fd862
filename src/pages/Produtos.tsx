@@ -49,6 +49,7 @@ import { produtoSchema, validateForm } from "@/lib/validationSchemas";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
+import { parseVariacoes } from "@/utils/cadastros";
 
 type TipoItem = "produto" | "insumo";
 
@@ -59,6 +60,11 @@ interface Produto {
   peso: number;eh_composto: boolean;ativo: boolean;created_at: string;updated_at?: string;tipo_item: TipoItem;
   variacoes?: string | string[] | null;
 }
+
+type ProdutoTableRow = Produto & {
+  display_codigo: string;
+  display_sku_secundario: string | null;
+};
 
 type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "created_at" | "updated_at"> & { id?: string; variacoes_texto: string };
 
@@ -118,6 +124,50 @@ const emptyProduto = {
   preco_custo: 0, preco_venda: 0, estoque_minimo: 0, ncm: "", cst: "", cfop_padrao: "", peso: 0, eh_composto: false,
   grupo_id: "", tipo_item: "produto" as TipoItem, variacoes_texto: "", ativo: true,
 };
+
+function compactProductCode(value: string | null | undefined): string {
+  return String(value ?? "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function normalizeProductCode(value: string | null | undefined): string {
+  const compact = compactProductCode(value);
+  if (!compact) return "";
+
+  const normalized = /[A-Z]/i.test(compact)
+    ? compact.replace(/^0+(?=[A-Z0-9]*[A-Z])/i, "")
+    : compact;
+
+  return normalized || compact;
+}
+
+function getProdutoDisplayCodigo(produto: Pick<Produto, "codigo_interno" | "sku">): string {
+  return normalizeProductCode(produto.codigo_interno) || normalizeProductCode(produto.sku) || "—";
+}
+
+function getProdutoDisplaySkuSecundario(produto: Pick<Produto, "codigo_interno" | "sku">): string | null {
+  const sku = String(produto.sku ?? "").trim();
+  if (!sku) return null;
+
+  const skuNormalizado = normalizeProductCode(sku);
+  const codigoPrincipal = normalizeProductCode(getProdutoDisplayCodigo(produto));
+
+  return skuNormalizado && skuNormalizado !== codigoPrincipal ? sku : null;
+}
+
+function getProdutoCanonicalScore(produto: Pick<Produto, "codigo_interno" | "sku" | "variacoes">): number {
+  const rawPrimary = compactProductCode(produto.codigo_interno || produto.sku || "");
+  const variacoesCount = parseVariacoes(produto.variacoes).length;
+
+  let score = variacoesCount * 100;
+  if (rawPrimary && normalizeProductCode(rawPrimary) === rawPrimary) score += 20;
+  score -= rawPrimary.length;
+
+  return score;
+}
+
+function pickCanonicalProduto<T extends Produto>(current: T, candidate: T): T {
+  return getProdutoCanonicalScore(candidate) > getProdutoCanonicalScore(current) ? candidate : current;
+}
 
 const Produtos = () => {
   const location = useLocation();
@@ -451,7 +501,7 @@ const Produtos = () => {
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((p) => {
+    const filtered = data.filter((p) => {
       const isComposto = Boolean(p.eh_composto);
       const situacao = getSituacaoEstoque(p);
 
@@ -480,6 +530,30 @@ const Produtos = () => {
 
       return true;
     });
+
+    const deduped = new Map<string, Produto>();
+
+    for (const produto of filtered) {
+      const key = [
+        normalizeProductCode(produto.codigo_interno || produto.sku),
+        String(produto.nome || "").trim().toUpperCase(),
+        String(produto.tipo_item || "produto"),
+      ].join("::");
+
+      if (!key.replace(/::/g, "")) {
+        deduped.set(produto.id, produto);
+        continue;
+      }
+
+      const existing = deduped.get(key);
+      deduped.set(key, existing ? pickCanonicalProduto(existing, produto) : produto);
+    }
+
+    return Array.from(deduped.values()).map<ProdutoTableRow>((produto) => ({
+      ...produto,
+      display_codigo: getProdutoDisplayCodigo(produto),
+      display_sku_secundario: getProdutoDisplaySkuSecundario(produto),
+    }));
   }, [data, ativoFilters, estoqueFilters, tipoFilters, tipoItemFilters, grupoFilters]);
 
   const columns = [
@@ -487,9 +561,9 @@ const Produtos = () => {
       key: "codigo_interno",
       label: "Código",
       sortable: true,
-      render: (p: Produto) => (
+      render: (p: ProdutoTableRow) => (
         <span className="font-mono text-xs text-muted-foreground">
-          {p.codigo_interno || p.sku || "—"}
+          {p.display_codigo}
         </span>
       ),
     },
@@ -498,16 +572,12 @@ const Produtos = () => {
       mobilePrimary: true,
       label: "Produto",
       sortable: true,
-      render: (p: Produto) => {
-        // Evita repetir na segunda linha o mesmo valor já mostrado na coluna "Código".
-        // A coluna Código exibe codigo_interno || sku, então só mostramos o SKU
-        // aqui quando ele existir E for diferente do codigo_interno.
-        const showSku = !!p.sku && p.sku !== p.codigo_interno;
+      render: (p: ProdutoTableRow) => {
         return (
           <div>
             <span className="font-medium text-sm">{p.nome}</span>
-            {showSku && (
-              <p className="text-[11px] text-muted-foreground font-mono leading-tight">{p.sku}</p>
+            {p.display_sku_secundario && (
+              <p className="text-[11px] text-muted-foreground font-mono leading-tight">{p.display_sku_secundario}</p>
             )}
           </div>
         );
