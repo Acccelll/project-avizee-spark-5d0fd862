@@ -271,13 +271,13 @@ export function FornecedorView({ id }: Props) {
           ) : (
             <div className="space-y-2">
               {financeiro.map((f) => (
-                <div key={f.id} className={`flex items-center justify-between p-2.5 rounded border bg-card text-xs ${f.status === 'vencido' ? 'border-destructive/30' : ''}`}>
+                <div key={f.id} className={`flex items-center justify-between p-2.5 rounded border bg-card text-xs ${isVencido(f) ? 'border-destructive/30' : ''}`}>
                   <div>
                     <p className="font-medium truncate max-w-[180px]">{f.descricao}</p>
                     <p className="text-[10px] text-muted-foreground">Vencimento: {formatDate(f.data_vencimento)}</p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-bold ${f.status === 'pago' ? 'text-success' : f.status === 'vencido' ? 'text-destructive' : ''}`}>
+                    <p className={`font-bold ${f.status === 'pago' ? 'text-success' : isVencido(f) ? 'text-destructive' : ''}`}>
                       {formatCurrency(f.saldo_restante || f.valor)}
                     </p>
                     <StatusBadge status={f.status} className="h-3.5 text-[9px]" />
