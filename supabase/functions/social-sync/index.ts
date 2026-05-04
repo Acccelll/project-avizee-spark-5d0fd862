@@ -1,10 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 /**
  * Social Media Sync Edge Function
@@ -20,6 +15,7 @@ const corsHeaders = {
  *   INSTAGRAM_ACCESS_TOKEN, LINKEDIN_ACCESS_TOKEN
  */
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -46,11 +42,11 @@ Deno.serve(async (req) => {
     }
 
     if (platform === "instagram_business") {
-      return await syncInstagram(accountId, body.access_token);
+      return await syncInstagram(accountId, body.access_token, corsHeaders);
     }
 
     if (platform === "linkedin_page") {
-      return await syncLinkedIn(accountId, body.access_token);
+      return await syncLinkedIn(accountId, body.access_token, corsHeaders);
     }
 
     return new Response(
@@ -66,7 +62,11 @@ Deno.serve(async (req) => {
   }
 });
 
-async function syncInstagram(accountId: string, tokenOverride?: string) {
+async function syncInstagram(
+  accountId: string,
+  tokenOverride: string | undefined,
+  corsHeaders: Record<string, string>,
+) {
   const token = tokenOverride || Deno.env.get("INSTAGRAM_ACCESS_TOKEN");
 
   if (!token) {
@@ -120,7 +120,11 @@ async function syncInstagram(accountId: string, tokenOverride?: string) {
   }
 }
 
-async function syncLinkedIn(accountId: string, tokenOverride?: string) {
+async function syncLinkedIn(
+  accountId: string,
+  tokenOverride: string | undefined,
+  corsHeaders: Record<string, string>,
+) {
   const token = tokenOverride || Deno.env.get("LINKEDIN_ACCESS_TOKEN");
 
   if (!token) {

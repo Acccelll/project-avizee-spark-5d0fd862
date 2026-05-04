@@ -9,20 +9,11 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createLogger } from "../_shared/logger.ts";
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
-const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 const moduleLog = createLogger("admin-sessions");
-if (!allowedOrigin) {
-  moduleLog.warn("ALLOWED_ORIGIN env var is not set. Requests will be rejected.");
-}
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": allowedOrigin ?? "",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-function json(data: unknown, status = 200) {
+function json(data: unknown, status: number, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -54,21 +45,10 @@ async function requireAdmin(serviceClient: any, req: Request) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    if (!allowedOrigin) {
-      return new Response(
-        JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const corsHeaders = buildCorsHeaders(req.headers.get("origin"));
 
-  if (!allowedOrigin) {
-    return new Response(
-      JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -100,7 +80,7 @@ Deno.serve(async (req) => {
         if (!last || now - last > INACTIVE_THRESHOLD_MS) inativasMais30d += 1;
       }
 
-      return json({ ativas, inativasMais30d, totalUsuarios: users.length });
+      return json({ ativas, inativasMais30d, totalUsuarios: users.length }, 200, corsHeaders);
     }
 
     if (action === "list") {
@@ -126,24 +106,24 @@ Deno.serve(async (req) => {
         ip: null, // Not available via admin API
       }));
 
-      return json(sessoes);
+      return json(sessoes, 200, corsHeaders);
     }
 
     if (action === "revoke") {
-      if (!userId) return json({ error: "userId é obrigatório" }, 400);
+      if (!userId) return json({ error: "userId é obrigatório" }, 400, corsHeaders);
 
       const { error } = await serviceClient.auth.admin.signOut(userId, "global");
       if (error) throw error;
 
-      return json({ success: true });
+      return json({ success: true }, 200, corsHeaders);
     }
 
-    return json({ error: "Ação inválida. Use 'list' ou 'revoke'." }, 400);
+    return json({ error: "Ação inválida. Use 'list' ou 'revoke'." }, 400, corsHeaders);
   } catch (err: any) {
     moduleLog.error("Request failed", err);
     const status = err.status ?? 500;
     const message =
       err.message ?? "Erro interno ao gerenciar sessões.";
-    return json({ error: message }, status);
+    return json({ error: message }, status, corsHeaders);
   }
 });

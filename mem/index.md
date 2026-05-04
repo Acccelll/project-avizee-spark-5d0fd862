@@ -10,3 +10,4 @@
 - [Lançamento Pago Exige Baixa](mem://security/lancamento-pago-requer-baixa) — Trigger bloqueia status pago/parcial sem registro em financeiro_baixas
 - [Storage dbavizee Prefixos](mem://security/storage-dbavizee-prefixos) — Policies por prefixo canônico (templates/apresentacoes/workbooks/fiscal/users)
 - [Admin Estrito vs Visualizar](mem://security/admin-vs-view-admin) — useIsAdmin (estrito) para ações sensíveis; useCanViewAdmin para navegação/rota
+- [Edge Functions CORS Helper](mem://tech/infraestrutura-cors) — supabase/functions/_shared/cors.ts compartilhado; ALLOWED_ORIGIN adiciona origens; padrão lovable.app/lovableproject.com/sistema.avizee.com.br
