@@ -524,6 +524,7 @@ const ContasBancarias = () => {
         }
       >
         <AdvancedFilterBar
+          {...{}}
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Buscar por nome, banco, agência, conta ou titular..."
