@@ -125,12 +125,20 @@ export async function baixarFaturaCartao(
   faturaId: string,
   contaBancariaId: string,
   dataBaixa: string,
-): Promise<Array<{ lancamento_id: string; baixa_id: string; valor: number }>> {
+  formaPagamento: string = "boleto_dda",
+  observacoes?: string | null,
+): Promise<{ grupo_id: string; processados: number; valor_total: number }> {
   const { data, error } = await supabase.rpc("baixar_fatura_cartao", {
     p_fatura_id: faturaId,
     p_conta_bancaria_id: contaBancariaId,
     p_data_baixa: dataBaixa,
-  });
+    p_forma_pagamento: formaPagamento,
+    p_observacoes: observacoes ?? undefined,
+  } as never);
   if (error) throw error;
-  return (data as Array<{ lancamento_id: string; baixa_id: string; valor: number }>) ?? [];
+  return (data as unknown as { grupo_id: string; processados: number; valor_total: number }) ?? {
+    grupo_id: "",
+    processados: 0,
+    valor_total: 0,
+  };
 }
