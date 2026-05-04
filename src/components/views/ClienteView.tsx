@@ -22,6 +22,7 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { getEffectiveStatus } from "@/lib/financeiro";
 
 interface Props {
   id: string;
@@ -80,7 +81,7 @@ export function ClienteView({ id }: Props) {
 
   // B6 fix: incluir 'parcial' no saldo aberto (alinhado à memória financeiro-migracao-saldos).
   const totalAberto = financeiro
-    .filter((f) => f.status === "aberto" || f.status === "vencido" || f.status === "parcial")
+    .filter((f) => f.status === "aberto" || f.status === "parcial")
     .reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
   // Combina pedidos atuais + notas históricas migradas para os KPIs.
   const ultCompra = vendas[0]?.data_emissao || notasSaida[0]?.data_emissao || null;
