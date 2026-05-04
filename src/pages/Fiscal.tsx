@@ -873,6 +873,34 @@ const Fiscal = () => {
     [statusUrlParam],
   );
 
+  // Filtros, busca e chips encapsulados em hook (Fase 6 — refatoração Fiscal).
+  const {
+    filteredData,
+    activeFilterChips: fiscalActiveFilters,
+    consultaSearch,
+    setConsultaSearch,
+    tipoFilters,
+    setTipoFilters,
+    modeloFilters,
+    setModeloFilters,
+    statusFilters,
+    setStatusFilters,
+    origemFilters,
+    setOrigemFilters,
+    statusSefazFilters,
+    setStatusSefazFilters,
+    emissaoMes,
+    setEmissaoMes,
+    vencimentoMes,
+    setVencimentoMes,
+    removeFilter: handleRemoveFiscalFilter,
+    clearAll: clearAllFiscalFilters,
+  } = useFiscalFilters(data, {
+    tipoFromUrl: tipoParam,
+    statusFromUrl,
+    vencimentoNotaIds,
+  });
+
   // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
   useEffect(() => {
     if (!vencimentoMes) {
@@ -906,27 +934,6 @@ const Fiscal = () => {
     return () => { cancelled = true; };
   }, [vencimentoMes]);
 
-  const filteredData = useMemo(() => {
-    const query = consultaSearch.trim().toLowerCase();
-    return data.filter((n) => {
-      if (tipoParam && n.tipo !== tipoParam) return false;
-      if (tipoFilters.length > 0 && !tipoFilters.includes(n.tipo)) return false;
-      if (modeloFilters.length > 0 && !modeloFilters.includes(n.modelo_documento || "55")) return false;
-      if (statusFilters.length > 0 && !statusFilters.includes(n.status)) return false;
-      if (statusFromUrl.length > 0 && !statusFromUrl.includes(n.status)) return false;
-      if (origemFilters.length > 0 && !origemFilters.includes(n.origem || "manual")) return false;
-      if (statusSefazFilters.length > 0 && !statusSefazFilters.includes(n.status_sefaz || "nao_enviada")) return false;
-      if (emissaoMes && (n.data_emissao || "").slice(0, 7) !== emissaoMes) return false;
-      if (vencimentoMes) {
-        if (!vencimentoNotaIds || !vencimentoNotaIds.has(n.id)) return false;
-      }
-      if (!query) return true;
-      const parceiro = n.tipo === "entrada" ? n.fornecedores?.nome_razao_social : n.clientes?.nome_razao_social;
-      const haystack = [n.numero, n.serie, n.chave_acesso, parceiro, n.ordens_venda?.numero].filter(Boolean).join(" ").toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters, statusFromUrl, emissaoMes, vencimentoMes, vencimentoNotaIds]);
-
   // KPIs — sobre os dados filtrados (consistente com a grid)
   const kpis = useMemo(() => {
     const total = filteredData.length;
@@ -938,32 +945,6 @@ const Fiscal = () => {
     const valorTotal = filteredData.reduce((s, n) => s + Number(n.valor_total || 0), 0);
     return { total, pendentes, confirmadas, valorTotal };
   }, [filteredData]);
-
-  const fiscalActiveFilters = useMemo(() => {
-    const chips: FilterChip[] = [];
-    if (emissaoMes) {
-      chips.push({ key: "emissao_mes", label: "Emissão", value: [emissaoMes], displayValue: emissaoMes });
-    }
-    if (vencimentoMes) {
-      chips.push({ key: "vencimento_mes", label: "Vencimento", value: [vencimentoMes], displayValue: vencimentoMes });
-    }
-    tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "entrada" ? "Entrada" : "Saída" }));
-    modeloFilters.forEach(f => chips.push({ key: "modelo", label: "Modelo", value: [f], displayValue: modeloLabels[f] || f }));
-    statusFilters.forEach(f => chips.push({ key: "status", label: "Status ERP", value: [f], displayValue: getFiscalInternalStatus(f).label }));
-    origemFilters.forEach(f => chips.push({ key: "origem", label: "Origem", value: [f], displayValue: origemLabels[f] || f }));
-    statusSefazFilters.forEach(f => chips.push({ key: "status_sefaz", label: "Status SEFAZ", value: [f], displayValue: getFiscalSefazStatus(f).label }));
-    return chips;
-  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters, emissaoMes, vencimentoMes]);
-
-  const handleRemoveFiscalFilter = (key: string, value?: string) => {
-    if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
-    if (key === "modelo") setModeloFilters(prev => prev.filter(v => v !== value));
-    if (key === "status") setStatusFilters(prev => prev.filter(v => v !== value));
-    if (key === "origem") setOrigemFilters(prev => prev.filter(v => v !== value));
-    if (key === "status_sefaz") setStatusSefazFilters(prev => prev.filter(v => v !== value));
-    if (key === "emissao_mes") setEmissaoMes("");
-    if (key === "vencimento_mes") setVencimentoMes("");
-  };
 
   const tipoOptions: MultiSelectOption[] = [{ label: "Entrada", value: "entrada" }, { label: "Saída", value: "saida" }];
   const modeloOptions: MultiSelectOption[] = Object.entries(modeloLabels).map(([v, l]) => ({ label: l, value: v }));
