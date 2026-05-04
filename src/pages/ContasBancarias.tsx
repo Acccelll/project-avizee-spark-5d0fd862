@@ -544,6 +544,21 @@ const ContasBancarias = () => {
           onView={(c) => { setSelected(c); setDrawerOpen(true); }}
           onEdit={openEdit}
           onDelete={handleDelete}
+          rowExtraActions={(c: ContaBancaria) =>
+            isAdmin && !c.ativo ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPermDeleteTarget(c);
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir definitivamente
+              </Button>
+            ) : null
+          }
           mobileIdentifierKey="agencia_conta"
           mobileStatusKey="ativo"
           emptyTitle="Nenhuma conta bancária encontrada"
