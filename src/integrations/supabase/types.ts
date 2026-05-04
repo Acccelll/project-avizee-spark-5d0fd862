@@ -8944,6 +8944,33 @@ export type Database = {
         Args: { p_motivo: string; p_nf_id: string; p_protocolo: string }
         Returns: undefined
       }
+      kpis_financeiro: {
+        Args: {
+          p_bancos?: string[]
+          p_cartoes?: string[]
+          p_date_from?: string
+          p_date_to?: string
+          p_formas?: string[]
+          p_origens?: string[]
+          p_search?: string
+          p_status?: string[]
+          p_tipos?: string[]
+        }
+        Returns: Json
+      }
+      kpis_fiscal: {
+        Args: {
+          p_clientes?: string[]
+          p_date_from?: string
+          p_date_to?: string
+          p_fornecedores?: string[]
+          p_modelos?: string[]
+          p_search?: string
+          p_status?: string[]
+          p_tipos?: string[]
+        }
+        Returns: Json
+      }
       ler_secret_vault: { Args: { p_name: string }; Returns: string }
       limpar_dados_migracao: { Args: { p_confirmar?: boolean }; Returns: Json }
       log_self_update_audit: {
