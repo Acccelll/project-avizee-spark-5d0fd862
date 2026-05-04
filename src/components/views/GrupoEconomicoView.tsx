@@ -103,7 +103,8 @@ export function GrupoEconomicoView({ id }: Props) {
         .select("cliente_id, status, saldo_restante, valor")
         .in("cliente_id", empresaIds)
         .eq("tipo", "receber")
-        .in("status", ["aberto", "vencido", "parcial"])
+        // "vencido" é derivado pela data — basta filtrar abertos/parciais aqui.
+        .in("status", ["aberto", "parcial"])
         .abortSignal(signal);
       financeiro = (fin as FinanceiroAggRow[]) || [];
     }
