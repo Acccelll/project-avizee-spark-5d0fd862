@@ -169,6 +169,28 @@ function pickCanonicalProduto<T extends Produto>(current: T, candidate: T): T {
   return getProdutoCanonicalScore(candidate) > getProdutoCanonicalScore(current) ? candidate : current;
 }
 
+function dedupeProdutosCanonicos<T extends Produto>(produtos: T[]): T[] {
+  const deduped = new Map<string, T>();
+
+  for (const produto of produtos) {
+    const key = [
+      normalizeProductCode(produto.codigo_interno || produto.sku),
+      String(produto.nome || "").trim().toUpperCase(),
+      String(produto.tipo_item || "produto"),
+    ].join("::");
+
+    if (!key.replace(/::/g, "")) {
+      deduped.set(produto.id, produto);
+      continue;
+    }
+
+    const existing = deduped.get(key);
+    deduped.set(key, existing ? pickCanonicalProduto(existing, produto) : produto);
+  }
+
+  return Array.from(deduped.values());
+}
+
 const Produtos = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -243,7 +265,7 @@ const Produtos = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- atalho ?new=1 one-shot; openCreate/navigate são estáveis
   }, [location.search]);
 
-  const produtosDisponiveis = data;
+  const produtosDisponiveis = useMemo(() => dedupeProdutosCanonicos(data), [data]);
 
   const custoComposto = editComposicao.reduce((s, c) => {
     const prod = data.find((p) => p.id === c.produto_filho_id);
@@ -531,25 +553,7 @@ const Produtos = () => {
       return true;
     });
 
-    const deduped = new Map<string, Produto>();
-
-    for (const produto of filtered) {
-      const key = [
-        normalizeProductCode(produto.codigo_interno || produto.sku),
-        String(produto.nome || "").trim().toUpperCase(),
-        String(produto.tipo_item || "produto"),
-      ].join("::");
-
-      if (!key.replace(/::/g, "")) {
-        deduped.set(produto.id, produto);
-        continue;
-      }
-
-      const existing = deduped.get(key);
-      deduped.set(key, existing ? pickCanonicalProduto(existing, produto) : produto);
-    }
-
-    return Array.from(deduped.values()).map<ProdutoTableRow>((produto) => ({
+    return dedupeProdutosCanonicos(filtered).map<ProdutoTableRow>((produto) => ({
       ...produto,
       display_codigo: getProdutoDisplayCodigo(produto),
       display_sku_secundario: getProdutoDisplaySkuSecundario(produto),
