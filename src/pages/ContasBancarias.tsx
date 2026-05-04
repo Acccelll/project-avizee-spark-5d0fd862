@@ -46,8 +46,10 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
-  CheckCircle, Ban, Building2, ChevronsUpDown, Check,
+  CheckCircle, Ban, Building2, ChevronsUpDown, Check, Trash2,
 } from "lucide-react";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 function formatCnpj(v: string | null | undefined): string {
   if (!v) return "";
   const d = v.replace(/\D/g, "");
