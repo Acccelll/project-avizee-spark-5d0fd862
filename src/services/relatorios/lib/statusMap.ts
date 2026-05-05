@@ -88,6 +88,13 @@ export const movimentoEstoqueStatusMap: Record<string, StatusMeta> = {
   ajuste: { key: 'ajuste', kind: 'warning' },
 };
 
+/** Cadastros (produtos, clientes, fornecedores) — situação cadastral. */
+export const cadastroSituacaoStatusMap: Record<string, StatusMeta> = {
+  ativo: { key: 'ativo', kind: 'success' },
+  inativo: { key: 'inativo', kind: 'neutral' },
+  descontinuado: { key: 'descontinuado', kind: 'critical' },
+};
+
 /** Generic resolver: returns canonical meta or a neutral fallback. */
 export function resolveStatus(
   map: Record<string, StatusMeta>,

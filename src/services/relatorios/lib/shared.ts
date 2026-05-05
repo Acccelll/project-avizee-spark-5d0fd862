@@ -25,7 +25,11 @@ export type TipoRelatorio =
   | "compras_fornecedor"
   | "nfe_entrada"
   | "divergencias"
-  | "faturamento";
+  | "faturamento"
+  | "cadastro_produtos"
+  | "cadastro_clientes"
+  | "cadastro_fornecedores"
+  | "cadastro_transportadoras";
 
 export interface FiltroRelatorio {
   dataInicio?: string;
