@@ -7398,9 +7398,12 @@ export type Database = {
       }
       stg_produtos_atualizado: {
         Row: {
+          acao: string | null
+          classe: string | null
           estoque: number | null
           fornecedor_nome: string | null
           grupo_nome: string | null
+          igual_sku: string | null
           nome: string | null
           peso: number | null
           preco_custo: number | null
@@ -7414,9 +7417,12 @@ export type Database = {
           variacoes: string | null
         }
         Insert: {
+          acao?: string | null
+          classe?: string | null
           estoque?: number | null
           fornecedor_nome?: string | null
           grupo_nome?: string | null
+          igual_sku?: string | null
           nome?: string | null
           peso?: number | null
           preco_custo?: number | null
@@ -7430,9 +7436,12 @@ export type Database = {
           variacoes?: string | null
         }
         Update: {
+          acao?: string | null
+          classe?: string | null
           estoque?: number | null
           fornecedor_nome?: string | null
           grupo_nome?: string | null
+          igual_sku?: string | null
           nome?: string | null
           peso?: number | null
           preco_custo?: number | null
@@ -8910,6 +8919,10 @@ export type Database = {
         Returns: Json
       }
       consolidar_lote_financeiro: { Args: { p_lote_id: string }; Returns: Json }
+      consolidar_produto: {
+        Args: { p_destino: string; p_origem: string }
+        Returns: undefined
+      }
       converter_orcamento_em_ov: {
         Args: {
           p_data_po?: string
@@ -9266,6 +9279,10 @@ export type Database = {
       }
       replace_pedido_compra_itens: {
         Args: { p_itens: Json; p_pedido_id: string }
+        Returns: Json
+      }
+      restaurar_migracao_produtos: {
+        Args: { p_execucao: string }
         Returns: Json
       }
       salvar_nota_fiscal: {
