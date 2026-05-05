@@ -5776,6 +5776,102 @@ export type Database = {
           },
         ]
       }
+      produto_migracao_backup: {
+        Row: {
+          criado_em: string
+          id: string
+          produto_id: string
+          snapshot: Json
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          produto_id: string
+          snapshot: Json
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          produto_id?: string
+          snapshot?: Json
+        }
+        Relationships: []
+      }
+      produto_migracao_log: {
+        Row: {
+          acao: string | null
+          data_execucao: string
+          erro: string | null
+          id: number
+          produto_id_destino: string | null
+          produto_id_origem: string | null
+          qtd_registros: number | null
+          sku_destino: string | null
+          sku_origem: string | null
+          status: string | null
+          tabela_afetada: string | null
+        }
+        Insert: {
+          acao?: string | null
+          data_execucao?: string
+          erro?: string | null
+          id?: number
+          produto_id_destino?: string | null
+          produto_id_origem?: string | null
+          qtd_registros?: number | null
+          sku_destino?: string | null
+          sku_origem?: string | null
+          status?: string | null
+          tabela_afetada?: string | null
+        }
+        Update: {
+          acao?: string | null
+          data_execucao?: string
+          erro?: string | null
+          id?: number
+          produto_id_destino?: string | null
+          produto_id_origem?: string | null
+          qtd_registros?: number | null
+          sku_destino?: string | null
+          sku_origem?: string | null
+          status?: string | null
+          tabela_afetada?: string | null
+        }
+        Relationships: []
+      }
+      produto_migracao_mapa: {
+        Row: {
+          criado_em: string
+          id: string
+          motivo: string | null
+          produto_id_destino: string | null
+          produto_id_origem: string | null
+          sku_destino: string | null
+          sku_origem: string | null
+          status: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          motivo?: string | null
+          produto_id_destino?: string | null
+          produto_id_origem?: string | null
+          sku_destino?: string | null
+          sku_origem?: string | null
+          status?: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          motivo?: string | null
+          produto_id_destino?: string | null
+          produto_id_origem?: string | null
+          sku_destino?: string | null
+          sku_origem?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       produtos: {
         Row: {
           ativo: boolean
@@ -7299,6 +7395,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stg_produtos_atualizado: {
+        Row: {
+          estoque: number | null
+          fornecedor_nome: string | null
+          grupo_nome: string | null
+          nome: string | null
+          peso: number | null
+          preco_custo: number | null
+          preco_venda: number | null
+          ref_fornecedor: string | null
+          site_fornecedor: string | null
+          sku_canonico: string | null
+          sku_origem: string | null
+          status: string | null
+          un: string | null
+          variacoes: string | null
+        }
+        Insert: {
+          estoque?: number | null
+          fornecedor_nome?: string | null
+          grupo_nome?: string | null
+          nome?: string | null
+          peso?: number | null
+          preco_custo?: number | null
+          preco_venda?: number | null
+          ref_fornecedor?: string | null
+          site_fornecedor?: string | null
+          sku_canonico?: string | null
+          sku_origem?: string | null
+          status?: string | null
+          un?: string | null
+          variacoes?: string | null
+        }
+        Update: {
+          estoque?: number | null
+          fornecedor_nome?: string | null
+          grupo_nome?: string | null
+          nome?: string | null
+          peso?: number | null
+          preco_custo?: number | null
+          preco_venda?: number | null
+          ref_fornecedor?: string | null
+          site_fornecedor?: string | null
+          sku_canonico?: string | null
+          sku_origem?: string | null
+          status?: string | null
+          un?: string | null
+          variacoes?: string | null
+        }
+        Relationships: []
       }
       suppressed_emails: {
         Row: {
@@ -9106,6 +9253,10 @@ export type Database = {
       relatorio_migracao_faturamento: {
         Args: { p_lote_id: string }
         Returns: Json
+      }
+      remap_produto_fk: {
+        Args: { p_destino: string; p_origem: string }
+        Returns: undefined
       }
       remover_secret_vault: { Args: { p_name: string }; Returns: boolean }
       replace_cotacao_compra_itens: {
