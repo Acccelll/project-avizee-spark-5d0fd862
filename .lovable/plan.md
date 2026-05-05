@@ -1,7 +1,154 @@
 
-# Atualização segura do Cadastro de Produtos
+# Migração de Produtos — Plano Revisado v3
 
-## Estado atual (diagnóstico já realizado)
+Fonte de verdade: `produtos_Atualizado-3.xlsx` (aba `produtos`, 291 linhas).
+Snapshot atual do banco: `public.produtos` = 299 (248 ativos, 26 `LEG-*`, 25 `00000…`).
+
+## 1. Doutrina (regra autoritativa de `IGUAL SKU` × `Status`)
+
+| Caso | `IGUAL SKU` | `Status` | Ação |
+|---|---|---|---|
+| A | `OK` | `true` | Manter no ERP, garantir `ativo=true`. **Nunca excluir.** Vale inclusive para SKU `LEG-*`. |
+| B | `OK` | `false` | Manter no ERP, marcar `ativo=false` (descontinuado). Nunca excluir. Vale para `LEG-*`. |
+| C | SKU válido (≠ `OK`/`-`) | `true`/`false` | `Código SKU` é origem duplicada; `IGUAL SKU` é destino canônico. Remap das FKs origem→destino e **DELETE físico** da origem. |
+| D | `-`, vazio, ou genérico | `EXCLUIR` | Resolver por nome/variação no ERP; se match seguro com FKs, remap+delete; se sem FKs, delete direto; sem match seguro → pendência. |
+| E | `-`, vazio, genérico | `true`/`false` | Tratar como alias documental. Só remapear se houver match seguro por nome. Senão, pendência. **Não criar produto novo a partir desses.** |
+| F | qualquer | `EXCLUIR` (com SKU válido) | Mesma árvore D: sem FK→delete; com FK e destino→remap+delete; com FK sem destino→pendência. |
+
+Regras invioláveis:
+- **Nunca apagar** linha `IGUAL SKU=OK`, mesmo que `Status=false`, mesmo que SKU seja `LEG-*`.
+- **Nunca interpretar** `Status=false` como exclusão. É inativação.
+- Exclusão física só ocorre em (C), (D), (F).
+- `Código SKU` genérico (`-`, vazio, valores como `11`, repetidos) **não** é chave de remap direto.
+- Campos fiscais (NCM, CEST, CFOP, origem, CST/CSOSN, IPI/PIS/COFINS) jamais alterados.
+- `produtos.estoque_atual` só muda via `ajustar_estoque_manual` (`categoria_ajuste='migracao_baseline'`), nunca UPDATE direto.
+
+## 2. Diagnóstico da planilha v3
+
+- 291 linhas, colunas: `Código SKU, Produto, IGUAL SKU, UN, Variações, Estoque, P. Venda, P. Custo, Margem, Status`.
+- `IGUAL SKU=OK`: **193** → 167 ativos + 26 inativos (todos preservados).
+- `IGUAL SKU` apontando outro SKU: **97** → candidatos a consolidação+delete.
+- `Status=EXCLUIR`: 1 (`Torneira Cobb`, `IGUAL SKU=-`).
+- `Código SKU` vazio: 54 linhas (sempre com `IGUAL SKU` preenchido) — alias documental.
+
+FKs reais para `public.produtos(id)` (descobertas via `pg_constraint`, 16 referências em 15 tabelas):
+`compras_itens, cotacoes_compra_itens, estoque_movimentos, fechamento_estoque_saldos, nfe_distribuicao_itens, notas_fiscais_itens, orcamentos_itens, ordens_venda_itens, pedidos_compra_itens, precos_especiais, produto_composicoes (pai+filho), produto_identificadores_legacy, produtos_fornecedores, recebimentos_compra_itens, remessa_itens`. Lista bate com a hardcoded em `remap_produto_fk`. Validação dinâmica em cada execução: divergência → aborta o item.
+
+## 3. Fases (3 runs isolados)
+
+### Run 0 — Dry-run (read-only, zero escrita em `produtos`)
+
+1. Trunca `stg_produtos_atualizado`, `produto_migracao_mapa`, `produto_migracao_log`.
+2. Carrega 291 linhas em staging, classifica cada linha em uma das 6 categorias da tabela acima.
+3. Resolve `produto_id` por `LOWER(TRIM(sku))` em `produtos`.
+4. Monta `produto_migracao_mapa` com `acao` ∈ `{manter_ativo, manter_inativo, criar, atualizar, consolidar_e_excluir, excluir_direto, alias_pendente, pendente_manual}`.
+5. Identifica produtos órfãos (`produtos.sku` que **não** aparece em nenhuma das 291 linhas, nem como `Código SKU`, nem como `IGUAL SKU`) → registra como `orfao_revisao` (não exclui automaticamente; espera decisão).
+6. Pre-check: `pg_constraint` vs lista hardcoded de FKs.
+7. Gera `/mnt/documents/migracao_produtos_dryrun_v3.xlsx` com **uma aba por categoria**, conforme exigido:
+   - `OK_ativos` — `IGUAL SKU=OK` & `Status=true` (167)
+   - `OK_inativos` — `IGUAL SKU=OK` & `Status=false` (26)
+   - `apontamento_canonico` — `IGUAL SKU` aponta outro SKU (97)
+   - `codigo_invalido_generico` — `Código SKU` vazio/`-`/`11`/repetido
+   - `status_excluir` — todas as linhas `Status=EXCLUIR`
+   - `criar` — canônicos ausentes no banco
+   - `atualizar` — campos não-fiscais divergentes
+   - `inativar_descontinuar` — produtos a marcar `ativo=false`
+   - `remapear_relacoes` — pares origem→destino com FKs
+   - `excluir_fisicamente` — origens duplicadas + `EXCLUIR` sem FK
+   - `pendencias_manuais` — sem destino seguro
+   - `orfaos_no_banco` — produtos no banco sem qualquer referência na planilha
+   - `fk_check` — diff `pg_constraint` × hardcoded
+8. **Nenhum INSERT/UPDATE/DELETE em `public.produtos`.**
+
+### Run 1 — Aplicação não destrutiva
+
+- `criar`: INSERT em `produtos` (campos não-fiscais + `grupo_id` por nome + `ativo`).
+- `atualizar`: UPDATE de `nome, un, variacoes, preco_venda, preco_custo` quando divergir.
+- `manter_ativo`: garante `ativo=true` se estiver false.
+- `manter_inativo` / `inativar_descontinuar`: `ativo=false` (sem deletar). **Inclui LEG-* com `OK`+`false`**.
+- `Estoque` da planilha ≠ `estoque_atual` → `ajustar_estoque_manual(... 'migracao_baseline')`.
+- Sem DELETE, sem remap.
+
+### Run 2 — Consolidação e exclusão física
+
+Apenas itens marcados `consolidar_e_excluir` ou `excluir_direto`:
+1. Revalida `pg_constraint`; divergiu → aborta o item, marca `abortado`.
+2. Snapshot completo em `produto_migracao_backup`.
+3. Insere em `produto_identificadores_legacy(produto_id=destino, codigo_legado=sku_origem)`.
+4. `remap_produto_fk(origem, destino)` com dedup prévio em `produtos_fornecedores`/`produto_composicoes`.
+5. `DELETE FROM produtos WHERE id=origem` em `BEGIN/EXCEPTION` — falha de FK residual → `abortado`.
+
+`excluir_direto` (sem FK): `DELETE` direto e log `excluido_sem_relacoes`.
+
+Cada item em transação isolada. Falha de um não bloqueia os demais.
+
+## 4. Validações SQL pós-Run 2 (todas → 0)
+
+```sql
+-- duplicidade
+SELECT sku, count(*) FROM produtos GROUP BY 1 HAVING count(*)>1;
+
+-- toda linha OK da planilha presente
+SELECT s.sku_canonico FROM stg_produtos_atualizado s
+ WHERE s.classe IN ('OK_ativo','OK_inativo')
+   AND NOT EXISTS (SELECT 1 FROM produtos p
+                   WHERE upper(p.sku)=upper(s.sku_canonico));
+
+-- LEG-* com OK ainda existem
+SELECT count(*) FROM stg_produtos_atualizado s
+ WHERE s.sku_canonico LIKE 'LEG-%' AND s.classe LIKE 'OK%'
+   AND NOT EXISTS (SELECT 1 FROM produtos p WHERE p.sku=s.sku_canonico);
+
+-- nenhuma OV/NF órfã (repetido por FK descoberta)
+SELECT count(*) FROM <tabela_fk> t
+ WHERE t.<col> NOT IN (SELECT id FROM produtos);
+
+-- ativo bate com Status da planilha para itens OK
+SELECT count(*) FROM produtos p
+ JOIN stg_produtos_atualizado s ON upper(s.sku_canonico)=upper(p.sku)
+ WHERE s.classe LIKE 'OK%' AND p.ativo <> (s.status_planilha='true');
+```
+
+## 5. Rollback
+
+- `produto_migracao_backup` snapshota cada produto antes de qualquer mudança (id original preservado).
+- `restaurar_migracao_produtos(p_execucao timestamptz)`:
+  1. Reinsere produtos deletados (id original).
+  2. Para cada `acao='remap'` em `produto_migracao_log`, executa UPDATE inverso `destino → origem`.
+  3. Remove os aliases de `produto_identificadores_legacy` criados na execução.
+- Run 1 e Run 2 reversíveis independentemente por timestamp.
+
+## 6. Relatório final entregável
+
+`/mnt/documents/relatorio_migracao_produtos_v3.xlsx`, abas:
+`resumo, OK_ativos, OK_inativos, apontamento_canonico, codigo_invalido_generico, status_excluir, criados, atualizados, inativados, remapeados (origem→destino + qtd FKs por tabela), excluidos_com_remap, excluidos_direto, aliases_pendentes, pendencias_manuais, orfaos_no_banco, fk_check, antes_depois`.
+
+## 7. Entregáveis técnicos após aprovação
+
+1. Migration substituindo `executar_migracao_produtos` por versão 3-fases (`dry_run | aplicar_nao_destrutivo | consolidar_e_excluir`) com pre-check `pg_constraint` e função `restaurar_migracao_produtos`.
+2. Ajuste em `consolidar_produto` para `RAISE EXCEPTION` se FKs divergirem.
+3. Script Python que lê os logs e gera o XLSX em `/mnt/documents/`.
+4. Sequência: Run 0 → revisão sua → Run 1 → revisão → Run 2 → relatório final.
+
+Sem UI nova; tudo via RPC + script. Tabelas `produto_migracao_*` reaproveitadas.
+
+---
+
+## Histórico — versões anteriores deste plano
+
+(seção mantida só como referência; doutrina vigente está acima)
+
+### Estado anterior (diagnóstico inicial)
+
+- 275 produtos antes da Run 1 da v1; após primeira execução (24 criados) foi para 299.
+
+### Notas operacionais herdadas
+
+- `produtos_fornecedores` / `produto_composicoes`: deduplicar por `(produto_id, fornecedor_id)` / `(produto_pai_id, produto_filho_id)` antes do UPDATE para não violar `UNIQUE`.
+- `produto_migracao_mapa.UNIQUE(produto_id_origem)` garante idempotência.
+- Pendências esperadas: `Torneira Cobb`, linhas com SKU genérico sem match.
+
+## (legado, não autoritativo) Estado atual
 
 - **ERP (`produtos`)**: 275 registros. 51 com SKU legado (`00000000…` ou `LEG-…`), todos `ativo=false`. Duplicidades reais por SKU: apenas `MA004` e `VR039` (2 cada).
 - **`produtos_Atualizado.xlsx` / aba `produtos`**: 291 linhas. Colunas: `Código SKU, Produto, IGUAL SKU, UN, Variações, Estoque, P. Venda, P. Custo, Margem, Status`.
