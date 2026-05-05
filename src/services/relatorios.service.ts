@@ -45,6 +45,12 @@ import {
   loadNfeEntrada,
 } from "@/services/relatorios/loaders/compras";
 import { loadDivergencias } from "@/services/relatorios/loaders/divergencias";
+import {
+  loadCadastroProdutos,
+  loadCadastroClientes,
+  loadCadastroFornecedores,
+  loadCadastroTransportadoras,
+} from "@/services/relatorios/loaders/cadastros";
 
 // Re-export tipos públicos para preservar a API existente.
 export type {
@@ -100,6 +106,15 @@ export async function carregarRelatorio(
 
     case "divergencias":
       return loadDivergencias(filtros);
+
+    case "cadastro_produtos":
+      return loadCadastroProdutos(filtros);
+    case "cadastro_clientes":
+      return loadCadastroClientes(filtros);
+    case "cadastro_fornecedores":
+      return loadCadastroFornecedores(filtros);
+    case "cadastro_transportadoras":
+      return loadCadastroTransportadoras(filtros);
 
     case "aging":
     default:
