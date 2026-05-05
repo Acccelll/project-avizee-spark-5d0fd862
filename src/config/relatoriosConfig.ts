@@ -30,6 +30,9 @@ import {
   Building2,
   Landmark,
   Boxes,
+  Users,
+  ContactRound,
+  IdCard,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -37,7 +40,8 @@ export type ReportCategory =
   | 'comercial'
   | 'financeiro'
   | 'estoque_suprimentos'
-  | 'fiscal_faturamento';
+  | 'fiscal_faturamento'
+  | 'cadastros';
 
 export type ChartType = 'bar' | 'pie' | 'line';
 
@@ -780,6 +784,177 @@ const divergenciasConfig: ReportConfig = {
   ],
 };
 
+// ─── Cadastros ─────────────────────────────────────────────────────────────
+
+const cadastroProdutosConfig: ReportConfig = {
+  id: 'cadastro_produtos',
+  title: 'Cadastro de Produtos',
+  description: 'Visão consolidada do cadastro de produtos e insumos',
+  objective: 'Auditoria do cadastro: completude de custo, preço, NCM e grupo',
+  category: 'cadastros',
+  icon: Package,
+  chartType: 'pie',
+  columns: [
+    { key: 'sku', label: 'SKU' },
+    { key: 'codigo', label: 'Cód. Interno' },
+    { key: 'produto', label: 'Produto' },
+    { key: 'grupo', label: 'Grupo' },
+    { key: 'unidade', label: 'UN', align: 'center' },
+    { key: 'tipo', label: 'Tipo', format: 'badge' },
+    { key: 'ncm', label: 'NCM' },
+    { key: 'origem', label: 'Origem' },
+    { key: 'custo', label: 'Custo', format: 'currency', align: 'right' },
+    { key: 'precoVenda', label: 'Preço Venda', format: 'currency', align: 'right' },
+    { key: 'margem', label: 'Margem %', format: 'percent', align: 'right' },
+    { key: 'estoque', label: 'Estoque', format: 'quantity', align: 'right' },
+    { key: 'estoqueMinimo', label: 'Mínimo', format: 'quantity', align: 'right' },
+    { key: 'situacao', label: 'Situação', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: false,
+    showClientes: false,
+    showFornecedores: false,
+    showGrupos: true,
+    showStatus: false,
+    showTipos: false,
+  },
+  kpis: [
+    { key: 'total', label: 'Total Cadastrados', format: 'number', variation: 'itens' },
+    { key: 'ativos', label: 'Ativos', format: 'number', variant: 'success', variation: 'itens' },
+    { key: 'inativos', label: 'Inativos', format: 'number', variation: 'itens' },
+    { key: 'semCusto', label: 'Sem Custo', format: 'number', variant: 'warning', variation: 'itens' },
+    { key: 'semPreco', label: 'Sem Preço', format: 'number', variant: 'warning', variation: 'itens' },
+    { key: 'semNcm', label: 'Sem NCM', format: 'number', variant: 'warning', variation: 'itens' },
+    { key: 'semGrupo', label: 'Sem Grupo', format: 'number', variant: 'warning', variation: 'itens' },
+  ],
+  drillDown: [
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
+  ],
+};
+
+const cadastroClientesConfig: ReportConfig = {
+  id: 'cadastro_clientes',
+  title: 'Cadastro de Clientes',
+  description: 'Visão consolidada da base de clientes',
+  objective: 'Auditoria do cadastro de clientes (completude e situação)',
+  category: 'cadastros',
+  icon: ContactRound,
+  chartType: 'pie',
+  columns: [
+    { key: 'tipoPessoa', label: 'Tipo', align: 'center' },
+    { key: 'cliente', label: 'Nome / Razão Social' },
+    { key: 'fantasia', label: 'Fantasia' },
+    { key: 'cpfCnpj', label: 'CPF / CNPJ' },
+    { key: 'municipio', label: 'Município' },
+    { key: 'uf', label: 'UF', align: 'center' },
+    { key: 'email', label: 'E-mail' },
+    { key: 'telefone', label: 'Telefone' },
+    { key: 'limiteCredito', label: 'Lim. Crédito', format: 'currency', align: 'right' },
+    { key: 'prazo', label: 'Prazo', format: 'number', align: 'right' },
+    { key: 'grupoEconomico', label: 'Grupo Econômico' },
+    { key: 'situacao', label: 'Situação', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: false,
+    showClientes: true,
+    showFornecedores: false,
+    showGrupos: false,
+    showStatus: false,
+    showTipos: false,
+  },
+  kpis: [
+    { key: 'total', label: 'Total Cadastrados', format: 'number', variation: 'clientes' },
+    { key: 'ativos', label: 'Ativos', format: 'number', variant: 'success', variation: 'clientes' },
+    { key: 'inativos', label: 'Inativos', format: 'number', variation: 'clientes' },
+    { key: 'semEmail', label: 'Sem E-mail', format: 'number', variant: 'warning', variation: 'clientes' },
+    { key: 'semTelefone', label: 'Sem Telefone', format: 'number', variant: 'warning', variation: 'clientes' },
+    { key: 'semCpfCnpj', label: 'Sem CPF/CNPJ', format: 'number', variant: 'warning', variation: 'clientes' },
+    { key: 'comLimite', label: 'Com Lim. Crédito', format: 'number', variant: 'info', variation: 'clientes' },
+  ],
+  drillDown: [
+    { key: 'cliente', label: 'Abrir cliente', route: '/clientes', targetField: 'clienteId', available: true },
+  ],
+};
+
+const cadastroFornecedoresConfig: ReportConfig = {
+  id: 'cadastro_fornecedores',
+  title: 'Cadastro de Fornecedores',
+  description: 'Visão consolidada da base de fornecedores',
+  objective: 'Auditoria do cadastro de fornecedores (completude e situação)',
+  category: 'cadastros',
+  icon: Users,
+  chartType: 'pie',
+  columns: [
+    { key: 'tipoPessoa', label: 'Tipo', align: 'center' },
+    { key: 'fornecedor', label: 'Nome / Razão Social' },
+    { key: 'fantasia', label: 'Fantasia' },
+    { key: 'cpfCnpj', label: 'CPF / CNPJ' },
+    { key: 'municipio', label: 'Município' },
+    { key: 'uf', label: 'UF', align: 'center' },
+    { key: 'email', label: 'E-mail' },
+    { key: 'telefone', label: 'Telefone' },
+    { key: 'prazo', label: 'Prazo', format: 'number', align: 'right' },
+    { key: 'origem', label: 'Origem' },
+    { key: 'transportadora', label: 'Transp.', align: 'center' },
+    { key: 'situacao', label: 'Situação', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: false,
+    showClientes: false,
+    showFornecedores: true,
+    showGrupos: false,
+    showStatus: false,
+    showTipos: false,
+  },
+  kpis: [
+    { key: 'total', label: 'Total Cadastrados', format: 'number', variation: 'fornecedores' },
+    { key: 'ativos', label: 'Ativos', format: 'number', variant: 'success', variation: 'fornecedores' },
+    { key: 'inativos', label: 'Inativos', format: 'number', variation: 'fornecedores' },
+    { key: 'semCnpj', label: 'Sem CNPJ', format: 'number', variant: 'warning', variation: 'fornecedores' },
+    { key: 'semContato', label: 'Sem Contato', format: 'number', variant: 'warning', variation: 'fornecedores' },
+    { key: 'transportadoras', label: 'Transportadoras', format: 'number', variant: 'info', variation: 'fornecedores' },
+  ],
+  drillDown: [
+    { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', targetField: 'fornecedorId', available: true },
+  ],
+};
+
+const cadastroTransportadorasConfig: ReportConfig = {
+  id: 'cadastro_transportadoras',
+  title: 'Cadastro de Transportadoras',
+  description: 'Fornecedores marcados como transportadoras',
+  objective: 'Lista de transportadoras cadastradas',
+  category: 'cadastros',
+  icon: IdCard,
+  chartType: 'pie',
+  columns: [
+    { key: 'transportadora', label: 'Nome / Razão Social' },
+    { key: 'cpfCnpj', label: 'CNPJ' },
+    { key: 'municipio', label: 'Município' },
+    { key: 'uf', label: 'UF', align: 'center' },
+    { key: 'email', label: 'E-mail' },
+    { key: 'telefone', label: 'Telefone' },
+    { key: 'situacao', label: 'Situação', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: false,
+    showClientes: false,
+    showFornecedores: false,
+    showGrupos: false,
+    showStatus: false,
+    showTipos: false,
+  },
+  kpis: [
+    { key: 'total', label: 'Total', format: 'number', variation: 'transportadoras' },
+    { key: 'ativos', label: 'Ativas', format: 'number', variant: 'success', variation: 'transportadoras' },
+    { key: 'inativos', label: 'Inativas', format: 'number', variation: 'transportadoras' },
+    { key: 'semContato', label: 'Sem Contato', format: 'number', variant: 'warning', variation: 'transportadoras' },
+  ],
+  drillDown: [
+    { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', targetField: 'fornecedorId', available: true },
+  ],
+};
+
 // ---------------------------------------------------------------------------
 // Exported maps
 // ---------------------------------------------------------------------------
@@ -801,6 +976,10 @@ export const reportConfigs: Record<TipoRelatorio, ReportConfig> = {
   curva_abc: curvaAbcConfig,
   margem_produtos: margemConfig,
   divergencias: divergenciasConfig,
+  cadastro_produtos: cadastroProdutosConfig,
+  cadastro_clientes: cadastroClientesConfig,
+  cadastro_fornecedores: cadastroFornecedoresConfig,
+  cadastro_transportadoras: cadastroTransportadorasConfig,
 };
 
 export const reportCategoryMeta: Record<
@@ -811,6 +990,7 @@ export const reportCategoryMeta: Record<
   financeiro: { title: 'Financeiro', icon: Landmark },
   estoque_suprimentos: { title: 'Estoque e Suprimentos', icon: Boxes },
   fiscal_faturamento: { title: 'Fiscal / Faturamento', icon: Receipt },
+  cadastros: { title: 'Cadastros', icon: ContactRound },
 };
 
 export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntimeSemantics>> = {
@@ -886,4 +1066,8 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
   // Fluxo de caixa: o período filtra por `data_pagamento` (ou `data_vencimento` quando ainda não pago).
   fluxo_caixa: { valueSortField: 'saldo', dateSortField: 'data', periodAxisLabel: 'data de pagamento (ou vencimento)', highlightFilters: ['periodo', 'tipo'] },
   margem_produtos: { valueSortField: 'margem', periodAxisLabel: 'margem calculada na carteira', highlightFilters: ['grupos'], investigableField: 'produto' },
+  cadastro_produtos: { statusField: 'situacao', valueSortField: 'estoque', periodAxisLabel: 'situação atual do cadastro', highlightFilters: ['grupos'], investigableField: 'produto' },
+  cadastro_clientes: { statusField: 'situacao', periodAxisLabel: 'situação atual do cadastro', highlightFilters: ['clientes'], investigableField: 'cliente' },
+  cadastro_fornecedores: { statusField: 'situacao', periodAxisLabel: 'situação atual do cadastro', highlightFilters: ['fornecedores'], investigableField: 'fornecedor' },
+  cadastro_transportadoras: { statusField: 'situacao', periodAxisLabel: 'situação atual do cadastro', investigableField: 'transportadora' },
 };
