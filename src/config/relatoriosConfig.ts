@@ -30,6 +30,9 @@ import {
   Building2,
   Landmark,
   Boxes,
+  Users,
+  ContactRound,
+  IdCard,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -37,7 +40,8 @@ export type ReportCategory =
   | 'comercial'
   | 'financeiro'
   | 'estoque_suprimentos'
-  | 'fiscal_faturamento';
+  | 'fiscal_faturamento'
+  | 'cadastros';
 
 export type ChartType = 'bar' | 'pie' | 'line';
 
