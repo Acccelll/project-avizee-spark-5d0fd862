@@ -1066,4 +1066,8 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
   // Fluxo de caixa: o período filtra por `data_pagamento` (ou `data_vencimento` quando ainda não pago).
   fluxo_caixa: { valueSortField: 'saldo', dateSortField: 'data', periodAxisLabel: 'data de pagamento (ou vencimento)', highlightFilters: ['periodo', 'tipo'] },
   margem_produtos: { valueSortField: 'margem', periodAxisLabel: 'margem calculada na carteira', highlightFilters: ['grupos'], investigableField: 'produto' },
+  cadastro_produtos: { statusField: 'situacao', valueSortField: 'estoque', periodAxisLabel: 'situação atual do cadastro', highlightFilters: ['grupos'], investigableField: 'produto' },
+  cadastro_clientes: { statusField: 'situacao', periodAxisLabel: 'situação atual do cadastro', highlightFilters: ['clientes'], investigableField: 'cliente' },
+  cadastro_fornecedores: { statusField: 'situacao', periodAxisLabel: 'situação atual do cadastro', highlightFilters: ['fornecedores'], investigableField: 'fornecedor' },
+  cadastro_transportadoras: { statusField: 'situacao', periodAxisLabel: 'situação atual do cadastro', investigableField: 'transportadora' },
 };
