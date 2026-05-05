@@ -8960,6 +8960,7 @@ export type Database = {
         Args: { p_compra_id: string; p_motivo?: string }
         Returns: Json
       }
+      executar_migracao_produtos: { Args: { p_fase?: string }; Returns: Json }
       existe_secret_vault: { Args: { p_name: string }; Returns: boolean }
       expedir_remessa: {
         Args: { p_data_expedicao?: string; p_remessa_id: string }
