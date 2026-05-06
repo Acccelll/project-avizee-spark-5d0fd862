@@ -320,6 +320,7 @@ const GruposEconomicos = () => {
       key: "nome",
       label: "Nome do Grupo",
       sortable: true,
+      serverSortable: true,
       render: (g: GrupoEconomico) => {
         const matrizNome = g.empresa_matriz_id ? matrizNomeMap[g.empresa_matriz_id] : null;
         return (
@@ -368,6 +369,7 @@ const GruposEconomicos = () => {
       key: "created_at",
       label: "Cadastro",
       hidden: true,
+      serverSortable: true,
       render: (g: GrupoEconomico) => (
         <span className="text-xs text-muted-foreground">{g.created_at ? formatDate(g.created_at) : "—"}</span>
       ),
