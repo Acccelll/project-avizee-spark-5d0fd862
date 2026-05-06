@@ -3,7 +3,7 @@ import {
   fetchMovimentacoes,
   fetchMovimentacoesPorProduto,
   type EstoqueMovimento,
-} from "../services/estoque.service";
+} from "@/services/estoque.service";
 
 export function useEstoqueMovimentacoes(produtoId?: string) {
   return useQuery<EstoqueMovimento[], Error>({
