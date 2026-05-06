@@ -377,7 +377,7 @@ const Pedidos = () => {
           searchPlaceholder="Buscar por número, PO, cliente ou orçamento..."
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => { setSearchTerm(""); setStatusFilters([]); setFaturamentoFilters([]); setClienteFilters([]); setPrazoFilters([]); setDataInicio(""); setDataFim(""); }}
+          onClearAll={() => clearFilters()}
           count={filteredData.length}
         >
           <MultiSelect
