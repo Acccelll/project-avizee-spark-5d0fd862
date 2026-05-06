@@ -63,6 +63,17 @@ Deno.serve(async (req) => {
       parsed = { raw: text };
     }
 
+    console.log("[consultadanfe] upstream", {
+      action,
+      status: upstream.status,
+      contentType: upstream.headers.get("content-type"),
+      keys:
+        parsed && typeof parsed === "object"
+          ? Object.keys(parsed as Record<string, unknown>)
+          : null,
+      sample: text.slice(0, 400),
+    });
+
     return new Response(
       JSON.stringify({
         ok: upstream.ok,
