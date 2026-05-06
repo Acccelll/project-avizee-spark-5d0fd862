@@ -7,17 +7,13 @@ export interface OrcamentoLifecycleResult {
 }
 
 export async function enviarOrcamentoAprovacao(id: string): Promise<OrcamentoLifecycleResult> {
-  const { data, error } = await supabase.rpc("enviar_orcamento_aprovacao" as never, {
-    p_id: id,
-  } as never);
+  const { data, error } = await supabase.rpc("enviar_orcamento_aprovacao", { p_id: id });
   if (error) throw new Error(error.message);
-  return data as OrcamentoLifecycleResult;
+  return data as unknown as OrcamentoLifecycleResult;
 }
 
 export async function aprovarOrcamento(id: string): Promise<OrcamentoLifecycleResult> {
-  const { data, error } = await supabase.rpc("aprovar_orcamento" as never, {
-    p_id: id,
-  } as never);
+  const { data, error } = await supabase.rpc("aprovar_orcamento", { p_id: id });
   if (error) throw new Error(error.message);
-  return data as OrcamentoLifecycleResult;
+  return data as unknown as OrcamentoLifecycleResult;
 }
