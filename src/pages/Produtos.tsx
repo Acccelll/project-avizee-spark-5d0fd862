@@ -13,6 +13,7 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useFieldUnique } from "@/hooks/useFieldUnique";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,10 +254,18 @@ const Produtos = () => {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const { form, setForm, updateForm, reset: resetForm, markPristine, isDirty } = useEditDirtyForm<ProdutoFormData>(emptyProduto);
   const { saving, submit } = useSubmitLock();
+  // Validação de SKU único — feedback inline + bloqueio antes do submit.
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
   const [fornecedoresList, setFornecedoresList] = useState<{id: string; nome_razao_social: string}[]>([]);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
+  const { isUnique: skuUnico, isLoading: skuChecking } = useFieldUnique(
+    "produtos",
+    "sku",
+    form.sku || "",
+    editingProduct?.id,
+    { minLength: 2 },
+  );
   const [margemOverride, setMargemOverride] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [grupos, setGrupos] = useState<{id: string; nome: string; sigla?: string | null}[]>([]);
@@ -450,6 +459,14 @@ const Produtos = () => {
     }
     setFormErrors({});
 
+    // Bloqueio antes de chamar o banco para feedback imediato.
+    if (form.sku && skuChecking) { toast.error("Aguarde a verificação do SKU."); return; }
+    if (form.sku && skuUnico === false) {
+      setFormErrors((prev) => ({ ...prev, sku: "SKU já cadastrado em outro produto." }));
+      toast.error("SKU já cadastrado em outro produto.");
+      return;
+    }
+
     // Regras adicionais não cobertas pelo schema (sub-entidades)
     if (form.eh_composto && editComposicao.length === 0) { toast.error("Produto composto precisa de ao menos um componente"); return; }
     if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) { toast.error("Selecione o produto para todos os componentes"); return; }
@@ -511,9 +528,9 @@ const Produtos = () => {
           descricao_fornecedor: f.descricao_fornecedor || "",
           referencia_fornecedor: f.referencia_fornecedor || "",
           unidade_fornecedor: f.unidade_fornecedor || "",
-          lead_time_dias: f.lead_time_dias != null ? String(f.lead_time_dias) : "",
-          preco_compra: f.preco_compra != null ? String(f.preco_compra) : "",
-          fator_conversao: f.fator_conversao != null ? String(f.fator_conversao) : "1",
+          lead_time_dias: f.lead_time_dias ?? null,
+          preco_compra: f.preco_compra ?? null,
+          fator_conversao: f.fator_conversao ?? 1,
         }));
       await saveProdutoFornecedores({
         produtoId,
@@ -1058,6 +1075,14 @@ const Produtos = () => {
                     <Wand2 className="h-4 w-4" />
                   </Button>
                 </div>
+                {skuChecking && form.sku && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    Verificando SKU...
+                  </p>
+                )}
+                {!skuChecking && skuUnico === false && (
+                  <p className="text-xs text-destructive">SKU já cadastrado em outro produto.</p>
+                )}
                 {form.grupo_id && !grupos.find(g => g.id === form.grupo_id)?.sigla && (
                   <p className="text-[11px] text-muted-foreground">
                     Defina uma sigla no grupo para gerar SKU automático (ex.: AG, SR).

@@ -82,10 +82,8 @@ Resolve A-03 e BK-02.
 
 ### 5c. Validações Produtos (M-07, BK-05)
 
-- **M-07** SKU único: `useDocumentoUnico` genérico ou novo hook `useFieldUnique('produtos','sku',id)` + index único parcial onde `sku IS NOT NULL`.
-- **BK-05** Tipagem RPC `save_produto_fornecedores`: passar `number` direto, atualizar tipos em `src/types/rpc.ts`.
-
-Validação: criar produto com itens, conferir scroll natural, SKU duplicado bloqueado.
+- **M-07 ✅** Hook genérico `useFieldUnique` criado; usado em `Produtos.tsx` para SKU. Índice único parcial `produtos_sku_unique` aplicado.
+- **BK-05 ✅** `saveProdutoFornecedores` agora aceita `lead_time_dias`/`preco_compra`/`fator_conversao` como `number | null`; call site convertido (`?? null` / `?? 1`). RPC continua tolerante a tipos via `->>::`.
 
 ### 5d. Filtros server-side em listas (C-03) ✅
 
