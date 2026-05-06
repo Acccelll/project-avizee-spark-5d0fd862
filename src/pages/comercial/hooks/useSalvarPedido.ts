@@ -25,10 +25,12 @@ export function useSalvarPedido() {
   const qc = useQueryClient();
   return useMutation<void, Error, SalvarPedidoInput>({
     mutationFn: async ({ id, patch }) => {
-      const { error } = await supabase
-        .from("ordens_venda")
-        .update({ ...patch, updated_at: new Date().toISOString() })
-        .eq("id", id);
+      // F-02: usa RPC `salvar_pedido_operacional` (SECURITY DEFINER + search_path)
+      // para garantir trilha de auditoria via trigger único e validações server-side.
+      const { error } = await supabase.rpc("salvar_pedido_operacional", {
+        p_id: id,
+        p_patch: patch as never,
+      });
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
