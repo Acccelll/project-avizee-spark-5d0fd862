@@ -189,6 +189,7 @@ const Fiscal = () => {
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
   const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
+  const [buscarChaveInicial, setBuscarChaveInicial] = useState<string | undefined>(undefined);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [danfeOpen, setDanfeOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<Record<string, unknown> | null>(null);
@@ -1112,6 +1113,8 @@ const Fiscal = () => {
             ref={xmlInputRef}
             onXmlChange={handleXmlImport}
             onImportClick={() => xmlInputRef.current?.click()}
+            onBuscarChaveClick={() => setBuscarChaveOpen(true)}
+            onScannerClick={() => setScannerOpen(true)}
           />
         }
       >
@@ -1489,7 +1492,11 @@ const Fiscal = () => {
       {/* Busca de NF-e por chave de acesso (44 dígitos) — DistDFe local + sync SEFAZ */}
       <BuscarPorChaveDialog
         open={buscarChaveOpen}
-        onClose={() => setBuscarChaveOpen(false)}
+        chaveInicial={buscarChaveInicial}
+        onClose={() => {
+          setBuscarChaveOpen(false);
+          setBuscarChaveInicial(undefined);
+        }}
         onXmlObtido={async (xml) => {
           try {
             await processarXmlImportado(xml);
@@ -1508,19 +1515,14 @@ const Fiscal = () => {
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onBuscarXml={(chave) => {
-          // Copia a chave para a área de transferência para o usuário colar
-          // no BuscarPorChaveDialog (que não aceita chave inicial via prop hoje).
-          void navigator.clipboard?.writeText(chave).catch(() => {});
           setScannerOpen(false);
+          setBuscarChaveInicial(chave);
           setBuscarChaveOpen(true);
-          toast.info("Chave copiada — cole no campo abaixo para buscar o XML.");
         }}
         onConsultarSituacao={(chave) => {
-          void navigator.clipboard?.writeText(chave).catch(() => {});
-          toast.info(
-            `Chave ${chave.slice(0, 6)}…${chave.slice(-4)} pronta. Use "Consultar SEFAZ" na nota correspondente para situação/protocolo.`,
-          );
           setScannerOpen(false);
+          setBuscarChaveInicial(chave);
+          setBuscarChaveOpen(true);
         }}
       />
 
