@@ -87,6 +87,11 @@ Resolve A-03 e BK-02.
 
 Validação: criar produto com itens, conferir scroll natural, SKU duplicado bloqueado.
 
+### 5d. Filtros server-side em listas (C-03, parcial) ✅
+
+- **Clientes** e **Fornecedores**: dropdowns de tipo/status/grupo agora viram filtros do `useSupabaseCrud` (`tipo_pessoa`, `ativo`, `grupo_economico_id`). Apenas o caso "sem_grupo" misto continua filtrando client-side.
+- **Pendente:** Produtos e GruposEconomicos (próxima onda) — formato dos filtros é mais complexo (categoria + tipo_item + faixas de preço) e merece sua própria iteração.
+
 ---
 
 ## Onda 6 — Estruturais médios (≈ 1-2 dias)
