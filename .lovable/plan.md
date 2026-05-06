@@ -104,10 +104,10 @@ Limpeza final e melhorias de UX/dados. **Status:** quase tudo feito.
 - ~~**MB-04** `GrupoEconomicoView` overflow-x-auto~~ ✅ feito.
 - ~~**MB-05** `MobileCollapsibleBlock` persistência via `useUserPreference`~~ ✅ feito (prop `persistKey`).
 - ~~**B-01** Deletar `UnidadesMedida.tsx`~~ ✅ feito.
-- **M-04** Documentar em `docs/dashboard-modelo.md` quais blocos ignoram o período global; complementar `ScopeBadge` com tooltip já existente.
+- ~~**M-04** Documentar em `docs/dashboard-modelo.md` escopo por bloco~~ ✅ feito.
 - ~~**M-01** ADR `docs/adr/004-meio-vs-condicao-pagamento.md`~~ ✅ feito.
-- **MB-02** `Socios.tsx` modal: `Tabs` com `sticky top-0` no `TabsList` para preservar contexto.
-- **MB-03** FormasPagamento intervalos: aumentar gap dos botões de linha (`gap-2` + `h-9 w-9`).
+- ~~**MB-02** `Socios.tsx` modal: `Tabs` sticky~~ ✅ feito.
+- ~~**MB-03** FormasPagamento intervalos: botões maiores~~ ✅ feito.
 
 ---
 
