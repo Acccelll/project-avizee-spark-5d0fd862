@@ -13,7 +13,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { SummaryCard } from "@/components/SummaryCard";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Edit, Trash2, DollarSign, Users, UserCheck, UserX, CalendarDays, FileText, AlertTriangle, CheckCircle2, HelpCircle, Loader2, Info } from "lucide-react";
+import { DollarSign, Users, UserCheck, UserX, HelpCircle } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -22,34 +22,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { createFolhaPagamento, gerarFinanceiroFolha, deleteFuncionario } from "@/services/rh.service";
+import { deleteFuncionario } from "@/services/rh.service";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
-import { useEffect } from "react";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCan } from "@/hooks/useCan";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
-import { logger } from "@/lib/logger";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
   data_admissao: string; data_demissao: string | null; salario_base: number;
   tipo_contrato: string; observacoes: string; ativo: boolean; created_at: string;
-}
-
-interface FolhaPagamento {
-  id: string; funcionario_id: string; competencia: string; salario_base: number;
-  proventos: number; descontos: number; valor_liquido: number; observacoes: string;
-  status: string; financeiro_gerado: boolean;
-}
-
-interface FinanceiroLancamento {
-  id: string; descricao: string; valor: number; data_vencimento: string;
-  data_pagamento: string | null; status: string;
 }
 
 const tipoContratoLabel: Record<string, string> = { clt: "CLT", pj: "PJ", estagio: "Estágio", temporario: "Temporário" };
@@ -121,40 +108,22 @@ export default function Funcionarios() {
     onLoad: (f) => openEdit(f),
   });
 
-  // Folha states
-  const [folhaModalOpen, setFolhaModalOpen] = useState(false);
-  const [folhaForm, setFolhaForm] = useState({ competencia: "", proventos: 0, descontos: 0, observacoes: "" });
-  const [folhas, setFolhas] = useState<FolhaPagamento[]>([]);
-  const [loadingFolhas, setLoadingFolhas] = useState(false);
-
-  // Financeiro states
-  const [lancamentos, setLancamentos] = useState<FinanceiroLancamento[]>([]);
-  const [loadingLancamentos, setLoadingLancamentos] = useState(false);
-
   const kpis = useMemo(() => {
     const ativos = data.filter(f => f.ativo);
     const totalSalarios = ativos.reduce((s, f) => s + Number(f.salario_base || 0), 0);
     return { total: data.length, ativos: ativos.length, inativos: data.length - ativos.length, totalSalarios };
   }, [data]);
 
-  // Derived values used in the edit form context section
-  const lancamentosAbertos = lancamentos.filter(l => l.status === "aberto");
-
   const openCreate = () => {
     setMode("create");
     reset({ ...emptyForm });
     setSelected(null);
-    setFolhas([]);
-    setLancamentos([]);
     setModalOpen(true);
   };
   const openEdit = (f: Funcionario) => {
     setMode("edit"); setSelected(f);
     const next: FuncionarioForm = { nome: f.nome, cpf: f.cpf || "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo };
     reset(next);
-    // limpa estados de drawer-context para evitar mostrar dados de registro anterior por instante
-    setFolhas([]);
-    setLancamentos([]);
     setModalOpen(true);
   };
 
@@ -191,62 +160,13 @@ export default function Funcionarios() {
       if (mode === "create") await create(payload as Partial<Funcionario>);
       else if (selected) {
         await update(selected.id, payload as Partial<Funcionario>);
-        if (selected.ativo && !form.ativo && folhas.length > 0) {
-          toast.info(`${selected.nome} foi inativado. O histórico de folha foi preservado.`);
+        if (selected.ativo && !form.ativo) {
+          toast.info(`${selected.nome} foi inativado. O histórico de folha é preservado.`);
         }
       }
       markPristine();
       setModalOpen(false);
     });
-  };
-
-  const handleFolhaSubmit = async () => {
-    if (!selected || !folhaForm.competencia) { toast.error("Competência é obrigatória"); return; }
-    // Validate AAAA-MM format and prevent duplicate competência for the same employee.
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(folhaForm.competencia)) {
-      toast.error("Competência inválida. Use o formato AAAA-MM.");
-      return;
-    }
-    if (folhas.some((f) => f.competencia === folhaForm.competencia)) {
-      toast.error(`Já existe folha para a competência ${folhaForm.competencia}.`);
-      return;
-    }
-    const liquido = Number(selected.salario_base) + Number(folhaForm.proventos) - Number(folhaForm.descontos);
-    try {
-      await createFolhaPagamento({
-        funcionario_id: selected.id,
-        competencia: folhaForm.competencia,
-        salario_base: selected.salario_base,
-        proventos: folhaForm.proventos || 0,
-        descontos: folhaForm.descontos || 0,
-        valor_liquido: liquido,
-        observacoes: folhaForm.observacoes || null,
-        status: "processada",
-      });
-      toast.success("Folha registrada!");
-      setFolhaModalOpen(false);
-      openView(selected);
-    } catch (err) {
-      notifyError(err);
-    }
-  };
-
-  const handleFecharFolha = async (folha: FolhaPagamento) => {
-    if (folha.financeiro_gerado) {
-      toast.warning('Lançamentos financeiros já foram gerados para esta folha.');
-      return;
-    }
-    try {
-      const r = await gerarFinanceiroFolha(folha.id);
-      if (r?.erro) { toast.error(r.erro); return; }
-      toast.success(
-        `Lançamentos financeiros gerados: salário (${r.data_pagamento}) e FGTS (${r.data_fgts}).`,
-      );
-      if (selected) openView(selected);
-    } catch (err) {
-      logger.error('[funcionarios] erro ao gerar financeiro:', err);
-      notifyError(err);
-    }
   };
 
   const filteredData = useMemo(() => {
@@ -294,9 +214,6 @@ export default function Funcionarios() {
     { key: "cpf", label: "CPF", hidden: true, render: (f: Funcionario) => f.cpf || "—" },
     { key: "salario_base", label: "Salário Base", hidden: true, render: (f: Funcionario) => <span className="font-mono">{formatCurrency(Number(f.salario_base))}</span> },
   ];
-
-  // Current month as YYYY-MM for default competencia
-  const currentMonth = new Date().toISOString().slice(0, 7);
 
   return (
     <><ModulePage
@@ -507,47 +424,7 @@ export default function Funcionarios() {
             </div>
           </div>
 
-          {/* BLOCO: FOLHA / CONTEXTO FINANCEIRO (apenas em edição, quando há dados) */}
-          {mode === "edit" && !loadingFolhas && (folhas.length > 0 || lancamentos.length > 0) && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Folha / Contexto Financeiro</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-              <div className="rounded-lg border bg-muted/20 p-3 space-y-2.5">
-                <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>
-                    {folhas.length > 0
-                      ? `${folhas.length} competência${folhas.length !== 1 ? "s" : ""} de folha registrada${folhas.length !== 1 ? "s" : ""}. Este colaborador gera lançamentos financeiros.`
-                      : "Este colaborador possui lançamentos financeiros vinculados."}
-                  </span>
-                </p>
-                <div className={`grid gap-2 ${folhas[0] ? "grid-cols-3" : "grid-cols-1"}`}>
-                  {folhas[0] && (
-                    <>
-                      <div className="rounded-md border bg-background px-2.5 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Última Competência</p>
-                        <p className="font-mono text-sm font-medium mt-0.5">{folhas[0].competencia}</p>
-                      </div>
-                      <div className="rounded-md border bg-background px-2.5 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Líquido Recente</p>
-                        <p className="font-mono text-sm font-medium mt-0.5">{formatCurrency(Number(folhas[0].valor_liquido))}</p>
-                      </div>
-                    </>
-                  )}
-                  <div className="rounded-md border bg-background px-2.5 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Financeiro Pendente</p>
-                    <p className={`font-mono text-sm font-medium mt-0.5 ${lancamentosAbertos.length > 0 ? "text-warning dark:text-warning" : "text-muted-foreground"}`}>
-                      {lancamentosAbertos.length > 0
-                        ? `${lancamentosAbertos.length} aberto${lancamentosAbertos.length !== 1 ? "s" : ""}`
-                        : "Em dia"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Folha / contexto financeiro vivem no FuncionarioView (drawer) — fonte única. */}
 
           {/* BLOCO: OBSERVAÇÕES */}
           <div className="space-y-3">

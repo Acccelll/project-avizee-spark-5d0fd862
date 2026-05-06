@@ -34,7 +34,7 @@ Verifiquei item a item da matriz contra o código atual (`src/`, services, schem
 - ✅ **M-03** — `matrizNomeMap` já está em React Query (`useQuery` em `GruposEconomicos.tsx`).
 - ✅ **M-04** — Sinalização via `ScopeBadge` em todos os blocos (`global-range` / `fixed-window` / `snapshot`) consumindo `scopes` do `useDashboardData`.
 - ✅ **M-05** — Lookups de grupo/fornecedor/unidade migrados para React Query.
-- **M-06** — Folha de pagamento como modal aninhado em Funcionários (refator próprio).
+- ✅ **M-06** — Estado de folha removido do `Funcionarios.tsx` (era código morto: o JSX do modal não existia). Folha vive no `FuncionarioView` (drawer) como fonte única.
 - ✅ **M-07** — `useFieldUnique` no SKU + índice único parcial em `produtos.sku`.
 - ✅ **M-08** — NCM normalizado.
 - ✅ **M-09** — Mensagem ajustada para "Documento já cadastrado nesta tabela".
