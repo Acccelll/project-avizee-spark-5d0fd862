@@ -1749,9 +1749,8 @@ export default function OrcamentoForm() {
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
         onCreated={async (newId) => {
-          // Reload clients list and select the new one
-          const freshClientes = await listClientesAtivosOrcamento();
-          setClientes(freshClientes);
+          // Invalida o cache de clientes ativos para refletir o novo cadastro.
+          await queryClient.invalidateQueries({ queryKey: ["orcamento-form", "clientes-ativos"] });
           handleClienteChange(newId);
         }}
       />
