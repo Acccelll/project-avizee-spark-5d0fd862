@@ -589,7 +589,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
         nf={processarTarget}
         onClose={() => setProcessarTarget(null)}
         onProcessed={() => {
-          qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+          qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
           setProcessarTarget(null);
         }}
       />
