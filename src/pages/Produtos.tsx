@@ -253,6 +253,7 @@ const Produtos = () => {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const { form, setForm, updateForm, reset: resetForm, markPristine, isDirty } = useEditDirtyForm<ProdutoFormData>(emptyProduto);
   const { saving, submit } = useSubmitLock();
+  // Validação de SKU único — feedback inline + bloqueio antes do submit.
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
   const [fornecedoresList, setFornecedoresList] = useState<{id: string; nome_razao_social: string}[]>([]);
