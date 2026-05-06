@@ -31,6 +31,19 @@ export function useFaturarPedido() {
       toast.success(`NF ${result.nfNumero} gerada com sucesso!`);
     },
     onError: (err: Error) => {
+      // BK-02: tratar contenda de lock de numeração da NF com mensagem específica.
+      const msg = (err?.message || "").toLowerCase();
+      if (
+        msg.includes("lock_contention") ||
+        msg.includes("could not obtain lock") ||
+        msg.includes("lock timeout") ||
+        msg.includes("deadlock")
+      ) {
+        toast.error("Outro faturamento em andamento", {
+          description: "Aguarde alguns segundos e tente novamente. Outro usuário está gerando uma NF agora.",
+        });
+        return;
+      }
       notifyError(err);
     },
   });

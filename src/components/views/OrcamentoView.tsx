@@ -47,9 +47,17 @@ import {
   ExternalLink,
   AlertTriangle,
   GitBranch,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   id: string;
@@ -189,8 +197,9 @@ export function OrcamentoView({ id }: Props) {
     ),
     actions: (
       <>
+        {/* MB-02: em mobile só mostra ações primárias; secundárias vão para dropdown abaixo. */}
         {canSendOrcamento(selected.status) && (
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleSendForApproval} disabled={isAnyLocked}>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={handleSendForApproval} disabled={isAnyLocked}>
             <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
           </Button>
         )}
@@ -204,25 +213,26 @@ export function OrcamentoView({ id }: Props) {
             <ArrowRightCircle className="h-3.5 w-3.5" /> Converter em Pedido
           </Button>
         )}
+        {/* Desktop: ações secundárias inline */}
         {["aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleCriarRevisao} disabled={isAnyLocked}>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={handleCriarRevisao} disabled={isAnyLocked}>
             <GitBranch className="h-3.5 w-3.5" /> Criar revisão
           </Button>
         )}
         {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => pushView("ordem_venda", linkedOV.id)}>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={() => pushView("ordem_venda", linkedOV.id)}>
             <ExternalLink className="h-3.5 w-3.5" /> Ver Pedido {linkedOV.numero}
           </Button>
         )}
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
           <FileText className="h-3.5 w-3.5" /> PDF
         </Button>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Editar orçamento" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" aria-label="Editar orçamento" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
           <Edit className="h-3.5 w-3.5" /> Editar
         </Button>
         <Button
           variant="ghost" size="sm"
-          className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
           aria-label="Cancelar orçamento"
           onClick={() => {
             if (linkedOV) {
@@ -240,7 +250,7 @@ export function OrcamentoView({ id }: Props) {
         {isAdmin && (
           <Button
             variant="ghost" size="sm"
-            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
             aria-label="Excluir orçamento definitivamente"
             onClick={() => setPermDeleteOpen(true)}
             title="Remove o orçamento e seus vínculos do banco de dados (admin)"
@@ -248,6 +258,68 @@ export function OrcamentoView({ id }: Props) {
             <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
           </Button>
         )}
+
+        {/* Mobile: dropdown único com ações secundárias (Editar, PDF, Revisão, Cancelar...) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 md:hidden"
+              aria-label="Mais ações"
+              disabled={isAnyLocked}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+              <Edit className="h-4 w-4 mr-2" /> Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
+              <FileText className="h-4 w-4 mr-2" /> PDF
+            </DropdownMenuItem>
+            {canSendOrcamento(selected.status) && (
+              <DropdownMenuItem onClick={handleSendForApproval}>
+                <Send className="h-4 w-4 mr-2" /> Enviar p/ Aprovação
+              </DropdownMenuItem>
+            )}
+            {["aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
+              <DropdownMenuItem onClick={handleCriarRevisao}>
+                <GitBranch className="h-4 w-4 mr-2" /> Criar revisão
+              </DropdownMenuItem>
+            )}
+            {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
+              <DropdownMenuItem onClick={() => pushView("ordem_venda", linkedOV.id)}>
+                <ExternalLink className="h-4 w-4 mr-2" /> Ver Pedido {linkedOV.numero}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              disabled={Boolean(linkedOV)}
+              onClick={() => {
+                if (linkedOV) {
+                  toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
+                    description: `Pedido ${linkedOV.numero} está vinculado a este orçamento.`,
+                  });
+                  return;
+                }
+                setDeleteConfirmOpen(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Cancelar
+            </DropdownMenuItem>
+            {isAdmin && (
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setPermDeleteOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Excluir definitivamente
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </>
     ),
   } : {});
