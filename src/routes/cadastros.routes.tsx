@@ -4,6 +4,7 @@ import { PermissionRoute } from "@/components/PermissionRoute";
 import { LazyPage } from "./LazyPage";
 
 const Produtos = lazy(() => import("@/pages/Produtos"));
+const ProdutoForm = lazy(() => import("@/pages/produtos/ProdutoForm"));
 const Clientes = lazy(() => import("@/pages/Clientes"));
 const GruposEconomicos = lazy(() => import("@/pages/GruposEconomicos"));
 const Fornecedores = lazy(() => import("@/pages/Fornecedores"));
@@ -22,6 +23,8 @@ const Socios = lazy(() => import("@/pages/Socios"));
 export const cadastrosRoutes = (
   <>
     <Route path="/produtos" element={<PermissionRoute resource="produtos"><LazyPage><Produtos /></LazyPage></PermissionRoute>} />
+    <Route path="/produtos/novo" element={<PermissionRoute resource="produtos"><LazyPage><ProdutoForm /></LazyPage></PermissionRoute>} />
+    <Route path="/produtos/:id/editar" element={<PermissionRoute resource="produtos"><LazyPage><ProdutoForm /></LazyPage></PermissionRoute>} />
     <Route path="/clientes" element={<PermissionRoute resource="clientes"><LazyPage><Clientes /></LazyPage></PermissionRoute>} />
     <Route path="/fornecedores" element={<PermissionRoute resource="fornecedores"><LazyPage><Fornecedores /></LazyPage></PermissionRoute>} />
     <Route path="/transportadoras" element={<PermissionRoute resource="transportadoras"><LazyPage><Transportadoras /></LazyPage></PermissionRoute>} />
