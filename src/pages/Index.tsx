@@ -384,7 +384,7 @@ const DashboardContent = () => {
   return (
     <>
       {isMobile ? (
-        <MobileDashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
+        <MobileDashboardHeader lastUpdated={loadedAt} onRefresh={loadData} fetching={fetching} />
       ) : (
         <DashboardHeader
           lastUpdated={loadedAt}
