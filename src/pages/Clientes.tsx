@@ -135,10 +135,28 @@ const Clientes = () => {
   const { can } = useCan();
   const canExcluir = can("clientes:excluir");
 
+  const serverFilters = useMemo(() => {
+    const out: Array<{ column: string; value: string | string[] | boolean; operator?: "eq" | "in" }> = [];
+    if (tipoFilters.length === 1) out.push({ column: "tipo_pessoa", value: tipoFilters[0] });
+    else if (tipoFilters.length > 1) out.push({ column: "tipo_pessoa", value: tipoFilters, operator: "in" });
+    // grupo: "sem_grupo" representa grupo_economico_id IS NULL — não dá para empurrar para `in`,
+    // então só empurramos quando todos os valores são UUIDs reais.
+    const realGroupIds = grupoFilters.filter((g) => g !== "sem_grupo");
+    if (grupoFilters.length > 0 && realGroupIds.length === grupoFilters.length) {
+      if (realGroupIds.length === 1) out.push({ column: "grupo_economico_id", value: realGroupIds[0] });
+      else out.push({ column: "grupo_economico_id", value: realGroupIds, operator: "in" });
+    }
+    if (ativoFilters.length === 1) out.push({ column: "ativo", value: ativoFilters[0] === "ativo" });
+    return out;
+  }, [tipoFilters, grupoFilters, ativoFilters]);
+
+  const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
+
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Cliente>({
     table: "clientes",
     searchTerm: debouncedSearch,
     filterAtivo: false,
+    filter: serverFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
@@ -267,20 +285,15 @@ const Clientes = () => {
   const relacaoLabel: Record<string, string> = { matriz: "Matriz", filial: "Filial", coligada: "Coligada", independente: "Independente" };
   const updateForm = (updates: Partial<ClienteFormData>) => { setForm(prev => ({ ...prev, ...updates })); setIsDirty(true); };
 
+  // tipo/ativo/grupo agora são server-side. Apenas o caso especial
+  // "sem_grupo" misto (NULL + outros) ainda exige refinamento client-side.
   const filteredData = useMemo(() => {
+    if (!hasSemGrupoFilter) return data;
     return data.filter((cliente) => {
-      if (tipoFilters.length > 0 && !tipoFilters.includes(cliente.tipo_pessoa)) return false;
-      if (grupoFilters.length > 0) {
-        const groupId = cliente.grupo_economico_id || "sem_grupo";
-        if (!grupoFilters.includes(groupId)) return false;
-      }
-      if (ativoFilters.length > 0) {
-        const status = cliente.ativo ? "ativo" : "inativo";
-        if (!ativoFilters.includes(status)) return false;
-      }
-      return true;
+      const groupId = cliente.grupo_economico_id || "sem_grupo";
+      return grupoFilters.includes(groupId);
     });
-  }, [data, grupoFilters, tipoFilters, ativoFilters]);
+  }, [data, hasSemGrupoFilter, grupoFilters]);
 
   const columns = [
     {

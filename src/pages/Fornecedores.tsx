@@ -96,10 +96,23 @@ const Fornecedores = () => {
     onLoad: (f) => openEdit(f),
   });
 
+  const serverFilters = useMemo(() => {
+    const out: Array<{ column: string; value: string | string[] | boolean | boolean[]; operator?: "eq" | "in" }> = [];
+    if (tipoFilters.length === 1) out.push({ column: "tipo_pessoa", value: tipoFilters[0] });
+    else if (tipoFilters.length > 1) out.push({ column: "tipo_pessoa", value: tipoFilters, operator: "in" });
+    if (ativoFilters.length === 1) {
+      out.push({ column: "ativo", value: ativoFilters[0] === "ativo" });
+    } else if (ativoFilters.length === 2) {
+      // ambos selecionados → sem filtro
+    }
+    return out;
+  }, [tipoFilters, ativoFilters]);
+
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Fornecedor>({
     table: "fornecedores",
     searchTerm: debouncedSearch,
     filterAtivo: false,
+    filter: serverFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
@@ -239,17 +252,8 @@ const Fornecedores = () => {
     );
   };
 
-  const filteredData = useMemo(() => {
-    // Text search is now server-side; only apply local dropdown filters
-    return data.filter((fornecedor) => {
-      if (tipoFilters.length > 0 && !tipoFilters.includes(fornecedor.tipo_pessoa)) return false;
-      if (ativoFilters.length > 0) {
-        const status = fornecedor.ativo ? "ativo" : "inativo";
-        if (!ativoFilters.includes(status)) return false;
-      }
-      return true;
-    });
-  }, [data, tipoFilters, ativoFilters]);
+  // Filtros agora são server-side (`serverFilters`); a lista já vem filtrada.
+  const filteredData = data;
 
   const columns = [
   {
