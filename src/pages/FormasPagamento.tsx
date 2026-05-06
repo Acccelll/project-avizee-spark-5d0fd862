@@ -461,9 +461,23 @@ export default function FormasPagamento() {
                     ))
                   )}
                 </div>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" min={1} value={newIntervalo} onChange={(e) => setNewIntervalo(Number(e.target.value))} className="w-28 h-9 text-sm" placeholder="Dias" />
-                  <Button type="button" size="sm" variant="outline" className="h-9 gap-2" onClick={addIntervalo}>
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={newIntervalo}
+                    onChange={(e) => setNewIntervalo(Number(e.target.value))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addIntervalo();
+                      }
+                    }}
+                    className="w-full sm:w-28 h-9 text-sm"
+                    placeholder="Dias"
+                    inputMode="numeric"
+                  />
+                  <Button type="button" size="sm" variant="outline" className="h-9 gap-2 w-full sm:w-auto" onClick={addIntervalo}>
                     <Plus className="w-4 h-4" /> Adicionar parcela
                   </Button>
                 </div>
