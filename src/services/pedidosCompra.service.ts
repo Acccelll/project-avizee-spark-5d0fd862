@@ -67,7 +67,7 @@ export async function listFornecedoresAtivos(): Promise<FornecedorAtivo[]> {
 export async function listProdutosAtivos(): Promise<ProdutoAtivoRow[]> {
   const { data, error } = await supabase
     .from("produtos")
-    .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida")
+    .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, variacoes")
     .eq("ativo", true)
     .order("nome");
   if (error) throw new Error(error.message);
@@ -118,7 +118,7 @@ export async function listFornecedoresParaPedido() {
 export async function listProdutosParaPedido() {
   const { data, error } = await supabase
     .from("produtos")
-    .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, ativo")
+    .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, ativo, variacoes")
     .eq("ativo", true)
     .order("id", { ascending: false });
   if (error) throw error;
