@@ -61,3 +61,19 @@ Objetivo: fechar os 3 críticos (C-01, C-02, C-03) e os altos de baixo esforço 
 - Fase 3: depende de decisões de produto (A-04, M-02). Demais itens são edições pontuais.
 
 Aprove para eu começar pela Fase 1.
+
+---
+
+## Status de execução
+
+### Fase 1 — concluída
+- ✅ C-01 + M-01 + A-03: guard de status no `handleSave`, banner com "Criar revisão" e autosave bloqueado para não-rascunho.
+- ✅ C-02: `OrdemVendaView` checa `faturamento_fiscal:criar` || `pedidos:editar`.
+- ✅ C-03 + MB-03: nova RPC `acao_cliente_orcamento` (security definer, valida status/expiração, grava auditoria), `OrcamentoPublico` migrado pra RPC com guard de double-tap e min-h 44px nos CTAs.
+- ✅ A-01: `OrcamentoView` Aprovar usa `can("orcamentos:aprovar") || isAdmin`.
+- ✅ A-05: `BACKLOG_OV_STATUSES` agora inclui `'separado'`.
+- ✅ A-06: `PedidoForm` removeu status terminais do select e valida transição via `validarTransicaoPedido` antes de salvar.
+- ✅ BK-01 / BK-04: removidos `as never` dos rpc calls (`enviar_orcamento_aprovacao`, `aprovar_orcamento`, `cancelar_orcamento`, `cancelar_pedido_venda`).
+- ↪️  SH-03: `INVALIDATION_KEYS.conversaoOrcamento` já contém `"ordens_venda"`; resolução definitiva fica para Fase 2 junto da migração da grid.
+
+Próximo: Fase 2 (paginação, React Query na grid de Pedidos, lookups, realtime cleanup).
