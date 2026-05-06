@@ -25,6 +25,7 @@ import {
   listClientesVinculados,
   vincularClienteTransportadora,
   desvincularClienteTransportadora,
+  deleteTransportadora,
   type ClienteVinculadoView,
 } from "@/services/transportadoras.service";
 import { Button } from "@/components/ui/button";
