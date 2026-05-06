@@ -677,7 +677,7 @@ const Estoque = () => {
                           const p = produtosCrud.data.find((x) => x.id === form.produto_id);
                           return p ? (
                             <span className="truncate flex items-center gap-2">
-                              <span className="font-medium">{p.nome}</span>
+                              <span className="font-medium">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>
                               {p.sku && <span className="text-muted-foreground font-mono text-xs">({p.sku})</span>}
                               <span className="text-muted-foreground text-xs ml-1">Est: {formatNumber(p.estoque_atual)}</span>
                             </span>
@@ -700,7 +700,7 @@ const Estoque = () => {
                             {produtosCrud.data.filter((p) => p.ativo !== false).map((p) => (
                               <CommandItem
                                 key={p.id}
-                                value={[p.nome, p.sku, p.codigo_interno].filter(Boolean).join(" ")}
+                                value={[p.nome, formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes), p.sku, p.codigo_interno].filter(Boolean).join(" ")}
                                 onSelect={() => {
                                   setForm((f) => ({ ...f, produto_id: p.id }));
                                   setProdutoSelectorOpen(false);
@@ -708,7 +708,7 @@ const Estoque = () => {
                                 className={cn("gap-2 cursor-pointer", form.produto_id === p.id && "bg-primary/5")}
                               >
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{p.nome}</p>
+                                  <p className="font-medium text-sm truncate">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</p>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     {p.sku && <span className="text-[11px] text-muted-foreground font-mono">{p.sku}</span>}
                                     {p.codigo_interno && p.codigo_interno !== p.sku && <span className="text-[11px] text-muted-foreground font-mono">CI: {p.codigo_interno}</span>}
@@ -851,15 +851,14 @@ const Estoque = () => {
                       <h3 className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">Justificativa</h3>
                       <div className="space-y-2">
                   <Label>
-                    Motivo / Justificativa *{" "}
-                    <span className="text-xs font-normal text-muted-foreground">(obrigatório — explique causa raiz e referência operacional)</span>
+                    Motivo / Justificativa{" "}
+                    <span className="text-xs font-normal text-muted-foreground">(opcional — recomendado para auditoria)</span>
                   </Label>
                   <Textarea
                     value={form.motivo}
                     onChange={(e) => setForm({ ...form, motivo: e.target.value })}
                     placeholder="Descreva o motivo do ajuste (ex: contagem física, correção de lançamento, perda identificada...)"
                     rows={3}
-                    required
                   />
                       </div>
                     </CardContent>
