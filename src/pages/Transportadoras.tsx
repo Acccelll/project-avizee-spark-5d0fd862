@@ -513,11 +513,21 @@ export default function Transportadoras() {
             {/* ── TAB: DADOS GERAIS ─────────────────────────── */}
             <TabsContent value="dados-gerais" className="space-y-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+            <div className="col-span-2 md:col-span-1 space-y-2">
+              <Label>Tipo</Label>
+              <Select value={form.tipo_pessoa} onValueChange={(v) => setForm({ ...form, tipo_pessoa: v, cpf_cnpj: "" })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="J">Pessoa Jurídica</SelectItem>
+                  <SelectItem value="F">Pessoa Física</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="col-span-2 space-y-2">
-              <Label>CNPJ</Label>
+              <Label>{form.tipo_pessoa === "F" ? "CPF" : "CNPJ"}</Label>
               <div className="flex gap-1">
-                <MaskedInput mask="cnpj" value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
-                <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cnpjLoading}
+                <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
+                <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cnpjLoading || form.tipo_pessoa !== "J"}
                   aria-label="Buscar CNPJ"
                   title="Buscar dados pelo CNPJ e preencher automaticamente"
                   onClick={async () => {
@@ -535,17 +545,21 @@ export default function Transportadoras() {
                   {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground leading-tight">Informe o CNPJ e clique em buscar para preencher automaticamente.</p>
+              <p className="text-xs text-muted-foreground leading-tight">
+                {form.tipo_pessoa === "F"
+                  ? "Informe o CPF do transportador autônomo."
+                  : "Informe o CNPJ e clique em buscar para preencher automaticamente."}
+              </p>
               {docChecking && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
                 </p>
               )}
               {!docChecking && docUnico === false && (
-                <p className="text-xs text-destructive">CNPJ já cadastrado em cliente ou fornecedor.</p>
+                <p className="text-xs text-destructive">{form.tipo_pessoa === "F" ? "CPF" : "CNPJ"} já cadastrado em outra transportadora.</p>
               )}
             </div>
-            <div className="col-span-2 md:col-span-4 space-y-2">
+            <div className="col-span-2 md:col-span-3 space-y-2">
               <Label>Razão Social / Nome *</Label>
               <Input value={form.nome_razao_social} onChange={(e) => setForm({ ...form, nome_razao_social: e.target.value })} required placeholder="Razão social ou nome da transportadora" />
             </div>
