@@ -42,7 +42,15 @@ import {
   AlertTriangle,
   Edit,
   XCircle,
+  MoreHorizontal,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   id: string;
@@ -251,7 +259,9 @@ export function OrdemVendaView({ id }: Props) {
     ),
     actions: (
       <>
-        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => navigate(`/pedidos/${selected.id}`)}>
+        {/* MB-02: ações primárias visíveis em mobile (Gerar NF). Secundárias
+            (Editar, Cancelar, NFs vinculadas) movidas para dropdown em <md. */}
+        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={() => navigate(`/pedidos/${selected.id}`)}>
           <Edit className="h-3.5 w-3.5" /> Editar Pedido
         </Button>
         {canGenerateNF && (
@@ -264,7 +274,7 @@ export function OrdemVendaView({ id }: Props) {
           <Button
             size="sm"
             variant="outline"
-            className="h-8 gap-1.5 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+            className="h-8 gap-1.5 text-xs text-destructive border-destructive/40 hover:bg-destructive/10 hidden md:inline-flex"
             onClick={() => setCancelOpen(true)}
             disabled={locked("cancel_pedido")}
           >
@@ -272,10 +282,41 @@ export function OrdemVendaView({ id }: Props) {
           </Button>
         )}
         {notasFiscais.map((nf) => (
-          <Button key={nf.id} size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => pushView("nota_fiscal", nf.id)}>
+          <Button key={nf.id} size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={() => pushView("nota_fiscal", nf.id)}>
             <FileText className="h-3.5 w-3.5" /> NF {nf.numero}
           </Button>
         ))}
+
+        {/* Mobile: dropdown único com ações secundárias. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" className="h-8 w-8 md:hidden" aria-label="Mais ações">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => navigate(`/pedidos/${selected.id}`)}>
+              <Edit className="h-4 w-4 mr-2" /> Editar Pedido
+            </DropdownMenuItem>
+            {notasFiscais.map((nf) => (
+              <DropdownMenuItem key={nf.id} onClick={() => pushView("nota_fiscal", nf.id)}>
+                <FileText className="h-4 w-4 mr-2" /> NF {nf.numero}
+              </DropdownMenuItem>
+            ))}
+            {canCancelarPedido && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setCancelOpen(true)}
+                  disabled={locked("cancel_pedido")}
+                >
+                  <XCircle className="h-4 w-4 mr-2" /> Cancelar pedido
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </>
     ),
   } : {});
