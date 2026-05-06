@@ -142,12 +142,12 @@ Prioridade pelo risco operacional. Dividir em 3 fases pequenas (não exige refat
 8. Testes vitest dos gates (ConfirmDialog não abre quando linkedOV cancelado etc.).
 
 ### Fase B — UX de status, cancel e config (1 PR menor)
-9. **M-06 + D-01**: `<StatusBadge>` para faturamento (alinha a doutrina).
-10. **M-08**: filtro histórico em chips.
-11. **B-03**: estender flag `exigir_motivo_cancelamento_orcamento` + UI.
-12. **M-01 + M-05**: revisão a partir de `pendente`; filtro de `statusOptions` no `PedidoForm`.
-13. **M-02**: dedup de status no Resumo.
-14. **A-01**: decisão "cancelar na grid" — implementar OU documentar.
+9. **M-06 + D-01** ✅: `<StatusBadge>` para `status_faturamento` em `OrdemVendaView` (header, KPI strip, tab Faturamento). `statusFaturamentoColors` removido.
+10. **M-08** ✅: filtro histórico em chips (`role=group` + `aria-pressed`) substitui `<select>` nativo em `Orcamentos.tsx`.
+11. **B-03** ✅: `useAppConfig("comercial").exigir_motivo_cancelamento_orcamento` lido em `OrcamentoView`; gate bloqueia cancel sem motivo + label dinâmica `*`.
+12. **M-01 + M-05** ✅: revisão liberada também em `pendente`; `PedidoForm.statusOptions` filtrado por `STATUS_ORDER` (sem regredir) + `validarTransicaoPedido`.
+13. **M-02** ✅: linha "Status" duplicada removida do tab Resumo (header já mostra StatusBadge).
+14. **A-01** ✅: decisão "drawer-only" documentada em `Pedidos.tsx` (cancel exige passagem pelo detalhe — motivo + checagem de NFs ativas).
 
 ### Fase C — Polimento mobile + dívida técnica leve (1 PR)
 15. **MB-01/MB-02/MB-04**: dropdown unificado nas ações dos drawers + sticky meta no `PedidoForm`.
