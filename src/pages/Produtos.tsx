@@ -915,6 +915,7 @@ const Produtos = () => {
           data={filteredData}
           loading={loading}
           moduleKey="produtos"
+          defaultSortKey="sku"
           showColumnToggle={true}
           onView={openView}
           onEdit={openEdit}
