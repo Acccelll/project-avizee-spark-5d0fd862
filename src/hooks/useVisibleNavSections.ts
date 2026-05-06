@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { navSections, type NavSection, type NavSectionKey } from '@/lib/navigation';
+import { navSections, type NavItem, type NavSection, type NavSectionKey } from '@/lib/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCan } from '@/hooks/useCan';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -56,6 +56,21 @@ export function useVisibleNavSections(): NavSection[] {
           return resources.some((resource) => can(`${resource}:visualizar`));
         }
         return resources.some((resource) => can(`${resource}:visualizar`));
+      })
+      // A-01: itens admin-only dentro de seções visíveis devem ser ocultados
+      // para usuários que têm `administracao:visualizar` mas não são admin —
+      // a rota é guarded por `AdminRoute`, então o item iria gerar AccessDenied.
+      .map((s) => {
+        if (s.key !== 'administracao') return s;
+        const filterAdminOnly = (item: NavItem): boolean => {
+          if (item.path === '/admin/audit-duplicidades') return isAdmin;
+          return true;
+        };
+        return {
+          ...s,
+          items: s.items.filter(filterAdminOnly),
+          groups: s.groups?.map((g) => ({ ...g, items: g.items.filter(filterAdminOnly) })),
+        };
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
 }
