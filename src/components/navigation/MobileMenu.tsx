@@ -92,8 +92,18 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
             ))}
           </div>
 
-          {/* Módulos — lista única */}
-          {visibleSections.map((section) => (
+          {/* Módulos — lista única.
+              Seções já presentes na barra inferior (Comercial/Cadastros/Financeiro)
+              só aparecem aqui se tiverem sub-itens — evita duplicar o link raiz. */}
+          {visibleSections
+            .filter((section) => {
+              if (!BOTTOM_TAB_KEYS.has(section.key)) return true;
+              // Se a seção é só um link direto (sem sub-itens), o bottom-nav já cobre.
+              if (section.directPath) return false;
+              const hasItems = section.items.some((g) => g.items.length > 0);
+              return hasItems;
+            })
+            .map((section) => (
             <Fragment key={section.key}>
               <div className="flex items-baseline gap-2 px-2 pb-1 pt-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
