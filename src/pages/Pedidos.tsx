@@ -30,6 +30,7 @@ import { verificarEstoquePedido } from "@/utils/comercialStock";
 import type { StockShortfall } from "@/types/comercial";
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
+import { useUrlListState } from "@/hooks/useUrlListState";
 
 interface Pedido {
   id: string;
@@ -119,53 +120,46 @@ const Pedidos = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const searchTerm = searchParams.get("q") ?? "";
-  // Convenção: filtros multivalor lidos como CSV (`?status=aprovada,em_separacao`)
-  // para ficarem compatíveis com `buildDrilldownUrl` e com Financeiro.
-  const splitParam = (key: string) => {
-    const raw = searchParams.get(key);
-    if (!raw) return [] as string[];
-    return raw.split(",").map((v) => v.trim()).filter(Boolean);
-  };
-  const statusFilters = splitParam("status");
-  const faturamentoFilters = splitParam("faturamento");
-  const clienteFilters = splitParam("cliente");
-  const prazoFilters = splitParam("prazo");
-  const dataInicio = searchParams.get("de") ?? "";
-  const dataFim = searchParams.get("ate") ?? "";
+  // Querystring CSV unificada com Orçamentos/Financeiro (compatível com
+  // `buildDrilldownUrl`). Schema centralizado via `useUrlListState`.
+  const { value: filterState, set: setFilters, clear: clearFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      status: { type: "stringArray" },
+      faturamento: { type: "stringArray" },
+      cliente: { type: "stringArray" },
+      prazo: { type: "stringArray" },
+      de: { type: "string" },
+      ate: { type: "string" },
+    },
+  });
+  const searchTerm = filterState.q;
+  const statusFilters = filterState.status;
+  const faturamentoFilters = filterState.faturamento;
+  const clienteFilters = filterState.cliente;
+  const prazoFilters = filterState.prazo;
+  const dataInicio = filterState.de;
+  const dataFim = filterState.ate;
 
-  const updateParam = (key: string, value: string | string[] | null) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete(key);
-      if (Array.isArray(value)) {
-        if (value.length > 0) next.set(key, value.join(","));
-      } else if (value) {
-        next.set(key, value);
-      }
-      return next;
-    }, { replace: true });
-  };
-
-  const setSearchTerm = (v: string) => updateParam("q", v || null);
+  const setSearchTerm = (v: string) => setFilters({ q: v });
   const setStatusFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(statusFilters) : fn;
-    updateParam("status", next);
+    setFilters({ status: next });
   };
   const setFaturamentoFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(faturamentoFilters) : fn;
-    updateParam("faturamento", next);
+    setFilters({ faturamento: next });
   };
   const setClienteFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(clienteFilters) : fn;
-    updateParam("cliente", next);
+    setFilters({ cliente: next });
   };
   const setPrazoFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(prazoFilters) : fn;
-    updateParam("prazo", next);
+    setFilters({ prazo: next });
   };
-  const setDataInicio = (v: string) => updateParam("de", v || null);
-  const setDataFim = (v: string) => updateParam("ate", v || null);
+  const setDataInicio = (v: string) => setFilters({ de: v });
+  const setDataFim = (v: string) => setFilters({ ate: v });
 
   // Bridge PeriodFilter (preset/range) ↔ URL (`de`/`ate`).
   // Presets são backward-looking (emissão dos últimos N dias) usando periodToDateFrom.
