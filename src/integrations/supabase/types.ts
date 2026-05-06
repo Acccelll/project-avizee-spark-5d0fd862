@@ -8567,6 +8567,7 @@ export type Database = {
           produto_nome: string | null
           sku: string | null
           unidade_medida: string | null
+          variacoes: string[] | null
         }
         Insert: {
           ativo?: boolean | null
@@ -8580,6 +8581,7 @@ export type Database = {
           produto_nome?: string | null
           sku?: string | null
           unidade_medida?: string | null
+          variacoes?: string[] | null
         }
         Update: {
           ativo?: boolean | null
@@ -8593,6 +8595,7 @@ export type Database = {
           produto_nome?: string | null
           sku?: string | null
           unidade_medida?: string | null
+          variacoes?: string[] | null
         }
         Relationships: []
       }
