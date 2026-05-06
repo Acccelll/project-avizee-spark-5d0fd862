@@ -276,7 +276,7 @@ const Fornecedores = () => {
   const columns = [
   {
     key: "nome_razao_social",
-      mobilePrimary: true, label: "Nome / Razão Social", sortable: true,
+      mobilePrimary: true, label: "Nome / Razão Social", sortable: true, serverSortable: true,
     render: (f: Fornecedor) => (
       <div>
         <p className="font-medium leading-tight">{f.nome_razao_social}</p>
@@ -288,7 +288,7 @@ const Fornecedores = () => {
   },
   {
     key: "cpf_cnpj",
-      mobileCard: true, label: "CPF / CNPJ",
+      mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
     render: (f: Fornecedor) => <span className="font-mono text-xs">{f.cpf_cnpj || "—"}</span>,
   },
   {
