@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import type { MultiSelectOption } from "@/components/ui/MultiSelect";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
@@ -36,68 +36,49 @@ interface Params {
 }
 
 export function useFinanceiroFiltros({ data, contasBancarias, cartoes = [], getLancamentoStatus }: Params) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tipoParam = searchParams.get("tipo");
-  const statusParam = searchParams.get("status");
-  const bancoParam = searchParams.get("banco");
-  const origemParam = searchParams.get("origem");
-  const formaParam = searchParams.get("forma");
-  const cartaoParam = searchParams.get("cartao");
-  const periodParam = searchParams.get("period");
-  const mesParam = searchParams.get("mes");
+  // Querystring CSV unificada via `useUrlListState`. Aliases preservam links
+  // antigos (`?search=` continua sendo aceito).
+  const { value: filterState, set: setFilters } = useUrlListState({
+    schema: {
+      search: { type: "string" },
+      tipo: { type: "stringArray" },
+      status: { type: "stringArray" },
+      banco: { type: "stringArray" },
+      origem: { type: "stringArray" },
+      forma: { type: "stringArray" },
+      cartao: { type: "stringArray" },
+      period: { type: "string" },
+      mes: { type: "string" },
+    },
+  });
 
-  const [statusFilters, setStatusFilters] = useState<string[]>(
-    statusParam ? statusParam.split(",") : [],
-  );
-  const [tipoFilters, setTipoFilters] = useState<string[]>(tipoParam ? [tipoParam] : []);
-  const [bancoFilters, setBancoFilters] = useState<string[]>(
-    bancoParam ? bancoParam.split(",") : [],
-  );
-  const [origemFilters, setOrigemFilters] = useState<string[]>(
-    origemParam ? origemParam.split(",") : [],
-  );
-  const [formaPagamentoFilters, setFormaPagamentoFilters] = useState<string[]>(
-    formaParam ? formaParam.split(",") : [],
-  );
-  const [cartaoFilters, setCartaoFilters] = useState<string[]>(
-    cartaoParam ? cartaoParam.split(",") : [],
-  );
+  const searchTerm = filterState.search;
+  const tipoFilters = filterState.tipo;
+  const statusFilters = filterState.status;
+  const bancoFilters = filterState.banco;
+  const origemFilters = filterState.origem;
+  const formaPagamentoFilters = filterState.forma;
+  const cartaoFilters = filterState.cartao;
+  const period: Period = isPeriod(filterState.period || null) ? (filterState.period as Period) : "30d";
+  const mesRaw = filterState.mes;
+  const mes = mesRaw && /^\d{4}-\d{2}$/.test(mesRaw) ? mesRaw : null;
+
+  const setSearchTerm = (v: string) => setFilters({ search: v });
+  const applyArr = (key: "tipo" | "status" | "banco" | "origem" | "forma" | "cartao", current: string[]) =>
+    (fn: string[] | ((prev: string[]) => string[])) => {
+      const next = typeof fn === "function" ? fn(current) : fn;
+      setFilters({ [key]: next } as Partial<typeof filterState>);
+    };
+  const setTipoFilters = applyArr("tipo", tipoFilters);
+  const setStatusFilters = applyArr("status", statusFilters);
+  const setBancoFilters = applyArr("banco", bancoFilters);
+  const setOrigemFilters = applyArr("origem", origemFilters);
+  const setFormaPagamentoFilters = applyArr("forma", formaPagamentoFilters);
+  const setCartaoFilters = applyArr("cartao", cartaoFilters);
+  const setPeriod = (v: Period) => setFilters({ period: v === "30d" ? "" : v });
+  const setMes = (v: string | null) => setFilters({ mes: v ?? "" });
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
-  const [period, setPeriod] = useState<Period>(isPeriod(periodParam) ? periodParam : "30d");
-  const [mes, setMes] = useState<string | null>(mesParam && /^\d{4}-\d{2}$/.test(mesParam) ? mesParam : null);
-
-  useEffect(() => {
-    if (tipoParam) setTipoFilters([tipoParam]);
-  }, [tipoParam]);
-
-  useEffect(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (searchTerm) next.set("search", searchTerm);
-        else next.delete("search");
-        if (statusFilters.length) next.set("status", statusFilters.join(","));
-        else next.delete("status");
-        if (tipoFilters.length) next.set("tipo", tipoFilters.join(","));
-        else next.delete("tipo");
-        if (bancoFilters.length) next.set("banco", bancoFilters.join(","));
-        else next.delete("banco");
-        if (origemFilters.length) next.set("origem", origemFilters.join(","));
-        else next.delete("origem");
-        if (formaPagamentoFilters.length) next.set("forma", formaPagamentoFilters.join(","));
-        else next.delete("forma");
-        if (cartaoFilters.length) next.set("cartao", cartaoFilters.join(","));
-        else next.delete("cartao");
-        if (period !== "30d") next.set("period", period);
-        else next.delete("period");
-        if (mes) next.set("mes", mes);
-        else next.delete("mes");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [searchTerm, statusFilters, tipoFilters, bancoFilters, origemFilters, formaPagamentoFilters, cartaoFilters, period, mes, setSearchParams]);
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
