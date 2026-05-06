@@ -7506,6 +7506,7 @@ export type Database = {
           observacoes: string | null
           prazo_medio: string | null
           telefone: string | null
+          tipo_pessoa: string
           uf: string | null
           updated_at: string
         }
@@ -7531,6 +7532,7 @@ export type Database = {
           observacoes?: string | null
           prazo_medio?: string | null
           telefone?: string | null
+          tipo_pessoa?: string
           uf?: string | null
           updated_at?: string
         }
@@ -7556,6 +7558,7 @@ export type Database = {
           observacoes?: string | null
           prazo_medio?: string | null
           telefone?: string | null
+          tipo_pessoa?: string
           uf?: string | null
           updated_at?: string
         }

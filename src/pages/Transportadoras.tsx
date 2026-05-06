@@ -50,6 +50,7 @@ import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface Transportadora {
   id: string;
+  tipo_pessoa: string;
   nome_razao_social: string;
   nome_fantasia: string;
   cpf_cnpj: string;
@@ -76,6 +77,7 @@ type TransportadoraFormData = Omit<Transportadora, "id" | "created_at" | "update
 type ClienteVinculado = ClienteVinculadoView;
 
 const emptyForm: TransportadoraFormData = {
+  tipo_pessoa: "J",
   nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", contato: "",
   telefone: "", email: "", logradouro: "", numero: "", complemento: "",
   bairro: "", cidade: "", uf: "", cep: "", modalidade: "rodoviario",
@@ -120,7 +122,7 @@ export default function Transportadoras() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<TransportadoraFormData>(emptyForm);
   const { isUnique: docUnico, isLoading: docChecking } = useDocumentoUnico(
-    "cnpj",
+    form.tipo_pessoa === "F" ? "cpf" : "cnpj",
     form.cpf_cnpj,
     selected?.id,
     "transportadoras",
@@ -212,6 +214,7 @@ export default function Transportadoras() {
   const openEdit = (t: Transportadora) => {
     setMode("edit"); setSelected(t);
     setForm({
+      tipo_pessoa: t.tipo_pessoa || "J",
       nome_razao_social: t.nome_razao_social, nome_fantasia: t.nome_fantasia || "",
       cpf_cnpj: t.cpf_cnpj || "", contato: t.contato || "",
       telefone: t.telefone || "", email: t.email || "",
@@ -274,6 +277,7 @@ export default function Transportadoras() {
     if (mode === "create") return JSON.stringify(form) !== JSON.stringify(emptyForm);
     if (!selected) return false;
     const original: TransportadoraFormData = {
+      tipo_pessoa: selected.tipo_pessoa || "J",
       nome_razao_social: selected.nome_razao_social || "",
       nome_fantasia: selected.nome_fantasia || "",
       cpf_cnpj: selected.cpf_cnpj || "",
@@ -330,8 +334,15 @@ export default function Transportadoras() {
       ),
     },
     {
-      key: "cpf_cnpj", label: "CNPJ",
-      render: (t: Transportadora) => <span className="font-mono text-xs">{t.cpf_cnpj || "—"}</span>,
+      key: "cpf_cnpj", label: "CPF/CNPJ",
+      render: (t: Transportadora) => (
+        <div className="flex items-center gap-1.5">
+          <span className={`text-[10px] font-semibold ${t.tipo_pessoa === "F" ? "text-info" : "text-muted-foreground"}`}>
+            {t.tipo_pessoa === "F" ? "PF" : "PJ"}
+          </span>
+          <span className="font-mono text-xs">{t.cpf_cnpj || "—"}</span>
+        </div>
+      ),
     },
     {
       key: "contato_principal", label: "Contato",
@@ -509,11 +520,21 @@ export default function Transportadoras() {
             {/* ── TAB: DADOS GERAIS ─────────────────────────── */}
             <TabsContent value="dados-gerais" className="space-y-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+            <div className="col-span-2 md:col-span-1 space-y-2">
+              <Label>Tipo</Label>
+              <Select value={form.tipo_pessoa} onValueChange={(v) => setForm({ ...form, tipo_pessoa: v, cpf_cnpj: "" })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="J">Pessoa Jurídica</SelectItem>
+                  <SelectItem value="F">Pessoa Física</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="col-span-2 space-y-2">
-              <Label>CNPJ</Label>
+              <Label>{form.tipo_pessoa === "F" ? "CPF" : "CNPJ"}</Label>
               <div className="flex gap-1">
-                <MaskedInput mask="cnpj" value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
-                <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cnpjLoading}
+                <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
+                <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cnpjLoading || form.tipo_pessoa !== "J"}
                   aria-label="Buscar CNPJ"
                   title="Buscar dados pelo CNPJ e preencher automaticamente"
                   onClick={async () => {
@@ -531,17 +552,21 @@ export default function Transportadoras() {
                   {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground leading-tight">Informe o CNPJ e clique em buscar para preencher automaticamente.</p>
+              <p className="text-xs text-muted-foreground leading-tight">
+                {form.tipo_pessoa === "F"
+                  ? "Informe o CPF do transportador autônomo."
+                  : "Informe o CNPJ e clique em buscar para preencher automaticamente."}
+              </p>
               {docChecking && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
                 </p>
               )}
               {!docChecking && docUnico === false && (
-                <p className="text-xs text-destructive">CNPJ já cadastrado em cliente ou fornecedor.</p>
+                <p className="text-xs text-destructive">{form.tipo_pessoa === "F" ? "CPF" : "CNPJ"} já cadastrado em outra transportadora.</p>
               )}
             </div>
-            <div className="col-span-2 md:col-span-4 space-y-2">
+            <div className="col-span-2 md:col-span-3 space-y-2">
               <Label>Razão Social / Nome *</Label>
               <Input value={form.nome_razao_social} onChange={(e) => setForm({ ...form, nome_razao_social: e.target.value })} required placeholder="Razão social ou nome da transportadora" />
             </div>
