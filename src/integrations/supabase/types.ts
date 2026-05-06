@@ -5877,7 +5877,7 @@ export type Database = {
           ativo: boolean
           cest: string | null
           cfop_padrao: string | null
-          codigo_interno: string | null
+          codigo_interno: string
           codigo_interno_legado: string | null
           codigo_legado: string | null
           created_at: string
@@ -5917,7 +5917,7 @@ export type Database = {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
-          codigo_interno?: string | null
+          codigo_interno: string
           codigo_interno_legado?: string | null
           codigo_legado?: string | null
           created_at?: string
@@ -5957,7 +5957,7 @@ export type Database = {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
-          codigo_interno?: string | null
+          codigo_interno?: string
           codigo_interno_legado?: string | null
           codigo_legado?: string | null
           created_at?: string
