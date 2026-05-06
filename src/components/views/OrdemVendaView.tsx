@@ -830,6 +830,9 @@ export function OrdemVendaView({ id }: Props) {
                 </div>
               </div>
             </div>
+
+            {/* M-04: mini-timeline de auditoria (admins) */}
+            <AuditTimelineMini tabela="ordens_venda" registroId={id} />
           </div>
         </TabsContent>
       </Tabs>
