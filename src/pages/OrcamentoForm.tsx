@@ -141,8 +141,20 @@ export default function OrcamentoForm() {
 
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
-  const [clientes, setClientes] = useState<Tables<"clientes">[]>([]);
-  const [produtos, setProdutos] = useState<ProductWithForn[]>([]);
+  const queryClient = useQueryClient();
+  // Lookups cacheados (5min) — evitam recarregar a lista a cada navegação para o form.
+  const { data: clientes = [] } = useQuery<Tables<"clientes">[]>({
+    queryKey: ["orcamento-form", "clientes-ativos"],
+    queryFn: () => listClientesAtivosOrcamento(),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+  const { data: produtos = [] } = useQuery<ProductWithForn[]>({
+    queryKey: ["orcamento-form", "produtos-ativos"],
+    queryFn: () => listProdutosAtivosComFornecedores() as unknown as Promise<ProductWithForn[]>,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
   const [precosEspeciais, setPrecosEspeciais] = useState<Tables<"precos_especiais">[]>([]);
   const [clienteSnapshot, setClienteSnapshot] = useState<ClienteSnapshot>(emptyCliente);
   const [items, setItems] = useState<OrcamentoItem[]>([]);
