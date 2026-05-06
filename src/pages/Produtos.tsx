@@ -13,6 +13,7 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useFieldUnique } from "@/hooks/useFieldUnique";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
