@@ -84,12 +84,32 @@ export function FiscalChaveScannerDialog({
 
   // Câmera
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const fotoInputRef = useRef<HTMLInputElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [iniciandoCamera, setIniciandoCamera] = useState(false);
   const [camerasDisponiveis, setCamerasDisponiveis] = useState<CameraDeviceOption[]>([]);
   const [cameraSelecionadaId, setCameraSelecionadaId] = useState<string>("");
   const [capturandoFoto, setCapturandoFoto] = useState(false);
+
+  const criarHints = () => {
+    const hints = new Map<DecodeHintType, unknown>();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.CODE_128,
+      BarcodeFormat.QR_CODE,
+      BarcodeFormat.ITF,
+      BarcodeFormat.DATA_MATRIX,
+    ]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    return hints;
+  };
+
+  const montarVideoConstraints = (deviceId?: string): MediaTrackConstraints => ({
+    ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } }),
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+  });
 
   // Reset ao fechar
   useEffect(() => {
@@ -102,14 +122,18 @@ export function FiscalChaveScannerDialog({
     }
   }, [open]);
 
-  const pararCamera = () => {
+  const pararCamera = ({ preservarCarregando = false }: { preservarCarregando?: boolean } = {}) => {
     try {
       controlsRef.current?.stop();
     } catch {
       /* ignora */
     }
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
     controlsRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCameraAtiva(false);
+    if (!preservarCarregando) setIniciandoCamera(false);
   };
 
   const normalizarLabelCamera = (device: MediaDeviceInfo, index: number) => {
@@ -162,50 +186,34 @@ export function FiscalChaveScannerDialog({
   };
 
   // ── Câmera ────────────────────────────────────────────────────
-  const iniciarCamera = async () => {
+  const iniciarCamera = async (deviceIdPreferido?: string) => {
     setErroLeitura(null);
     setResultado(null);
     if (!navigator.mediaDevices?.getUserMedia) {
       setErroLeitura("Este navegador não suporta acesso à câmera.");
       return;
     }
-    // Hints: focar nos formatos do DANFE/NFC-e e ativar TRY_HARDER.
-    // CODE-128 de 44 dígitos é longo e exige mais esforço de decodificação.
-    const hints = new Map<DecodeHintType, unknown>();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.CODE_128,
-      BarcodeFormat.QR_CODE,
-      BarcodeFormat.ITF,
-      BarcodeFormat.DATA_MATRIX,
-    ]);
-    hints.set(DecodeHintType.TRY_HARDER, true);
-    const reader = new BrowserMultiFormatReader(hints, {
+    const reader = new BrowserMultiFormatReader(criarHints(), {
       delayBetweenScanAttempts: 80,
       delayBetweenScanSuccess: 400,
     });
     setIniciandoCamera(true);
+    pararCamera({ preservarCarregando: true });
     try {
-      // Pede a maior resolução viável — CODE-128 longo precisa de muitos
-      // pixels para que cada barra fina seja distinguível.
-      const cameras = await carregarCameras();
-      const deviceId =
-        cameraSelecionadaId && cameras.some((camera) => camera.deviceId === cameraSelecionadaId)
-          ? cameraSelecionadaId
-          : escolherCameraPadrao(cameras);
-
       const constraints: MediaStreamConstraints = {
-        video: {
-          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } }),
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
+        video: montarVideoConstraints(deviceIdPreferido || cameraSelecionadaId || undefined),
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
       if (!videoRef.current) {
         stream.getTracks().forEach((t) => t.stop());
         setIniciandoCamera(false);
         return;
       }
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play().catch(() => undefined);
+
+      const carregarCamerasPromise = carregarCameras();
       const controls = await reader.decodeFromStream(
         stream,
         videoRef.current,
@@ -223,6 +231,14 @@ export function FiscalChaveScannerDialog({
       );
       controlsRef.current = controls;
       setCameraAtiva(true);
+
+      const cameras = await carregarCamerasPromise;
+      const cameraAtualId = stream.getVideoTracks()[0]?.getSettings?.().deviceId;
+      if (cameraAtualId && cameras.some((camera) => camera.deviceId === cameraAtualId)) {
+        setCameraSelecionadaId(cameraAtualId);
+      } else if (!cameraSelecionadaId && cameras.length) {
+        setCameraSelecionadaId(escolherCameraPadrao(cameras));
+      }
     } catch (e) {
       const err = e as Error;
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
@@ -230,13 +246,33 @@ export function FiscalChaveScannerDialog({
           "Permissão de câmera negada. Habilite o acesso nas configurações do navegador e tente novamente.",
         );
       } else if (err.name === "NotFoundError" || err.name === "OverconstrainedError") {
-        setErroLeitura("Nenhuma câmera disponível neste dispositivo.");
+        if (deviceIdPreferido || cameraSelecionadaId) {
+          setCameraSelecionadaId("");
+          setErroLeitura("Não foi possível abrir essa câmera. Tente outra opção ou use Tirar foto.");
+        } else {
+          setErroLeitura("Nenhuma câmera disponível neste dispositivo.");
+        }
       } else {
         setErroLeitura(`Falha ao iniciar câmera: ${err.message}`);
       }
     } finally {
       setIniciandoCamera(false);
     }
+  };
+
+  const handleIniciarCamera = () => {
+    void iniciarCamera();
+  };
+
+  const handleSelecionarCamera = (deviceId: string) => {
+    setCameraSelecionadaId(deviceId);
+    if (cameraAtiva || iniciandoCamera) {
+      void iniciarCamera(deviceId);
+    }
+  };
+
+  const abrirCapturaNativa = () => {
+    fotoInputRef.current?.click();
   };
 
   // Para câmera quando trocar de tab
@@ -248,12 +284,6 @@ export function FiscalChaveScannerDialog({
     if (!open || tab !== "camera") return;
     void carregarCameras();
   }, [open, tab]);
-
-  useEffect(() => {
-    if (!cameraAtiva || !cameraSelecionadaId) return;
-    pararCamera();
-    void iniciarCamera();
-  }, [cameraSelecionadaId]);
 
   // ── Upload ────────────────────────────────────────────────────
   // ── Tirar foto a partir do vídeo ─────────────────────────────
@@ -281,15 +311,7 @@ export function FiscalChaveScannerDialog({
       ctx.drawImage(video, 0, 0, w, h);
       const dataUrl = canvas.toDataURL("image/png");
 
-      const hints = new Map<DecodeHintType, unknown>();
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-        BarcodeFormat.CODE_128,
-        BarcodeFormat.QR_CODE,
-        BarcodeFormat.ITF,
-        BarcodeFormat.DATA_MATRIX,
-      ]);
-      hints.set(DecodeHintType.TRY_HARDER, true);
-      const reader = new BrowserMultiFormatReader(hints);
+      const reader = new BrowserMultiFormatReader(criarHints());
       const result = await reader.decodeFromImageUrl(dataUrl);
       const ok = aplicarConteudo(result.getText());
       if (ok) {
@@ -324,15 +346,7 @@ export function FiscalChaveScannerDialog({
     try {
       const url = URL.createObjectURL(file);
       try {
-        const hints = new Map<DecodeHintType, unknown>();
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-          BarcodeFormat.CODE_128,
-          BarcodeFormat.QR_CODE,
-          BarcodeFormat.ITF,
-          BarcodeFormat.DATA_MATRIX,
-        ]);
-        hints.set(DecodeHintType.TRY_HARDER, true);
-        const reader = new BrowserMultiFormatReader(hints);
+        const reader = new BrowserMultiFormatReader(criarHints());
         const result = await reader.decodeFromImageUrl(url);
         const ok = aplicarConteudo(result.getText());
         if (ok) toast.success("Chave detectada na imagem.");
@@ -441,7 +455,7 @@ export function FiscalChaveScannerDialog({
                 <Label htmlFor="camera-select" className="text-sm">
                   Câmera
                 </Label>
-                <Select value={cameraSelecionadaId} onValueChange={setCameraSelecionadaId}>
+                <Select value={cameraSelecionadaId} onValueChange={handleSelecionarCamera}>
                   <SelectTrigger id="camera-select">
                     <SelectValue placeholder="Selecione uma câmera" />
                   </SelectTrigger>
@@ -468,32 +482,47 @@ export function FiscalChaveScannerDialog({
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2">
+            <input
+              ref={fotoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleArquivo(f);
+                e.currentTarget.value = "";
+              }}
+            />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={cameraAtiva ? tirarFoto : abrirCapturaNativa}
+                disabled={capturandoFoto || processando}
+                className="gap-2"
+                title={
+                  cameraAtiva
+                    ? "Captura um quadro da câmera e tenta decodificar."
+                    : "Abre a câmera do aparelho para tirar uma foto e tentar ler o código."
+                }
+              >
+                {capturandoFoto || processando ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Analisando…
+                  </>
+                ) : (
+                  <>
+                    <Aperture className="h-4 w-4" /> Tirar foto
+                  </>
+                )}
+              </Button>
+
               {cameraAtiva ? (
-                <>
-                  <Button
-                    variant="secondary"
-                    onClick={tirarFoto}
-                    disabled={capturandoFoto}
-                    className="gap-2"
-                    title="Captura um quadro da câmera e tenta decodificar — útil quando a leitura ao vivo não pega."
-                  >
-                    {capturandoFoto ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Analisando…
-                      </>
-                    ) : (
-                      <>
-                        <Aperture className="h-4 w-4" /> Tirar foto
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={pararCamera} className="gap-2">
-                    <X className="h-4 w-4" /> Parar câmera
-                  </Button>
-                </>
+                <Button variant="outline" onClick={() => pararCamera()} className="gap-2">
+                  <X className="h-4 w-4" /> Parar câmera
+                </Button>
               ) : (
-                <Button onClick={iniciarCamera} disabled={iniciandoCamera} className="gap-2">
+                <Button onClick={handleIniciarCamera} disabled={iniciandoCamera} className="gap-2">
                   {iniciandoCamera ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" /> Iniciando…
@@ -510,7 +539,7 @@ export function FiscalChaveScannerDialog({
               Aponte para o código de barras (NF-e) ou QR Code (NFC-e) do DANFE.
               Para CODE-128 longo do DANFE, mantenha a câmera <strong>paralela</strong>
               ao código, com boa iluminação e a barra ocupando toda a largura do quadro.
-              Em celular, a câmera traseira é selecionada automaticamente.
+              Em celular, se o ao vivo falhar, use <strong>Tirar foto</strong> para abrir a câmera nativa do aparelho.
             </p>
           </TabsContent>
 
