@@ -1,77 +1,79 @@
-## Status da Auditoria Onda 2 — o que já foi feito vs. o que falta
+# Plano — Onda 3 Comercial: Correções por prioridade
 
-Verifiquei item a item da matriz contra o código atual (`src/`, services, schema do banco).
+Vou atacar em 3 fases, do mais crítico ao polimento. Cada fase é um lote coeso que pode ir ao ar independentemente.
 
-### Itens JÁ resolvidos (não precisam mais de ação)
+## Fase 1 — Críticos + Altos rápidos (sessão atual)
 
-| ID | Item | Evidência atual |
-|---|---|---|
-| **C-01** | Produto em FormModal | `Produtos.tsx:179-192` redireciona para `/produtos/novo` e `/produtos/:id/editar` (rotas em `cadastros.routes.tsx`), página dedicada `ProdutoForm.tsx` ativa. |
-| **C-02** | `boleto_dda` ausente | `FormasPagamento.tsx:50` já tem `boleto_dda: "Boleto/DDA"` no `tipoLabel`. |
-| **C-03** | `pageSize` server-side | Produtos, Clientes, Fornecedores, GruposEconomicos todos com `pageSize: 50`. |
-| **A-01 / M-02 / SH-01** | Sócios sem dedup/máscara CPF | `Socios.tsx` já usa `useDocumentoUnico("cpf",…,"socios")` + `MaskedInput mask="cpf"`; enum `DocumentoTable` em `useDocumentoUnico.ts` já inclui `"socios"`. |
-| **A-02** | Transportadoras sem `tipo_pessoa` | Type/form/UI já têm `tipo_pessoa` (default "J") e `useDocumentoUnico` é condicional `cpf`/`cnpj`. |
-| **A-03 / BK-02** | Hard delete em cadastros | Os 4 services usam `safeDelete` com lista de dependências e soft-delete (`update ativo:false`). |
-| **A-04** | Grupos sem URL state | `GruposEconomicos.tsx:82` usa `useUrlListState`. |
-| **BK-01 (parcial)** | UNIQUE CPF | `socios_cpf_key` existe; **`funcionarios.cpf` ainda sem UNIQUE**. |
-| **BK-03** | `set_principal_endereco` com `as never` | Cast removido em `clientes.service.ts:75`. |
-| **SH-05** | `fetchClienteDetalhes` | já usa `Promise.allSettled` (linha 244). |
-| **B-01** | UnidadesMedida.tsx código morto | Arquivo já removido. |
+Objetivo: fechar os 3 críticos (C-01, C-02, C-03) e os altos de baixo esforço (A-01, A-03, A-05, A-06, SH-03, BK-01/04).
 
-### Itens que AINDA faltam
+1. **C-01 — Guard de status em `OrcamentoForm.handleSave`**
+   - Bloquear save se `status !== 'rascunho'` (com toast orientando a duplicar/criar revisão).
+   - Marcar campos de itens/desconto/frete como `readOnly` quando não-rascunho.
+2. **M-01 (junto) — Banner de status-lock** no topo do `OrcamentoForm` quando edit + não-rascunho, com botão "Criar revisão" usando `criarRevisaoOrcamento`.
+3. **A-03 — Autosave** ignora ticks quando `status !== 'rascunho'`.
+4. **C-02 — `OrdemVendaView`** passa a checar `can("faturamento_fiscal:criar") || can("pedidos:editar")` antes de exibir Gerar NF.
+5. **A-01 — `OrcamentoView`** alinha permissão Aprovar com a grid: `can("orcamentos:aprovar") || isAdmin`.
+6. **C-03 — `OrcamentoPublico.handleAction`**
+   - Adicionar estado `acting` + `disabled` nos botões.
+   - Validar `data.status` antes de prosseguir.
+   - Criar RPC `acao_cliente_orcamento(p_token, p_acao)` que valida token, status machine e grava auditoria. Trocar o `.update()` direto pela RPC.
+   - **MB-03** junto: garantir `min-h-[44px]` nos botões Aprovar/Rejeitar.
+7. **A-05 — `BACKLOG_OV_STATUSES`** inclui `'separado'` para casar com `canFaturarPedido`.
+8. **A-06 — `PedidoForm`** remove `faturada`, `faturada_parcial` e `cancelada` do `<Select>` de status; aplicar `validarTransicaoPedido` antes de salvar.
+9. **SH-03 — `INVALIDATION_KEYS.conversaoOrcamento`** mantém `"ordens_venda"` (já presente) — confirmar consistência; ajustar grid `Pedidos` para também escutar via `subscribeComercial` se ainda não estiver.
+10. **BK-01 / BK-04** — remover `as never` dos rpc calls de `enviar_orcamento_aprovacao`, `aprovar_orcamento`, `cancelar_orcamento`, `cancelar_pedido_venda` (após regerar tipos pela migration de C-03; tipos da Supabase são auto-regenerados).
 
-🔴 **Bug remanescente**
-- ✅ **A-07** resolvido (FiscalBlock consome `scopes.fiscal`).
+## Fase 2 — Altos estruturais e médios
 
-🟠 **Alto**
-- ✅ **A-05** — `produtoInsumoSchema` já existe e é usado no submit.
-- ✅ **A-06 / BK-04** — coluna `produtos.variacoes` é `text[]`; front consolidado via `parseVariacoes`/`formatVariacoesSuffix`.
-- ✅ **BK-01** — `funcionarios_cpf_unique` aplicado.
-- ✅ **BK-05** — payload de `save_produto_fornecedores` já passa `number` direto.
+11. **A-07 + SH-03 (definitivo)** — migrar `Pedidos.tsx` de `useSupabaseCrud` para `useQuery(['ordens_venda'], ...)`, eliminando `fetchData()` manual pós-mutação.
+12. **A-02 — Paginação server-side** em `Orcamentos` e `Pedidos`: `pageSize: 50`, mover filtros simples (status único, cliente) para query Supabase; manter compostos client-side.
+13. **SH-02 — Lookups do OrcamentoForm** migrados para `useQuery` com `staleTime: 5min` (clientes ativos, produtos ativos, formas de pagamento).
+14. **SH-04 — `comercialChannel`** destrói canal quando `listeners.size === 0`.
+15. **M-06 / MB-01 — Unificar footers sticky mobile** do OrcamentoForm em um único nó condicionado.
+16. **MB-02 — Header do `OrcamentoView`** em mobile: ação primária + dropdown "..." com Duplicar/Cancelar.
+17. **BK-02 — Lock contention** em `gerar_nf_de_pedido`: padronizar erro `LOCK_CONTENTION` na RPC e tratar no `useFaturarPedido` com toast específico.
 
-🟡 **Médio**
-- ✅ **M-01** — Decisão registrada em `docs/adr/004-meio-vs-condicao-pagamento.md` (manter modelo único). UI esclarecida: título da página agora é "Formas e condições de pagamento" com subtítulo "Meio + parcelamento".
-- ✅ **M-03** — `matrizNomeMap` já está em React Query (`useQuery` em `GruposEconomicos.tsx`).
-- ✅ **M-04** — Sinalização via `ScopeBadge` em todos os blocos (`global-range` / `fixed-window` / `snapshot`) consumindo `scopes` do `useDashboardData`.
-- ✅ **M-05** — Lookups de grupo/fornecedor/unidade migrados para React Query.
-- ✅ **M-06** — Estado de folha removido do `Funcionarios.tsx` (era código morto: o JSX do modal não existia). Folha vive no `FuncionarioView` (drawer) como fonte única.
-- ✅ **M-07** — `useFieldUnique` no SKU + índice único parcial em `produtos.sku`.
-- ✅ **M-08** — NCM normalizado.
-- ✅ **M-09** — Mensagem ajustada para "Documento já cadastrado nesta tabela".
-- ✅ **SH-02** — Lookups de Produtos em React Query.
-- ✅ **SH-03** — `useSocios` migrado para React Query.
-- ✅ **SH-04** — `useDashboardData` consolidado em um único `useQuery`; `loading`/`fetching` agregados.
+## Fase 3 — Médios/Baixos e roadmap
 
-🟢 **Baixo**
-- ✅ **B-02** — `min-h-[220px]` aplicado em `DashboardSkeleton` e `LazyInViewWidget`.
-- ✅ **MB-03** — Linha de "Adicionar parcela" em FormasPagamento empilha em mobile, input full-width, Enter adiciona.
-- ✅ **MB-02** — Tabs de Sócios usam `ScrollableTabsList` com fade nas bordas em mobile.
-- ✅ **MB-04** — Resumo consolidado de Grupos empilha em mobile (`grid-cols-1 sm:grid-cols-3`).
-- ✅ **MB-05** — `MobileCollapsibleBlock` persiste estado por usuário via `persistKey` em todos os blocos do Dashboard.
-- ✅ **D-02** — Header desktop e mobile mostram "Atualizando…" com `fetching` do React Query.
-- ✅ **D-03** — `GrupoEconomicoView` já usa `abortSignal(signal)` via `useDetailFetch`.
-- **MB-01 / D-01** — resolvidos junto com C-01.
+18. **A-04 — Página `/faturamento` operacional** (escopo a alinhar): grid centralizada de pedidos elegíveis com filtros e ação em lote. Por ora, manter `EmptyState` mas adicionar atalho "Ir para Pedidos com filtro de faturamento aberto".
+19. **M-02 — Reservas de estoque** para pedidos `aprovada/em_separacao` (tabela `estoque_reservas` ou view de reserva calculada). Decisão de produto necessária.
+20. **M-03/M-04/M-05, B-01/B-02, D-01/D-02, SH-01** — limpeza fina:
+    - `@deprecated` em `sendForApproval`/`convertToOV`.
+    - `p_forcar` em `convertToPedido` quando aplicável.
+    - Cancelar no drawer do orçamento liberado por permissão `orcamentos:cancelar`.
+    - Migration normalizando `status` legado `confirmado/enviado → pendente`.
+    - `useCancelarPedido`: validação opcional de motivo via flag de config.
+    - Preview de cenário em `Sheet` lateral no desktop.
+    - Filtro de histórico em `Orcamentos` migrado para `MultiSelect`.
+
+## Detalhes técnicos relevantes
+
+- **Nova RPC `acao_cliente_orcamento`** (Fase 1, item 6): `security definer`, `search_path = public`, validações: token existe, orçamento em `pendente`, ação ∈ {aprovado, rejeitado}; grava em `auditoria_logs` com `usuario_id = NULL` e `origem = 'cliente_publico'`. Retorna `{ id, status }`.
+- **Banner status-lock** reaproveita `Alert` do design system, sem cor custom.
+- **Migração da grid Pedidos** para React Query usa `comercialKeys.pedidos()` (já existe) e `subscribeComercial` para invalidar.
+- Paginação respeita `useSupabaseCrud` server pagination — não inventar nova abstração.
+- Sem mudança de stack, sem refactor além do escopo de cada item.
+
+## Saída por fase
+
+- Fase 1: ~10 arquivos editados + 1 migration (RPC `acao_cliente_orcamento`).
+- Fase 2: ~6 arquivos editados (refactor de queries) + 1 migration (lock contention error code).
+- Fase 3: depende de decisões de produto (A-04, M-02). Demais itens são edições pontuais.
+
+Aprove para eu começar pela Fase 1.
 
 ---
 
-### Recomendação de execução (3 ondas)
+## Status de execução
 
-**Onda A — bugs e segurança (≈4-6h)**
-1. A-07 — `FiscalBlock` consumir `scope.fiscal` do `useDashboardData`.
-2. BK-01 — migration `funcionarios_cpf_unique`.
-3. M-09 — texto da mensagem de duplicidade.
-4. A-05 — `produtoInsumoSchema` separado, remover `as never`.
-5. BK-05 — passar `number` direto para `save_produto_fornecedores`.
+### Fase 1 — concluída
+- ✅ C-01 + M-01 + A-03: guard de status no `handleSave`, banner com "Criar revisão" e autosave bloqueado para não-rascunho.
+- ✅ C-02: `OrdemVendaView` checa `faturamento_fiscal:criar` || `pedidos:editar`.
+- ✅ C-03 + MB-03: nova RPC `acao_cliente_orcamento` (security definer, valida status/expiração, grava auditoria), `OrcamentoPublico` migrado pra RPC com guard de double-tap e min-h 44px nos CTAs.
+- ✅ A-01: `OrcamentoView` Aprovar usa `can("orcamentos:aprovar") || isAdmin`.
+- ✅ A-05: `BACKLOG_OV_STATUSES` agora inclui `'separado'`.
+- ✅ A-06: `PedidoForm` removeu status terminais do select e valida transição via `validarTransicaoPedido` antes de salvar.
+- ✅ BK-01 / BK-04: removidos `as never` dos rpc calls (`enviar_orcamento_aprovacao`, `aprovar_orcamento`, `cancelar_orcamento`, `cancelar_pedido_venda`).
+- ↪️  SH-03: `INVALIDATION_KEYS.conversaoOrcamento` já contém `"ordens_venda"`; resolução definitiva fica para Fase 2 junto da migração da grid.
 
-**Onda B — schema/dados (≈1 dia)**
-6. A-06 / BK-04 — migration `variacoes text[]` + backfill + remoção do dual-path.
-7. M-07 — UNIQUE em `produtos.sku` + check no front via `useDocumentoUnico`.
-
-**Onda C — refinos UX/perf (≈1 dia)**
-8. SH-02 / SH-03 / M-03 / M-05 — migrar lookups para React Query.
-9. SH-04 — loading agregado do Dashboard.
-10. B-02 / D-02 / D-03 / MB-02..MB-05 — polimento.
-11. ~~M-01~~ — fechado via ADR-004 (sem migração) + ajuste de rótulos.
-12. ~~M-06~~ — código morto removido.
-
-**Auditoria Onda 2 concluída.** Todos os itens A/B/C resolvidos ou explicitamente aceitos via ADR.
+Próximo: Fase 2 (paginação, React Query na grid de Pedidos, lookups, realtime cleanup).

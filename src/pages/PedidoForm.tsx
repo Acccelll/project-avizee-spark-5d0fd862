@@ -13,10 +13,15 @@ import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { PageShell } from "@/components/PageShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { getPedidoStatusLabel } from "@/lib/comercialWorkflow";
+import { getPedidoStatusLabel, validarTransicaoPedido } from "@/lib/comercialWorkflow";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 
+/**
+ * Status operacionais editáveis manualmente. Estados terminais alcançados via
+ * RPC (`faturada`, `faturada_parcial`, `cancelada`) NÃO entram aqui — devem
+ * ser disparados pelas ações Gerar NF / Cancelar Pedido.
+ */
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
   { value: "aprovada", label: "Aprovado" },
@@ -24,7 +29,6 @@ const statusOptions = [
   { value: "separado", label: "Separado" },
   { value: "em_transporte", label: "Em Transporte" },
   { value: "entregue", label: "Entregue" },
-  { value: "cancelada", label: "Cancelado" },
 ];
 
 interface PedidoEditForm {
@@ -40,6 +44,7 @@ interface PedidoRecord {
   id: string;
   numero: string;
   status: string | null;
+  status_faturamento: string | null;
   data_emissao: string | null;
   po_number: string | null;
   data_po_cliente: string | null;
@@ -75,7 +80,7 @@ const PedidoForm = () => {
       try {
         const { data, error } = await supabase
           .from("ordens_venda")
-          .select("id, numero, status, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(numero)")
+          .select("id, numero, status, status_faturamento, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(numero)")
           .eq("id", id)
           .maybeSingle();
         if (error) throw error;
@@ -116,6 +121,10 @@ const PedidoForm = () => {
 
   const handleSave = async () => {
     if (!id) return;
+    if (form.status && !validarTransicaoPedido(form.status, pedido?.status_faturamento ?? null)) {
+      toast.error("Transição de status inválida para o faturamento atual do pedido.");
+      return;
+    }
     try {
       await salvarPedido.mutateAsync({
         id,

@@ -8959,6 +8959,10 @@ export type Database = {
         Args: { p_name: string; p_secret: string }
         Returns: string
       }
+      acao_cliente_orcamento: {
+        Args: { p_acao: string; p_token: string }
+        Returns: Json
+      }
       ajustar_estoque_manual:
         | {
             Args: {

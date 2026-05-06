@@ -15,17 +15,13 @@ interface OrcamentoBase {
 
 export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
   if (orc.status !== "rascunho") return;
-  const { error } = await supabase.rpc("enviar_orcamento_aprovacao" as never, {
-    p_id: orc.id,
-  } as never);
+  const { error } = await supabase.rpc("enviar_orcamento_aprovacao", { p_id: orc.id });
   if (error) throw new Error(`Erro ao enviar orçamento para aprovação: ${error.message}`);
   toast.success(`Orçamento ${orc.numero} enviado para aprovação!`);
 }
 
 export async function approveOrcamento(orc: OrcamentoBase): Promise<void> {
-  const { error } = await supabase.rpc("aprovar_orcamento" as never, {
-    p_id: orc.id,
-  } as never);
+  const { error } = await supabase.rpc("aprovar_orcamento", { p_id: orc.id });
   if (error) throw new Error(`Erro ao aprovar orçamento: ${error.message}`);
   toast.success(`Orçamento ${orc.numero} aprovado!`);
 }
@@ -35,10 +31,10 @@ export async function approveOrcamento(orc: OrcamentoBase): Promise<void> {
  * Usa a RPC `cancelar_orcamento` que valida status e registra auditoria.
  */
 export async function cancelarOrcamento(orcId: string, motivo?: string): Promise<void> {
-  const { error } = await supabase.rpc("cancelar_orcamento" as never, {
+  const { error } = await supabase.rpc("cancelar_orcamento", {
     p_id: orcId,
-    p_motivo: motivo ?? null,
-  } as never);
+    p_motivo: motivo ?? undefined,
+  });
   if (error) throw new Error(`Erro ao cancelar orçamento: ${error.message}`);
   toast.success("Orçamento cancelado.");
 }
