@@ -223,7 +223,8 @@ export function OrcamentoView({ id }: Props) {
           </Button>
         )}
         {/* Desktop: ações secundárias inline */}
-        {["aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
+        {/* M-01: também permite revisão durante `pendente` (cliente pediu ajustes). */}
+        {["pendente", "aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={handleCriarRevisao} disabled={isAnyLocked}>
             <GitBranch className="h-3.5 w-3.5" /> Criar revisão
           </Button>
@@ -422,10 +423,7 @@ export function OrcamentoView({ id }: Props) {
                 <span className={isExpired ? "text-warning font-medium" : ""}>{formatDate(selected.validade)}</span>
               </div>
             )}
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Status</span>
-              <StatusBadge status={normalizeOrcamentoStatus(selected.status)} />
-            </div>
+            {/* M-02: status já aparece no header (RecordIdentityCard). Removido daqui para evitar duplicação. */}
             {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Convertido em Pedido</span>
