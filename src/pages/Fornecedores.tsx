@@ -108,21 +108,29 @@ const Fornecedores = () => {
     return out;
   }, [tipoFilters, ativoFilters]);
 
-  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Fornecedor>({
+  const sort = useServerSort("nome_razao_social", "asc");
+  const {
+    data,
+    loading,
+    create,
+    update,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<Fornecedor>({
     table: "fornecedores",
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
     pageSize: 50,
-    orderBy: "nome_razao_social",
-    ascending: true,
-  }) as ReturnType<typeof useSupabaseCrud<Fornecedor>> & {
-    page: number;
-    setPage: (n: number) => void;
-    totalCount: number | null;
-    hasMore: boolean;
-  };
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
+  });
+  const totalAtivos = useTableCount("fornecedores", { ativo: true }).data ?? null;
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
