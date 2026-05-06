@@ -205,7 +205,15 @@ export function FiscalChaveScannerDialog({
     try {
       const url = URL.createObjectURL(file);
       try {
-        const reader = new BrowserMultiFormatReader();
+        const hints = new Map<DecodeHintType, unknown>();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.ITF,
+          BarcodeFormat.DATA_MATRIX,
+        ]);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        const reader = new BrowserMultiFormatReader(hints);
         const result = await reader.decodeFromImageUrl(url);
         const ok = aplicarConteudo(result.getText());
         if (ok) toast.success("Chave detectada na imagem.");
