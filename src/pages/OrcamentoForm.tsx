@@ -376,12 +376,18 @@ export default function OrcamentoForm() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [clientesData, produtosData] = await Promise.all([
-          listClientesAtivosOrcamento(),
-          listProdutosAtivosComFornecedores(),
+        // clientes/produtos vêm de useQuery (cacheado 5min); apenas garantimos
+        // que estão prontos antes de prosseguir com o load do orçamento.
+        await Promise.all([
+          queryClient.ensureQueryData({
+            queryKey: ["orcamento-form", "clientes-ativos"],
+            queryFn: () => listClientesAtivosOrcamento(),
+          }),
+          queryClient.ensureQueryData({
+            queryKey: ["orcamento-form", "produtos-ativos"],
+            queryFn: () => listProdutosAtivosComFornecedores(),
+          }),
         ]);
-        setClientes(clientesData);
-        setProdutos(produtosData);
 
         if (isEdit) {
           const orc = await getOrcamentoById(id!).catch((orcError) => {
