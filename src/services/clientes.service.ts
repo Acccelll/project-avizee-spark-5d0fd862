@@ -11,6 +11,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { safeDelete } from "@/services/_shared/safeDelete";
 
 export type EnderecoEntrega = Tables<"clientes_enderecos_entrega">;
 export type RegistroComunicacao = Tables<"cliente_registros_comunicacao">;
@@ -200,9 +201,26 @@ export async function listFormasPagamentoAtivas() {
   return (data || []) as Array<{ id: string; descricao: string }>;
 }
 
-export async function deleteCliente(id: string): Promise<void> {
-  const { error } = await supabase.from("clientes").delete().eq("id", id);
-  if (error) throw error;
+/**
+ * Remove (desativa) um cliente. Por padrão faz soft-delete e bloqueia
+ * se houver pedidos, NF-e, lançamentos financeiros ou comunicações
+ * vinculadas. Use `hardDelete: true` apenas em fluxos administrativos.
+ */
+export async function deleteCliente(
+  id: string,
+  opts?: { hardDelete?: boolean },
+): Promise<void> {
+  await safeDelete({
+    table: "clientes",
+    id,
+    entityLabel: "Cliente",
+    hardDelete: opts?.hardDelete,
+    dependencies: [
+      { table: "ordens_venda", column: "cliente_id", label: "pedidos/orçamentos" },
+      { table: "notas_fiscais", column: "cliente_id", label: "notas fiscais" },
+      { table: "financeiro_lancamentos", column: "cliente_id", label: "lançamentos financeiros" },
+    ],
+  });
 }
 
 // ── ClienteView (drawer/detalhe) ──────────────────────────────────────────────
