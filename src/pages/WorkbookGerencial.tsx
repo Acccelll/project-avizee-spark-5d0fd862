@@ -13,7 +13,7 @@ import {
   gerarWorkbook,
   downloadGeracao,
   downloadBlob,
-} from '@/services/workbookService';
+} from '@/services/workbook';
 import { buildHistoricoCsv } from '@/lib/workbook/historicoCsv';
 import type { WorkbookGeracao, WorkbookModoGeracao } from '@/types/workbook';
 
