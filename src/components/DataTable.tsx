@@ -245,6 +245,10 @@ export function DataTable<T extends Record<string, any>>({
   rowExtraActions,
   defaultSortKey,
   defaultSortDir = 'asc',
+  serverPagination,
+  onServerSort,
+  serverSortKey,
+  serverSortDir,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
