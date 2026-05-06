@@ -11,6 +11,8 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useServerSort } from "@/hooks/useServerSort";
+import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -152,13 +154,30 @@ const Clientes = () => {
 
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
 
-  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Cliente>({
+  const sort = useServerSort("nome_razao_social", "asc");
+  const {
+    data,
+    loading,
+    create,
+    update,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<Cliente>({
     table: "clientes",
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
+    pageSize: 50,
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
   });
+  const totalAtivos = useTableCount("clientes", { ativo: true }).data ?? null;
+  const totalComGrupo = useTableCount("clientes", { grupo_economico_id: { not: { is: null } } }).data ?? null;
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -298,6 +317,8 @@ const Clientes = () => {
   const columns = [
     {
       key: "nome_razao_social", mobilePrimary: true, label: "Nome / Razão Social", sortable: true,
+      // Permite ordenação server-side pela coluna de nome.
+      serverSortable: true,
       render: (c: Cliente) => (
         <div>
           <p className="font-medium leading-tight">{c.nome_razao_social}</p>
@@ -307,7 +328,7 @@ const Clientes = () => {
         </div>
       ),
     },
-    { key: "cpf_cnpj", mobileCard: true, label: "CPF / CNPJ",
+    { key: "cpf_cnpj", mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
       render: (c: Cliente) => <span className="font-mono text-xs">{c.cpf_cnpj || "—"}</span> },
     { key: "tipo_pessoa", label: "Tipo",
       render: (c: Cliente) => (
