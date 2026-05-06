@@ -11,8 +11,6 @@ import { SkipLink } from './SkipLink';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ContrastDevTool } from './accessibility/ContrastDevTool';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
-import { useNfeEntradaToast } from '@/hooks/useNfeEntradaToast';
-import { useAutoCienciaDistDFe } from '@/hooks/useAutoCienciaDistDFe';
 import { GlobalSearch } from './navigation/GlobalSearch';
 import { GlobalShortcutsDialog } from './navigation/GlobalShortcutsDialog';
 import { GlobalPeriodProvider } from '@/contexts/DashboardPeriodContext';
@@ -36,10 +34,10 @@ export function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [hoverExpanded, setHoverExpanded] = useState(false);
-  // Toast proativo quando o cron DistDF-e baixa NF-e novas
-  useNfeEntradaToast();
-  // Auto-ciência DistDF-e (Onda 17) — controlada por app_configuracoes.distdfe_auto_ciencia
-  useAutoCienciaDistDFe();
+  // Hooks fiscais (`useNfeEntradaToast`, `useAutoCienciaDistDFe`) foram movidos
+  // para `<FiscalShell>` em src/components/fiscal/FiscalShell.tsx — montados
+  // somente dentro de rotas /fiscal/*, evitando queries para perfis sem
+  // permissão fiscal.
 
   // Modo dinâmico: recolhido por padrão, expande visualmente no hover (overlay).
   // No modo fixed-* a preferência boolean `sidebarCollapsed` continua valendo

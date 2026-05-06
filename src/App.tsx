@@ -36,7 +36,12 @@ const Fiscal = lazy(() => import("./pages/Fiscal"));
 // const Faturamento = lazy(() => import("./pages/Faturamento"));
 // const FaturamentoCadastros = lazy(() => import("./pages/faturamento/FaturamentoCadastros"));
 // const EmitirNFeWizard = lazy(() => import("./pages/faturamento/EmitirNFeWizard"));
-import { EmBreve } from "./components/EmBreve";
+const EmBreve = lazy(() =>
+  import("./components/EmBreve").then((m) => ({ default: m.EmBreve })),
+);
+const FiscalShell = lazy(() =>
+  import("./components/fiscal/FiscalShell").then((m) => ({ default: m.FiscalShell })),
+);
 const FiscalDetail = lazy(() => import("./pages/FiscalDetail"));
 const NotaFiscalForm = lazy(() => import("./pages/fiscal/NotaFiscalForm"));
 const DistDFeHistorico = lazy(() => import("./pages/fiscal/DistDFeHistorico"));
@@ -172,20 +177,34 @@ const App = () => (
                       <Route path="/pedidos" element={<PermissionRoute resource="pedidos"><LazyPage><Pedidos /></LazyPage></PermissionRoute>} />
                       <Route path="/pedidos/:id" element={<PermissionRoute resource="pedidos"><LazyPage><PedidoForm /></LazyPage></PermissionRoute>} />
                       <Route path="/estoque" element={<PermissionRoute resource="estoque"><LazyPage><Estoque /></LazyPage></PermissionRoute>} />
-                      <Route path="/fiscal" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><Fiscal /></LazyPage></PermissionRoute>} />
-                      <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><EmBreve modulo="Faturamento" /></PermissionRoute>} />
-                      <Route path="/faturamento/cadastros" element={<PermissionRoute resource="faturamento_fiscal"><EmBreve modulo="Faturamento" descricao="Cadastros do módulo Faturamento estarão disponíveis em breve." /></PermissionRoute>} />
-                      <Route path="/faturamento/emitir" element={<PermissionRoute resource="faturamento_fiscal" action="criar"><EmBreve modulo="Faturamento" descricao="Emissão de NF-e pelo wizard estará disponível em breve." /></PermissionRoute>} />
-                      <Route path="/fiscal/novo" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
-                      <Route path="/fiscal/:id/editar" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
-                      <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />
-                      <Route path="/fiscal/distdfe-historico" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><DistDFeHistorico /></LazyPage></PermissionRoute>} />
-                      <Route path="/fiscal/dashboard" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDashboard /></LazyPage></PermissionRoute>} />
+
+                      {/*
+                        Bloco Fiscal — todas as rotas /fiscal/* compartilham o FiscalShell,
+                        que monta hooks de domínio fiscal (toasts e auto-ciência DistDF-e)
+                        apenas para usuários presentes neste subtree. Estáticas precedem
+                        a dinâmica /:id por clareza visual (React Router v6 já prioriza por
+                        especificidade, mas a ordem ajuda revisão de código).
+                      */}
+                      <Route element={<LazyPage><FiscalShell /></LazyPage>}>
+                        <Route path="/fiscal" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><Fiscal /></LazyPage></PermissionRoute>} />
+                        <Route path="/fiscal/novo" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
+                        <Route path="/fiscal/dashboard" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDashboard /></LazyPage></PermissionRoute>} />
+                        <Route path="/fiscal/distdfe-historico" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><DistDFeHistorico /></LazyPage></PermissionRoute>} />
+                        <Route path="/fiscal/:id/editar" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
+                        <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />
+                      </Route>
+                      <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><EmBreve modulo="Faturamento" /></LazyPage></PermissionRoute>} />
+                      <Route path="/faturamento/cadastros" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><EmBreve modulo="Faturamento" descricao="Cadastros do módulo Faturamento estarão disponíveis em breve." /></LazyPage></PermissionRoute>} />
+                      <Route path="/faturamento/emitir" element={<PermissionRoute resource="faturamento_fiscal" action="criar"><LazyPage><EmBreve modulo="Faturamento" descricao="Emissão de NF-e pelo wizard estará disponível em breve." /></LazyPage></PermissionRoute>} />
+
+                      {/* Financeiro — estáticas (/budget) antes de /:id por clareza visual */}
                       <Route path="/financeiro" element={<PermissionRoute resource="financeiro"><LazyPage><Financeiro /></LazyPage></PermissionRoute>} />
+                      <Route path="/financeiro/budget" element={<PermissionRoute resource="financeiro"><LazyPage><Budget /></LazyPage></PermissionRoute>} />
                       <Route path="/financeiro/:id" element={<PermissionRoute resource="financeiro"><LazyPage><Financeiro /></LazyPage></PermissionRoute>} />
                       <Route path="/contas-bancarias" element={<PermissionRoute resource="financeiro"><LazyPage><ContasBancarias /></LazyPage></PermissionRoute>} />
                       <Route path="/cartoes-credito" element={<PermissionRoute resource="financeiro"><LazyPage><CartoesCredito /></LazyPage></PermissionRoute>} />
-                      <Route path="/admin/audit-duplicidades" element={<AdminRoute><LazyPage><AuditDuplicidades /></LazyPage></AdminRoute>} />
+                      {/* Alinhado ao item de menu (visível para administracao:visualizar) — antes usava AdminRoute estrito e divergia do nav. */}
+                      <Route path="/admin/audit-duplicidades" element={<PermissionRoute resource="administracao"><LazyPage><AuditDuplicidades /></LazyPage></PermissionRoute>} />
                       <Route path="/fluxo-caixa" element={<PermissionRoute resource="financeiro"><LazyPage><FluxoCaixa /></LazyPage></PermissionRoute>} />
                       <Route path="/caixa" element={<Navigate to="/financeiro" replace />} />
                       <Route path="/relatorios" element={<PermissionRoute resource="relatorios"><LazyPage><Relatorios /></LazyPage></PermissionRoute>} />
@@ -198,7 +217,6 @@ const App = () => (
                       <Route path="/contas-contabeis-plano" element={<PermissionRoute resource="financeiro"><LazyPage><ContasContabeis /></LazyPage></PermissionRoute>} />
                       <Route path="/conciliacao" element={<PermissionRoute resource="financeiro"><LazyPage><Conciliacao /></LazyPage></PermissionRoute>} />
                       <Route path="/relatorios/workbook-gerencial" element={<PermissionRoute resource="workbook"><LazyPage><WorkbookGerencial /></LazyPage></PermissionRoute>} />
-                      <Route path="/financeiro/budget" element={<PermissionRoute resource="financeiro"><LazyPage><Budget /></LazyPage></PermissionRoute>} />
                       <Route path="/relatorios/apresentacao-gerencial" element={<PermissionRoute resource="apresentacao"><LazyPage><ApresentacaoGerencial /></LazyPage></PermissionRoute>} />
                       <Route path="/social" element={<SocialRoute><LazyPage><Social /></LazyPage></SocialRoute>} />
                       <Route path="/socios" element={<PermissionRoute resource="socios"><LazyPage><Socios /></LazyPage></PermissionRoute>} />
