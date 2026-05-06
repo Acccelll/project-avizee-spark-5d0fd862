@@ -90,6 +90,7 @@ export function useImportacaoEstoque() {
 
       const prodByLegado = new Map(produtosBanco?.filter((p: any) => p.codigo_legado).map((p: any) => [p.codigo_legado, p]));
       const prodByInterno = new Map(produtosBanco?.filter((p: any) => p.codigo_interno).map((p: any) => [p.codigo_interno, p]));
+      const prodBySku = new Map(produtosBanco?.filter((p: any) => p.sku).map((p: any) => [p.sku, p]));
 
       const preview = rawRows.map((row, index) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,7 +103,9 @@ export function useImportacaoEstoque() {
         const nd = validation.normalizedData;
 
         const produtoInfo = (nd.codigo_legado && prodByLegado.get(nd.codigo_legado as string))
-          || (nd.codigo_produto && prodByInterno.get(nd.codigo_produto as string));
+          || (nd.codigo_produto && prodByInterno.get(nd.codigo_produto as string))
+          || (nd.codigo_produto && prodBySku.get(nd.codigo_produto as string))
+          || (nd.codigo_legado && prodBySku.get(nd.codigo_legado as string));
 
         if (!produtoInfo) {
           validation.valid = false;
