@@ -91,21 +91,21 @@ Validação: criar produto com itens, conferir scroll natural, SKU duplicado blo
 
 ## Onda 6 — Estruturais médios (≈ 1-2 dias)
 
-Limpeza final e melhorias de UX/dados.
+Limpeza final e melhorias de UX/dados. **Status:** quase tudo feito.
 
 - **BK-03** `set_principal_endereco`: rodar `read_query` em `pg_proc` para confirmar existência; se ok, regenerar tipos via supabase types e remover `as never`. Se não existir, criar a função em migration (SECURITY DEFINER, `search_path = public`).
 - **A-06 / BK-04** `produtos.variacoes` migrar para `text[]`: migration com `USING (string_to_array(variacoes, ','))`, normalizar valores antigos JSON, remover dual-path no frontend.
-- **SH-05** `fetchClienteDetalhes` → `Promise.allSettled`, mapear erros parciais.
-- **SH-03** `useSocios.ts`: migrar para `useQuery` com keys em `src/lib/queryKeys/cadastros.ts`.
-- **SH-04** `useDashboardData`: agregar `isFetching` dos sub-hooks num `aggregateLoading` para o header mostrar "Atualizando…" (resolve **D-02**).
-- **D-03** `GrupoEconomicoView.tsx`: passar `AbortSignal` às queries.
-- **M-03** `GruposEconomicos.tsx`: matrizNomeMap via `useQuery(['grupos-matriz', key])`.
+- ~~**SH-05** `fetchClienteDetalhes` → `Promise.allSettled`~~ ✅ feito.
+- ~~**SH-03** `useSocios.ts` migrar para `useQuery`~~ ✅ já estava migrado (`src/hooks/useSocios.ts`).
+- ~~**SH-04 / D-02** `useDashboardData` `fetching` agregado + header "Atualizando…"~~ ✅ feito.
+- ~~**D-03** `GrupoEconomicoView.tsx` `AbortSignal`~~ ✅ já existente (`abortSignal(signal)` em todas as queries).
+- ~~**M-03** `GruposEconomicos.tsx` matrizNomeMap via `useQuery`~~ ✅ feito.
 - **M-06** Funcionários: mover folha de pagamento para aba do `ViewDrawerV2`.
-- **MB-04** `GrupoEconomicoView`: wrapper `overflow-x-auto` + sombra de borda.
-- **MB-05** `MobileCollapsibleBlock`: persistir aberto/fechado em `useUserPreference("dashboard.collapse." + id)`.
-- **B-01** Decisão UnidadesMedida: deletar `UnidadesMedida.tsx` (criação inline já cobre); manter rota redirecionando para `/produtos`.
+- ~~**MB-04** `GrupoEconomicoView` overflow-x-auto~~ ✅ feito.
+- ~~**MB-05** `MobileCollapsibleBlock` persistência via `useUserPreference`~~ ✅ feito (prop `persistKey`).
+- ~~**B-01** Deletar `UnidadesMedida.tsx`~~ ✅ feito.
 - **M-04** Documentar em `docs/dashboard-modelo.md` quais blocos ignoram o período global; complementar `ScopeBadge` com tooltip já existente.
-- **M-01** FormasPagamento semântica: criar ADR `docs/adr/004-meio-vs-condicao-pagamento.md` apenas; renomeação de label sem migração de schema (decisão de produto adiada).
+- ~~**M-01** ADR `docs/adr/004-meio-vs-condicao-pagamento.md`~~ ✅ feito.
 - **MB-02** `Socios.tsx` modal: `Tabs` com `sticky top-0` no `TabsList` para preservar contexto.
 - **MB-03** FormasPagamento intervalos: aumentar gap dos botões de linha (`gap-2` + `h-9 w-9`).
 
