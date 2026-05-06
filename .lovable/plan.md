@@ -76,3 +76,7 @@ Escopo: itens de média e baixa prioridade do relatório de auditoria que não d
 ### Pendente — Fase 2b (PR isolado)
 - ⏳ A-02: paginação server-side em `Orcamentos`/`Pedidos`.
 - ⏳ SH-02: lookups de `OrcamentoForm` migrados para `useQuery`.
+
+### Fase 2b — andamento
+- ✅ SH-02: lookups do `OrcamentoForm` (clientes/produtos ativos) migrados para `useQuery` com `staleTime: 5min`. `setClientes/setProdutos` removidos. `QuickAddClient` invalida o cache; load do orçamento usa `queryClient.ensureQueryData`.
+- ⏳ A-02: paginação server-side em `Orcamentos`/`Pedidos` permanece adiada — depende de KPIs migrados para RPC para não quebrar contagens sob filtros client-side compostos (validade/prazo).

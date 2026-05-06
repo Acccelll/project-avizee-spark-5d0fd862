@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
 import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -140,8 +141,20 @@ export default function OrcamentoForm() {
 
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
-  const [clientes, setClientes] = useState<Tables<"clientes">[]>([]);
-  const [produtos, setProdutos] = useState<ProductWithForn[]>([]);
+  const queryClient = useQueryClient();
+  // Lookups cacheados (5min) — evitam recarregar a lista a cada navegação para o form.
+  const { data: clientes = [] } = useQuery<Tables<"clientes">[]>({
+    queryKey: ["orcamento-form", "clientes-ativos"],
+    queryFn: () => listClientesAtivosOrcamento(),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+  const { data: produtos = [] } = useQuery<ProductWithForn[]>({
+    queryKey: ["orcamento-form", "produtos-ativos"],
+    queryFn: () => listProdutosAtivosComFornecedores() as unknown as Promise<ProductWithForn[]>,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
   const [precosEspeciais, setPrecosEspeciais] = useState<Tables<"precos_especiais">[]>([]);
   const [clienteSnapshot, setClienteSnapshot] = useState<ClienteSnapshot>(emptyCliente);
   const [items, setItems] = useState<OrcamentoItem[]>([]);
@@ -363,12 +376,18 @@ export default function OrcamentoForm() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [clientesData, produtosData] = await Promise.all([
-          listClientesAtivosOrcamento(),
-          listProdutosAtivosComFornecedores(),
+        // clientes/produtos vêm de useQuery (cacheado 5min); apenas garantimos
+        // que estão prontos antes de prosseguir com o load do orçamento.
+        await Promise.all([
+          queryClient.ensureQueryData({
+            queryKey: ["orcamento-form", "clientes-ativos"],
+            queryFn: () => listClientesAtivosOrcamento(),
+          }),
+          queryClient.ensureQueryData({
+            queryKey: ["orcamento-form", "produtos-ativos"],
+            queryFn: () => listProdutosAtivosComFornecedores(),
+          }),
         ]);
-        setClientes(clientesData);
-        setProdutos(produtosData);
 
         if (isEdit) {
           const orc = await getOrcamentoById(id!).catch((orcError) => {
@@ -412,7 +431,7 @@ export default function OrcamentoForm() {
             if (itensData) {
               // Defesa em profundidade: se o snapshot `variacao` estiver vazio mas o produto
               // vinculado tiver `variacoes` cadastradas, usamos esse texto para exibir ao cliente.
-              const produtosMap = new Map(produtosData.map((p) => [p.id, p]));
+              const produtosMap = new Map(produtos.map((p) => [p.id, p]));
               const hidratado = itensData.map((it) => {
                 const variacaoSnapshot = (it as { variacao?: string | null }).variacao;
                 if (variacaoSnapshot && String(variacaoSnapshot).trim()) return it;
@@ -1730,9 +1749,8 @@ export default function OrcamentoForm() {
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
         onCreated={async (newId) => {
-          // Reload clients list and select the new one
-          const freshClientes = await listClientesAtivosOrcamento();
-          setClientes(freshClientes);
+          // Invalida o cache de clientes ativos para refletir o novo cadastro.
+          await queryClient.invalidateQueries({ queryKey: ["orcamento-form", "clientes-ativos"] });
           handleClienteChange(newId);
         }}
       />
