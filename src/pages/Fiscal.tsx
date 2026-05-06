@@ -1112,6 +1112,8 @@ const Fiscal = () => {
             ref={xmlInputRef}
             onXmlChange={handleXmlImport}
             onImportClick={() => xmlInputRef.current?.click()}
+            onBuscarChaveClick={() => setBuscarChaveOpen(true)}
+            onScannerClick={() => setScannerOpen(true)}
           />
         }
       >
