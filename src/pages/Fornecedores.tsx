@@ -366,7 +366,8 @@ const Fornecedores = () => {
     { label: "Inativo", value: "inativo" },
   ];
 
-  const summaryAtivos = useMemo(() => data.filter(f => f.ativo).length, [data]);
+  const summaryAtivos = totalAtivos ?? 0;
+  const totalRegistros = totalCount ?? data.length;
 
   return (
     <><ModulePage
@@ -376,10 +377,10 @@ const Fornecedores = () => {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total de Fornecedores" value={data.length} icon={Users} />
+            <SummaryCard title="Total de Fornecedores" value={totalRegistros} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
             <div className="hidden md:contents">
-              <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={UserX} />
+              <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={UserX} />
             </div>
           </>
         }
@@ -392,7 +393,7 @@ const Fornecedores = () => {
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
           onClearAll={() => clearFilters()}
-          count={filteredData.length}
+          count={totalCount ?? filteredData.length}
         >
           <MultiSelect
             options={ativoOptions}
@@ -423,6 +424,10 @@ const Fornecedores = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
             mobileInlineActions={(f: Fornecedor) => (
               <ContactInlineActions
                 phone={f.celular || f.telefone}
