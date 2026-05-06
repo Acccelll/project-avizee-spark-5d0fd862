@@ -12,6 +12,7 @@ import {
   Users,
   Package,
   Store,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -87,6 +88,7 @@ const CONTEXTUAL_TABS_BY_SECTION: Partial<Record<NavSectionKey, ContextualTab[]>
     { key: 'fluxo-caixa', title: 'Fluxo', icon: DollarSign, path: '/fluxo-caixa', permission: 'financeiro:visualizar' },
   ],
   fiscal: [
+    { key: 'dashboard-fiscal', title: 'Dashboard', icon: BarChart3, path: '/fiscal/dashboard', permission: 'faturamento_fiscal:visualizar' },
     { key: 'nf-entrada', title: 'Entrada', icon: Receipt, path: '/fiscal?tipo=entrada' },
     { key: 'nf-saida', title: 'Saída', icon: Receipt, path: '/fiscal?tipo=saida' },
   ],

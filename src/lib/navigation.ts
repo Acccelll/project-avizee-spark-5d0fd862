@@ -202,6 +202,7 @@ export const navSections: NavSection[] = [
           { title: 'Dashboard Fiscal', path: '/fiscal/dashboard', icon: BarChart3, keywords: ['indicadores', 'kpi', 'icms', 'apuracao', 'distdfe', 'painel'] },
           { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: Receipt, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
           { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: Receipt, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
+          { title: 'Histórico DistDF-e', path: '/fiscal/distdfe-historico', icon: FileSearch, keywords: ['distdfe', 'manifestacao', 'destinatario', 'xml', 'historico', 'sefaz'] },
         ],
       },
     ],
@@ -312,6 +313,9 @@ export const headerIcons: Record<string, LucideIcon> = {
 const extraRouteLabels: Record<string, string> = {
   '/configuracoes': 'Minha conta',
   '/fiscal': 'Fiscal',
+  '/ajuda': 'Central de Ajuda',
+  '/fiscal/dashboard': 'Dashboard Fiscal',
+  '/fiscal/distdfe-historico': 'Histórico DistDF-e',
 };
 
 export function isPathActive(currentPath: string, targetPath: string) {
@@ -338,6 +342,9 @@ export function getRouteLabel(pathname: string) {
   if (pathname.startsWith('/fornecedores/')) return 'Fornecedor';
   if (pathname.startsWith('/remessas/')) return 'Remessa';
   if (pathname.startsWith('/financeiro/')) return 'Lançamento';
+  // Rotas estáticas conhecidas devem ser tratadas antes do fallback genérico /fiscal/
+  if (pathname === '/fiscal/dashboard') return 'Dashboard Fiscal';
+  if (pathname === '/fiscal/distdfe-historico') return 'Histórico DistDF-e';
   if (pathname.startsWith('/fiscal/')) return 'Nota Fiscal';
   if (pathname.startsWith('/fiscal')) return 'Fiscal';
   return 'Detalhe';

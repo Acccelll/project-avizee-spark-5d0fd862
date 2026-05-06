@@ -1,10 +1,17 @@
 /**
+ * @deprecated — Migrar para a edge function `admin-users` (`invokeAdminUsers`).
  * @legacy Serviço de usuários — operações CRUD sobre `profiles` e `user_roles`.
  *
  * NOTA: Este serviço realiza escrita direta no banco via Supabase client.
  * O fluxo canônico atual para gerenciar usuários é a edge function `admin-users`
  * invocada via `invokeAdminUsers` em `UsuariosTab.tsx`. Não reutilizar este
  * serviço como fluxo principal para criação/atualização de usuários.
+ *
+ * Consumidores remanescentes (a migrar):
+ *   - src/pages/admin/hooks/useUsuarios.ts (fetch/listagem + role/desativar)
+ *
+ * Plano de remoção: após migrar `useUsuarios` para `admin-users` (alvo: Q3/2026),
+ * apagar este arquivo e o diretório `_legacy/`.
  */
 
 import { supabase } from "@/integrations/supabase/client";
