@@ -11,6 +11,8 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useServerSort } from "@/hooks/useServerSort";
+import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { listGruposAtivos } from "@/services/produtos.service";
@@ -142,13 +144,29 @@ const Produtos = () => {
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
   const hasEstoqueFilter = estoqueFilters.length > 0;
 
-  const { data, loading, remove, fetchData } = useSupabaseCrud<Produto>({
+  const sort = useServerSort("sku", "asc");
+  const {
+    data,
+    loading,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<Produto>({
     table: "produtos",
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
     searchColumns: ["nome", "sku", "codigo_interno", "ncm"],
+    pageSize: 50,
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
   });
+  // KPIs precisam de counts globais (data agora é só a página corrente).
+  const totalProdutos = useTableCount("produtos", { tipo_item: "produto" }).data ?? null;
+  const totalInsumos = useTableCount("produtos", { tipo_item: "insumo" }).data ?? null;
   const { pushView } = useRelationalNavigation();
 
   const { data: grupoLookup } = useQuery({
