@@ -14,7 +14,6 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { PageShell } from "@/components/PageShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getPedidoStatusLabel, validarTransicaoPedido } from "@/lib/comercialWorkflow";
-import { toast } from "sonner";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 
