@@ -280,12 +280,8 @@ export function ProdutoView({ id }: Props) {
             </div>
           </div>
           {(() => {
-            const raw = (selected as { variacoes?: unknown }).variacoes;
-            const items: string[] = Array.isArray(raw)
-              ? (raw as string[])
-              : typeof raw === "string" && raw
-                ? raw.split(",").map((v) => v.trim()).filter(Boolean)
-                : [];
+            const raw = (selected as { variacoes?: string[] | null }).variacoes;
+            const items: string[] = Array.isArray(raw) ? raw : [];
             if (items.length === 0) return null;
             return (
               <div className="pt-1 border-t">
