@@ -62,3 +62,17 @@ Escopo: itens de média e baixa prioridade do relatório de auditoria que não d
 ## Saída esperada
 - ~6 arquivos editados + 1 migration (status legados) + possivelmente 1 chave em `app_configuracoes`.
 - Sem mudança de stack, sem refactor além do escopo.
+---
+
+## Status de execução — Fase 3
+
+- ✅ A-04 (3.1): nova página `/faturamento` (`FaturamentoIndex`) com EmptyState e CTA "Ir para Pedidos (backlog de faturamento)" usando filtro `status=aprovada,em_separacao,separado`.
+- ✅ B-01 (3.2): UPDATE normalizando `orcamentos.status` legados (`confirmado`/`enviado` → `pendente`). `normalizeOrcamentoStatus` mantido como guard defensivo.
+- ✅ M-03/M-04 (3.3): `sendForApproval` e `convertToOV` marcados `@deprecated`. `ConvertToOVOptions` ganhou `forcar?: boolean` repassado como `p_forcar` (RPC já aceita).
+- ✅ M-05 (3.4): botão Cancelar do `OrcamentoView` (desktop + dropdown mobile) gated por `can("orcamentos:cancelar") || isAdmin`.
+- ✅ B-02 (3.5): `OrdemVendaView` lê flag `app_configuracoes['comercial'].exigir_motivo_cancelamento_pedido`; quando ligada, motivo vira obrigatório no diálogo de cancelamento.
+- ↪️ D-02 (3.6): filtro de histórico em Orçamentos mantido como Select (3 opções mutuamente exclusivas) — refator visual fica para rodada de UI específica.
+
+### Pendente — Fase 2b (PR isolado)
+- ⏳ A-02: paginação server-side em `Orcamentos`/`Pedidos`.
+- ⏳ SH-02: lookups de `OrcamentoForm` migrados para `useQuery`.
