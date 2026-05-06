@@ -130,9 +130,15 @@ const Orcamentos = () => {
 
   // Realtime: invalida grid quando orçamentos mudam (aprovação/conversão em
   // outras abas, RPCs ou triggers) — mantém a lista sincronizada sem refresh.
+  // F-06: também invalida `faturamentoPedido` para que confirmação de NF em
+  // outra aba reflita o status `convertido` do orçamento.
   useEffect(() => {
     return subscribeComercial(() => {
-      INVALIDATION_KEYS.conversaoOrcamento.forEach((key) => {
+      const keys = new Set<string>([
+        ...INVALIDATION_KEYS.conversaoOrcamento,
+        ...INVALIDATION_KEYS.faturamentoPedido,
+      ]);
+      keys.forEach((key) => {
         qc.invalidateQueries({ queryKey: [key] });
       });
       fetchData();
