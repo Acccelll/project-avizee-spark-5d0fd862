@@ -455,7 +455,7 @@ export function FiscalChaveScannerDialog({
                 <Label htmlFor="camera-select" className="text-sm">
                   Câmera
                 </Label>
-                <Select value={cameraSelecionadaId} onValueChange={setCameraSelecionadaId}>
+                <Select value={cameraSelecionadaId} onValueChange={handleSelecionarCamera}>
                   <SelectTrigger id="camera-select">
                     <SelectValue placeholder="Selecione uma câmera" />
                   </SelectTrigger>
@@ -482,32 +482,47 @@ export function FiscalChaveScannerDialog({
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2">
+            <input
+              ref={fotoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleArquivo(f);
+                e.currentTarget.value = "";
+              }}
+            />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={cameraAtiva ? tirarFoto : abrirCapturaNativa}
+                disabled={capturandoFoto || processando}
+                className="gap-2"
+                title={
+                  cameraAtiva
+                    ? "Captura um quadro da câmera e tenta decodificar."
+                    : "Abre a câmera do aparelho para tirar uma foto e tentar ler o código."
+                }
+              >
+                {capturandoFoto || processando ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Analisando…
+                  </>
+                ) : (
+                  <>
+                    <Aperture className="h-4 w-4" /> Tirar foto
+                  </>
+                )}
+              </Button>
+
               {cameraAtiva ? (
-                <>
-                  <Button
-                    variant="secondary"
-                    onClick={tirarFoto}
-                    disabled={capturandoFoto}
-                    className="gap-2"
-                    title="Captura um quadro da câmera e tenta decodificar — útil quando a leitura ao vivo não pega."
-                  >
-                    {capturandoFoto ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Analisando…
-                      </>
-                    ) : (
-                      <>
-                        <Aperture className="h-4 w-4" /> Tirar foto
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={pararCamera} className="gap-2">
-                    <X className="h-4 w-4" /> Parar câmera
-                  </Button>
-                </>
+                <Button variant="outline" onClick={() => pararCamera()} className="gap-2">
+                  <X className="h-4 w-4" /> Parar câmera
+                </Button>
               ) : (
-                <Button onClick={iniciarCamera} disabled={iniciandoCamera} className="gap-2">
+                <Button onClick={handleIniciarCamera} disabled={iniciandoCamera} className="gap-2">
                   {iniciandoCamera ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" /> Iniciando…
@@ -524,7 +539,7 @@ export function FiscalChaveScannerDialog({
               Aponte para o código de barras (NF-e) ou QR Code (NFC-e) do DANFE.
               Para CODE-128 longo do DANFE, mantenha a câmera <strong>paralela</strong>
               ao código, com boa iluminação e a barra ocupando toda a largura do quadro.
-              Em celular, a câmera traseira é selecionada automaticamente.
+              Em celular, se o ao vivo falhar, use <strong>Tirar foto</strong> para abrir a câmera nativa do aparelho.
             </p>
           </TabsContent>
 
