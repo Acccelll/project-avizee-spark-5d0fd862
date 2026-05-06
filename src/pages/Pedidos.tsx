@@ -240,12 +240,7 @@ const Pedidos = () => {
     try {
       // Usa RPC transacional via mutation hook (invalida fiscal/financeiro/estoque
       // em background — substitui a lógica TS multi-step + fetchData local).
-      await faturarPedido.mutateAsync({
-        id: pedido.id,
-        numero: pedido.numero,
-        cliente_id: pedido.cliente_id,
-        status_faturamento: pedido.status_faturamento,
-      });
+      await faturarPedido.mutateAsync(pedido.id);
       // Não precisa refetch manual: o hook invalida ["ordens_venda"] em
       // INVALIDATION_KEYS.faturamentoPedido e o useQuery acima reage.
     } catch (err: unknown) {

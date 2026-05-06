@@ -170,12 +170,7 @@ export function OrdemVendaView({ id }: Props) {
     if (!selected) return;
     await run("generate_nf", async () => {
       // RPC transacional + invalidação cross-módulo via hook.
-      const result = await faturarPedido.mutateAsync({
-        id: selected.id,
-        numero: selected.numero,
-        cliente_id: selected.cliente_id,
-        status_faturamento: selected.status_faturamento,
-      });
+      const result = await faturarPedido.mutateAsync(selected.id);
       await reload();
       setGenerateNfOpen(false);
       // Toast com CTA: usuário abre a NF gerada em 1 clique (drawer).
