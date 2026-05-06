@@ -1397,6 +1397,13 @@ export type Database = {
             foreignKeyName: "compras_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "compras_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -1754,6 +1761,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
@@ -2153,6 +2167,13 @@ export type Database = {
             foreignKeyName: "estoque_movimentos_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -2352,6 +2373,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
@@ -4058,6 +4086,13 @@ export type Database = {
             foreignKeyName: "nfe_distribuicao_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -4711,6 +4746,13 @@ export type Database = {
             foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -5038,6 +5080,13 @@ export type Database = {
             foreignKeyName: "orcamentos_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -5288,6 +5337,13 @@ export type Database = {
             foreignKeyName: "ordens_venda_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -5475,6 +5531,13 @@ export type Database = {
             foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -5599,6 +5662,13 @@ export type Database = {
             foreignKeyName: "precos_especiais_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "precos_especiais_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -5655,6 +5725,13 @@ export type Database = {
             foreignKeyName: "produto_composicoes_produto_filho_id_fkey"
             columns: ["produto_filho_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_filho_id_fkey"
+            columns: ["produto_filho_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -5678,6 +5755,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_pai_id_fkey"
+            columns: ["produto_pai_id"]
+            isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "produto_composicoes_produto_pai_id_fkey"
@@ -5752,6 +5836,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_identificadores_legacy_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "produto_identificadores_legacy_produto_id_fkey"
@@ -6072,6 +6163,13 @@ export type Database = {
             foreignKeyName: "produtos_fornecedores_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produtos_fornecedores_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -6288,6 +6386,13 @@ export type Database = {
             foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_critico"
             referencedColumns: ["produto_id"]
           },
@@ -6487,6 +6592,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "remessa_itens_produto_id_fkey"
@@ -8441,6 +8553,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vw_estoque_posicao: {
+        Row: {
+          ativo: boolean | null
+          codigo_interno: string | null
+          estoque_atual: number | null
+          estoque_minimo: number | null
+          estoque_reservado: number | null
+          preco_custo: number | null
+          preco_venda: number | null
+          produto_id: string | null
+          produto_nome: string | null
+          sku: string | null
+          unidade_medida: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo_interno?: string | null
+          estoque_atual?: never
+          estoque_minimo?: number | null
+          estoque_reservado?: never
+          preco_custo?: number | null
+          preco_venda?: number | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          sku?: string | null
+          unidade_medida?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo_interno?: string | null
+          estoque_atual?: never
+          estoque_minimo?: number | null
+          estoque_reservado?: never
+          preco_custo?: number | null
+          preco_venda?: number | null
+          produto_id?: string | null
+          produto_nome?: string | null
+          sku?: string | null
+          unidade_medida?: string | null
+        }
+        Relationships: []
       }
       vw_fluxo_caixa_financeiro: {
         Row: {
