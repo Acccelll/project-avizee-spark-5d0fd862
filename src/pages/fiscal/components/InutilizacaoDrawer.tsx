@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Ban } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,29 +17,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { inutilizarNumeracao, resolverUrlSefaz } from "@/services/fiscal/sefaz";
 import {
-  inutilizarNumeracao,
-  resolverUrlSefaz,
-  type AmbienteSefaz,
-} from "@/services/fiscal/sefaz";
+  getEmpresaSefazContext,
+  listInutilizacoesHistorico,
+  registrarInutilizacao,
+} from "@/services/fiscal/manifestacao.repository";
+import { fiscalKeys } from "@/lib/queryKeys/fiscal";
 import { notifyError } from "@/utils/errorMessages";
 
 interface InutilizacaoDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-interface InutRow {
-  id: string;
-  serie: number;
-  ano: number;
-  numero_inicial: number;
-  numero_final: number;
-  justificativa: string;
-  protocolo: string | null;
-  status_sefaz: string;
-  motivo_retorno: string | null;
-  created_at: string;
 }
 
 export function InutilizacaoDrawer({ open, onOpenChange }: InutilizacaoDrawerProps) {
@@ -53,16 +41,8 @@ export function InutilizacaoDrawer({ open, onOpenChange }: InutilizacaoDrawerPro
   const [enviando, setEnviando] = useState(false);
 
   const { data: historico = [], isLoading } = useQuery({
-    queryKey: ["inutilizacoes-historico"],
-    queryFn: async (): Promise<InutRow[]> => {
-      const { data, error } = await supabase
-        .from("inutilizacoes_numeracao")
-        .select("id, serie, ano, numero_inicial, numero_final, justificativa, protocolo, status_sefaz, motivo_retorno, created_at")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return (data ?? []) as InutRow[];
-    },
+    queryKey: fiscalKeys.inutilizacoesHistorico(),
+    queryFn: () => listInutilizacoesHistorico(),
     enabled: open,
   });
 
@@ -78,46 +58,33 @@ export function InutilizacaoDrawer({ open, onOpenChange }: InutilizacaoDrawerPro
   const handleEnviar = async () => {
     setEnviando(true);
     try {
-      const { data: cfg } = await supabase
-        .from("empresa_config")
-        .select("uf, ambiente_sefaz, ambiente_padrao, cnpj")
-        .limit(1)
-        .maybeSingle();
-      if (!cfg?.cnpj || !cfg?.uf) {
-        throw new Error("Configuração da empresa incompleta (CNPJ/UF).");
-      }
-      let ambiente: AmbienteSefaz = "2";
-      if (cfg.ambiente_sefaz === "1" || cfg.ambiente_sefaz === "2") ambiente = cfg.ambiente_sefaz;
-      else if (cfg.ambiente_padrao === "producao") ambiente = "1";
-
-      const url = resolverUrlSefaz(cfg.uf.toUpperCase(), ambiente, "inutilizacao");
+      const ctx = await getEmpresaSefazContext({ requireUf: true });
+      const url = resolverUrlSefaz(ctx.uf, ctx.ambiente, "inutilizacao");
       const result = await inutilizarNumeracao(
         {
-          cnpj: cfg.cnpj,
+          cnpj: ctx.cnpj,
           ano: Number(ano),
           serie: Number(serie),
           numInicial: ini,
           numFinal: fim,
           justificativa: justificativa.trim(),
-          uf: cfg.uf.toUpperCase(),
-          ambiente,
+          uf: ctx.uf,
+          ambiente: ctx.ambiente,
         },
         { tipo: "A1", conteudo: "", senha: "" },
         url,
       );
 
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("inutilizacoes_numeracao").insert({
+      await registrarInutilizacao({
         serie: Number(serie),
         ano: Number(ano),
         numero_inicial: ini,
         numero_final: fim,
         justificativa: justificativa.trim(),
         protocolo: result.protocolo ?? null,
-        data_evento: result.dataRetorno ?? new Date().toISOString(),
+        data_evento: result.dataRetorno ?? null,
         status_sefaz: result.sucesso ? "autorizado" : "rejeitado",
         motivo_retorno: result.motivo ?? null,
-        usuario_id: user?.id ?? null,
       });
 
       if (result.sucesso) {
@@ -128,7 +95,7 @@ export function InutilizacaoDrawer({ open, onOpenChange }: InutilizacaoDrawerPro
       } else {
         toast.error(`SEFAZ rejeitou: ${result.motivo ?? "—"}`);
       }
-      qc.invalidateQueries({ queryKey: ["inutilizacoes-historico"] });
+      qc.invalidateQueries({ queryKey: fiscalKeys.inutilizacoesHistorico() });
     } catch (e) {
       notifyError(e);
     } finally {
