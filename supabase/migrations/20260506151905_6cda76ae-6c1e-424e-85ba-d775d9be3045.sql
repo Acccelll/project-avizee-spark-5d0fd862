@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX IF NOT EXISTS socios_cpf_unique ON public.socios (cpf) WHERE cpf IS NOT NULL AND cpf <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS funcionarios_cpf_unique ON public.funcionarios (cpf) WHERE cpf IS NOT NULL AND cpf <> '';
