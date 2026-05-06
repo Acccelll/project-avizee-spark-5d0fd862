@@ -140,6 +140,7 @@ export function WorkbookHistoricoTable({
       data={geracoes}
       loading={isLoading}
       emptyTitle="Nenhuma geração encontrada."
+      mobileStatusKey="status"
     />
   );
 }
