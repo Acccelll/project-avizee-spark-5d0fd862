@@ -14,6 +14,7 @@ const FiscalShell = lazy(() =>
 const EmBreve = lazy(() =>
   import("@/components/EmBreve").then((m) => ({ default: m.EmBreve })),
 );
+const FaturamentoIndex = lazy(() => import("@/pages/faturamento/FaturamentoIndex"));
 
 /**
  * Bloco Fiscal — todas as rotas /fiscal/* compartilham o `FiscalShell`,
@@ -34,7 +35,7 @@ export const fiscalRoutes = (
       <Route path="/fiscal/:id/editar" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
       <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />
     </Route>
-    <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><EmBreve modulo="Faturamento" /></LazyPage></PermissionRoute>} />
+    <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FaturamentoIndex /></LazyPage></PermissionRoute>} />
     <Route path="/faturamento/cadastros" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><EmBreve modulo="Faturamento" descricao="Cadastros do módulo Faturamento estarão disponíveis em breve." /></LazyPage></PermissionRoute>} />
     <Route path="/faturamento/emitir" element={<PermissionRoute resource="faturamento_fiscal" action="criar"><LazyPage><EmBreve modulo="Faturamento" descricao="Emissão de NF-e pelo wizard estará disponível em breve." /></LazyPage></PermissionRoute>} />
   </>
