@@ -459,6 +459,14 @@ const Produtos = () => {
     }
     setFormErrors({});
 
+    // Bloqueio antes de chamar o banco para feedback imediato.
+    if (form.sku && skuChecking) { toast.error("Aguarde a verificação do SKU."); return; }
+    if (form.sku && skuUnico === false) {
+      setFormErrors((prev) => ({ ...prev, sku: "SKU já cadastrado em outro produto." }));
+      toast.error("SKU já cadastrado em outro produto.");
+      return;
+    }
+
     // Regras adicionais não cobertas pelo schema (sub-entidades)
     if (form.eh_composto && editComposicao.length === 0) { toast.error("Produto composto precisa de ao menos um componente"); return; }
     if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) { toast.error("Selecione o produto para todos os componentes"); return; }
