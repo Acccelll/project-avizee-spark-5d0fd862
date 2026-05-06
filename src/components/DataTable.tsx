@@ -871,11 +871,18 @@ export function DataTable<T extends Record<string, any>>({
             {renderMobileCards()}
             <div className="mt-3 flex items-center justify-between px-1 py-2">
               <span className="text-xs text-muted-foreground">
-                {viewMode === 'infinite'
+                {serverPagination
+                  ? `${effectivePage * pageSize + 1}\u2013${Math.min((effectivePage + 1) * pageSize, totalRowsForPaging)} de ${totalRowsForPaging}`
+                  : viewMode === 'infinite'
                   ? `${Math.min(visibleCount, sortedData.length)} de ${sortedData.length}`
                   : `${currentPage * pageSize + 1}\u2013${Math.min((currentPage + 1) * pageSize, sortedData.length)} de ${sortedData.length}`}
               </span>
-              {viewMode === 'infinite' ? (
+              {serverPagination ? (
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Página anterior" disabled={effectivePage === 0} onClick={() => goToPage(effectivePage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Próxima página" disabled={!serverPagination.hasMore && effectivePage >= totalPages - 1} onClick={() => goToPage(effectivePage + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                </div>
+              ) : viewMode === 'infinite' ? (
                 <Button variant="ghost" size="sm" disabled={visibleCount >= sortedData.length} onClick={() => setVisibleCount((v) => v + pageSize)}>
                   <ChevronsDownUp className="h-4 w-4 mr-1" />Carregar mais
                 </Button>
