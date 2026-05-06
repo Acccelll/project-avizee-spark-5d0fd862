@@ -667,6 +667,14 @@ export function DataTable<T extends Record<string, any>>({
   };
 
   const SortIcon = ({ colKey }: { colKey: string }) => {
+    if (serverPagination) {
+      const col = columns.find((c) => c.key === colKey);
+      if (!col?.serverSortable) return null;
+      if (serverSortKey !== colKey) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
+      return serverSortDir === 'asc'
+        ? <ChevronUp className="h-3.5 w-3.5 text-primary" />
+        : <ChevronDown className="h-3.5 w-3.5 text-primary" />;
+    }
     if (sortKey !== colKey) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
     return sortDir === 'asc' ? <ChevronUp className="h-3.5 w-3.5 text-primary" /> : <ChevronDown className="h-3.5 w-3.5 text-primary" />;
   };
