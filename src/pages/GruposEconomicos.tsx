@@ -94,10 +94,17 @@ const GruposEconomicos = () => {
   const canExcluir = can("clientes:excluir") || can("administracao:visualizar");
   const { pushView } = useRelationalNavigation();
 
+  const serverFilters = useMemo(() => {
+    const out: Array<{ column: string; value: boolean }> = [];
+    if (ativoFilters.length === 1) out.push({ column: "ativo", value: ativoFilters[0] === "ativo" });
+    return out;
+  }, [ativoFilters]);
+
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
     searchTerm: debouncedSearch,
     filterAtivo: false,
+    filter: serverFilters,
     searchColumns: ["nome"],
   });
 
@@ -172,14 +179,8 @@ const GruposEconomicos = () => {
     onLoad: (g) => openEdit(g),
   });
 
-  const filteredData = useMemo(() => {
-    if (ativoFilters.length === 0) return data;
-    return data.filter((g) => {
-      if (ativoFilters.includes("ativo") && g.ativo) return true;
-      if (ativoFilters.includes("inativo") && !g.ativo) return true;
-      return false;
-    });
-  }, [data, ativoFilters]);
+  // Filtro de status agora é server-side (`serverFilters`).
+  const filteredData = data;
 
   const isDirty = useMemo(
     () =>
