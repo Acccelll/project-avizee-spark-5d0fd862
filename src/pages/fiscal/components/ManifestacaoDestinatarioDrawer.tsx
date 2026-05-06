@@ -187,57 +187,41 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
   ) => {
     setManifestando(nf.id);
     try {
-      const { data: cfg } = await supabase
-        .from("empresa_config")
-        .select("cnpj, ambiente_sefaz, ambiente_padrao")
-        .limit(1)
-        .maybeSingle();
-      if (!cfg?.cnpj) {
-        throw new Error("Configuração da empresa incompleta (CNPJ).");
-      }
-      let ambiente: AmbienteSefaz = "2";
-      if (cfg.ambiente_sefaz === "1" || cfg.ambiente_sefaz === "2") ambiente = cfg.ambiente_sefaz;
-      else if (cfg.ambiente_padrao === "producao") ambiente = "1";
-
+      const ctx = await getEmpresaSefazContext();
       const result = await enviarManifestacao(
         {
           chave: nf.chave_acesso,
-          cnpjDestinatario: cfg.cnpj,
+          cnpjDestinatario: ctx.cnpj,
           tpEvento,
-          ambiente,
+          ambiente: ctx.ambiente,
           justificativa,
         },
         { tipo: "A1", conteudo: "", senha: "" },
       );
 
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("eventos_fiscais").insert({
+      await registrarEventoManifestacao({
         nfe_distribuicao_id: nf.id,
         tipo_evento: tipoEventoFiscalFromManifestacao(tpEvento),
         codigo_evento: tpEvento,
-        sequencia: 1,
         justificativa: justificativa ?? null,
         protocolo: result.protocolo ?? null,
-        data_evento: result.dataRetorno ?? new Date().toISOString(),
+        data_evento: result.dataRetorno ?? null,
         status_sefaz: result.sucesso ? "autorizado" : "rejeitado",
         motivo_retorno: result.motivo ?? null,
         xml_retorno: result.xmlRetorno ?? null,
-        usuario_id: user?.id ?? null,
       });
 
       if (result.sucesso) {
-        await supabase
-          .from("nfe_distribuicao")
-          .update({
-            status_manifestacao: statusManifestacaoFromEvento(tpEvento),
-            data_manifestacao: result.dataRetorno ?? new Date().toISOString(),
-          })
-          .eq("id", nf.id);
+        await atualizarStatusManifestacao({
+          nfeId: nf.id,
+          status: statusManifestacaoFromEvento(tpEvento),
+          dataManifestacao: result.dataRetorno ?? new Date().toISOString(),
+        });
         toast.success(`Manifestação registrada — protocolo ${result.protocolo ?? "—"}`);
       } else {
         toast.error(`SEFAZ rejeitou: ${result.motivo ?? "—"}`);
       }
-      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+      qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
     } catch (e) {
       notifyError(e);
     } finally {
@@ -267,9 +251,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
     try {
       const text = await file.text();
       const parsed = parseNFeXml(text);
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const payloadHeader = {
+      await upsertNfeFromXml({
         chave_acesso: parsed.chave,
         cnpj_emitente: parsed.cnpjEmitente,
         nome_emitente: parsed.nomeEmitente,
@@ -282,50 +264,15 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
         natureza_operacao: parsed.naturezaOperacao,
         uf_emitente: parsed.ufEmitente,
         ie_emitente: parsed.ieEmitente,
-        protocolo_autorizacao: parsed.protocolo,
-        xml_nfe: text,
-        xml_importado: true,
-        usuario_id: user?.id ?? null,
-      };
-
-      // Upsert por chave_acesso (UNIQUE). Mantém status_manifestacao existente
-      // ao não enviar — onConflict atualiza apenas as colunas do payload.
-      const { data: upserted, error } = await supabase
-        .from("nfe_distribuicao")
-        .upsert(payloadHeader, { onConflict: "chave_acesso" })
-        .select("id")
-        .single();
-      if (error) throw error;
-
-      // Reescreve itens (delete + insert) para evitar drift quando reimportado
-      await supabase
-        .from("nfe_distribuicao_itens")
-        .delete()
-        .eq("nfe_distribuicao_id", upserted.id);
-
-      if (parsed.itens.length > 0) {
-        const itensRows = parsed.itens.map((it) => ({
-          nfe_distribuicao_id: upserted.id,
-          numero_item: it.numero,
-          codigo: it.codigo,
-          descricao: it.descricao,
-          ncm: it.ncm,
-          cfop: it.cfop,
-          unidade: it.unidade,
-          quantidade: it.quantidade,
-          valor_unitario: it.valorUnitario,
-          valor_total: it.valorTotal,
-        }));
-        const { error: itErr } = await supabase
-          .from("nfe_distribuicao_itens")
-          .insert(itensRows);
-        if (itErr) throw itErr;
-      }
+        protocolo: parsed.protocolo,
+        xml: text,
+        itens: parsed.itens,
+      });
 
       toast.success(
         `XML importado — NF ${parsed.numero}/${parsed.serie} (${parsed.itens.length} ${parsed.itens.length === 1 ? "item" : "itens"})`,
       );
-      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+      qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
     } catch (e) {
       notifyError(e);
     } finally {
