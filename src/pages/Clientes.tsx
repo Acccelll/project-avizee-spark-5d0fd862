@@ -11,6 +11,8 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useServerSort } from "@/hooks/useServerSort";
+import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -152,13 +154,30 @@ const Clientes = () => {
 
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
 
-  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Cliente>({
+  const sort = useServerSort("nome_razao_social", "asc");
+  const {
+    data,
+    loading,
+    create,
+    update,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<Cliente>({
     table: "clientes",
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
+    pageSize: 50,
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
   });
+  const totalAtivos = useTableCount("clientes", { ativo: true }).data ?? null;
+  const totalComGrupo = useTableCount("clientes", { grupo_economico_id: { not: { is: null } } }).data ?? null;
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -298,6 +317,8 @@ const Clientes = () => {
   const columns = [
     {
       key: "nome_razao_social", mobilePrimary: true, label: "Nome / Razão Social", sortable: true,
+      // Permite ordenação server-side pela coluna de nome.
+      serverSortable: true,
       render: (c: Cliente) => (
         <div>
           <p className="font-medium leading-tight">{c.nome_razao_social}</p>
@@ -307,7 +328,7 @@ const Clientes = () => {
         </div>
       ),
     },
-    { key: "cpf_cnpj", mobileCard: true, label: "CPF / CNPJ",
+    { key: "cpf_cnpj", mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
       render: (c: Cliente) => <span className="font-mono text-xs">{c.cpf_cnpj || "—"}</span> },
     { key: "tipo_pessoa", label: "Tipo",
       render: (c: Cliente) => (
@@ -374,8 +395,10 @@ const Clientes = () => {
     { label: "Inativo", value: "inativo" },
   ];
 
-  const summaryAtivos = useMemo(() => data.filter(c => c.ativo).length, [data]);
-  const summaryComGrupo = useMemo(() => data.filter(c => c.grupo_economico_id).length, [data]);
+  // Em modo paged `data` contém só a página atual — KPIs vêm de count() server-side.
+  const summaryAtivos = totalAtivos ?? 0;
+  const summaryComGrupo = totalComGrupo ?? 0;
+  const totalRegistros = totalCount ?? data.length;
 
   return (
     <>
@@ -387,10 +410,10 @@ const Clientes = () => {
         addButtonHelpId="clientes.novoBtn"
         summaryCards={
           <>
-            <SummaryCard title="Total de Clientes" value={data.length} icon={Users} />
+            <SummaryCard title="Total de Clientes" value={totalRegistros} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
             <div className="hidden md:contents">
-              <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={User2} />
+              <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={User2} />
               <SummaryCard title="Com Grupo Econômico" value={summaryComGrupo} icon={Building2} />
             </div>
           </>
@@ -404,7 +427,7 @@ const Clientes = () => {
           activeFilters={cliActiveFilters}
           onRemoveFilter={handleRemoveCliFilter}
           onClearAll={() => clearFilters(["tipo", "grupo", "ativo"])}
-          count={filteredData.length}
+          count={totalCount ?? filteredData.length}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[130px]" />
           <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipos" className="w-[150px]" />
@@ -426,6 +449,10 @@ const Clientes = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
             mobileInlineActions={(c: Cliente) => (
               <ContactInlineActions
                 phone={c.celular || c.telefone}

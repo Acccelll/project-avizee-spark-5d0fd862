@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -134,6 +134,14 @@ export function useSupabaseCrud<R = any>({
     () => [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
     [table, select, orderBy, ascending, filterKey, dateRangeKey, statusKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
   );
+
+  // Quando filtros/busca/ordem mudam em modo paged, reseta para a primeira
+  // página — evita pedir um range inexistente após shrink do dataset.
+  useEffect(() => {
+    if (effectiveMode !== "paged") return;
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: reage só a deps de filtro/ordem
+  }, [filterKey, dateRangeKey, statusKey, searchTerm, orderBy, ascending, effectiveMode]);
 
   type QueryResult = { rows: R[]; totalCount: number | null; hasMore: boolean; truncated: boolean };
 

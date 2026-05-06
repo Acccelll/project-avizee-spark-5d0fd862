@@ -11,6 +11,8 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useServerSort } from "@/hooks/useServerSort";
+import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { listGruposAtivos } from "@/services/produtos.service";
@@ -142,13 +144,29 @@ const Produtos = () => {
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
   const hasEstoqueFilter = estoqueFilters.length > 0;
 
-  const { data, loading, remove, fetchData } = useSupabaseCrud<Produto>({
+  const sort = useServerSort("sku", "asc");
+  const {
+    data,
+    loading,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<Produto>({
     table: "produtos",
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
     searchColumns: ["nome", "sku", "codigo_interno", "ncm"],
+    pageSize: 50,
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
   });
+  // KPIs precisam de counts globais (data agora é só a página corrente).
+  const totalProdutos = useTableCount("produtos", { tipo_item: "produto" }).data ?? null;
+  const totalInsumos = useTableCount("produtos", { tipo_item: "insumo" }).data ?? null;
   const { pushView } = useRelationalNavigation();
 
   const { data: grupoLookup } = useQuery({
@@ -198,13 +216,13 @@ const Produtos = () => {
   }, [data, hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);
 
   const columns = [
-    { key: "sku", label: "SKU", sortable: true, render: (p: ProdutoTableRow) => (
+    { key: "sku", label: "SKU", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
       <span className="font-mono text-xs font-medium" title="SKU — código comercial canônico">{p.sku || "—"}</span>
     )},
-    { key: "codigo_interno", label: "Cód. Interno", sortable: true, render: (p: ProdutoTableRow) => (
+    { key: "codigo_interno", label: "Cód. Interno", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
       <span className="font-mono text-xs text-muted-foreground" title="Código Interno (ERP) — sequencial PRD/INS">{p.codigo_interno || "—"}</span>
     )},
-    { key: "nome", mobilePrimary: true, label: "Produto", sortable: true, render: (p: ProdutoTableRow) => (
+    { key: "nome", mobilePrimary: true, label: "Produto", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
       <div><span className="font-medium text-sm">{p.nome}</span></div>
     )},
     { key: "unidade_medida", label: "UN", render: (p: Produto) => (
@@ -272,16 +290,23 @@ const Produtos = () => {
     )},
   ];
 
-  const kpis = useMemo(() => {
-    const ativos = data.filter(p => p.ativo !== false);
-    const criticos = data.filter(p => {
-      const s = getSituacaoEstoque(p);
-      return s === "critico" || s === "zerado";
-    });
-    const insumos = data.filter(p => p.tipo_item === "insumo");
-    const produtos = data.filter(p => (p.tipo_item || "produto") === "produto");
-    return { total: data.length, ativos: ativos.length, criticos: criticos.length, insumos: insumos.length, produtos: produtos.length };
-  }, [data]);
+  // KPIs: total/produtos/insumos vêm de count() server-side; "criticos" só
+  // pode ser calculado sobre a página atual (depende de runtime). Marcamos
+  // o card com sufixo "(página)" para sinalizar.
+  const criticosNaPagina = useMemo(
+    () =>
+      data.filter((p) => {
+        const s = getSituacaoEstoque(p);
+        return s === "critico" || s === "zerado";
+      }).length,
+    [data],
+  );
+  const kpis = {
+    total: totalCount ?? data.length,
+    produtos: totalProdutos ?? 0,
+    insumos: totalInsumos ?? 0,
+    criticos: criticosNaPagina,
+  };
 
   const prodActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -343,7 +368,7 @@ const Produtos = () => {
           <SummaryCard title="Insumos" value={kpis.insumos} icon={Archive} variant="default"
             onClick={kpis.insumos > 0 ? () => setTipoItemFilters(["insumo"]) : undefined}
             subtitle={kpis.insumos > 0 ? "Clique para filtrar" : undefined} />
-          <SummaryCard title="Abaixo do Mínimo" value={kpis.criticos} icon={AlertCircle}
+          <SummaryCard title="Abaixo do Mínimo (página)" value={kpis.criticos} icon={AlertCircle}
             variant={kpis.criticos > 0 ? "danger" : "default"}
             onClick={kpis.criticos > 0 ? () => setEstoqueFilters(["critico", "zerado"]) : undefined}
             subtitle={kpis.criticos > 0 ? "Clique para filtrar" : undefined} />
@@ -358,7 +383,7 @@ const Produtos = () => {
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
           onClearAll={() => clearFilters(["tipo", "tipoItem", "estoque", "grupo", "ativo"])}
-          count={filteredData.length}
+          count={totalCount ?? filteredData.length}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[150px]" />
           <MultiSelect options={tipoItemOptions} selected={tipoItemFilters} onChange={setTipoItemFilters} placeholder="Classificação" className="w-[160px]" />
@@ -383,6 +408,10 @@ const Produtos = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="sku"
             mobileStatusKey="ativo"
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
           />
         </div>
       </PullToRefresh>

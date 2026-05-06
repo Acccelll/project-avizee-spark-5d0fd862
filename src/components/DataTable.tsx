@@ -60,6 +60,13 @@ export interface Column<T> {
    * Example: `sortValue: (item) => item.cliente?.nome ?? ''`.
    */
   sortValue?: (item: T) => string | number | null | undefined;
+  /**
+   * Quando `true` e o DataTable estiver em modo `serverPagination`, a coluna
+   * permanece clicável para ordenação — o callback `onServerSort` recebe a
+   * chave/direção e a página deve repassar para `useSupabaseCrud` (orderBy/ascending).
+   * Demais colunas perdem o ícone de sort no modo server-paged.
+   */
+  serverSortable?: boolean;
 }
 
 type FilterOperator = 'contains' | 'equals' | 'gt' | 'between';
@@ -174,6 +181,25 @@ interface DataTableProps<T> {
    */
   defaultSortKey?: string;
   defaultSortDir?: 'asc' | 'desc';
+  /**
+   * Quando presente, ativa modo "server pagination":
+   *  - `data` é renderizado direto (sem slice/sort/filter local).
+   *  - Footer usa `totalCount` real e botões ‹ › chamam `setPage`.
+   *  - Filtros internos (popover legacy) ficam desabilitados.
+   *  - Sort fica restrito a colunas marcadas `serverSortable`, via `onServerSort`.
+   */
+  serverPagination?: {
+    page: number;
+    setPage: (page: number) => void;
+    totalCount: number | null;
+    hasMore: boolean;
+  };
+  /** Callback de ordenação server-side. Recebe a chave (ou null para limpar) e a direção. */
+  onServerSort?: (key: string | null, dir: 'asc' | 'desc' | null) => void;
+  /** Estado controlado de ordenação server-side (chave atual). */
+  serverSortKey?: string | null;
+  /** Estado controlado de ordenação server-side (direção atual). */
+  serverSortDir?: 'asc' | 'desc' | null;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -219,6 +245,10 @@ export function DataTable<T extends Record<string, any>>({
   rowExtraActions,
   defaultSortKey,
   defaultSortDir = 'asc',
+  serverPagination,
+  onServerSort,
+  serverSortKey,
+  serverSortDir,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
@@ -346,6 +376,19 @@ export function DataTable<T extends Record<string, any>>({
   }, [data, rules]);
 
   const handleSort = (key: string) => {
+    if (serverPagination) {
+      // Em modo server-paged, delega 100% ao consumidor.
+      const col = columns.find((c) => c.key === key);
+      if (!col?.serverSortable) return;
+      if (serverSortKey === key) {
+        if (serverSortDir === 'asc') onServerSort?.(key, 'desc');
+        else if (serverSortDir === 'desc') onServerSort?.(null, null);
+        else onServerSort?.(key, 'asc');
+      } else {
+        onServerSort?.(key, 'asc');
+      }
+      return;
+    }
     if (sortKey === key) {
       if (sortDir === 'asc') setSortDir('desc');
       else if (sortDir === 'desc') { setSortKey(null); setSortDir(null); }
@@ -376,7 +419,12 @@ export function DataTable<T extends Record<string, any>>({
     });
   }, [filteredData, sortKey, sortDir, columns]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
+  const totalRowsForPaging = serverPagination
+    ? (serverPagination.totalCount ?? data.length)
+    : sortedData.length;
+  const totalPages = serverPagination
+    ? Math.max(1, Math.ceil(totalRowsForPaging / pageSize))
+    : Math.max(1, Math.ceil(sortedData.length / pageSize));
 
   // Reset page when filters/data shrink the list past the current page.
   useEffect(() => {
@@ -385,8 +433,20 @@ export function DataTable<T extends Record<string, any>>({
     }
   }, [totalPages, currentPage]);
 
-  const pageData = sortedData.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-  const pagedData = viewMode === 'infinite' ? sortedData.slice(0, visibleCount) : pageData;
+  // Em server-paged, `data` já é a página corrente vinda do hook.
+  const pageData = serverPagination
+    ? data
+    : sortedData.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const pagedData = serverPagination
+    ? data
+    : viewMode === 'infinite' ? sortedData.slice(0, visibleCount) : pageData;
+
+  // Página efetiva (controlada pelo consumidor em server-paged).
+  const effectivePage = serverPagination ? serverPagination.page : currentPage;
+  const goToPage = (next: number) => {
+    if (serverPagination) serverPagination.setPage(next);
+    else setCurrentPage(next);
+  };
 
   const toggleSelect = useCallback((id: string) => {
     if (!onSelectionChange) return;
@@ -607,6 +667,14 @@ export function DataTable<T extends Record<string, any>>({
   };
 
   const SortIcon = ({ colKey }: { colKey: string }) => {
+    if (serverPagination) {
+      const col = columns.find((c) => c.key === colKey);
+      if (!col?.serverSortable) return null;
+      if (serverSortKey !== colKey) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
+      return serverSortDir === 'asc'
+        ? <ChevronUp className="h-3.5 w-3.5 text-primary" />
+        : <ChevronDown className="h-3.5 w-3.5 text-primary" />;
+    }
     if (sortKey !== colKey) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
     return sortDir === 'asc' ? <ChevronUp className="h-3.5 w-3.5 text-primary" /> : <ChevronDown className="h-3.5 w-3.5 text-primary" />;
   };
@@ -803,11 +871,18 @@ export function DataTable<T extends Record<string, any>>({
             {renderMobileCards()}
             <div className="mt-3 flex items-center justify-between px-1 py-2">
               <span className="text-xs text-muted-foreground">
-                {viewMode === 'infinite'
+                {serverPagination
+                  ? `${effectivePage * pageSize + 1}\u2013${Math.min((effectivePage + 1) * pageSize, totalRowsForPaging)} de ${totalRowsForPaging}`
+                  : viewMode === 'infinite'
                   ? `${Math.min(visibleCount, sortedData.length)} de ${sortedData.length}`
                   : `${currentPage * pageSize + 1}\u2013${Math.min((currentPage + 1) * pageSize, sortedData.length)} de ${sortedData.length}`}
               </span>
-              {viewMode === 'infinite' ? (
+              {serverPagination ? (
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Página anterior" disabled={effectivePage === 0} onClick={() => goToPage(effectivePage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Próxima página" disabled={!serverPagination.hasMore && effectivePage >= totalPages - 1} onClick={() => goToPage(effectivePage + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                </div>
+              ) : viewMode === 'infinite' ? (
                 <Button variant="ghost" size="sm" disabled={visibleCount >= sortedData.length} onClick={() => setVisibleCount((v) => v + pageSize)}>
                   <ChevronsDownUp className="h-4 w-4 mr-1" />Carregar mais
                 </Button>
@@ -859,11 +934,16 @@ export function DataTable<T extends Record<string, any>>({
                     <tr className="border-b bg-muted/70 backdrop-blur">
                       {hasActions && <th className="px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>}
                       {selectable && <th className="w-10 px-3 py-2.5"><Checkbox checked={pagedData.length > 0 && pagedData.every((item) => selectedIds.includes(item.id))} onCheckedChange={toggleSelectAll} /></th>}
-                      {visibleColumns.map((col) => (
-                        <th key={col.key} className={cn('px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', col.sortable !== false && 'cursor-pointer hover:text-foreground transition-colors')} onClick={() => col.sortable !== false && handleSort(col.key)}>
-                          <div className="flex items-center gap-1.5">{col.label}{col.sortable !== false && <SortIcon colKey={col.key} />}</div>
-                        </th>
-                      ))}
+                       {visibleColumns.map((col) => {
+                         const sortableHere = serverPagination
+                           ? !!col.serverSortable
+                           : col.sortable !== false;
+                         return (
+                           <th key={col.key} className={cn('px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', sortableHere && 'cursor-pointer hover:text-foreground transition-colors')} onClick={() => sortableHere && handleSort(col.key)}>
+                             <div className="flex items-center gap-1.5">{col.label}{sortableHere && <SortIcon colKey={col.key} />}</div>
+                           </th>
+                         );
+                       })}
                     </tr>
                   </thead>
                   <VirtualizedOrPlainTbody
@@ -909,11 +989,18 @@ export function DataTable<T extends Record<string, any>>({
 
               <div className="flex items-center justify-between border-t px-4 py-3">
                 <span className="text-xs text-muted-foreground">
-                  {viewMode === 'infinite'
+                  {serverPagination
+                    ? `${effectivePage * pageSize + 1}\u2013${Math.min((effectivePage + 1) * pageSize, totalRowsForPaging)} de ${totalRowsForPaging} registros`
+                    : viewMode === 'infinite'
                     ? `${Math.min(visibleCount, sortedData.length)} de ${sortedData.length} registros`
                     : `${currentPage * pageSize + 1}\u2013${Math.min((currentPage + 1) * pageSize, sortedData.length)} de ${sortedData.length}`}
                 </span>
-                {viewMode === 'infinite' ? (
+                {serverPagination ? (
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Página anterior" disabled={effectivePage === 0} onClick={() => goToPage(effectivePage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" disabled={!serverPagination.hasMore && effectivePage >= totalPages - 1} onClick={() => goToPage(effectivePage + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                  </div>
+                ) : viewMode === 'infinite' ? (
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" disabled={visibleCount >= sortedData.length} onClick={() => setVisibleCount((v) => v + pageSize)}><ChevronsDownUp className="h-4 w-4 mr-1" />Carregar mais</Button>
                   </div>

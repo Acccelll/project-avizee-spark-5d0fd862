@@ -11,6 +11,8 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useServerSort } from "@/hooks/useServerSort";
+import { useTableCount } from "@/hooks/useTableCount";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -108,13 +110,29 @@ const Fornecedores = () => {
     return out;
   }, [tipoFilters, ativoFilters]);
 
-  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Fornecedor>({
+  const sort = useServerSort("nome_razao_social", "asc");
+  const {
+    data,
+    loading,
+    create,
+    update,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<Fornecedor>({
     table: "fornecedores",
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
+    pageSize: 50,
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
   });
+  const totalAtivos = useTableCount("fornecedores", { ativo: true }).data ?? null;
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -258,7 +276,7 @@ const Fornecedores = () => {
   const columns = [
   {
     key: "nome_razao_social",
-      mobilePrimary: true, label: "Nome / Razão Social", sortable: true,
+      mobilePrimary: true, label: "Nome / Razão Social", sortable: true, serverSortable: true,
     render: (f: Fornecedor) => (
       <div>
         <p className="font-medium leading-tight">{f.nome_razao_social}</p>
@@ -270,7 +288,7 @@ const Fornecedores = () => {
   },
   {
     key: "cpf_cnpj",
-      mobileCard: true, label: "CPF / CNPJ",
+      mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
     render: (f: Fornecedor) => <span className="font-mono text-xs">{f.cpf_cnpj || "—"}</span>,
   },
   {
@@ -348,7 +366,8 @@ const Fornecedores = () => {
     { label: "Inativo", value: "inativo" },
   ];
 
-  const summaryAtivos = useMemo(() => data.filter(f => f.ativo).length, [data]);
+  const summaryAtivos = totalAtivos ?? 0;
+  const totalRegistros = totalCount ?? data.length;
 
   return (
     <><ModulePage
@@ -358,10 +377,10 @@ const Fornecedores = () => {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total de Fornecedores" value={data.length} icon={Users} />
+            <SummaryCard title="Total de Fornecedores" value={totalRegistros} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
             <div className="hidden md:contents">
-              <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={UserX} />
+              <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={UserX} />
             </div>
           </>
         }
@@ -374,7 +393,7 @@ const Fornecedores = () => {
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
           onClearAll={() => clearFilters()}
-          count={filteredData.length}
+          count={totalCount ?? filteredData.length}
         >
           <MultiSelect
             options={ativoOptions}
@@ -405,6 +424,10 @@ const Fornecedores = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
             mobileInlineActions={(f: Fornecedor) => (
               <ContactInlineActions
                 phone={f.celular || f.telefone}
