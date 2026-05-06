@@ -13,10 +13,16 @@ import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { PageShell } from "@/components/PageShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { getPedidoStatusLabel } from "@/lib/comercialWorkflow";
+import { getPedidoStatusLabel, validarTransicaoPedido } from "@/lib/comercialWorkflow";
+import { toast } from "sonner";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 
+/**
+ * Status operacionais editáveis manualmente. Estados terminais alcançados via
+ * RPC (`faturada`, `faturada_parcial`, `cancelada`) NÃO entram aqui — devem
+ * ser disparados pelas ações Gerar NF / Cancelar Pedido.
+ */
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
   { value: "aprovada", label: "Aprovado" },
@@ -24,7 +30,6 @@ const statusOptions = [
   { value: "separado", label: "Separado" },
   { value: "em_transporte", label: "Em Transporte" },
   { value: "entregue", label: "Entregue" },
-  { value: "cancelada", label: "Cancelado" },
 ];
 
 interface PedidoEditForm {
