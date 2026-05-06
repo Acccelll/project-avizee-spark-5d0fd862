@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { DataTable } from "@/components/DataTable";
@@ -252,17 +253,27 @@ const Produtos = () => {
   const [siglaInput, setSiglaInput] = useState("");
   const [savingSigla, setSavingSigla] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      listGruposAtivos(),
-      listFornecedoresParaProduto(),
-      listUnidadesMedidaAtivas(),
-    ]).then(([g, f, um]) => {
-      setGrupos(g);
-      setFornecedoresList(f);
-      setUnidadesMedida(um as UnidadeMedidaOption[]);
-    });
-  }, []);
+  // Lookups (grupos, fornecedores, unidades) via React Query — cache compartilhado
+  // entre montagens. Mantemos cópia local para permitir mutações otimistas
+  // (criação de unidade/sigla inline) sem invalidar o cache imediatamente.
+  const { data: grupoLookup } = useQuery({
+    queryKey: ["produtos", "lookup", "grupos-ativos"],
+    queryFn: listGruposAtivos,
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: fornecedorLookup } = useQuery({
+    queryKey: ["produtos", "lookup", "fornecedores"],
+    queryFn: listFornecedoresParaProduto,
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: unidadeLookup } = useQuery({
+    queryKey: ["produtos", "lookup", "unidades-medida"],
+    queryFn: listUnidadesMedidaAtivas,
+    staleTime: 5 * 60 * 1000,
+  });
+  useEffect(() => { if (grupoLookup) setGrupos(grupoLookup); }, [grupoLookup]);
+  useEffect(() => { if (fornecedorLookup) setFornecedoresList(fornecedorLookup); }, [fornecedorLookup]);
+  useEffect(() => { if (unidadeLookup) setUnidadesMedida(unidadeLookup as UnidadeMedidaOption[]); }, [unidadeLookup]);
 
   useEditDeepLink<Produto>({
     table: "produtos",

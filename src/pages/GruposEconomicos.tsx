@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -75,11 +77,18 @@ function getRiskInfo(titulosVencidos: number, saldoConsolidado: number) {
 }
 
 const GruposEconomicos = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const { value: filterValue, set: setFilter, clear: clearFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      ativo: { type: "stringArray" },
+    },
+  });
+  const searchTerm = filterValue.q;
+  const setSearchTerm = (v: string) => setFilter({ q: v });
+  const ativoFilters = filterValue.ativo;
+  const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
-  const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [clienteCountMap, setClienteCountMap] = useState<Record<string, number>>({});
-  const [matrizNomeMap, setMatrizNomeMap] = useState<Record<string, string>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
   const { can } = useCan();
   const canExcluir = can("clientes:excluir") || can("administracao:visualizar");
@@ -118,26 +127,30 @@ const GruposEconomicos = () => {
       });
   }, [dataIdsKey]);
 
-  // Build a lookup of empresa_matriz_id -> nome_razao_social when the set of matriz IDs changes
-  useEffect(() => {
-    if (!matrizIdsKey) {
-      setMatrizNomeMap((prev) => (Object.keys(prev).length === 0 ? prev : {}));
-      return;
-    }
-    const matrizIds = matrizIdsKey.split(",");
-    supabase
-      .from("clientes")
-      .select("id, nome_razao_social")
-      .in("id", matrizIds)
-      .then(({ data: clientes, error }) => {
-        if (error) { logger.error("[grupos-economicos] erro ao carregar nomes de matriz:", error); return; }
-        const map: Record<string, string> = {};
-        for (const c of (clientes || []) as { id: string; nome_razao_social: string }[]) {
-          map[c.id] = c.nome_razao_social;
-        }
-        setMatrizNomeMap(map);
-      });
-  }, [matrizIdsKey]);
+  // Lookup matriz_id -> nome via React Query (cache compartilhado e cancelável).
+  const { data: matrizNomeMap = {} } = useQuery<Record<string, string>>({
+    queryKey: ["grupos-economicos", "matriz-nomes", matrizIdsKey],
+    enabled: !!matrizIdsKey,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async ({ signal }) => {
+      const ids = matrizIdsKey.split(",").filter(Boolean);
+      if (ids.length === 0) return {};
+      const { data: clientes, error } = await supabase
+        .from("clientes")
+        .select("id, nome_razao_social")
+        .in("id", ids)
+        .abortSignal(signal);
+      if (error) {
+        logger.error("[grupos-economicos] erro ao carregar nomes de matriz:", error);
+        return {};
+      }
+      const map: Record<string, string> = {};
+      for (const c of (clientes || []) as { id: string; nome_razao_social: string }[]) {
+        map[c.id] = c.nome_razao_social;
+      }
+      return map;
+    },
+  });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<GrupoEconomico | null>(null);
@@ -384,7 +397,7 @@ const GruposEconomicos = () => {
           onRemoveFilter={(key) => {
             if (key === "ativo") setAtivoFilters([]);
           }}
-          onClearAll={() => setAtivoFilters([])}
+          onClearAll={() => clearFilters(["ativo"])}
           count={filteredData.length}
         >
           <MultiSelect
