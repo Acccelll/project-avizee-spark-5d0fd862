@@ -237,7 +237,7 @@ export default function Socios() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-cpf">CPF</Label>
-                    <Input id="soc-cpf" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} placeholder="000.000.000-00" />
+                    <MaskedInput id="soc-cpf" mask="cpf" showValidation value={form.cpf} onChange={(v) => setForm({ ...form, cpf: v })} placeholder="000.000.000-00" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-status">Status</Label>
