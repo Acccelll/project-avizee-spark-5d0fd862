@@ -441,7 +441,15 @@ const Produtos = () => {
             .join(", ")
         : null;
       const { variacoes_texto: _vt, ...rest } = form;
-      const payload = { ...rest, variacoes: variacoesTexto, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
+      // Normaliza NCM removendo qualquer máscara (pontos/traços) antes de persistir,
+      // garantindo formato consistente no banco e no XML da NF-e.
+      const ncmDigits = (form.ncm || "").replace(/\D/g, "");
+      const payload = {
+        ...rest,
+        ncm: ncmDigits,
+        variacoes: variacoesTexto,
+        preco_custo: form.eh_composto ? custoComposto : form.preco_custo,
+      };
       // Código Interno é sempre gerado/mantido pelo backend (trigger PRD/INS).
       // Em criação: enviamos string vazia (trigger preenche). Em edição: removemos do payload para nunca sobrescrever.
       if (mode === "create") {
