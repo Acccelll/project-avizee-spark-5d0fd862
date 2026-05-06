@@ -383,6 +383,25 @@ export function FiscalChaveScannerDialog({
           </TabsContent>
 
           <TabsContent value="camera" className="space-y-3 pt-3">
+            {camerasDisponiveis.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="camera-select" className="text-sm">
+                  Câmera
+                </Label>
+                <Select value={cameraSelecionadaId} onValueChange={setCameraSelecionadaId}>
+                  <SelectTrigger id="camera-select">
+                    <SelectValue placeholder="Selecione uma câmera" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {camerasDisponiveis.map((camera) => (
+                      <SelectItem key={camera.deviceId} value={camera.deviceId}>
+                        {camera.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border bg-black">
               <video
                 ref={videoRef}
