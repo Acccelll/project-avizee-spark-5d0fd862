@@ -69,7 +69,7 @@ export function DashboardSkeleton() {
               </div>
             ))}
           </div>
-          <Skeleton className="h-[220px] w-full" />
+          <Skeleton className="min-h-[220px] w-full" />
         </div>
         <div className="rounded-xl border bg-card p-5 space-y-3">
           <Skeleton className="h-5 w-28" />
