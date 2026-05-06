@@ -798,7 +798,7 @@ const Estoque = () => {
                       </SelectContent>
                     </Select>
                     <p className="text-[11px] text-muted-foreground">
-                      O motivo abaixo precisa ter pelo menos 10 caracteres e somente usuários com perfil <strong>admin</strong> ou <strong>estoquista</strong> podem registrar ajustes críticos.
+                      Apenas usuários com perfil <strong>admin</strong> ou <strong>estoquista</strong> podem registrar ajustes críticos. A justificativa é opcional, mas recomendada para auditoria.
                     </p>
                   </div>
                 )}
