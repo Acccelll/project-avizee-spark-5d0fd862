@@ -22,6 +22,8 @@ import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
  * RPC (`faturada`, `faturada_parcial`, `cancelada`) NÃO entram aqui — devem
  * ser disparados pelas ações Gerar NF / Cancelar Pedido.
  */
+const STATUS_ORDER = ["pendente", "aprovada", "em_separacao", "separado", "em_transporte", "entregue"] as const;
+
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
   { value: "aprovada", label: "Aprovado" },
@@ -242,9 +244,20 @@ const PedidoForm = () => {
               <Select value={form.status} onValueChange={(v) => set("status", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {statusOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
+                  {/* M-05: só mostra status atingíveis a partir do status atual
+                      (ordem operacional + matriz CHECK chk_ordens_venda_matriz_status).
+                      Mantém o status atual sempre visível como fallback. */}
+                  {statusOptions
+                    .filter((o) => {
+                      if (o.value === pedido?.status) return true;
+                      const currentIdx = STATUS_ORDER.indexOf((pedido?.status as typeof STATUS_ORDER[number]) || "pendente");
+                      const targetIdx = STATUS_ORDER.indexOf(o.value as typeof STATUS_ORDER[number]);
+                      if (currentIdx >= 0 && targetIdx >= 0 && targetIdx < currentIdx) return false;
+                      return validarTransicaoPedido(o.value, pedido?.status_faturamento);
+                    })
+                    .map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

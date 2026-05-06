@@ -17,6 +17,7 @@ import { useCan } from "@/hooks/useCan";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import { notifyError } from "@/utils/errorMessages";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
@@ -83,6 +84,11 @@ export function OrcamentoView({ id }: Props) {
   const converterOrcamento = useConverterOrcamento();
   const aprovarOrcamentoMut = useAprovarOrcamento();
   const crossToast = useCrossModuleToast();
+  // B-03: motivo obrigatório de cancelamento de orçamento (paralelo ao do pedido).
+  const { value: comercialFlags } = useAppConfig<{
+    exigir_motivo_cancelamento_orcamento?: boolean;
+  }>("comercial", { exigir_motivo_cancelamento_orcamento: false });
+  const exigirMotivoCancel = Boolean(comercialFlags?.exigir_motivo_cancelamento_orcamento);
 
   const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(
     id,
@@ -223,7 +229,8 @@ export function OrcamentoView({ id }: Props) {
           </Button>
         )}
         {/* Desktop: ações secundárias inline */}
-        {["aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
+        {/* M-01: também permite revisão durante `pendente` (cliente pediu ajustes). */}
+        {["pendente", "aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={handleCriarRevisao} disabled={isAnyLocked}>
             <GitBranch className="h-3.5 w-3.5" /> Criar revisão
           </Button>
@@ -422,10 +429,7 @@ export function OrcamentoView({ id }: Props) {
                 <span className={isExpired ? "text-warning font-medium" : ""}>{formatDate(selected.validade)}</span>
               </div>
             )}
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Status</span>
-              <StatusBadge status={normalizeOrcamentoStatus(selected.status)} />
-            </div>
+            {/* M-02: status já aparece no header (RecordIdentityCard). Removido daqui para evitar duplicação. */}
             {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Convertido em Pedido</span>
@@ -644,7 +648,12 @@ export function OrcamentoView({ id }: Props) {
         onConfirm={async () => {
           try {
             // Usa a RPC oficial `cancelar_orcamento` para garantir auditoria.
-            await cancelarOrcamento(id, cancelMotivo.trim() || undefined);
+            const motivo = cancelMotivo.trim();
+            if (exigirMotivoCancel && !motivo) {
+              toast.error("Informe o motivo do cancelamento.");
+              return;
+            }
+            await cancelarOrcamento(id, motivo || undefined);
             invalidate(["orcamentos"]);
             await reload();
             setCancelMotivo("");
@@ -661,12 +670,15 @@ export function OrcamentoView({ id }: Props) {
         confirmVariant="destructive"
       >
         <div className="space-y-2 mt-2">
-          <Label className="text-xs">Motivo (opcional)</Label>
+          <Label className="text-xs">
+            Motivo {exigirMotivoCancel ? <span className="text-destructive">*</span> : "(opcional)"}
+          </Label>
           <Input
             value={cancelMotivo}
             onChange={(e) => setCancelMotivo(e.target.value)}
             placeholder="Ex: cliente desistiu, valor fora do orçado..."
             className="h-9"
+            required={exigirMotivoCancel}
           />
           <p className="text-[10px] text-muted-foreground">O motivo é registrado na auditoria do orçamento.</p>
         </div>
