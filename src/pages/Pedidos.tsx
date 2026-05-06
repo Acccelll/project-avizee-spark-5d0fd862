@@ -282,7 +282,7 @@ const Pedidos = () => {
       if (!query) return true;
       return [pedido.numero, pedido.clientes?.nome_razao_social, pedido.orcamentos?.numero, pedido.po_number, pedido.observacoes].filter(Boolean).join(" ").toLowerCase().includes(query);
     });
-  }, [data, faturamentoFilters, searchTerm, statusFilters, clienteFilters, prazoFilters, dataInicio, dataFim]);
+  }, [data, faturamentoFilters, searchTerm, statusFilters, clienteFilters, prazoFilters, dataInicio, dataFim, prazoAlertaDias]);
 
   // KPIs over filteredData so they reflect the user's current filter selection.
   const kpis = useMemo(() => {
