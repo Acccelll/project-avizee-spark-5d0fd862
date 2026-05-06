@@ -18,7 +18,8 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { toast } from "sonner";
 import type { Socio, SocioParticipacao } from "@/types/domain";
 import { formatDate } from "@/lib/format";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollableTabsList } from "@/components/ui/scrollable-tabs";
 import { SocioDrawer } from "@/components/socios/SocioDrawer";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { validateCPF } from "@/lib/validators";
@@ -231,10 +232,13 @@ export default function Socios() {
         }
       >
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className={`sticky top-0 z-10 bg-background ${mode === "edit" ? "grid w-full grid-cols-2" : "grid w-full grid-cols-1"}`}>
+          <ScrollableTabsList
+            containerClassName="sticky top-0 z-10 bg-background"
+            className={mode === "edit" ? "grid w-full grid-cols-2" : "grid w-full grid-cols-1"}
+          >
             <TabsTrigger value="identificacao">Cadastro</TabsTrigger>
             {mode === "edit" && <TabsTrigger value="participacoes">Participações</TabsTrigger>}
-          </TabsList>
+          </ScrollableTabsList>
 
           <TabsContent value="identificacao">
             <form id="socio-form" onSubmit={handleSubmit} className="space-y-6">
