@@ -1058,6 +1058,14 @@ const Produtos = () => {
                     <Wand2 className="h-4 w-4" />
                   </Button>
                 </div>
+                {skuChecking && form.sku && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    Verificando SKU...
+                  </p>
+                )}
+                {!skuChecking && skuUnico === false && (
+                  <p className="text-xs text-destructive">SKU já cadastrado em outro produto.</p>
+                )}
                 {form.grupo_id && !grupos.find(g => g.id === form.grupo_id)?.sigla && (
                   <p className="text-[11px] text-muted-foreground">
                     Defina uma sigla no grupo para gerar SKU automático (ex.: AG, SR).
