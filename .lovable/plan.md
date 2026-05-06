@@ -21,32 +21,32 @@ Verifiquei item a item da matriz contra o código atual (`src/`, services, schem
 ### Itens que AINDA faltam
 
 🔴 **Bug remanescente**
-- **A-07 — FiscalBlock ScopeBadge incoerente.** `FiscalBlock.tsx:81` continua `kind: 'fixed-window', janela: 'mes-atual'`, enquanto `useDashboardData.ts:80` já marca o escopo do bloco como `fixed-window`. ✅ Coincide hoje — **mas o badge está hardcoded** em vez de consumir `scope.fiscal` do estado, o que é frágil. Trocar para `<ScopeBadge scope={scope.fiscal} />`.
+- ✅ **A-07** resolvido (FiscalBlock consome `scopes.fiscal`).
 
 🟠 **Alto**
-- **A-05** — `produtoSchema.shape.preco_venda.optional().or(undefined as never)` ainda no `ProdutoForm.tsx`. Criar `produtoInsumoSchema` separado.
-- **A-06 / BK-04** — `produtos.variacoes` continua `text` com dual-path (`Array.isArray ? : split(",")`). Migration para `text[]` + normalização.
-- **BK-01 (resto)** — adicionar `funcionarios_cpf_unique`.
-- **BK-05** — `save_produto_fornecedores` ainda recebe `String(...)` para campos numéricos.
+- ✅ **A-05** — `produtoInsumoSchema` já existe e é usado no submit.
+- ✅ **A-06 / BK-04** — coluna `produtos.variacoes` é `text[]`; front consolidado via `parseVariacoes`/`formatVariacoesSuffix`.
+- ✅ **BK-01** — `funcionarios_cpf_unique` aplicado.
+- ✅ **BK-05** — payload de `save_produto_fornecedores` já passa `number` direto.
 
 🟡 **Médio**
 - **M-01** — Semântica meio × condição em `formas_pagamento` (refator de domínio).
-- **M-03** — `GruposEconomicos.matrizNomeMap` ainda em `useEffect` direto (não React Query).
+- ✅ **M-03** — `matrizNomeMap` já está em React Query (`useQuery` em `GruposEconomicos.tsx`).
 - **M-04** — Documentar/sinalizar quais blocos do Dashboard ignoram período global.
-- **M-05** — Lookups de grupo/fornecedor/unidade no `ProdutoForm` ainda fora de React Query.
+- ✅ **M-05** — Lookups de grupo/fornecedor/unidade migrados para React Query.
 - **M-06** — Folha de pagamento como modal aninhado em Funcionários.
-- **M-07** — Sem validação de unicidade de SKU (nem hook nem constraint).
-- **M-08** — NCM normalizado no `openEdit` (`ProdutoForm.tsx:168`) e no submit (`:291`) ✅ já tratado; **mas o input livre ainda permite máscara**. Aceitar como resolvido.
-- **M-09** — Mensagem "em outra entidade" → "nesta tabela" em Clientes/Fornecedores.
-- **SH-02** — Lookups de Produtos para React Query.
-- **SH-03** — `useSocios` para React Query.
+- ✅ **M-07** — `useFieldUnique` no SKU + índice único parcial em `produtos.sku`.
+- ✅ **M-08** — NCM normalizado.
+- ✅ **M-09** — Mensagem ajustada para "Documento já cadastrado nesta tabela".
+- ✅ **SH-02** — Lookups de Produtos em React Query.
+- ✅ **SH-03** — `useSocios` migrado para React Query.
 - **SH-04** — Loading agregado do Dashboard.
 
 🟢 **Baixo**
-- **B-02** — `Skeleton h-[220px]` → `min-h-[220px]` no `LazyInViewWidget`.
+- ✅ **B-02** — `min-h-[220px]` aplicado em `DashboardSkeleton` e `LazyInViewWidget`.
 - **MB-02 / MB-03 / MB-04 / MB-05** — ajustes mobile (abas sócios, intervalos parcelas, scroll-x grupos, persistência de colapso).
-- **D-02** — Feedback "atualizando..." ao mudar período.
-- **D-03** — `AbortSignal` em `GrupoEconomicoView`.
+- ✅ **D-02** — Header desktop e mobile mostram "Atualizando…" com `fetching` do React Query.
+- ✅ **D-03** — `GrupoEconomicoView` já usa `abortSignal(signal)` via `useDetailFetch`.
 - **MB-01 / D-01** — resolvidos junto com C-01.
 
 ---
