@@ -53,13 +53,11 @@ Validação: testar grid com >1k registros mock, conferir requisição com `.eq`
 
 Resolve A-03 e BK-02.
 
-- Criar `src/services/_shared/safeDelete.ts` com helper `softDeleteOrWarn(table, id, dependencyChecks[])`.
-- `clientes.service.ts`, `fornecedores.service.ts`, `transportadoras.service.ts`, `rh.service.ts`: trocar `delete()` por `update({ ativo: false })` e adicionar verificação prévia de dependências (`ordens_venda`, `notas_fiscais`, `financeiro_lancamentos`, `compras_pedidos`, etc.).
-- Mensagem de erro humana: "Cliente possui N pedidos vinculados. Desative em vez de excluir."
-- Atualizar componentes que disparam delete para mostrar `useConfirmDestructive` com texto adequado a "desativar".
-- Manter hard-delete restrito a admin via `useCanHardDelete` (já existente).
+- ~~`safeDelete.ts` + `clientes.service.ts` + `fornecedores.service.ts`~~ ✅
+- ~~`transportadoras.service.ts` + `rh.service.ts` + páginas Transportadoras/Funcionarios~~ ✅
+- Hard-delete restrito a admin via `useCanHardDelete` (parâmetro `hardDelete: true` disponível por service).
 
-Validação: tentar excluir cliente com pedido vinculado — erro claro; sem dependências — desativa.
+**BK-01 ✅** índices únicos parciais `socios_cpf_unique` e `funcionarios_cpf_unique` aplicados.
 
 ---
 
