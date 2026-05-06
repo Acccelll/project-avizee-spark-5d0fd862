@@ -277,8 +277,8 @@ export default function FormasPagamento() {
 
   return (
     <><ModulePage
-        title="Formas de Pagamento"
-        subtitle="Central de consulta e parametrização de condições de pagamento"
+        title="Formas e condições de pagamento"
+        subtitle="Meio (Pix, boleto, cartão…) + parcelamento usado em orçamentos, pedidos e financeiro"
         addLabel="Nova Forma"
         onAdd={openCreate}
         summaryCards={
