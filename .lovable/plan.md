@@ -63,11 +63,13 @@ Resolve A-03 e BK-02.
 
 ## Onda 5 — Transportadoras PF + Produtos refactor (≈ 3 dias, 2-3 commits)
 
-### 5a. Transportadoras com tipo_pessoa (A-02, ≈ 4h)
+### 5a. Transportadoras com tipo_pessoa (A-02) ✅
 
-- Migration: `ALTER TABLE transportadoras ADD COLUMN tipo_pessoa TEXT NOT NULL DEFAULT 'J' CHECK (tipo_pessoa IN ('F','J'))`.
-- `Transportadoras.tsx`: campo `tipo_pessoa` no form, `useDocumentoUnico` condicional ("cpf"|"cnpj"), `buscarCpf`/`buscarCnpj` análogo a Clientes.
-- `transportadoras.service.ts`: lookup unificado.
+- Migration aplicada: coluna `tipo_pessoa` com `CHECK ('F','J')`, valores legados normalizados (PF/PJ → F/J), default `'J'`.
+- `Transportadoras.tsx`: seletor PF/PJ no form, máscara CPF/CNPJ condicional, botão de consulta CNPJ desabilitado para PF.
+- `useDocumentoUnico` agora recebe `"cpf"|"cnpj"` conforme `tipo_pessoa`.
+- `transportadoraSchema` aceita CPF (11) ou CNPJ (14) com validação dígito.
+- Coluna na lista mostra badge PF/PJ junto ao documento.
 
 ### 5b. Produtos em página dedicada (C-01, MB-01, D-01, ≈ 2 dias)
 
