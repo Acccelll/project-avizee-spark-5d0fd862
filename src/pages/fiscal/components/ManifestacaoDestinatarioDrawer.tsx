@@ -292,7 +292,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
       toast.success(
         `Sincronizado: ${r.novos} nova(s), ${r.duplicados} já existente(s). NSU ${r.ultNSU ?? "—"}/${r.maxNSU ?? "—"}`,
       );
-      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+      qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
     } catch (e) {
       notifyError(e);
     } finally {
@@ -608,25 +608,20 @@ interface ItensDialogProps {
 
 function ItensDialog({ nf, onClose }: ItensDialogProps) {
   const { data: itens = [], isLoading } = useQuery({
-    queryKey: ["nfe-distribuicao-itens", nf?.id],
+    queryKey: fiscalKeys.nfeDistribuicaoItens(nf?.id),
     queryFn: async (): Promise<NFeXmlItem[]> => {
       if (!nf) return [];
-      const { data, error } = await supabase
-        .from("nfe_distribuicao_itens")
-        .select("numero_item, codigo, descricao, ncm, cfop, unidade, quantidade, valor_unitario, valor_total")
-        .eq("nfe_distribuicao_id", nf.id)
-        .order("numero_item");
-      if (error) throw error;
-      return (data ?? []).map((r) => ({
+      const rows = await listNfeDistribuicaoItens(nf.id);
+      return rows.map((r) => ({
         numero: r.numero_item,
         codigo: r.codigo,
         descricao: r.descricao,
         ncm: r.ncm,
         cfop: r.cfop,
         unidade: r.unidade,
-        quantidade: Number(r.quantidade ?? 0),
-        valorUnitario: Number(r.valor_unitario ?? 0),
-        valorTotal: Number(r.valor_total ?? 0),
+        quantidade: r.quantidade,
+        valorUnitario: r.valor_unitario,
+        valorTotal: r.valor_total,
       }));
     },
     enabled: !!nf,
@@ -708,29 +703,9 @@ interface ProcessarEntradaProps {
   onProcessed: () => void;
 }
 
-interface ItemLinha {
-  id: string;
-  numero_item: number;
-  descricao: string;
-  ncm: string | null;
-  cfop: string | null;
-  quantidade: number;
-  valor_total: number;
-  produto_id: string | null;
-}
-
-interface ProdutoOpt {
-  id: string;
-  sku: string | null;
-  nome: string;
-}
-
-interface FornecedorOpt {
-  id: string;
-  nome_razao_social: string | null;
-  nome_fantasia: string | null;
-  cpf_cnpj: string | null;
-}
+type ItemLinha = NfeDistItemRow;
+type ProdutoOpt = ProdutoMinRow;
+type FornecedorOpt = FornecedorMinRow;
 
 function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaProps) {
   const qc = useQueryClient();
@@ -748,55 +723,22 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
   }
 
   const { data: fornecedores = [] } = useQuery({
-    queryKey: ["fornecedores-ativos-min"],
-    queryFn: async (): Promise<FornecedorOpt[]> => {
-      const { data, error } = await supabase
-        .from("fornecedores")
-        .select("id, nome_razao_social, nome_fantasia, cpf_cnpj")
-        .eq("ativo", true)
-        .order("nome_razao_social")
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as FornecedorOpt[];
-    },
+    queryKey: fiscalKeys.fornecedoresAtivosMin(),
+    queryFn: () => listFornecedoresAtivosMin(),
     enabled: !!nf,
   });
 
   const { data: produtos = [] } = useQuery({
-    queryKey: ["produtos-min-busca"],
-    queryFn: async (): Promise<ProdutoOpt[]> => {
-      const { data, error } = await supabase
-        .from("produtos")
-        .select("id, sku, nome")
-        .eq("ativo", true)
-        .order("nome")
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as ProdutoOpt[];
-    },
+    queryKey: fiscalKeys.produtosAtivosMin(),
+    queryFn: () => listProdutosAtivosMin(),
     enabled: !!nf,
   });
 
   const { data: itens = [], refetch: refetchItens } = useQuery({
-    queryKey: ["nfe-dist-itens-mapear", nf?.id],
+    queryKey: fiscalKeys.nfeDistItensMapear(nf?.id),
     queryFn: async (): Promise<ItemLinha[]> => {
       if (!nf) return [];
-      const { data, error } = await supabase
-        .from("nfe_distribuicao_itens")
-        .select("id, numero_item, descricao, ncm, cfop, quantidade, valor_total, produto_id")
-        .eq("nfe_distribuicao_id", nf.id)
-        .order("numero_item");
-      if (error) throw error;
-      return (data ?? []).map((r) => ({
-        id: r.id,
-        numero_item: r.numero_item,
-        descricao: r.descricao,
-        ncm: r.ncm,
-        cfop: r.cfop,
-        quantidade: Number(r.quantidade ?? 0),
-        valor_total: Number(r.valor_total ?? 0),
-        produto_id: r.produto_id,
-      }));
+      return listNfeDistribuicaoItens(nf.id);
     },
     enabled: !!nf,
   });
@@ -818,15 +760,12 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
   }
 
   const handleMapearProduto = async (itemId: string, produtoId: string | null) => {
-    const { error } = await supabase
-      .from("nfe_distribuicao_itens")
-      .update({ produto_id: produtoId })
-      .eq("id", itemId);
-    if (error) {
+    try {
+      await mapearProdutoNfeItem(itemId, produtoId);
+      refetchItens();
+    } catch (error) {
       notifyError(error);
-      return;
     }
-    refetchItens();
   };
 
   const itensComProduto = itens.filter((i) => i.produto_id).length;
@@ -835,18 +774,11 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
     if (!nf || !fornecedorId) return;
     setProcessando(true);
     try {
-      const { data, error } = await supabase.rpc("processar_nfe_distribuicao", {
-        p_nfe_id: nf.id,
-        p_fornecedor_id: fornecedorId,
-        p_data_vencimento: vencimento,
-        p_descricao: null,
+      const r = await processarNfeDistribuicao({
+        nfeId: nf.id,
+        fornecedorId,
+        dataVencimento: vencimento,
       });
-      if (error) throw error;
-      const r = (data ?? {}) as {
-        itens_processados?: number;
-        itens_total?: number;
-        itens_sem_produto?: number;
-      };
       toast.success(
         `Entrada processada — ${r.itens_processados ?? 0}/${r.itens_total ?? 0} itens em estoque, 1 título a pagar gerado.`,
         r.itens_sem_produto && r.itens_sem_produto > 0
