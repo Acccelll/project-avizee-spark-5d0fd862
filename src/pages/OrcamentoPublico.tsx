@@ -253,14 +253,17 @@ export default function OrcamentoPublico() {
   const cepLinha = empresa?.cep ? `CEP: ${empresa.cep}` : "";
 
   const handleAction = async (acao: "aprovado" | "rejeitado") => {
-    if (!data || !token) return;
+    if (!data || !token || actionLoading) return;
+    if (!["pendente", "rascunho"].includes(data.status)) {
+      toast.error("Este orçamento não está mais disponível para resposta.");
+      return;
+    }
     setActionLoading(true);
-    const { error: updErr } = await supabase
-      .from("orcamentos")
-      .update({ status: acao })
-      .eq("public_token", token)
-      .eq("ativo", true);
-    if (updErr) {
+    const { error: rpcErr } = await supabase.rpc("acao_cliente_orcamento" as never, {
+      p_token: token,
+      p_acao: acao,
+    } as never);
+    if (rpcErr) {
       toast.error("Erro ao registrar sua resposta. Tente novamente.");
     } else {
       setActionDone(acao);
