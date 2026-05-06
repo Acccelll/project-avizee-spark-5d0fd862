@@ -29,10 +29,10 @@ export async function cancelarPedidoVenda(input: {
   id: string;
   motivo?: string | null;
 }): Promise<CancelarPedidoVendaResult> {
-  const { data, error } = await supabase.rpc("cancelar_pedido_venda" as never, {
+  const { data, error } = await supabase.rpc("cancelar_pedido_venda", {
     p_id: input.id,
-    p_motivo: input.motivo ?? null,
-  } as never);
+    p_motivo: input.motivo ?? undefined,
+  });
   if (error) throw new Error(error.message);
-  return data as CancelarPedidoVendaResult;
+  return data as unknown as CancelarPedidoVendaResult;
 }
