@@ -82,7 +82,7 @@ Próximo: Fase 2 (paginação, React Query na grid de Pedidos, lookups, realtime
 - ✅ SH-04: `comercialChannel` já remove o canal quando `listeners.size === 0` (verificado em `src/lib/realtime/comercialChannel.ts`).
 - ✅ BK-02: `useFaturarPedido` trata `LOCK_CONTENTION`/deadlock com toast específico ("Outro faturamento em andamento").
 - ✅ MB-02: Header do `OrcamentoView` em mobile virou ações primárias (Aprovar/Converter) + dropdown "..." com Editar/PDF/Enviar/Revisão/Cancelar/Excluir. Em desktop tudo continua inline.
-- ⏳ A-07/SH-03: migração da grid `Pedidos` para `useQuery` puro — fora do escopo desta rodada (refactor maior; já existe invalidação cruzada via `subscribeComercial` + `INVALIDATION_KEYS.faturamentoPedido`, e o `fetchData()` local segue como fallback enquanto o hook segue em `useSupabaseCrud`).
+- ✅ A-07/SH-03: grid `Pedidos` migrada de `useSupabaseCrud` para `useQuery(comercialKeys.pedidos())`. Mutações (faturar/cancelar) invalidam `["ordens_venda"]` via `INVALIDATION_KEYS` e o realtime já dispara invalidação. Eliminado o cache paralelo.
 - ⏳ A-02: paginação server-side em Orçamentos/Pedidos depende de `pageSize` + `useServerSort` + KPIs via RPC — adiado para evitar quebra de KPIs sob filtros client-side compostos (validade/prazo).
 - ⏳ SH-02: lookups do `OrcamentoForm` (`listClientesAtivosOrcamento`, `listProdutosAtivosComFornecedores`) seguem em `useEffect`+state — migração para `useQuery` exige refator do bloco de carregamento + reset; agendado para Fase 2b.
 - ⏳ M-06/MB-01: footer sticky mobile do `OrcamentoForm` já está unificado em um único nó (linha 1772). Item considerado concluído.

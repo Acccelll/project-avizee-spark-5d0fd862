@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -10,7 +10,6 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { FileOutput, AlertTriangle, Eye, Pencil } from "lucide-react";
-import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,8 @@ import type { StockShortfall } from "@/types/comercial";
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import { useUrlListState } from "@/hooks/useUrlListState";
+import { comercialKeys } from "@/lib/queryKeys/comercial";
+import { notifyError } from "@/utils/errorMessages";
 
 interface Pedido {
   id: string;
@@ -102,10 +103,30 @@ const Pedidos = () => {
   const { can } = useCan();
   const canFaturar = can("faturamento_fiscal:criar") || can("pedidos:editar");
   const qc = useQueryClient();
-  const { data: rawData, loading, fetchData } = useSupabaseCrud({
-    table: "ordens_venda", select: "*, clientes(nome_razao_social), orcamentos(numero)",
+  // A-07/SH-03: grid passa a usar React Query puro. As mutações (faturar,
+  // cancelar) já chamam RPC + invalidam `["ordens_venda"]` via
+  // INVALIDATION_KEYS, então não precisamos mais de `useSupabaseCrud` (que
+  // mantinha cache paralelo). Realtime continua via subscribeComercial abaixo.
+  const pedidosQuery = useQuery({
+    queryKey: comercialKeys.pedidos(),
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from("ordens_venda")
+        .select("*, clientes(nome_razao_social), orcamentos(numero)")
+        .eq("ativo", true)
+        .order("created_at", { ascending: false });
+      if (error) {
+        notifyError(error);
+        throw error;
+      }
+      return (rows ?? []) as unknown as Pedido[];
+    },
   });
-  const data = rawData as unknown as Pedido[];
+  const data = pedidosQuery.data ?? [];
+  const loading = pedidosQuery.isLoading;
+  const fetchData = async () => {
+    await pedidosQuery.refetch();
+  };
 
   // Realtime: invalida grid quando ordens_venda/notas_fiscais mudam em outras
   // abas, RPCs (faturar/estornar) ou triggers — mantém status_faturamento
@@ -220,8 +241,8 @@ const Pedidos = () => {
         cliente_id: pedido.cliente_id,
         status_faturamento: pedido.status_faturamento,
       });
-      // Refetch da grid local também (legado useSupabaseCrud não escuta queryKey).
-      fetchData();
+      // Não precisa refetch manual: o hook invalida ["ordens_venda"] em
+      // INVALIDATION_KEYS.faturamentoPedido e o useQuery acima reage.
     } catch (err: unknown) {
       console.error('[pedidos] gerar NF:', err);
       // toast já emitido pelo hook
