@@ -129,7 +129,7 @@ const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido
 
 interface FornecedorRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
 interface ClienteRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
-interface ProdutoRef { id: string; nome: string; sku: string | null; codigo_interno: string | null; unidade_medida: string | null; variacoes: string | null; }
+interface ProdutoRef { id: string; nome: string; sku: string | null; codigo_interno: string | null; unidade_medida: string | null; variacoes: string[] | null; }
 interface OrdemVendaRef { id: string; numero: string; clientes?: { nome_razao_social: string } | null; }
 interface ContaContabilRef { id: string; codigo: string; descricao: string; }
 interface NfItemRow {
