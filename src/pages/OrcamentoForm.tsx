@@ -640,6 +640,13 @@ export default function OrcamentoForm() {
   };
 
   const handleSave = async () => {
+    // Guard de status: orçamentos não-rascunho são imutáveis (preserva snapshot histórico).
+    if (isEdit && status && status !== 'rascunho') {
+      toast.error(`Orçamento "${status}" não pode ser editado.`, {
+        description: "Use \"Criar revisão\" no drawer para gerar uma nova versão.",
+      });
+      return;
+    }
     // Validar formulário via react-hook-form
     const valid = await trigger(['numero', 'clienteId']);
     if (!valid) {
@@ -855,6 +862,8 @@ export default function OrcamentoForm() {
   // Autosave: tenta servidor (orcamento_drafts), com fallback para localStorage em caso de erro.
   useEffect(() => {
     const timer = setInterval(async () => {
+      // Não autosalva drafts de orçamentos já em status terminal/aprovado.
+      if (isEdit && status && status !== 'rascunho') return;
       const { numero: n, clienteId: cid } = getValues();
       if (!n && !cid && items.length === 0) return;
       const payload = buildDraftPayload();
@@ -872,7 +881,7 @@ export default function OrcamentoForm() {
       setLastAutoSaveAt(new Date().toISOString());
     }, 30000);
     return () => clearInterval(timer);
-  }, [buildDraftPayload, draftKey, getValues, items.length, user?.id]);
+  }, [buildDraftPayload, draftKey, getValues, items.length, user?.id, isEdit, status]);
 
   useEffect(() => {
     getEmpresaConfig()
