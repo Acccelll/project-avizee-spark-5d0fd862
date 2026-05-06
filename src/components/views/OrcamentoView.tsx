@@ -65,6 +65,8 @@ export function OrcamentoView({ id }: Props) {
   const [cancelMotivo, setCancelMotivo] = useState("");
   const { pushView, clearStack } = useRelationalNavigation();
   const { isAdmin } = useIsAdmin();
+  const { can } = useCan();
+  const canAprovar = can("orcamentos:aprovar") || isAdmin;
   const { run, locked, isAnyLocked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
   const converterOrcamento = useConverterOrcamento();
@@ -191,7 +193,7 @@ export function OrcamentoView({ id }: Props) {
             <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
           </Button>
         )}
-        {canApproveOrcamento(selected.status) && isAdmin && (
+        {canApproveOrcamento(selected.status) && canAprovar && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setApproveConfirmOpen(true)} disabled={isAnyLocked}>
             <CheckCircle className="h-3.5 w-3.5" /> Aprovar
           </Button>
