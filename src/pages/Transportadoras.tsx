@@ -25,6 +25,7 @@ import {
   listClientesVinculados,
   vincularClienteTransportadora,
   desvincularClienteTransportadora,
+  deleteTransportadora,
   type ClienteVinculadoView,
 } from "@/services/transportadoras.service";
 import { Button } from "@/components/ui/button";
@@ -805,7 +806,18 @@ export default function Transportadoras() {
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={() => { if (selected) { remove(selected.id); } setDeleteConfirmOpen(false); }}
+        onConfirm={async () => {
+          if (selected) {
+            try {
+              await deleteTransportadora(selected.id);
+              toast.success("Transportadora desativada.");
+              fetchData();
+            } catch (err) {
+              notifyError(err);
+            }
+          }
+          setDeleteConfirmOpen(false);
+        }}
         title="Excluir transportadora"
         description={`Tem certeza que deseja excluir "${selected?.nome_razao_social || ""}"? Esta ação não pode ser desfeita.`}
       >

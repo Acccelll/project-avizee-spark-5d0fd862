@@ -8,6 +8,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { safeDelete } from "@/services/_shared/safeDelete";
 
 export type ClienteTransportadora = Tables<"cliente_transportadoras">;
 
@@ -92,4 +93,27 @@ export async function desvincularClienteTransportadora(vinculoId: string): Promi
     .update({ ativo: false })
     .eq("id", vinculoId);
   if (error) throw error;
+}
+
+/**
+ * Remove (desativa) uma transportadora. Soft delete por padrão; bloqueia
+ * quando há vínculos com clientes, remessas, NF-e, orçamentos ou pedidos.
+ */
+export async function deleteTransportadora(
+  id: string,
+  opts?: { hardDelete?: boolean },
+): Promise<void> {
+  await safeDelete({
+    table: "transportadoras",
+    id,
+    entityLabel: "Transportadora",
+    hardDelete: opts?.hardDelete,
+    dependencies: [
+      { table: "cliente_transportadoras", column: "transportadora_id", label: "vínculos com clientes" },
+      { table: "remessas", column: "transportadora_id", label: "remessas" },
+      { table: "notas_fiscais", column: "transportadora_id", label: "notas fiscais" },
+      { table: "ordens_venda", column: "transportadora_id", label: "pedidos" },
+      { table: "orcamentos", column: "transportadora_id", label: "orçamentos" },
+    ],
+  });
 }
