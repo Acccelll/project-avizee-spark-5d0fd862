@@ -569,12 +569,22 @@ const Produtos = () => {
 
   const columns = [
     {
-      key: "codigo_interno",
-      label: "Código",
+      key: "sku",
+      label: "SKU",
       sortable: true,
       render: (p: ProdutoTableRow) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {p.display_codigo}
+        <span className="font-mono text-xs font-medium" title="SKU — código comercial canônico">
+          {p.sku || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "codigo_interno",
+      label: "Cód. Interno",
+      sortable: true,
+      render: (p: ProdutoTableRow) => (
+        <span className="font-mono text-xs text-muted-foreground" title="Código Interno (ERP) — sequencial PRD/INS">
+          {p.codigo_interno || "—"}
         </span>
       ),
     },
@@ -587,9 +597,6 @@ const Produtos = () => {
         return (
           <div>
             <span className="font-medium text-sm">{p.nome}</span>
-            {p.display_sku_secundario && (
-              <p className="text-[11px] text-muted-foreground font-mono leading-tight">{p.display_sku_secundario}</p>
-            )}
           </div>
         );
       },
