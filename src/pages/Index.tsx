@@ -67,7 +67,7 @@ function LazyInViewWidget({
   const [ref, inView] = useInView<HTMLDivElement>({ threshold: 0.05 });
   return (
     <div ref={ref}>
-      {inView ? children : (fallback ?? <Skeleton className="h-[220px] w-full rounded-xl" />)}
+      {inView ? children : (fallback ?? <Skeleton className="min-h-[220px] w-full rounded-xl" />)}
     </div>
   );
 }
@@ -226,7 +226,7 @@ const DashboardContent = () => {
       </div>
     ),
     vendas_chart: () => (
-      <LazyInViewWidget fallback={<Skeleton className="h-[240px] w-full rounded-xl" />}>
+      <LazyInViewWidget fallback={<Skeleton className="min-h-[240px] w-full rounded-xl" />}>
         <DashboardCard>
           <BlockErrorBoundary label="Gráfico de Vendas">
             <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
@@ -293,7 +293,7 @@ const DashboardContent = () => {
       </BlockErrorBoundary>
     ),
     logistica: () => (
-      <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
+      <LazyInViewWidget fallback={<Skeleton className="min-h-[220px] w-full rounded-xl" />}>
         <BlockErrorBoundary label="Logística">
           <div data-help-id="dashboard.logistica">
           <MobileCollapsibleBlock
@@ -316,7 +316,7 @@ const DashboardContent = () => {
       </LazyInViewWidget>
     ),
     fiscal: () => (
-      <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
+      <LazyInViewWidget fallback={<Skeleton className="min-h-[220px] w-full rounded-xl" />}>
         <BlockErrorBoundary label="Fiscal">
           <div data-help-id="dashboard.fiscal">
           <MobileCollapsibleBlock

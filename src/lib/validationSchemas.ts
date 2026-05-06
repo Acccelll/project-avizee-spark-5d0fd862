@@ -86,6 +86,15 @@ export const produtoSchema = z.object({
 });
 
 /**
+ * Variante de `produtoSchema` para insumos (matérias-primas), onde
+ * `preco_venda` é opcional. Mantemos um schema dedicado em vez de
+ * recompor inline para evitar `as never` e garantir tipagem segura.
+ */
+export const produtoInsumoSchema = produtoSchema.extend({
+  preco_venda: z.number().min(0).optional(),
+});
+
+/**
  * Schema de validação para Transportadoras — exige DV de CNPJ.
  */
 export const transportadoraSchema = z.object({

@@ -1,99 +1,145 @@
-## Estado atual (auditado)
+# Plano de Execução — Onda 2: Dashboard e Cadastros
 
-Já concluídos em rodadas anteriores: C-01, C-02, C-03, A-02, A-04, A-05, M-01, M-02, M-03, M-04, M-08, B-01, B-03 e R-01..R-04.
-
-**Pendentes reais:**
-
-| ID | Estado |
-|----|--------|
-| A-01 | Pendente — gap menu vs rota em `/admin/audit-duplicidades` |
-| A-03 | Shim existe; falta validar imports e remover o duplicado |
-| A-06 | Pendente — `workbook.service.ts` vs `workbookService.ts` ambíguos |
-| M-05 | Pendente — `ErrorBoundary` interno preservando shell |
-| M-06 | Pendente — telemetria em `componentDidCatch` (sem SDK no projeto) |
-| M-07 | 5 páginas ainda em `useState` (Funcionarios, Socios, SociosParticipacoes, Transportadoras, FormasPagamento) |
-| B-02 | Reordenação visual das rotas estáticas antes das dinâmicas |
-| R-05/R-06/R-07 | Recomendações de longo prazo |
+Cobre os achados C-01..C-03, A-01..A-07, M-01..M-09, BK-01..BK-05, SH-01..SH-05, B-01..B-02, D-01..D-03 e MB-01..MB-05 do laudo. Organizado em 6 ondas, das mais baratas/críticas para as estruturais.
 
 ---
 
-## Plano de execução
+## Onda 1 — Quick wins críticos e altos (≈ 2h, 1 commit)
 
-### Onda 1 — Roteamento & guards (rápido, baixo risco)
+Resolve bugs visíveis e divergências de escopo com risco baixo.
 
-**A-01 — Alinhar guard de Auditoria de Duplicidades**
-Em `src/hooks/useVisibleNavSections.ts`, ocultar o item `/admin/audit-duplicidades` quando o usuário não for `isAdmin`, mesmo que tenha `administracao:visualizar`. Mantém a rota com `PermissionRoute resource="administracao"` (já está) e fecha o gap entre menu e rota.
+- **C-02** `FormasPagamento.tsx`: adicionar `boleto_dda: "Boleto/DDA"` ao `tipoLabel` (corrige grid e view).
+- **A-07** `FiscalBlock.tsx`: trocar `ScopeBadge` para `{ kind: 'fixed-window', janela: 'mes-atual' }` para refletir `useDashboardData.INITIAL_STATE.fiscal`.
+- **A-05** `Produtos.tsx`: substituir `produtoSchema.shape.preco_venda.optional().or(undefined as never)` por um `produtoInsumoSchema` derivado (`produtoSchema.extend({ preco_venda: z.number().optional() })` exportado em `src/schemas/produto.ts`).
+- **M-08** `Produtos.tsx` submit: normalizar `ncm` com `.replace(/\D/g, '')` antes do payload.
+- **M-09** `Clientes.tsx` + `Fornecedores.tsx`: trocar mensagem para `"Documento já cadastrado nesta tabela."`.
+- **M-02** `Socios.tsx`: trocar `<Input>` de CPF por `<MaskedInput mask="cpf">`.
+- **B-02** `Index.tsx`: `h-[220px]` → `min-h-[220px]` no skeleton do `LazyInViewWidget`.
 
-**B-02 — Reordenação visual de rotas**
-Em `src/routes/fiscal.routes.tsx` e `src/routes/financeiro.routes.tsx`, mover rotas estáticas (`/fiscal/dashboard`, `/fiscal/distdfe-historico`, `/financeiro/budget`) para antes das dinâmicas (`/:id`, `/:id/editar`). Adicionar comentário de bloco explicando que React Router v6 resolve por especificidade, mas a ordenação visual ajuda manutenção.
-
----
-
-### Onda 2 — Consolidação de services
-
-**A-03 — Remover duplicata `pages/estoque/services/estoque.service.ts`**
-1. `rg -l "pages/estoque/services/estoque"` para encontrar imports.
-2. Reescrever imports para `@/services/estoque.service`.
-3. Apagar `src/pages/estoque/services/estoque.service.ts` (e a pasta se ficar vazia).
-
-**A-06 — Renomear services do Workbook**
-1. Renomear `src/services/workbook.service.ts` → `src/services/workbook/workbookData.service.ts`.
-2. Renomear `src/services/workbookService.ts` → `src/services/workbook/workbookGenerator.service.ts`.
-3. Criar `src/services/workbook/index.ts` re-exportando ambos.
-4. Atualizar os 2 imports atuais (`src/lib/workbook/fetchWorkbookData.ts`, `src/pages/WorkbookGerencial.tsx`).
+Validação: `npx tsc --noEmit` + smoke manual de FormasPagamento (criar registro novo) e dashboard (badge fiscal).
 
 ---
 
-### Onda 3 — Resiliência da UI
+## Onda 2 — Sócios completo (≈ 2h, 1 commit)
 
-**M-05 — `ErrorBoundary` no `<main>` do `AppLayout`**
-Em `src/components/AppLayout.tsx`, envolver `<Outlet />` (dentro de `<main>`) com um segundo `ErrorBoundary` que renderize um fallback inline (`InlineErrorState` novo, com botão "Recarregar área"). O `ErrorBoundary` mais externo continua para falhas de provider.
-Adicionar prop `resetKeys={[location.pathname]}` para limpar o erro automaticamente em navegação.
+Fecha A-01, M-02 (já feito na Onda 1), SH-01 e prepara BK-01.
 
-**M-06 — Hook de telemetria opcional**
-Em `ErrorBoundary.componentDidCatch`, manter `console.error` e adicionar chamada a `window.__lovableTrack?.('error', { error, info })` (no-op se não existir). Não introduz Sentry agora — só prepara o ponto de extensão. Comentar o gancho com TODO/integração futura.
+- **SH-01** `useDocumentoUnico.ts`: adicionar `"socios"` ao `DocumentoTable` e ramo de query (`.eq("cpf", digits)` em `socios`).
+- **A-01** `Socios.tsx`: integrar `useDocumentoUnico("cpf", form.cpf, selected?.id, "socios")` + `isValidCpf` no submit, com erro inline análogo ao de `Funcionarios.tsx`.
+- **BK-01** Migration: `ALTER TABLE socios ADD CONSTRAINT socios_cpf_unique UNIQUE (cpf);` e `funcionarios_cpf_unique` (idem). Antes de aplicar, rodar `read_query` para detectar duplicatas existentes; se houver, parar e reportar.
 
----
-
-### Onda 4 — M-07 nas páginas restantes
-
-Migrar para `useUrlListState` seguindo o padrão já aplicado em Clientes/Fornecedores/Produtos/Pedidos:
-
-1. `src/pages/Funcionarios.tsx`
-2. `src/pages/Socios.tsx`
-3. `src/pages/SociosParticipacoes.tsx`
-4. `src/pages/Transportadoras.tsx`
-5. `src/pages/FormasPagamento.tsx`
-
-Schema típico: `{ q: string, status: stringArray, ativo: stringArray }` (ajustar por página). Substituir `searchTerm`/`setSearchTerm` e quaisquer filtros locais; trocar `onClearAll` por `clearFilters()`.
+Validação: criar/editar sócio com CPF duplicado, verificar bloqueio em UI e em DB.
 
 ---
 
-### Onda 5 — Recomendações estruturais (entrega como docs)
+## Onda 3 — Filtros server-side e paginação (≈ 2-3 dias, 1 commit por módulo)
 
-**R-05** — Criar `docs/adr/002-drawer-vs-pagina.md` registrando o contrato: Drawer para visualização/edição simples, Página para forms com itens dinâmicos e wizards. Já existe doutrina em memória; aqui formaliza como ADR.
+Resolve C-03, A-04 e M-05.
 
-**R-06** — Documentar no ADR a migração concluída de filtros para `useSearchParams`/`useUrlListState`.
+Para **Produtos, Clientes, Fornecedores, GruposEconomicos**:
 
-**R-07** — Não executar (decisão de adoção de Sentry/Datadog é do usuário). Apenas documentar o ponto de extensão criado em M-06.
+1. Adicionar suporte a `eqFilter`/`inFilter` em `useSupabaseCrud` se ainda não houver (já existe `statusFilter`/`dateRange` — estender para genérico `inFilters: { column: string; values: string[] }[]`).
+2. Trocar `paginationMode: 'all'` por `pageSize: 50` com `serverSearch` no campo principal (`nome`/`razao_social`/`sku`).
+3. Mover filtros de `tipo_item`, `ativo`, `tipo_pessoa`, `grupo_economico_id` para `inFilters`/`eqFilter`.
+4. Adicionar índices ausentes via migration: `produtos(ativo, tipo_item)`, `clientes(ativo, tipo_pessoa, grupo_economico_id)`, `fornecedores(ativo, tipo_pessoa)`.
+5. **A-04** `GruposEconomicos.tsx`: migrar `searchTerm`/`ativoFilters` para `useUrlListState({ q, ativo })`.
+6. **M-05** `Produtos.tsx`: trocar `useEffect` de `listGruposAtivos`/`listFornecedoresParaProduto`/`listUnidadesMedidaAtivas` por `useQuery` em `src/lib/queryKeys/cadastros.ts` com `staleTime: 5 * 60_000`.
+
+Validação: testar grid com >1k registros mock, conferir requisição com `.eq`/`.in` no devtools.
 
 ---
 
-## Validação
+## Onda 4 — Soft delete e proteção de FK (≈ 4h, 1 commit)
 
-- `npx tsc --noEmit -p tsconfig.app.json` após cada onda.
-- Smoke manual: abrir `/admin/audit-duplicidades` como não-admin (ocultado), navegar `/fiscal/distdfe-historico` (label correto), forçar erro em uma página e verificar que sidebar/header sobrevivem.
+Resolve A-03 e BK-02.
 
-## Detalhes técnicos
+- Criar `src/services/_shared/safeDelete.ts` com helper `softDeleteOrWarn(table, id, dependencyChecks[])`.
+- `clientes.service.ts`, `fornecedores.service.ts`, `transportadoras.service.ts`, `rh.service.ts`: trocar `delete()` por `update({ ativo: false })` e adicionar verificação prévia de dependências (`ordens_venda`, `notas_fiscais`, `financeiro_lancamentos`, `compras_pedidos`, etc.).
+- Mensagem de erro humana: "Cliente possui N pedidos vinculados. Desative em vez de excluir."
+- Atualizar componentes que disparam delete para mostrar `useConfirmDestructive` com texto adequado a "desativar".
+- Manter hard-delete restrito a admin via `useCanHardDelete` (já existente).
 
-- `InlineErrorState` será novo componente em `src/components/InlineErrorState.tsx` — pequeno (~30 linhas), reaproveitando o mesmo design tokens do `ErrorBoundary` atual.
-- Rename de services preserva `workbook` namespace; pasta `src/services/workbook/` agrega ambos.
-- `useUrlListState` já tem suporte a aliases — preservaremos qualquer chave legada existente nas páginas migradas.
+Validação: tentar excluir cliente com pedido vinculado — erro claro; sem dependências — desativa.
 
-## Entregáveis
+---
 
-1. Onda 1 (A-01, B-02) — 1 commit.
-2. Onda 2 (A-03, A-06) — 1 commit.
-3. Onda 3 (M-05, M-06) — 1 commit.
-4. Onda 4 (M-07 ×5) — 1 commit.
-5. Onda 5 (R-05/R-06 ADR) — 1 commit.
+## Onda 5 — Transportadoras PF + Produtos refactor (≈ 3 dias, 2-3 commits)
+
+### 5a. Transportadoras com tipo_pessoa (A-02, ≈ 4h)
+
+- Migration: `ALTER TABLE transportadoras ADD COLUMN tipo_pessoa TEXT NOT NULL DEFAULT 'J' CHECK (tipo_pessoa IN ('F','J'))`.
+- `Transportadoras.tsx`: campo `tipo_pessoa` no form, `useDocumentoUnico` condicional ("cpf"|"cnpj"), `buscarCpf`/`buscarCnpj` análogo a Clientes.
+- `transportadoras.service.ts`: lookup unificado.
+
+### 5b. Produtos em página dedicada (C-01, MB-01, D-01, ≈ 2 dias)
+
+- Criar `src/pages/produtos/ProdutoForm.tsx` baseado em `OrcamentoForm.tsx`/`PedidoCompraForm.tsx`.
+- Rotas `/produtos/novo` e `/produtos/:id/editar` em `src/routes/cadastros.routes.tsx`.
+- `Produtos.tsx` lista: `openEdit`/`openNew` agora navegam para a página.
+- `ViewDrawerV2` continua para visualização (cross-relacional preservado).
+- Composição e Fornecedores ficam em seções da página com tabela editável full-width.
+- Atualizar memória `mem://produto/quando-drawer-quando-pagina.md` com Produtos como exemplo.
+
+### 5c. Validações Produtos (M-07, BK-05)
+
+- **M-07** SKU único: `useDocumentoUnico` genérico ou novo hook `useFieldUnique('produtos','sku',id)` + index único parcial onde `sku IS NOT NULL`.
+- **BK-05** Tipagem RPC `save_produto_fornecedores`: passar `number` direto, atualizar tipos em `src/types/rpc.ts`.
+
+Validação: criar produto com itens, conferir scroll natural, SKU duplicado bloqueado.
+
+---
+
+## Onda 6 — Estruturais médios (≈ 1-2 dias)
+
+Limpeza final e melhorias de UX/dados.
+
+- **BK-03** `set_principal_endereco`: rodar `read_query` em `pg_proc` para confirmar existência; se ok, regenerar tipos via supabase types e remover `as never`. Se não existir, criar a função em migration (SECURITY DEFINER, `search_path = public`).
+- **A-06 / BK-04** `produtos.variacoes` migrar para `text[]`: migration com `USING (string_to_array(variacoes, ','))`, normalizar valores antigos JSON, remover dual-path no frontend.
+- **SH-05** `fetchClienteDetalhes` → `Promise.allSettled`, mapear erros parciais.
+- **SH-03** `useSocios.ts`: migrar para `useQuery` com keys em `src/lib/queryKeys/cadastros.ts`.
+- **SH-04** `useDashboardData`: agregar `isFetching` dos sub-hooks num `aggregateLoading` para o header mostrar "Atualizando…" (resolve **D-02**).
+- **D-03** `GrupoEconomicoView.tsx`: passar `AbortSignal` às queries.
+- **M-03** `GruposEconomicos.tsx`: matrizNomeMap via `useQuery(['grupos-matriz', key])`.
+- **M-06** Funcionários: mover folha de pagamento para aba do `ViewDrawerV2`.
+- **MB-04** `GrupoEconomicoView`: wrapper `overflow-x-auto` + sombra de borda.
+- **MB-05** `MobileCollapsibleBlock`: persistir aberto/fechado em `useUserPreference("dashboard.collapse." + id)`.
+- **B-01** Decisão UnidadesMedida: deletar `UnidadesMedida.tsx` (criação inline já cobre); manter rota redirecionando para `/produtos`.
+- **M-04** Documentar em `docs/dashboard-modelo.md` quais blocos ignoram o período global; complementar `ScopeBadge` com tooltip já existente.
+- **M-01** FormasPagamento semântica: criar ADR `docs/adr/004-meio-vs-condicao-pagamento.md` apenas; renomeação de label sem migração de schema (decisão de produto adiada).
+- **MB-02** `Socios.tsx` modal: `Tabs` com `sticky top-0` no `TabsList` para preservar contexto.
+- **MB-03** FormasPagamento intervalos: aumentar gap dos botões de linha (`gap-2` + `h-9 w-9`).
+
+---
+
+## Detalhes técnicos consolidados
+
+```text
+Migrations criadas
+  - socios_cpf_unique, funcionarios_cpf_unique (Onda 2)
+  - índices: produtos(ativo,tipo_item), clientes(ativo,tipo_pessoa,grupo_economico_id),
+    fornecedores(ativo,tipo_pessoa) (Onda 3)
+  - transportadoras.tipo_pessoa + check (Onda 5a)
+  - produtos.sku unique partial (Onda 5c)
+  - produtos.variacoes -> text[] + backfill (Onda 6)
+  - opcional: set_principal_endereco se ausente (Onda 6)
+
+Hooks/serviços novos
+  - src/services/_shared/safeDelete.ts
+  - src/hooks/useFieldUnique.ts (generaliza useDocumentoUnico)
+
+Memórias a atualizar
+  - mem://produto/quando-drawer-quando-pagina.md (Produtos como página)
+  - mem://tech/usesupabasecrud-filtros-server.md (inFilters)
+  - novo: mem://produto/dashboard-escopo-blocos.md
+```
+
+## Validação por onda
+
+- `npx tsc --noEmit` ao final de cada onda.
+- Smoke tests existentes (`src/test/smoke/*`) executados com `bunx vitest run`.
+- Smoke manual nos fluxos afetados.
+- `cloud_status` antes de cada migration.
+
+## Sequência sugerida de aprovação
+
+Aprovar e executar **Ondas 1 e 2** juntas (baixo risco, alto valor). Depois revisitar Ondas 3-6 individualmente, pois cada uma tem custo > 1 dia.

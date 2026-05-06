@@ -8,6 +8,7 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { SummaryCard } from "@/components/SummaryCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,6 +20,8 @@ import type { Socio, SocioParticipacao } from "@/types/domain";
 import { formatDate } from "@/lib/format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SocioDrawer } from "@/components/socios/SocioDrawer";
+import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
+import { validateCPF } from "@/lib/validators";
 
 interface SocioForm {
   nome: string;
@@ -68,6 +71,8 @@ export default function Socios() {
   const { participacoes, create: createPart, remove: removePart } = useSocioParticipacoes(selected?.id);
   const [novaPart, setNovaPart] = useState({ percentual: 0, vigencia_inicio: new Date().toISOString().split("T")[0], vigencia_fim: "" });
 
+  const { isUnique: cpfUnico } = useDocumentoUnico("cpf", form.cpf, selected?.id, "socios");
+
   const kpis = useMemo(() => {
     const ativos = socios.filter((s) => s.ativo);
     const somaAtual = ativos.reduce((acc, s) => acc + Number(s.percentual_participacao_atual ?? 0), 0);
@@ -101,10 +106,19 @@ export default function Socios() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) { toast.error("Nome obrigatório"); return; }
+    const cpfDigits = form.cpf.replace(/\D/g, "");
+    if (cpfDigits) {
+      if (cpfDigits.length !== 11 || !validateCPF(cpfDigits)) {
+        toast.error("CPF inválido"); return;
+      }
+      if (cpfUnico === false) {
+        toast.error("CPF já cadastrado para outro sócio"); return;
+      }
+    }
     await submit(async () => {
       const payload = {
         nome: form.nome.trim(),
-        cpf: form.cpf.trim() || null,
+        cpf: cpfDigits || null,
         email: form.email.trim() || null,
         telefone: form.telefone.trim() || null,
         ativo: form.ativo,
@@ -236,7 +250,10 @@ export default function Socios() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-cpf">CPF</Label>
-                    <Input id="soc-cpf" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} placeholder="000.000.000-00" />
+                    <MaskedInput id="soc-cpf" mask="cpf" showValidation value={form.cpf} onChange={(v) => setForm({ ...form, cpf: v })} placeholder="000.000.000-00" />
+                    {cpfUnico === false && (
+                      <p className="text-[10px] text-destructive">CPF já cadastrado para outro sócio</p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-status">Status</Label>

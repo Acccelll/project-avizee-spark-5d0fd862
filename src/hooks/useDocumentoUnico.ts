@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export type TipoDocumento = "cpf" | "cnpj";
-export type DocumentoTable = "clientes" | "fornecedores" | "transportadoras" | "funcionarios";
+export type DocumentoTable = "clientes" | "fornecedores" | "transportadoras" | "funcionarios" | "socios";
 
 const CPF_LENGTH = 11;
 const CNPJ_LENGTH = 14;
@@ -28,10 +28,10 @@ async function checkDocumentoUnico(
   // decidir (ex.: cadastro novo passa `excludeTable` da entidade alvo).
   if (!excludeTable) return true;
 
-  if (excludeTable === "funcionarios") {
+  if (excludeTable === "funcionarios" || excludeTable === "socios") {
     if (tipo !== "cpf") return true;
     let q = supabase
-      .from("funcionarios")
+      .from(excludeTable)
       .select("id", { count: "exact", head: true })
       .eq("cpf", digits);
     if (excludeId) q = q.neq("id", excludeId);

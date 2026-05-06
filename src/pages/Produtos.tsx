@@ -46,7 +46,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCan } from "@/hooks/useCan";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
-import { produtoSchema, validateForm } from "@/lib/validationSchemas";
+import { produtoSchema, produtoInsumoSchema, validateForm } from "@/lib/validationSchemas";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
@@ -409,12 +409,10 @@ const Produtos = () => {
       eh_composto: !!form.eh_composto,
       grupo_id: form.grupo_id,
     };
-    // Para insumos, preço de venda é opcional → relaxa schema localmente
+    // Para insumos, preço de venda é opcional → schema dedicado.
     const isInsumo = form.tipo_item === 'insumo';
     const validation = validateForm(
-      isInsumo
-        ? produtoSchema.extend({ preco_venda: produtoSchema.shape.preco_venda.optional().or(undefined as never) })
-        : produtoSchema,
+      isInsumo ? produtoInsumoSchema : produtoSchema,
       dataParaValidar,
     );
     if (!validation.success) {
@@ -443,7 +441,15 @@ const Produtos = () => {
             .join(", ")
         : null;
       const { variacoes_texto: _vt, ...rest } = form;
-      const payload = { ...rest, variacoes: variacoesTexto, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
+      // Normaliza NCM removendo qualquer máscara (pontos/traços) antes de persistir,
+      // garantindo formato consistente no banco e no XML da NF-e.
+      const ncmDigits = (form.ncm || "").replace(/\D/g, "");
+      const payload = {
+        ...rest,
+        ncm: ncmDigits,
+        variacoes: variacoesTexto,
+        preco_custo: form.eh_composto ? custoComposto : form.preco_custo,
+      };
       // Código Interno é sempre gerado/mantido pelo backend (trigger PRD/INS).
       // Em criação: enviamos string vazia (trigger preenche). Em edição: removemos do payload para nunca sobrescrever.
       if (mode === "create") {
