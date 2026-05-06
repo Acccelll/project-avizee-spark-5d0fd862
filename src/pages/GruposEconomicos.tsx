@@ -388,7 +388,8 @@ const GruposEconomicos = () => {
     displayValue: f === "ativo" ? "Ativo" : "Inativo",
   }));
 
-  const summaryAtivos = useMemo(() => data.filter((g) => g.ativo).length, [data]);
+  const summaryAtivos = totalAtivosGrupos ?? 0;
+  const totalRegistros = totalCount ?? data.length;
   const summaryComClientes = useMemo(
     () => data.filter((g) => (clienteCountMap[g.id] ?? 0) > 0).length,
     [data, clienteCountMap],
@@ -400,13 +401,13 @@ const GruposEconomicos = () => {
         subtitle="Central de consulta e gestão de grupos econômicos"
         addLabel="Novo Grupo"
         onAdd={openCreate}
-        count={filteredData.length}
+        count={totalRegistros}
         summaryCards={
           <>
-            <SummaryCard title="Total de Grupos" value={data.length} icon={Building2} />
+            <SummaryCard title="Total de Grupos" value={totalRegistros} icon={Building2} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={Building2} />
-            <SummaryCard title="Com Clientes" value={summaryComClientes} icon={Users} />
+            <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={Building2} />
+            <SummaryCard title="Com Clientes (página)" value={summaryComClientes} icon={Users} />
           </>
         }
       >
@@ -419,7 +420,7 @@ const GruposEconomicos = () => {
             if (key === "ativo") setAtivoFilters([]);
           }}
           onClearAll={() => clearFilters(["ativo"])}
-          count={filteredData.length}
+          count={totalRegistros}
         >
           <MultiSelect
             options={ativoOptions}
@@ -443,6 +444,10 @@ const GruposEconomicos = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="qtd_clientes"
             mobileStatusKey="ativo"
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
           />
         </PullToRefresh>
       </ModulePage>
