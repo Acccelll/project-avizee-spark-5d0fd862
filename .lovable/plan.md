@@ -30,7 +30,7 @@ Verifiquei item a item da matriz contra o código atual (`src/`, services, schem
 - ✅ **BK-05** — payload de `save_produto_fornecedores` já passa `number` direto.
 
 🟡 **Médio**
-- **M-01** — Semântica meio × condição em `formas_pagamento` (refator de domínio).
+- ✅ **M-01** — Decisão registrada em `docs/adr/004-meio-vs-condicao-pagamento.md` (manter modelo único). UI esclarecida: título da página agora é "Formas e condições de pagamento" com subtítulo "Meio + parcelamento".
 - ✅ **M-03** — `matrizNomeMap` já está em React Query (`useQuery` em `GruposEconomicos.tsx`).
 - ✅ **M-04** — Sinalização via `ScopeBadge` em todos os blocos (`global-range` / `fixed-window` / `snapshot`) consumindo `scopes` do `useDashboardData`.
 - ✅ **M-05** — Lookups de grupo/fornecedor/unidade migrados para React Query.
@@ -71,7 +71,7 @@ Verifiquei item a item da matriz contra o código atual (`src/`, services, schem
 8. SH-02 / SH-03 / M-03 / M-05 — migrar lookups para React Query.
 9. SH-04 — loading agregado do Dashboard.
 10. B-02 / D-02 / D-03 / MB-02..MB-05 — polimento.
-11. M-01 — discutir e aprovar separação meio × condição (refator próprio).
-12. M-06 — folha de pagamento como aba do ViewDrawerV2.
+11. ~~M-01~~ — fechado via ADR-004 (sem migração) + ajuste de rótulos.
+12. ~~M-06~~ — código morto removido.
 
-Posso começar pela **Onda A** se aprovado.
+**Auditoria Onda 2 concluída.** Todos os itens A/B/C resolvidos ou explicitamente aceitos via ADR.
