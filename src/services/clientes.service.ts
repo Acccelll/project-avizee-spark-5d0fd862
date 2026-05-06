@@ -241,7 +241,7 @@ export async function fetchClienteDetalhes(clienteId: string, signal: AbortSigna
   if (cError) throw cError;
   if (!c) return null;
 
-  const [vRes, nfRes, fRes, commRes, transRes] = await Promise.all([
+  const results = await Promise.allSettled([
     supabase
       .from("ordens_venda")
       .select("id, numero, data_emissao, valor_total, status")
@@ -277,5 +277,19 @@ export async function fetchClienteDetalhes(clienteId: string, signal: AbortSigna
       .abortSignal(signal),
   ]);
 
-  return { cliente: c, vRes, nfRes, fRes, commRes, transRes };
+  // Promise.allSettled: cada bloco pode falhar isoladamente sem derrubar o
+  // detalhe inteiro do cliente. Sub-blocos que falham caem para `data: []`.
+  const empty = { data: [], error: null } as { data: unknown[]; error: unknown };
+  const pick = (i: number) =>
+    results[i].status === "fulfilled"
+      ? (results[i] as PromiseFulfilledResult<{ data: unknown; error: unknown }>).value
+      : empty;
+  return {
+    cliente: c,
+    vRes: pick(0),
+    nfRes: pick(1),
+    fRes: pick(2),
+    commRes: pick(3),
+    transRes: pick(4),
+  };
 }
