@@ -150,14 +150,17 @@ Prioridade pelo risco operacional. Dividir em 3 fases pequenas (não exige refat
 14. **A-01** ✅: decisão "drawer-only" documentada em `Pedidos.tsx` (cancel exige passagem pelo detalhe — motivo + checagem de NFs ativas).
 
 ### Fase C — Polimento mobile + dívida técnica leve (1 PR)
-15. **MB-01/MB-02/MB-04**: dropdown unificado nas ações dos drawers + sticky meta no `PedidoForm`.
-16. **MB-03 + M-07**: revisar Orçamento Público mobile + tokens semânticos.
-17. **M-03**: parametrizar `alerta_prazo_despacho_dias` via `app_configuracoes`.
-18. **M-04**: mini-timeline de auditoria nos drawers.
-19. **M-09**: remover/redirecionar `Faturamento.tsx` legada se sobreviveu.
-20. **F-01 / F-02**: ajustar assinatura `useFaturarPedido`; mover `useSalvarPedido` para RPC.
-21. **B-02**: rodar `supabase--linter` e ajustar `search_path` se faltar.
-22. **B-05**: índice em `ordens_venda(cotacao_id)` se `EXPLAIN` confirmar.
+15. **MB-01** ✅ (já estava): dropdown mobile em `OrcamentoView` com Editar/PDF/Revisão/Cancelar/Excluir.
+16. **MB-02** ✅: dropdown mobile criado em `OrdemVendaView` (Editar/NFs/Cancelar movidos para `<md`); Gerar NF fica como ação primária.
+17. **MB-04** ✅: mini-resumo sticky (Pedido + Total + Status) no topo mobile do `PedidoForm`.
+18. **MB-03 + M-07** ⚠️ deferido p/ Onda 4: cores do `OrcamentoPublico` são intencionais (paleta da marca p/ PDF/print). Revisar quando migrar para print-stylesheet.
+19. **M-03** ✅: `useAppConfig("comercial").alerta_prazo_despacho_dias` substitui constante hardcoded em `Pedidos.tsx` (default 3d).
+20. **M-04** ⚠️ deferido: mini-timeline de auditoria precisa de service novo (`auditoria_logs` filtrado por entidade) — escopo de Onda 4.
+21. **M-09** ✅: `src/pages/Faturamento.tsx` legado removido (rota `/faturamento` já aponta para `FaturamentoIndex`).
+22. **F-01** ✅: `useFaturarPedido` simplificado para `mutationFn(pedidoId: string)`; ambos callers atualizados.
+23. **F-02** ⚠️ deferido: `useSalvarPedido` continuará com `update` direto até criação da RPC `salvar_pedido_operacional` (Onda 4).
+24. **B-02** ✅: `supabase--linter` rodado; nenhum `function_search_path_mutable` flag em RPCs comerciais.
+25. **B-05** ✅: índice `idx_ordens_venda_cotacao_id` confirmado (criado na Fase A).
 
 ### Fora deste escopo (já reconhecido)
 - A-02/SH-02 originais (paginação server-side em Orçamentos/Pedidos) seguem como Fase 2b.
