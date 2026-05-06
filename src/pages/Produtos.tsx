@@ -258,6 +258,13 @@ const Produtos = () => {
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
   const [fornecedoresList, setFornecedoresList] = useState<{id: string; nome_razao_social: string}[]>([]);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
+  const { isUnique: skuUnico, isLoading: skuChecking } = useFieldUnique(
+    "produtos",
+    "sku",
+    form.sku || "",
+    editingProduct?.id,
+    { minLength: 2 },
+  );
   const [margemOverride, setMargemOverride] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [grupos, setGrupos] = useState<{id: string; nome: string; sigla?: string | null}[]>([]);
