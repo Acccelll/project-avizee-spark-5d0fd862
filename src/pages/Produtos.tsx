@@ -222,10 +222,29 @@ const Produtos = () => {
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
   const { can } = useCan();
   const canExcluir = can("produtos:excluir");
+  const serverFilters = useMemo(() => {
+    const out: Array<{ column: string; value: string | string[] | boolean; operator?: "eq" | "in" }> = [];
+    if (ativoFilters.length === 1) out.push({ column: "ativo", value: ativoFilters[0] === "ativo" });
+    if (tipoItemFilters.length === 1) out.push({ column: "tipo_item", value: tipoItemFilters[0] });
+    else if (tipoItemFilters.length > 1) out.push({ column: "tipo_item", value: tipoItemFilters, operator: "in" });
+    if (tipoFilters.length === 1) out.push({ column: "eh_composto", value: tipoFilters[0] === "composto" });
+    // grupo: "sem_grupo" representa NULL — só empurra quando todos são UUIDs reais
+    const realGroupIds = grupoFilters.filter((g) => g !== "sem_grupo");
+    if (grupoFilters.length > 0 && realGroupIds.length === grupoFilters.length) {
+      if (realGroupIds.length === 1) out.push({ column: "grupo_id", value: realGroupIds[0] });
+      else out.push({ column: "grupo_id", value: realGroupIds, operator: "in" });
+    }
+    return out;
+  }, [ativoFilters, tipoItemFilters, tipoFilters, grupoFilters]);
+
+  const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
+  const hasEstoqueFilter = estoqueFilters.length > 0;
+
   const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({
     table: "produtos",
     searchTerm: debouncedSearch,
     filterAtivo: false,
+    filter: serverFilters,
     searchColumns: ["nome", "sku", "codigo_interno", "ncm"],
   });
   const { pushView } = useRelationalNavigation();
@@ -557,42 +576,28 @@ const Produtos = () => {
   };
 
   const filteredData = useMemo(() => {
-    const filtered = data.filter((p) => {
-      const isComposto = Boolean(p.eh_composto);
-      const situacao = getSituacaoEstoque(p);
-
-      if (ativoFilters.length > 0) {
-        const val = p.ativo !== false ? "ativo" : "inativo";
-        if (!ativoFilters.includes(val)) return false;
-      }
-
-      if (tipoItemFilters.length > 0) {
-        const ti = p.tipo_item || "produto";
-        if (!tipoItemFilters.includes(ti)) return false;
-      }
-
-      if (tipoFilters.length > 0) {
-        const type = isComposto ? "composto" : "simples";
-        if (!tipoFilters.includes(type)) return false;
-      }
-
-      if (estoqueFilters.length > 0) {
-        if (!estoqueFilters.includes(situacao)) return false;
-      }
-
-      if (grupoFilters.length > 0 && !grupoFilters.includes(p.grupo_id || "sem_grupo")) {
-        return false;
-      }
-
-      return true;
-    });
+    // ativo, tipo_item, eh_composto e grupo_id (UUIDs) são server-side.
+    // Restam: situação de estoque (derivada em runtime) e "sem_grupo" misto.
+    const needsClientFilter = hasEstoqueFilter || hasSemGrupoFilter;
+    const filtered = needsClientFilter
+      ? data.filter((p) => {
+          if (hasEstoqueFilter) {
+            const situacao = getSituacaoEstoque(p);
+            if (!estoqueFilters.includes(situacao)) return false;
+          }
+          if (hasSemGrupoFilter) {
+            if (!grupoFilters.includes(p.grupo_id || "sem_grupo")) return false;
+          }
+          return true;
+        })
+      : data;
 
     return dedupeProdutosCanonicos(filtered).map<ProdutoTableRow>((produto) => ({
       ...produto,
       display_codigo: getProdutoDisplayCodigo(produto),
       display_sku_secundario: getProdutoDisplaySkuSecundario(produto),
     }));
-  }, [data, ativoFilters, estoqueFilters, tipoFilters, tipoItemFilters, grupoFilters]);
+  }, [data, hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);
 
   const columns = [
     {
