@@ -1,0 +1,3 @@
+CREATE UNIQUE INDEX IF NOT EXISTS produtos_sku_unique
+  ON public.produtos (sku)
+  WHERE sku IS NOT NULL AND sku <> '';
