@@ -28,7 +28,6 @@ describe('isRegraVigente', () => {
   });
 
   it('retorna true no último dia da vigência', () => {
-    // vigência_fim é inclusivo (até 23:59:59)
     expect(isRegraVigente('2026-01-01', '2026-03-15', hoje)).toBe(true);
   });
 
@@ -58,20 +57,20 @@ describe('buscarRegraAplicavel', () => {
     {
       produto_id: 'prod-1',
       preco_especial: 99.9,
-      vigencia_inicio: '2026-01-01',
-      vigencia_fim: '2026-12-31',
+      data_inicio: '2026-01-01',
+      data_fim: '2026-12-31',
     },
     {
       produto_id: 'prod-2',
-      desconto_percentual: 10,
-      vigencia_inicio: '2026-01-01',
-      vigencia_fim: '2026-12-31',
+      preco_especial: 45,
+      data_inicio: '2026-01-01',
+      data_fim: '2026-12-31',
     },
     {
       produto_id: 'prod-3',
       preco_especial: 50,
-      vigencia_inicio: '2027-01-01', // não vigente
-      vigencia_fim: null,
+      data_inicio: '2027-01-01', // não vigente
+      data_fim: null,
     },
   ];
 
@@ -105,47 +104,19 @@ describe('aplicarPrecoEspecial', () => {
     expect(aplicarPrecoEspecial(200, regra)).toBe(149.99);
   });
 
-  it('aplica desconto percentual sobre o preço base', () => {
-    const regra: RegraPrecoEspecial = {
-      produto_id: 'p1',
-      desconto_percentual: 10,
-    };
-    // 200 × (1 - 10/100) = 180
-    expect(aplicarPrecoEspecial(200, regra)).toBe(180);
-  });
-
-  it('preço fixo tem prioridade sobre desconto percentual', () => {
-    const regra: RegraPrecoEspecial = {
-      produto_id: 'p1',
-      preco_especial: 150,
-      desconto_percentual: 10,
-    };
-    expect(aplicarPrecoEspecial(200, regra)).toBe(150);
-  });
-
-  it('retorna o preço base quando não há regra aplicável (preço e desconto zero)', () => {
+  it('retorna o preço base quando preco_especial é zero', () => {
     const regra: RegraPrecoEspecial = {
       produto_id: 'p1',
       preco_especial: 0,
-      desconto_percentual: 0,
     };
     expect(aplicarPrecoEspecial(200, regra)).toBe(200);
   });
 
-  it('retorna o preço base quando regra não tem preço nem desconto', () => {
+  it('retorna o preço base quando regra não tem preço definido', () => {
     const regra: RegraPrecoEspecial = {
       produto_id: 'p1',
     };
     expect(aplicarPrecoEspecial(200, regra)).toBe(200);
-  });
-
-  it('arredonda desconto percentual para 4 casas decimais', () => {
-    // 100 × (1 - 33.33/100) = 66.67
-    const regra: RegraPrecoEspecial = {
-      produto_id: 'p1',
-      desconto_percentual: 33.33,
-    };
-    expect(aplicarPrecoEspecial(100, regra)).toBeCloseTo(66.67, 2);
   });
 });
 
@@ -158,14 +129,14 @@ describe('aplicarPrecosEspeciaisEmLote', () => {
     {
       produto_id: 'prod-1',
       preco_especial: 80,
-      vigencia_inicio: '2026-01-01',
-      vigencia_fim: '2026-12-31',
+      data_inicio: '2026-01-01',
+      data_fim: '2026-12-31',
     },
     {
       produto_id: 'prod-2',
-      desconto_percentual: 20,
-      vigencia_inicio: '2026-01-01',
-      vigencia_fim: '2026-12-31',
+      preco_especial: 40,
+      data_inicio: '2026-01-01',
+      data_fim: '2026-12-31',
     },
   ];
 
@@ -175,13 +146,13 @@ describe('aplicarPrecosEspeciaisEmLote', () => {
     { produto_id: 'prod-sem-regra', valor_unitario: 30, quantidade: 5, valor_total: 150 },
   ];
 
-  it('aplica preço fixo e desconto percentual corretamente em lote', () => {
+  it('aplica preço fixo em lote', () => {
     const { itens: atualizados } = aplicarPrecosEspeciaisEmLote(itens, regrasVigentes, hoje);
 
     expect(atualizados[0].valor_unitario).toBe(80);
     expect(atualizados[0].valor_total).toBe(160); // 80 × 2
 
-    expect(atualizados[1].valor_unitario).toBe(40); // 50 × 0.80
+    expect(atualizados[1].valor_unitario).toBe(40);
     expect(atualizados[1].valor_total).toBe(120); // 40 × 3
   });
 
@@ -212,8 +183,8 @@ describe('aplicarPrecosEspeciaisEmLote', () => {
       {
         produto_id: 'prod-1',
         preco_especial: 1,
-        vigencia_inicio: '2020-01-01',
-        vigencia_fim: '2020-12-31', // expirada
+        data_inicio: '2020-01-01',
+        data_fim: '2020-12-31', // expirada
       },
     ];
     const { itens: atualizados, alterados } = aplicarPrecosEspeciaisEmLote(
