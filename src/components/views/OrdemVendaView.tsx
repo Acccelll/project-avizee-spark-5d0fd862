@@ -48,12 +48,8 @@ interface Props {
   id: string;
 }
 
-const statusFaturamentoColors: Record<string, string> = {
-  aguardando: "bg-warning/10 text-warning border-warning/30",
-  parcial: "bg-info/10 text-info border-info/30",
-  total: "bg-success/10 text-success border-success/30",
-};
-
+// M-06: cores de `status_faturamento` agora vêm do `<StatusBadge>` (single source
+// of truth em STATUS_VARIANT_MAP). Mantemos só os tons financeiros locais.
 const statusFinanceiroColors: Record<string, string> = {
   aberto: "bg-warning/10 text-warning border-warning/30",
   parcial: "bg-info/10 text-info border-info/30",
@@ -246,9 +242,11 @@ export function OrdemVendaView({ id }: Props) {
           </p>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${statusFaturamentoColors[selected.status_faturamento] || ""}`}>
-              {statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
-            </Badge>
+            <StatusBadge
+              status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
+              label={statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
+              className="text-[10px] px-1.5 py-0.5"
+            />
             <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
               {formatCurrency(Number(selected.valor_total || 0))}
             </span>
@@ -316,12 +314,11 @@ export function OrdemVendaView({ id }: Props) {
           <p className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center justify-center gap-1 mb-1">
             <Receipt className="h-3 w-3" /> Faturamento
           </p>
-          <Badge
-            variant="outline"
-            className={`text-[10px] px-1.5 py-0.5 ${statusFaturamentoColors[selected.status_faturamento] || ""}`}
-          >
-            {statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
-          </Badge>
+          <StatusBadge
+            status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
+            label={statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
+            className="text-[10px] px-1.5 py-0.5"
+          />
         </div>
       </div>
 
@@ -587,12 +584,11 @@ export function OrdemVendaView({ id }: Props) {
           <div className="rounded-lg border p-3 space-y-2 bg-muted/10">
             <div className="flex justify-between items-center">
               <span className="text-[10px] uppercase font-semibold text-muted-foreground">Situação</span>
-              <Badge
-                variant="outline"
-                className={`text-xs ${statusFaturamentoColors[selected.status_faturamento] || ""}`}
-              >
-                {statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
-              </Badge>
+              <StatusBadge
+                status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
+                label={statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
+                className="text-xs"
+              />
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Valor do Pedido</span>
