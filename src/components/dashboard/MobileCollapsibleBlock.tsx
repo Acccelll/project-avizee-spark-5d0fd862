@@ -1,7 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { ChevronDown, type LucideIcon } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserPreference } from '@/hooks/useUserPreference';
 
 interface MobileCollapsibleBlockProps {
   /** Title shown in the collapsed header. */
@@ -16,6 +18,12 @@ interface MobileCollapsibleBlockProps {
   badge?: ReactNode;
   /** Whether the block starts open on mobile. Defaults to false. */
   defaultOpen?: boolean;
+  /**
+   * Stable identifier used to persist the open/closed state per user
+   * (preference key `dashboard.collapse.<persistKey>`). When omitted,
+   * the state is ephemeral and resets on reload.
+   */
+  persistKey?: string;
   /** The original block content (rendered as-is on desktop). */
   children: ReactNode;
 }
@@ -33,10 +41,20 @@ export function MobileCollapsibleBlock({
   summary,
   badge,
   defaultOpen = false,
+  persistKey,
   children,
 }: MobileCollapsibleBlockProps) {
   const isMobile = useIsMobile();
-  const [open, setOpen] = useState(defaultOpen);
+  const { user } = useAuth();
+  const prefKey = persistKey ? `dashboard.collapse.${persistKey}` : 'dashboard.collapse.__ephemeral__';
+  const { value: open, save } = useUserPreference<boolean>(
+    persistKey ? user?.id ?? null : null,
+    prefKey,
+    defaultOpen,
+  );
+  const setOpen = (next: boolean) => {
+    void save(next);
+  };
 
   if (!isMobile) {
     return <>{children}</>;
@@ -46,7 +64,7 @@ export function MobileCollapsibleBlock({
     <div className="bg-card rounded-xl border overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
         aria-expanded={open}
         className="flex w-full min-h-[52px] items-center gap-2 px-4 py-3 text-left active:bg-muted/40 transition-colors"
       >
