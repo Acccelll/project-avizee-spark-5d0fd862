@@ -216,13 +216,13 @@ const Produtos = () => {
   }, [data, hasEstoqueFilter, hasSemGrupoFilter, estoqueFilters, grupoFilters]);
 
   const columns = [
-    { key: "sku", label: "SKU", sortable: true, render: (p: ProdutoTableRow) => (
+    { key: "sku", label: "SKU", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
       <span className="font-mono text-xs font-medium" title="SKU — código comercial canônico">{p.sku || "—"}</span>
     )},
-    { key: "codigo_interno", label: "Cód. Interno", sortable: true, render: (p: ProdutoTableRow) => (
+    { key: "codigo_interno", label: "Cód. Interno", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
       <span className="font-mono text-xs text-muted-foreground" title="Código Interno (ERP) — sequencial PRD/INS">{p.codigo_interno || "—"}</span>
     )},
-    { key: "nome", mobilePrimary: true, label: "Produto", sortable: true, render: (p: ProdutoTableRow) => (
+    { key: "nome", mobilePrimary: true, label: "Produto", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
       <div><span className="font-medium text-sm">{p.nome}</span></div>
     )},
     { key: "unidade_medida", label: "UN", render: (p: Produto) => (
