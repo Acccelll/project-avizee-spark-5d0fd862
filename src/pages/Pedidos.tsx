@@ -32,6 +32,7 @@ import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { comercialKeys } from "@/lib/queryKeys/comercial";
 import { notifyError } from "@/utils/errorMessages";
+import { useAppConfig } from "@/hooks/useAppConfig";
 
 interface Pedido {
   id: string;
@@ -53,21 +54,22 @@ interface Pedido {
 }
 
 const TERMINAL_STATUSES_PEDIDO = ["entregue", "faturado", "cancelada"];
-const PRAZO_ALERTA_DIAS = 3;
+// M-03: padrão; agora override via app_configuracoes("comercial").alerta_prazo_despacho_dias.
+const PRAZO_ALERTA_DIAS_DEFAULT = 3;
 const DIAS_ABERTO_ALERTA = 30;
 
-function getPrazoStatus(dataPrazo: string | null, statusOp: string): "atrasado" | "proximo" | "ok" | "sem_prazo" {
+function getPrazoStatus(dataPrazo: string | null, statusOp: string, alertaDias: number): "atrasado" | "proximo" | "ok" | "sem_prazo" {
   if (!dataPrazo) return "sem_prazo";
   if (TERMINAL_STATUSES_PEDIDO.includes(statusOp)) return "ok";
   const daysLeft = calculateDaysBetween(new Date(), dataPrazo);
   if (daysLeft < 0) return "atrasado";
-  if (daysLeft <= PRAZO_ALERTA_DIAS) return "proximo";
+  if (daysLeft <= alertaDias) return "proximo";
   return "ok";
 }
 
-function PrazoBadge({ dataPrazo, status }: { dataPrazo: string | null; status: string }) {
+function PrazoBadge({ dataPrazo, status, alertaDias }: { dataPrazo: string | null; status: string; alertaDias: number }) {
   if (!dataPrazo) return <span className="text-muted-foreground text-xs">—</span>;
-  const ps = getPrazoStatus(dataPrazo, status);
+  const ps = getPrazoStatus(dataPrazo, status, alertaDias);
   const daysLeft = calculateDaysBetween(new Date(), dataPrazo);
 
   if (ps === "atrasado") {
@@ -88,13 +90,6 @@ function PrazoBadge({ dataPrazo, status }: { dataPrazo: string | null; status: s
   }
   return <span className="text-xs">{formatDate(dataPrazo)}</span>;
 }
-
-const prazoFilterOptions: MultiSelectOption[] = [
-  { label: "Atrasados", value: "atrasado" },
-  { label: `Próximos (≤${PRAZO_ALERTA_DIAS}d)`, value: "proximo" },
-  { label: "No prazo", value: "ok" },
-  { label: "Sem prazo", value: "sem_prazo" },
-];
 
 const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
