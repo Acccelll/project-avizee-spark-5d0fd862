@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import { PeriodFilter } from "@/components/filters/PeriodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import { fiscalSefazStatusOptions } from "@/lib/fiscalStatus";
+import { useUrlListState } from "@/hooks/useUrlListState";
 
 /**
  * Consulta de Documentos — substitui o stub anterior da aba "Documentos"
@@ -48,11 +49,24 @@ const TIPO_OPTIONS = [
 
 export function ConsultaDocumentos() {
   const navigate = useNavigate();
-  const [busca, setBusca] = useState("");
+  // Filtros sincronizados com a URL → permite deep-link e back/forward.
+  const { value: filterState, set: setFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      tipo: { type: "string" },
+      statusSefaz: { type: "string" },
+      period: { type: "string" },
+    },
+  });
+  const busca = filterState.q;
+  const tipo = filterState.tipo || "todos";
+  const statusSefaz = filterState.statusSefaz || "todos";
+  const period = (filterState.period || "30d") as Period;
+  const setBusca = (v: string) => setFilters({ q: v });
+  const setTipo = (v: string) => setFilters({ tipo: v === "todos" ? "" : v });
+  const setStatusSefaz = (v: string) => setFilters({ statusSefaz: v === "todos" ? "" : v });
+  const setPeriod = (v: Period) => setFilters({ period: v === "30d" ? "" : v });
   const debounced = useDebounce(busca, 300);
-  const [tipo, setTipo] = useState<string>("todos");
-  const [statusSefaz, setStatusSefaz] = useState<string>("todos");
-  const [period, setPeriod] = useState<Period>("30d");
 
   const query = useQuery({
     queryKey: ["faturamento-consulta-docs", debounced, tipo, statusSefaz, period],
