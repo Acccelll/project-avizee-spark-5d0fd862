@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { formatDate } from "@/lib/format";
@@ -13,54 +13,32 @@ export function useCotacaoCompraFilters(
     fornecedorLabel?: (id: string) => string | undefined;
   },
 ) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { value: filterState, set: setFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      status: { type: "stringArray" },
+      fornecedor: { type: "stringArray" },
+      dataInicio: { type: "string", aliases: ["data_inicio"] },
+      dataFim: { type: "string", aliases: ["data_fim"] },
+    },
+  });
+  const searchTerm = filterState.q;
+  const statusFilters = filterState.status;
+  const fornecedorFilters = filterState.fornecedor;
+  const dataInicio = filterState.dataInicio;
+  const dataFim = filterState.dataFim;
 
-  const searchTerm = searchParams.get("q") ?? "";
-  const statusFilters = searchParams.getAll("status");
-  const fornecedorFilters = searchParams.getAll("fornecedor");
-  const dataInicio = searchParams.get("dataInicio") ?? searchParams.get("data_inicio") ?? "";
-  const dataFim = searchParams.get("dataFim") ?? searchParams.get("data_fim") ?? "";
-
-  const updateParam = (key: string, value: string | string[] | null) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete(key);
-      if (Array.isArray(value)) {
-        value.forEach((v) => next.append(key, v));
-      } else if (value) {
-        next.set(key, value);
-      }
-      return next;
-    }, { replace: true });
-  };
-
-  const setSearchTerm = (v: string) => updateParam("q", v || null);
+  const setSearchTerm = (v: string) => setFilters({ q: v });
   const setStatusFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(statusFilters) : fn;
-    updateParam("status", next);
+    setFilters({ status: next });
   };
   const setFornecedorFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(fornecedorFilters) : fn;
-    updateParam("fornecedor", next);
+    setFilters({ fornecedor: next });
   };
-  const setDataInicio = (v: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete("data_inicio");
-      next.delete("dataInicio");
-      if (v) next.set("dataInicio", v);
-      return next;
-    }, { replace: true });
-  };
-  const setDataFim = (v: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete("data_fim");
-      next.delete("dataFim");
-      if (v) next.set("dataFim", v);
-      return next;
-    }, { replace: true });
-  };
+  const setDataInicio = (v: string) => setFilters({ dataInicio: v });
+  const setDataFim = (v: string) => setFilters({ dataFim: v });
 
   const filteredData = useMemo(() => {
     const normalizedSearch = searchTerm.toLowerCase();
