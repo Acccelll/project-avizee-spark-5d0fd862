@@ -1,4 +1,6 @@
-# Onda 7 — Paginação real server-side
+# Onda 7 — Paginação real server-side ✅
+
+**Status:** concluída. Resumo da entrega no fim do arquivo.
 
 ## Objetivo
 
@@ -69,3 +71,14 @@ Trocar o atual `paginationMode: 'all'` (chunks até 50k) por requisições pagin
 ## Entrega
 
 1 PR único contendo: ajuste no hook, nova prop no `DataTable`, 4 páginas migradas, atualização do `.lovable/plan.md` (Onda 7 ✅) e memória técnica.
+
+## Resultado
+
+- `useSupabaseCrud`: reset automático de `page` quando filtros/busca/ordem mudam em modo paged.
+- `DataTable`: prop `serverPagination={{ page, setPage, totalCount, hasMore }}` + flag `serverSortable` por coluna + props `onServerSort`/`serverSortKey`/`serverSortDir`. Quando ativo, não fatia/ordena/filtra local; footer usa `totalCount` real.
+- Hooks novos: `src/hooks/useServerSort.ts` (estado controlado de ordem) e `src/hooks/useTableCount.ts` (count head:true para SummaryCards).
+- Páginas migradas para `pageSize: 50`: **Clientes**, **Fornecedores**, **GruposEconomicos**, **Produtos**.
+- KPIs derivados (Ativos/Inativos/Com Grupo/Produtos/Insumos) vêm de `count()` server-side. "Abaixo do mínimo" em Produtos e "Com Clientes" em Grupos ficaram rotulados "(página)" pois dependem de cálculo runtime.
+- Filtros client-side preservados: "sem_grupo" misto em Clientes/Produtos e situação de estoque em Produtos — agora aplicados apenas dentro da página corrente.
+- Memória: `mem://tech/usesupabasecrud-pagination-server.md`.
+- `bunx tsc --noEmit` ok.
