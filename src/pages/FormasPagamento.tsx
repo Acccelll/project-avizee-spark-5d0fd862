@@ -67,7 +67,7 @@ interface FormaPagamentoForm {
 }
 
 const emptyForm: FormaPagamentoForm = {
-  descricao: "", prazo_dias: 0, parcelas: 1, intervalos_dias: [], gera_financeiro: true, tipo: "boleto_dda", observacoes: "", ativo: true,
+  descricao: "", prazo_dias: 0, parcelas: 1, intervalos_dias: [], gera_financeiro: true, tipo: "boleto", observacoes: "", ativo: true,
 };
 
 export default function FormasPagamento() {
