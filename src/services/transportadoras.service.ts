@@ -8,6 +8,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { safeDelete } from "@/services/_shared/safeDelete";
 
 export type ClienteTransportadora = Tables<"cliente_transportadoras">;
 
