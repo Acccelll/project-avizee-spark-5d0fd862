@@ -9,6 +9,7 @@ import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { notifyError } from "@/utils/errorMessages";
+import { formatVariacoesSuffix } from "@/utils/cadastros";
 import {
   listPrecosEspeciais,
   listClientesAtivosBasic,
@@ -25,7 +26,7 @@ interface Props {
 
 interface ClienteOption { id: string; nome_razao_social: string }
 
-interface ProdutoOption { id: string; nome: string; sku: string | null }
+interface ProdutoOption { id: string; nome: string; sku: string | null; variacoes?: unknown }
 
 export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
   const [items, setItems] = useState<PrecoEspecialRow[]>([]);
@@ -145,7 +146,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
               <div className="space-y-1">
                 <Label className="text-xs">Produto</Label>
                 <AutocompleteSearch
-                  options={produtos.map(p => ({ id: p.id, label: p.nome, sublabel: p.sku }))}
+                  options={produtos.map(p => ({ id: p.id, label: `${p.nome}${formatVariacoesSuffix(p.variacoes)}`, sublabel: p.sku }))}
                   value={form.produto_id}
                   onChange={(v) => setForm({...form, produto_id: v})}
                   placeholder="Selecione o produto..."
@@ -204,7 +205,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm text-primary">{formatCurrency(item.preco_especial)}</span>
                   {!clienteId && <span className="text-xs truncate font-medium">· {item.clientes?.nome_razao_social}</span>}
-                  {!produtoId && <span className="text-xs truncate font-medium">· {item.produtos?.nome}</span>}
+                  {!produtoId && <span className="text-xs truncate font-medium">· {item.produtos?.nome}{formatVariacoesSuffix(item.produtos?.variacoes)}</span>}
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                   {item.data_inicio && (

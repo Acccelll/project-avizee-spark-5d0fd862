@@ -38,7 +38,7 @@ export async function listCotacaoPropostas(cotacaoId: string) {
 export async function listProdutosParaCotacao() {
   const { data, error } = await supabase
     .from("produtos")
-    .select("id, nome, codigo_interno, sku")
+    .select("id, nome, codigo_interno, sku, variacoes")
     .eq("ativo", true)
     .order("nome");
   if (error) throw error;

@@ -80,6 +80,7 @@ export interface ProdutoMinRow {
   id: string;
   sku: string | null;
   nome: string;
+  variacoes?: unknown;
 }
 
 export interface EmpresaSefazContext {

@@ -15,7 +15,7 @@ export interface PrecoEspecialRow {
   ativo: boolean;
   created_at: string;
   clientes: { nome_razao_social: string } | null;
-  produtos: { nome: string; sku: string | null; preco_venda: number | null } | null;
+  produtos: { nome: string; sku: string | null; preco_venda: number | null; variacoes: unknown } | null;
 }
 
 export interface PrecoEspecialPayload {
@@ -33,7 +33,7 @@ export async function listPrecosEspeciais(filters: {
 }): Promise<PrecoEspecialRow[]> {
   let query = supabase
     .from("precos_especiais")
-    .select("*, clientes(nome_razao_social), produtos(nome, sku, preco_venda)")
+    .select("*, clientes(nome_razao_social), produtos(nome, sku, preco_venda, variacoes)")
     .eq("ativo", true);
   if (filters.clienteId) query = query.eq("cliente_id", filters.clienteId);
   if (filters.produtoId) query = query.eq("produto_id", filters.produtoId);
@@ -54,7 +54,7 @@ export async function listClientesAtivosBasic() {
 export async function listProdutosAtivosBasic() {
   const { data, error } = await supabase
     .from("produtos")
-    .select("id, nome, sku")
+    .select("id, nome, sku, variacoes")
     .eq("ativo", true);
   if (error) throw error;
   return data || [];

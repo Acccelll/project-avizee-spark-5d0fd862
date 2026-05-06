@@ -23,7 +23,7 @@ import {
 export async function loadEstoque(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   let query = supabase
     .from("produtos")
-    .select("id, sku, codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
+    .select("id, sku, codigo_interno, nome, variacoes, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
     .eq("ativo", true)
     .order("nome");
   if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
@@ -177,7 +177,7 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
 export async function loadMargemProdutos(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   let query = supabase
     .from("produtos")
-    .select("id, sku, codigo_interno, nome, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
+    .select("id, sku, codigo_interno, nome, variacoes, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
     .eq("ativo", true)
     .order("nome");
   if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
@@ -224,7 +224,7 @@ export async function loadMargemProdutos(filtros: FiltroRelatorio): Promise<Rela
 export async function loadEstoqueMinimo(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   let query = supabase
     .from("produtos")
-    .select("id, sku, codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
+    .select("id, sku, codigo_interno, nome, variacoes, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
     .eq("ativo", true)
     .order("nome");
   if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
