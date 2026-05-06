@@ -20,6 +20,8 @@ import type { Socio, SocioParticipacao } from "@/types/domain";
 import { formatDate } from "@/lib/format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SocioDrawer } from "@/components/socios/SocioDrawer";
+import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
+import { validateCPF } from "@/lib/validators";
 
 interface SocioForm {
   nome: string;
@@ -102,10 +104,19 @@ export default function Socios() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) { toast.error("Nome obrigatório"); return; }
+    const cpfDigits = form.cpf.replace(/\D/g, "");
+    if (cpfDigits) {
+      if (cpfDigits.length !== 11 || !validateCPF(cpfDigits)) {
+        toast.error("CPF inválido"); return;
+      }
+      if (cpfUnico === false) {
+        toast.error("CPF já cadastrado para outro sócio"); return;
+      }
+    }
     await submit(async () => {
       const payload = {
         nome: form.nome.trim(),
-        cpf: form.cpf.trim() || null,
+        cpf: cpfDigits || null,
         email: form.email.trim() || null,
         telefone: form.telefone.trim() || null,
         ativo: form.ativo,
