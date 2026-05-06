@@ -427,6 +427,13 @@ const Produtos = () => {
         : null;
       const { variacoes_texto: _vt, ...rest } = form;
       const payload = { ...rest, variacoes: variacoesTexto, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
+      // Código Interno é sempre gerado/mantido pelo backend (trigger PRD/INS).
+      // Em criação: enviamos string vazia (trigger preenche). Em edição: removemos do payload para nunca sobrescrever.
+      if (mode === "create") {
+        payload.codigo_interno = "";
+      } else {
+        delete (payload as Record<string, unknown>).codigo_interno;
+      }
       let produtoId: string;
       if (mode === "create") {
         const result = await create(payload);
