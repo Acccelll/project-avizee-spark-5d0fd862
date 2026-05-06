@@ -166,7 +166,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         const precoBase = prod.preco_venda || 0;
         const regra = buscarRegraAplicavel(
           (precosEspeciais ?? []) as RegraPrecoEspecial[],
-          value,
+          value as string,
           new Date(),
         );
         if (regra) {
