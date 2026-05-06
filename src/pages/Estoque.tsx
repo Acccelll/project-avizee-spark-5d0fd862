@@ -41,6 +41,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
 import { useCan } from "@/hooks/useCan";
 import { logger } from "@/lib/logger";
+import { formatVariacoesSuffix } from "@/utils/cadastros";
 
 type ProdutoRow = TableRow<"produtos">;
 
@@ -248,14 +249,9 @@ const Estoque = () => {
     if (pendingSubmit || saving) return;
     if (!form.produto_id) { toast.error("Selecione um produto"); return; }
     if (form.quantidade <= 0) { toast.error("A quantidade deve ser maior que zero"); return; }
-    if (!form.motivo.trim()) {
-      const motivoMsg =
-        form.tipo === "saida" ? "Informe o motivo da saída de estoque" :
-        form.tipo === "entrada" ? "Informe a origem da entrada de estoque" :
-        "Informe o motivo do ajuste manual";
-      toast.error(motivoMsg);
-      return;
-    }
+    // Justificativa opcional por ora — RPC `ajustar_estoque_manual` exige
+    // `motivo_estruturado` com >=10 chars para tipos críticos; aplicamos
+    // fallback automático no executeMovimentacao quando vazia.
     // Warn about negative balance (allow with explicit confirmation via ConfirmDialog)
     if (form.tipo === "saida") {
       const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
@@ -289,15 +285,18 @@ const Estoque = () => {
       //  - atualização atômica de produtos.estoque_atual + auditoria
       const tipoRpc = pendingMovForm.tipo;
       const isCritico = tipoRpc === "ajuste";
+      const motivoFinal = pendingMovForm.motivo?.trim()
+        ? pendingMovForm.motivo
+        : "Ajuste sem justificativa registrada";
       // Para entrada/saída a quantidade é o delta; para ajuste é o saldo absoluto.
       const quantidadeRpc = tipoRpc === "ajuste" ? pendingMovForm.quantidade : Math.abs(qty);
       await ajustar.mutateAsync({
         produto_id: pendingMovForm.produto_id,
         tipo: tipoRpc,
         quantidade: quantidadeRpc,
-        motivo: pendingMovForm.motivo,
+        motivo: motivoFinal,
         categoria_ajuste: isCritico ? pendingMovForm.categoria_ajuste : undefined,
-        motivo_estruturado: isCritico ? pendingMovForm.motivo : undefined,
+        motivo_estruturado: isCritico ? motivoFinal : undefined,
       });
       // Variáveis de saldo previstas mantidas apenas para preview na UI.
       void saldo_anterior; void saldo_atual;
@@ -678,7 +677,7 @@ const Estoque = () => {
                           const p = produtosCrud.data.find((x) => x.id === form.produto_id);
                           return p ? (
                             <span className="truncate flex items-center gap-2">
-                              <span className="font-medium">{p.nome}</span>
+                              <span className="font-medium">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>
                               {p.sku && <span className="text-muted-foreground font-mono text-xs">({p.sku})</span>}
                               <span className="text-muted-foreground text-xs ml-1">Est: {formatNumber(p.estoque_atual)}</span>
                             </span>
@@ -701,7 +700,7 @@ const Estoque = () => {
                             {produtosCrud.data.filter((p) => p.ativo !== false).map((p) => (
                               <CommandItem
                                 key={p.id}
-                                value={[p.nome, p.sku, p.codigo_interno].filter(Boolean).join(" ")}
+                                value={[p.nome, formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes), p.sku, p.codigo_interno].filter(Boolean).join(" ")}
                                 onSelect={() => {
                                   setForm((f) => ({ ...f, produto_id: p.id }));
                                   setProdutoSelectorOpen(false);
@@ -709,7 +708,7 @@ const Estoque = () => {
                                 className={cn("gap-2 cursor-pointer", form.produto_id === p.id && "bg-primary/5")}
                               >
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{p.nome}</p>
+                                  <p className="font-medium text-sm truncate">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</p>
                                   <div className="flex items-center gap-2 mt-0.5">
                                     {p.sku && <span className="text-[11px] text-muted-foreground font-mono">{p.sku}</span>}
                                     {p.codigo_interno && p.codigo_interno !== p.sku && <span className="text-[11px] text-muted-foreground font-mono">CI: {p.codigo_interno}</span>}
@@ -799,7 +798,7 @@ const Estoque = () => {
                       </SelectContent>
                     </Select>
                     <p className="text-[11px] text-muted-foreground">
-                      O motivo abaixo precisa ter pelo menos 10 caracteres e somente usuários com perfil <strong>admin</strong> ou <strong>estoquista</strong> podem registrar ajustes críticos.
+                      Apenas usuários com perfil <strong>admin</strong> ou <strong>estoquista</strong> podem registrar ajustes críticos. A justificativa é opcional, mas recomendada para auditoria.
                     </p>
                   </div>
                 )}
@@ -852,15 +851,14 @@ const Estoque = () => {
                       <h3 className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">Justificativa</h3>
                       <div className="space-y-2">
                   <Label>
-                    Motivo / Justificativa *{" "}
-                    <span className="text-xs font-normal text-muted-foreground">(obrigatório — explique causa raiz e referência operacional)</span>
+                    Motivo / Justificativa{" "}
+                    <span className="text-xs font-normal text-muted-foreground">(opcional — recomendado para auditoria)</span>
                   </Label>
                   <Textarea
                     value={form.motivo}
                     onChange={(e) => setForm({ ...form, motivo: e.target.value })}
                     placeholder="Descreva o motivo do ajuste (ex: contagem física, correção de lançamento, perda identificada...)"
                     rows={3}
-                    required
                   />
                       </div>
                     </CardContent>

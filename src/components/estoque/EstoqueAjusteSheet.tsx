@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, ChevronsUpDown, ShieldAlert, CircleAlert } from "lucide-react";
 import type { TableRow } from "@/types/domain";
+import { formatVariacoesSuffix } from "@/utils/cadastros";
 
 type ProdutoRow = TableRow<"produtos">;
 
@@ -84,14 +85,8 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
     if (saving || pendingSubmit) return;
     if (!form.produto_id) { toast.error("Selecione um produto"); return; }
     if (form.quantidade <= 0) { toast.error("A quantidade deve ser maior que zero"); return; }
-    if (!form.motivo.trim()) {
-      toast.error(
-        form.tipo === "saida" ? "Informe o motivo da saída de estoque" :
-        form.tipo === "entrada" ? "Informe a origem da entrada de estoque" :
-        "Informe o motivo do ajuste manual",
-      );
-      return;
-    }
+    // Justificativa opcional — fallback aplicado em `executar()` quando vazia
+    // para satisfazer o RPC em ajustes críticos.
     setConfirmOpen(true);
   };
 
@@ -100,13 +95,14 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
     setPendingSubmit(true);
     try {
       const isCritico = form.tipo === "ajuste";
+      const motivoFinal = form.motivo?.trim() || "Ajuste sem justificativa registrada";
       await ajustar.mutateAsync({
         produto_id: form.produto_id,
         tipo: form.tipo,
         quantidade: form.tipo === "ajuste" ? form.quantidade : Math.abs(form.quantidade),
-        motivo: form.motivo,
+        motivo: motivoFinal,
         categoria_ajuste: isCritico ? form.categoria_ajuste : undefined,
-        motivo_estruturado: isCritico ? form.motivo : undefined,
+        motivo_estruturado: isCritico ? motivoFinal : undefined,
       });
       onClose();
     } catch (err) {
@@ -155,7 +151,7 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
                   >
                     {produtoSelecionado ? (
                       <span className="truncate flex items-center gap-2">
-                        <span className="font-medium">{produtoSelecionado.nome}</span>
+                        <span className="font-medium">{produtoSelecionado.nome}{formatVariacoesSuffix((produtoSelecionado as { variacoes?: unknown }).variacoes)}</span>
                         {produtoSelecionado.sku && (
                           <span className="text-muted-foreground font-mono text-xs">({produtoSelecionado.sku})</span>
                         )}
@@ -178,7 +174,7 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
                         {produtosCrud.data.filter((p) => p.ativo !== false).map((p) => (
                           <CommandItem
                             key={p.id}
-                            value={[p.nome, p.sku, p.codigo_interno].filter(Boolean).join(" ")}
+                            value={[p.nome, formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes), p.sku, p.codigo_interno].filter(Boolean).join(" ")}
                             onSelect={() => {
                               setForm((f) => ({ ...f, produto_id: p.id }));
                               setProdutoSelectorOpen(false);
@@ -186,7 +182,7 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
                             className={cn("gap-2 cursor-pointer", form.produto_id === p.id && "bg-primary/5")}
                           >
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{p.nome}</p>
+                              <p className="font-medium text-sm truncate">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</p>
                               {p.sku && (
                                 <span className="text-[11px] text-muted-foreground font-mono">{p.sku}</span>
                               )}
@@ -308,13 +304,12 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
 
             {/* Motivo */}
             <div className="space-y-2">
-              <Label>Motivo *</Label>
+              <Label>Motivo <span className="text-xs font-normal text-muted-foreground">(opcional)</span></Label>
               <Textarea
                 value={form.motivo}
                 onChange={(e) => setForm({ ...form, motivo: e.target.value })}
-                placeholder="Descreva a causa raiz e referência operacional (mín. 10 caracteres)"
+                placeholder="Descreva a causa raiz e referência operacional (recomendado)"
                 rows={3}
-                required
               />
             </div>
 
