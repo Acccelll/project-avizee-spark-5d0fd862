@@ -38,6 +38,7 @@ interface MobileDashboardHeaderProps {
   lastUpdated?: Date;
   onRefresh?: () => void;
   rightSlot?: React.ReactNode;
+  fetching?: boolean;
 }
 
 /**
@@ -51,6 +52,7 @@ export function MobileDashboardHeader({
   lastUpdated,
   onRefresh,
   rightSlot,
+  fetching,
 }: MobileDashboardHeaderProps) {
   const {
     period,
@@ -199,10 +201,11 @@ export function MobileDashboardHeader({
             size="icon"
             onClick={onRefresh}
             className="h-9 w-9 shrink-0"
-            aria-label={`Atualizar (última: ${lastUpdatedLabel})`}
-            title={`Atualizado às ${lastUpdatedLabel}`}
+            aria-label={fetching ? "Atualizando…" : `Atualizar (última: ${lastUpdatedLabel})`}
+            title={fetching ? "Atualizando…" : `Atualizado às ${lastUpdatedLabel}`}
+            disabled={fetching}
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={cn("h-4 w-4", fetching && "animate-spin")} />
           </Button>
         )}
         {rightSlot}
