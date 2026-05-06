@@ -76,7 +76,15 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
     }
 
     try {
-      await upsertPrecoEspecial(form, editingId);
+      await upsertPrecoEspecial(
+        {
+          ...form,
+          data_inicio: form.data_inicio || null,
+          data_fim: form.data_fim || null,
+          observacoes: form.observacoes || null,
+        },
+        editingId,
+      );
       toast.success(editingId ? "Regra de preço atualizada" : "Nova regra de preço criada");
       setEditingId(null);
       setShowAdd(false);
