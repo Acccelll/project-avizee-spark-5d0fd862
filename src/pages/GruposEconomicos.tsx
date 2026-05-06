@@ -663,7 +663,7 @@ const GruposEconomicos = () => {
                 <div className="mb-5 h-[76px] rounded-lg bg-muted/30 animate-pulse" />
               ) : (
                 <div className="mb-5 space-y-2">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="rounded-lg border bg-card p-3 text-center space-y-1">
                       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Empresas</p>
                       <p className="font-bold text-2xl text-foreground">{modalEmpresas.length}</p>
