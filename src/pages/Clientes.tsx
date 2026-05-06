@@ -395,8 +395,10 @@ const Clientes = () => {
     { label: "Inativo", value: "inativo" },
   ];
 
-  const summaryAtivos = useMemo(() => data.filter(c => c.ativo).length, [data]);
-  const summaryComGrupo = useMemo(() => data.filter(c => c.grupo_economico_id).length, [data]);
+  // Em modo paged `data` contém só a página atual — KPIs vêm de count() server-side.
+  const summaryAtivos = totalAtivos ?? 0;
+  const summaryComGrupo = totalComGrupo ?? 0;
+  const totalRegistros = totalCount ?? data.length;
 
   return (
     <>
@@ -408,10 +410,10 @@ const Clientes = () => {
         addButtonHelpId="clientes.novoBtn"
         summaryCards={
           <>
-            <SummaryCard title="Total de Clientes" value={data.length} icon={Users} />
+            <SummaryCard title="Total de Clientes" value={totalRegistros} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
             <div className="hidden md:contents">
-              <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={User2} />
+              <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={User2} />
               <SummaryCard title="Com Grupo Econômico" value={summaryComGrupo} icon={Building2} />
             </div>
           </>
@@ -425,7 +427,7 @@ const Clientes = () => {
           activeFilters={cliActiveFilters}
           onRemoveFilter={handleRemoveCliFilter}
           onClearAll={() => clearFilters(["tipo", "grupo", "ativo"])}
-          count={filteredData.length}
+          count={totalCount ?? filteredData.length}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[130px]" />
           <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipos" className="w-[150px]" />
@@ -447,6 +449,10 @@ const Clientes = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
             mobileInlineActions={(c: Cliente) => (
               <ContactInlineActions
                 phone={c.celular || c.telefone}
