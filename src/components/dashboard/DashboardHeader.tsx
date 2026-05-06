@@ -29,11 +29,13 @@ function formatRange(dateFrom: string, dateTo: string): string {
 interface DashboardHeaderProps {
   lastUpdated?: Date;
   onRefresh?: () => void;
+  /** Quando true, renderiza "Atualizando…" e anima o ícone de refresh. */
+  fetching?: boolean;
   /** Optional slot rendered alongside the period selector / refresh button. */
   rightSlot?: React.ReactNode;
 }
 
-export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: DashboardHeaderProps) {
+export function DashboardHeader({ lastUpdated, onRefresh, fetching = false, rightSlot }: DashboardHeaderProps) {
   const {
     period,
     setPeriod,
@@ -67,8 +69,8 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
             <span>{dateLabel}</span>
             <span className="hidden md:inline text-border">·</span>
             <span className="flex items-center gap-1">
-              <RefreshCw className="h-3 w-3" />
-              Atualizado às {lastUpdatedLabel}
+              <RefreshCw className={`h-3 w-3 ${fetching ? 'animate-spin' : ''}`} />
+              {fetching ? 'Atualizando…' : `Atualizado às ${lastUpdatedLabel}`}
             </span>
             <span className="hidden md:inline text-border">·</span>
             <span
@@ -99,8 +101,8 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
             </Select>
           </div>
           {onRefresh && (
-            <Button variant="outline" size="sm" onClick={onRefresh} className="h-8 gap-1.5" aria-label="Atualizar dados do dashboard">
-              <RefreshCw className="h-3.5 w-3.5" />
+            <Button variant="outline" size="sm" onClick={onRefresh} disabled={fetching} className="h-8 gap-1.5" aria-label="Atualizar dados do dashboard">
+              <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Atualizar</span>
             </Button>
           )}
