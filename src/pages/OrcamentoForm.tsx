@@ -54,6 +54,11 @@ import {
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { proximoNumeroOrcamento } from "@/types/rpc";
 import {
+  aplicarPrecosEspeciaisEmLote,
+  type RegraPrecoEspecial,
+} from "@/lib/precos-especiais";
+import { notifyError } from "@/utils/errorMessages";
+import {
   upsertOrcamentoDraft,
   hasOrcamentoDraft,
   existeOrcamentoComNumero,
