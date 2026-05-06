@@ -391,7 +391,7 @@ export async function fetchOrcamentoDetalhes(orcamentoId: string, signal: AbortS
       .abortSignal(signal),
     supabase
       .from("ordens_venda")
-      .select("id, numero")
+      .select("id, numero, status")
       .eq("cotacao_id", orc.id)
       .abortSignal(signal)
       .maybeSingle(),
