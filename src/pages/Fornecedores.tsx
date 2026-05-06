@@ -114,7 +114,15 @@ const Fornecedores = () => {
     filterAtivo: false,
     filter: serverFilters,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
-  });
+    pageSize: 50,
+    orderBy: "nome_razao_social",
+    ascending: true,
+  }) as ReturnType<typeof useSupabaseCrud<Fornecedor>> & {
+    page: number;
+    setPage: (n: number) => void;
+    totalCount: number | null;
+    hasMore: boolean;
+  };
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
