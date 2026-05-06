@@ -128,6 +128,11 @@ const Pedidos = () => {
     await pedidosQuery.refetch();
   };
 
+  // A-01 (decisão): cancelamento é "drawer-only" — não exibimos botão Cancelar
+  // na grid para forçar a passagem pela tela de detalhe (motivo, NFs ativas,
+  // confirmação cross-módulo). Permissão `pedidos:cancelar` continua sendo
+  // checada dentro do `OrdemVendaView`.
+  //
   // Realtime: invalida grid quando ordens_venda/notas_fiscais mudam em outras
   // abas, RPCs (faturar/estornar) ou triggers — mantém status_faturamento
   // sincronizado sem refresh manual.
