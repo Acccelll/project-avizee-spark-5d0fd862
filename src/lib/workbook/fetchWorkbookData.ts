@@ -5,7 +5,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { WorkbookModoGeracao } from '@/types/workbook';
-import { fetchFolhaPagamentoRange, fetchEmpresaConfigBrand } from '@/services/workbook.service';
+import { fetchFolhaPagamentoRange, fetchEmpresaConfigBrand } from '@/services/workbook';
 
 export interface WorkbookRawData {
   receita: Array<{ competencia: string; total_receita: number; total_recebido: number; quantidade: number }>;
