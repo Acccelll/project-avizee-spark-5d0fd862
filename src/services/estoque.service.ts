@@ -22,6 +22,7 @@ export interface EstoquePosicaoRow {
   ativo: boolean;
   estoque_atual: number;
   estoque_reservado: number;
+  variacoes?: unknown;
 }
 
 function isLegacySku(value: string | null | undefined): boolean {
