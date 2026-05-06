@@ -71,14 +71,14 @@ Resolve A-03 e BK-02.
 - `transportadoraSchema` aceita CPF (11) ou CNPJ (14) com validação dígito.
 - Coluna na lista mostra badge PF/PJ junto ao documento.
 
-### 5b. Produtos em página dedicada (C-01, MB-01, D-01, ≈ 2 dias)
+### 5b. Produtos em página dedicada (C-01, MB-01, D-01) ✅
 
-- Criar `src/pages/produtos/ProdutoForm.tsx` baseado em `OrcamentoForm.tsx`/`PedidoCompraForm.tsx`.
-- Rotas `/produtos/novo` e `/produtos/:id/editar` em `src/routes/cadastros.routes.tsx`.
-- `Produtos.tsx` lista: `openEdit`/`openNew` agora navegam para a página.
-- `ViewDrawerV2` continua para visualização (cross-relacional preservado).
-- Composição e Fornecedores ficam em seções da página com tabela editável full-width.
-- Atualizar memória `mem://produto/quando-drawer-quando-pagina.md` com Produtos como exemplo.
+- `src/pages/produtos/ProdutoForm.tsx` criado com PageShell + 5 abas (Dados Gerais, Estoque, Fiscal, Compras, Observações), composição, fornecedores e dialogs auxiliares.
+- Rotas `/produtos/novo` e `/produtos/:id/editar` adicionadas em `src/routes/cadastros.routes.tsx`.
+- `Produtos.tsx` reduzido de 1607 → 393 linhas, virou lista pura: `openCreate` navega para `/produtos/novo`, `openEdit` para `/produtos/:id/editar`. Deep-link `?editId=` e atalho `?new=1` redirecionam para a nova rota.
+- `ViewDrawerV2` (`pushView("produto", id)`) continua sendo a fonte para visualização cross-relacional.
+- "Salvar e novo" implementado como navegação para `/produtos/novo`.
+- Memória `mem://produto/quando-drawer-quando-pagina.md` atualizada com Produtos como exemplo de "form com itens dinâmicos = página".
 
 ### 5c. Validações Produtos (M-07, BK-05)
 
