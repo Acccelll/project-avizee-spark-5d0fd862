@@ -94,7 +94,7 @@ Validação: criar produto com itens, conferir scroll natural, SKU duplicado blo
 Limpeza final e melhorias de UX/dados. **Status:** quase tudo feito.
 
 - ~~**BK-03** `set_principal_endereco`: confirmada via `pg_proc`, tipos já gerados, `as never` removido em `clientes.service.ts`~~ ✅ feito.
-- **A-06 / BK-04** `produtos.variacoes` migrar para `text[]`: migration com `USING (string_to_array(variacoes, ','))`, normalizar valores antigos JSON, remover dual-path no frontend.
+- ~~**A-06 / BK-04** `produtos.variacoes` migrado para `text[]` (migration via função auxiliar; vírgulas decimais sanitizadas para ponto). Frontend simplificado: tipo `string[] | null`, sem dual-path. `parseVariacoes` mantido como fallback para snapshots CSV antigos~~ ✅ feito.
 - ~~**SH-05** `fetchClienteDetalhes` → `Promise.allSettled`~~ ✅ feito.
 - ~~**SH-03** `useSocios.ts` migrar para `useQuery`~~ ✅ já estava migrado (`src/hooks/useSocios.ts`).
 - ~~**SH-04 / D-02** `useDashboardData` `fetching` agregado + header "Atualizando…"~~ ✅ feito.
