@@ -162,10 +162,13 @@ export function OrdemVendaView({ id }: Props) {
   // mudam (ex.: faturamento iniciado em outra aba, NF confirmada). Evita
   // mostrar status_faturamento desatualizado ao usuário.
   useEffect(() => {
-    return subscribeComercial(() => {
+    if (!id) return;
+    // A-04: só recarrega quando o evento toca este pedido (próprio ou via NF).
+    return subscribeComercial((change) => {
+      if (change.ordemVendaId && change.ordemVendaId !== id) return;
       reload();
     });
-  }, [reload]);
+  }, [id, reload]);
 
   const handleGenerateNF = async () => {
     if (!selected) return;
