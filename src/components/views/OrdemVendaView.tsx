@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import type { OVDetail, NotaFiscalListItem, LancamentoListItem, OrdemVendaItemWithProduto } from "@/types/comercial";
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
+import { useCan } from "@/hooks/useCan";
 import {
   FileOutput,
   DollarSign,
@@ -185,7 +186,9 @@ export function OrdemVendaView({ id }: Props) {
 
   const pesoTotal = items.reduce((s, i) => s + Number(i.peso_total || 0), 0);
   const qtdTotal = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
-  const canGenerateNF = canFaturarPedido(selected);
+  const { can } = useCan();
+  const canFaturarPerm = can("faturamento_fiscal:criar") || can("pedidos:editar");
+  const canGenerateNF = canFaturarPedido(selected) && canFaturarPerm;
 
   // Gate de cancelamento: bloquear se já cancelado/faturado ou se houver NF ativa.
   const hasNFAtiva = notasFiscais.some(
