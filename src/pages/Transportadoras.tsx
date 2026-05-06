@@ -50,6 +50,7 @@ import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface Transportadora {
   id: string;
+  tipo_pessoa: string;
   nome_razao_social: string;
   nome_fantasia: string;
   cpf_cnpj: string;
@@ -76,6 +77,7 @@ type TransportadoraFormData = Omit<Transportadora, "id" | "created_at" | "update
 type ClienteVinculado = ClienteVinculadoView;
 
 const emptyForm: TransportadoraFormData = {
+  tipo_pessoa: "J",
   nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", contato: "",
   telefone: "", email: "", logradouro: "", numero: "", complemento: "",
   bairro: "", cidade: "", uf: "", cep: "", modalidade: "rodoviario",
@@ -120,7 +122,7 @@ export default function Transportadoras() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<TransportadoraFormData>(emptyForm);
   const { isUnique: docUnico, isLoading: docChecking } = useDocumentoUnico(
-    "cnpj",
+    form.tipo_pessoa === "F" ? "cpf" : "cnpj",
     form.cpf_cnpj,
     selected?.id,
     "transportadoras",
@@ -212,6 +214,7 @@ export default function Transportadoras() {
   const openEdit = (t: Transportadora) => {
     setMode("edit"); setSelected(t);
     setForm({
+      tipo_pessoa: t.tipo_pessoa || "J",
       nome_razao_social: t.nome_razao_social, nome_fantasia: t.nome_fantasia || "",
       cpf_cnpj: t.cpf_cnpj || "", contato: t.contato || "",
       telefone: t.telefone || "", email: t.email || "",
@@ -274,6 +277,7 @@ export default function Transportadoras() {
     if (mode === "create") return JSON.stringify(form) !== JSON.stringify(emptyForm);
     if (!selected) return false;
     const original: TransportadoraFormData = {
+      tipo_pessoa: selected.tipo_pessoa || "J",
       nome_razao_social: selected.nome_razao_social || "",
       nome_fantasia: selected.nome_fantasia || "",
       cpf_cnpj: selected.cpf_cnpj || "",
