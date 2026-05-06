@@ -56,9 +56,28 @@ export async function deleteProdutoFornecedor(vinculoId: string): Promise<void> 
   if (error) throw error;
 }
 
-export async function deleteFornecedor(id: string): Promise<void> {
-  const { error } = await supabase.from("fornecedores").delete().eq("id", id);
-  if (error) throw error;
+import { safeDelete } from "@/services/_shared/safeDelete";
+
+/**
+ * Remove (desativa) um fornecedor. Bloqueia se houver pedidos de compra,
+ * NF-e de entrada ou lançamentos financeiros vinculados.
+ */
+export async function deleteFornecedor(
+  id: string,
+  opts?: { hardDelete?: boolean },
+): Promise<void> {
+  await safeDelete({
+    table: "fornecedores",
+    id,
+    entityLabel: "Fornecedor",
+    hardDelete: opts?.hardDelete,
+    dependencies: [
+      { table: "pedidos_compra", column: "fornecedor_id", label: "pedidos de compra" },
+      { table: "compras", column: "fornecedor_id", label: "compras" },
+      { table: "notas_fiscais", column: "fornecedor_id", label: "notas fiscais" },
+      { table: "financeiro_lancamentos", column: "fornecedor_id", label: "lançamentos financeiros" },
+    ],
+  });
 }
 
 // ── FornecedorView (drawer/detalhe) ───────────────────────────────────────────
