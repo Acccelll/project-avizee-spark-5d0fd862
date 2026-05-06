@@ -76,6 +76,7 @@ export function OrcamentoView({ id }: Props) {
   const { isAdmin } = useIsAdmin();
   const { can } = useCan();
   const canAprovar = can("orcamentos:aprovar") || isAdmin;
+  const canCancelar = can("orcamentos:cancelar") || isAdmin;
   const { run, locked, isAnyLocked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
   const converterOrcamento = useConverterOrcamento();
@@ -230,6 +231,7 @@ export function OrcamentoView({ id }: Props) {
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" aria-label="Editar orçamento" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
           <Edit className="h-3.5 w-3.5" /> Editar
         </Button>
+        {canCancelar && (
         <Button
           variant="ghost" size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
@@ -247,6 +249,7 @@ export function OrcamentoView({ id }: Props) {
         >
           <Trash2 className="h-3.5 w-3.5" /> Cancelar
         </Button>
+        )}
         {isAdmin && (
           <Button
             variant="ghost" size="sm"
@@ -295,6 +298,7 @@ export function OrcamentoView({ id }: Props) {
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
+            {canCancelar && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               disabled={Boolean(linkedOV)}
@@ -310,6 +314,7 @@ export function OrcamentoView({ id }: Props) {
             >
               <Trash2 className="h-4 w-4 mr-2" /> Cancelar
             </DropdownMenuItem>
+            )}
             {isAdmin && (
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
