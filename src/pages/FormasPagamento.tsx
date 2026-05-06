@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -79,7 +80,16 @@ export default function FormasPagamento() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const { can } = useCan();
   const canExcluir = can("formas_pagamento:excluir");
-  const [searchTerm, setSearchTerm] = useState("");
+  const { value: filterValue, set: setFilter, clear: clearFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      ativo: { type: "stringArray" },
+      tipo: { type: "stringArray" },
+      gera: { type: "stringArray" },
+    },
+  });
+  const searchTerm = filterValue.q;
+  const setSearchTerm = (v: string) => setFilter({ q: v });
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
@@ -88,10 +98,13 @@ export default function FormasPagamento() {
     onLoad: (f) => openEdit(f),
   });
 
-  // Advanced filters
-  const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
-  const [tipoFilters, setTipoFilters] = useState<string[]>([]);
-  const [geraFinanceiroFilters, setGeraFinanceiroFilters] = useState<string[]>([]);
+  // Advanced filters (em URL via useUrlListState)
+  const ativoFilters = filterValue.ativo;
+  const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
+  const tipoFilters = filterValue.tipo;
+  const setTipoFilters = (v: string[]) => setFilter({ tipo: v });
+  const geraFinanceiroFilters = filterValue.gera;
+  const setGeraFinanceiroFilters = (v: string[]) => setFilter({ gera: v });
 
   // Dynamic intervals
   const [newIntervalo, setNewIntervalo] = useState<number>(30);
@@ -178,9 +191,9 @@ export default function FormasPagamento() {
   }, [ativoFilters, tipoFilters, geraFinanceiroFilters]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
-    if (key === "ativo") setAtivoFilters((prev) => prev.filter((v) => v !== value));
-    if (key === "tipo") setTipoFilters((prev) => prev.filter((v) => v !== value));
-    if (key === "gera_financeiro") setGeraFinanceiroFilters((prev) => prev.filter((v) => v !== value));
+    if (key === "ativo") setAtivoFilters(ativoFilters.filter((v) => v !== value));
+    if (key === "tipo") setTipoFilters(tipoFilters.filter((v) => v !== value));
+    if (key === "gera_financeiro") setGeraFinanceiroFilters(geraFinanceiroFilters.filter((v) => v !== value));
   };
 
   const summaryAtivos = useMemo(() => data.filter((f) => f.ativo).length, [data]);
@@ -282,7 +295,7 @@ export default function FormasPagamento() {
           searchPlaceholder="Buscar por descrição..."
           activeFilters={activeFilterChips}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => { setAtivoFilters([]); setTipoFilters([]); setGeraFinanceiroFilters([]); }}
+          onClearAll={() => clearFilters(["ativo", "tipo", "gera"])}
           count={filteredData.length}
         >
           <MultiSelect
