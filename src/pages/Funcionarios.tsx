@@ -424,47 +424,7 @@ export default function Funcionarios() {
             </div>
           </div>
 
-          {/* BLOCO: FOLHA / CONTEXTO FINANCEIRO (apenas em edição, quando há dados) */}
-          {mode === "edit" && !loadingFolhas && (folhas.length > 0 || lancamentos.length > 0) && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Folha / Contexto Financeiro</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-              <div className="rounded-lg border bg-muted/20 p-3 space-y-2.5">
-                <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>
-                    {folhas.length > 0
-                      ? `${folhas.length} competência${folhas.length !== 1 ? "s" : ""} de folha registrada${folhas.length !== 1 ? "s" : ""}. Este colaborador gera lançamentos financeiros.`
-                      : "Este colaborador possui lançamentos financeiros vinculados."}
-                  </span>
-                </p>
-                <div className={`grid gap-2 ${folhas[0] ? "grid-cols-3" : "grid-cols-1"}`}>
-                  {folhas[0] && (
-                    <>
-                      <div className="rounded-md border bg-background px-2.5 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Última Competência</p>
-                        <p className="font-mono text-sm font-medium mt-0.5">{folhas[0].competencia}</p>
-                      </div>
-                      <div className="rounded-md border bg-background px-2.5 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Líquido Recente</p>
-                        <p className="font-mono text-sm font-medium mt-0.5">{formatCurrency(Number(folhas[0].valor_liquido))}</p>
-                      </div>
-                    </>
-                  )}
-                  <div className="rounded-md border bg-background px-2.5 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Financeiro Pendente</p>
-                    <p className={`font-mono text-sm font-medium mt-0.5 ${lancamentosAbertos.length > 0 ? "text-warning dark:text-warning" : "text-muted-foreground"}`}>
-                      {lancamentosAbertos.length > 0
-                        ? `${lancamentosAbertos.length} aberto${lancamentosAbertos.length !== 1 ? "s" : ""}`
-                        : "Em dia"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Folha / contexto financeiro vivem no FuncionarioView (drawer) — fonte única. */}
 
           {/* BLOCO: OBSERVAÇÕES */}
           <div className="space-y-3">
