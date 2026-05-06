@@ -445,16 +445,25 @@ const Orcamentos = () => {
             placeholder="Validade"
             className="w-[200px]"
           />
-          <select
-            value={historicoFilter}
-            onChange={(e) => setHistoricoFilter(e.target.value)}
-            className="h-9 px-3 text-xs rounded-md border border-input bg-background"
-            title="Filtro de orçamentos históricos importados"
-          >
-            {historicoOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          {/* M-08: filtro histórico em chips (alinha ao padrão AdvancedFilterBar). */}
+          <div className="inline-flex items-center gap-1 rounded-md border border-input bg-background p-1" role="group" aria-label="Filtro de históricos">
+            {historicoOptions.map((opt) => {
+              const active = historicoFilter === opt.value;
+              return (
+                <Button
+                  key={opt.value}
+                  type="button"
+                  size="sm"
+                  variant={active ? "default" : "ghost"}
+                  className="h-7 px-2 text-xs"
+                  aria-pressed={active}
+                  onClick={() => setHistoricoFilter(opt.value)}
+                >
+                  {opt.label}
+                </Button>
+              );
+            })}
+          </div>
           <MultiSelect
             options={clienteOptions}
             selected={clienteFilters}
