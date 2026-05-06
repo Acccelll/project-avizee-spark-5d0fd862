@@ -54,6 +54,7 @@ interface FormaDetail {
 const tipoLabel: Record<string, string> = {
   pix: "PIX", boleto: "Boleto", cartao: "Cartão",
   dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro",
+  boleto_dda: "Boleto/DDA",
 };
 
 const tipoIcon: Record<string, React.ElementType> = {
