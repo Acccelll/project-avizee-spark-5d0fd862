@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
+import { AuditTimelineMini } from "@/components/views/AuditTimelineMini";
 import {
   DropdownMenu,
   DropdownMenuContent,
