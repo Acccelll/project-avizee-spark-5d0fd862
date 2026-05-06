@@ -1,84 +1,77 @@
-# Onda 7 — Paginação real server-side ✅
+# Correção de Preços Especiais + retomada das pendências da Onda 2
 
-**Status:** concluída. Resumo da entrega no fim do arquivo.
+## Parte A — Por que Preços Especiais não funcionam (raiz do bug)
 
-## Objetivo
+A tabela `precos_especiais` no banco tem as colunas:
+`id, cliente_id, produto_id, preco_especial, data_inicio, data_fim, observacoes, ativo, created_at` (confirmado por introspecção).
 
-Trocar o atual `paginationMode: 'all'` (chunks até 50k) por requisições paginadas reais (`range(from, to)` com `count: 'exact'`) em **Clientes, Fornecedores, Produtos e GruposEconomicos**, com UI de paginação que mostre `totalCount` real e permita navegar página a página sem carregar tudo.
+Mas o código está dividido em duas convenções inconsistentes:
 
-## Problema de hoje
+| Arquivo | Espera | Realidade no banco |
+|---|---|---|
+| `src/components/precos/PrecosEspeciaisTab.tsx` (CRUD) | `data_inicio`/`data_fim` | ✅ correto |
+| `src/services/precosEspeciais.service.ts` | `data_inicio`/`data_fim` | ✅ correto |
+| `src/services/orcamentos.service.ts` (`listPrecosEspeciaisAtuais`) | `vigencia_inicio`/`vigencia_fim` | ❌ colunas não existem |
+| `src/lib/precos-especiais.ts` (regras puras) | `vigencia_inicio`/`vigencia_fim` + `desconto_percentual` | ❌ colunas não existem |
+| `src/lib/precos-especiais.test.ts`, `src/tests/integration/fluxo-venda.test.ts` | idem | ❌ |
 
-- `useSupabaseCrud` em modo `'all'` puxa até `CHUNK_FETCH_HARD_CAP = 50000` linhas em chunks de 1000, e o `DataTable` então pagina/ordena/filtra sobre esse array em memória.
-- Sort, filter rules internos e busca por substring funcionam **apenas dentro do que já está em memória**.
-- O hook já suporta modo `'paged'` quando `pageSize` é setado, mas hoje **nenhuma página alvo usa**.
+**Sintoma:** ao selecionar cliente no Orçamento, `listPrecosEspeciaisAtuais` falha a request (filtros `or(vigencia_fim.is.null,...)`) e retorna lista vazia → nenhum produto adicionado recebe preço especial → o usuário não vê efeito algum. Como o erro é engolido pelo `.then(...)` sem `catch`, nem aparece toast de erro.
 
-## Decisões de escopo
+Há também duplicação de lógica: `OrcamentoItemsGrid.tsx` e `OrcamentoForm.tsx` reimplementam a aplicação inline em vez de usar `aplicarPrecosEspeciaisEmLote`/`buscarRegraAplicavel` do `src/lib/precos-especiais.ts`. Por consequência, `desconto_percentual` (que não existe no banco) também não é praticado em lugar nenhum — só nos testes — e o `PrecosEspeciaisTab` só permite cadastrar **preço fixo**.
 
-1. **Ordenação:** será server-side somente nas colunas com chave nativa do banco (`nome`, `razao_social`, `sku`, `created_at`). Para colunas derivadas (`sortValue` custom — ex.: situação de estoque), a opção será desabilitada quando o modo for "server-paged".
-2. **Filtros que permanecem client-side** seguem sendo aceitos, mas serão aplicados **apenas dentro da página corrente** com aviso explícito quando a lista estiver paginada (ex.: chip "Filtros locais aplicados nesta página"):
-   - "sem_grupo" misto em Clientes e Produtos.
-   - Situação de estoque em Produtos.
-3. **Busca** continua server-side via `searchTerm` + `searchColumns` no hook (já implementado com `or(...ilike)`).
-4. **Default `pageSize`:** 50 por página (configurável). Threshold de virtualização do `DataTable` continua 50.
+## Parte B — Correção do bug
 
-## Mudanças no código
+Decisão: alinhar tudo ao schema real do banco (`data_inicio`/`data_fim`, sem `desconto_percentual`). É a opção minimalista, sem migração e sem mexer no CRUD da UI que já está correto.
 
-### `src/hooks/useSupabaseCrud.ts`
+### Mudanças
 
-- Sem mudança estrutural — modo `'paged'` já existe e expõe `page`/`setPage`/`hasMore`/`totalCount`.
-- Pequeno ajuste: garantir que `setPage(0)` seja disparado ao mudar `searchTerm`, `statusFilter`, `dateRange`, `filter` (hoje a key muda mas `page` não reseta — pode pedir página inexistente).
+1. **`src/services/orcamentos.service.ts` → `listPrecosEspeciaisAtuais`**
+   - Trocar `vigencia_fim` → `data_fim` e `vigencia_inicio` → `data_inicio` nos dois `.or(...)`.
+   - Adicionar tratamento de erro (log + propagar para a chamada).
 
-### `src/components/DataTable.tsx`
+2. **`src/lib/precos-especiais.ts`**
+   - Renomear campos da interface `RegraPrecoEspecial`: `vigencia_inicio` → `data_inicio`, `vigencia_fim` → `data_fim`.
+   - Remover `desconto_percentual` da interface e de `aplicarPrecoEspecial` (não há coluna no banco). Manter apenas o caminho de preço fixo. Documentar no JSDoc que percentual ficou fora desta versão.
+   - `isRegraVigente`, `buscarRegraAplicavel` e `aplicarPrecosEspeciaisEmLote` continuam, ajustando assinaturas.
 
-- Nova prop `serverPagination?: { page: number; setPage: (n: number) => void; totalCount: number | null; hasMore: boolean; }`.
-- Quando presente:
-  - **Não** aplica `sortedData.slice(currentPage * pageSize, ...)`. Renderiza `data` direto.
-  - Footer: usa `totalCount` real, botões `‹ ›` chamam `serverPagination.setPage(...)`.
-  - Filtros internos (`rules`) ficam **desabilitados** (popover oculto) — força usar `AdvancedFilterBar` server-side.
-  - Sort: só permite em colunas marcadas `serverSortable: true` (nova flag). Demais colunas perdem o ícone de sort.
-- `viewMode === 'infinite'` (carregar mais) é desabilitado quando `serverPagination` está ativo (ou implementa `setPage(page+1)` acumulando — decidir: na 1ª iteração, **desabilitar** infinite e mostrar só paged).
+3. **`src/lib/precos-especiais.test.ts`** — atualizar fixtures/expectativas para os novos nomes; remover testes de `desconto_percentual` (ou marcar `it.skip` documentando "fora de escopo até coluna existir").
 
-### Páginas alvo
+4. **`src/tests/integration/fluxo-venda.test.ts`** — mesma renomeação de campos no fixture.
 
-`Clientes.tsx`, `Fornecedores.tsx`, `Produtos.tsx`, `GruposEconomicos.tsx`:
+5. **`src/pages/OrcamentoForm.tsx` (efeito de seleção de cliente, ~L474–L500)**
+   - Substituir o map manual por `aplicarPrecosEspeciaisEmLote(items, regras, new Date())` e usar `result.alterados.length > 0` para o `toast.info`.
+   - Adicionar `.catch(notifyError)` à promise.
 
-- Adicionar `pageSize: 50` ao `useSupabaseCrud`.
-- Repassar `{ page, setPage, totalCount, hasMore }` para `DataTable serverPagination={...}`.
-- Marcar colunas server-sortable (`nome`/`razao_social`/`sku`/`created_at`).
-- Para os filtros que permaneceram client-side, manter como overlay, mas adicionar tooltip/aviso sob o filter chip: "Aplicado apenas nesta página".
+6. **`src/components/Orcamento/OrcamentoItemsGrid.tsx`**
+   - No `onChange` do `produto_id` (~L161), substituir a busca manual por `buscarRegraAplicavel(precosEspeciais, value, new Date())` + `aplicarPrecoEspecial(precoBase, regra)`.
+   - Idem nos pontos L306 e L396 (cálculo de exibição), centralizando via helper.
 
-## Validação
+7. **`PrecosEspeciaisTab`** — sem mudanças funcionais; opcionalmente filtrar por vigência atual no listing quando `clienteId`/`produtoId` estiverem fixos (melhoria de UX, não bug). Fica fora do escopo.
 
-- Mock com >2k registros em produtos: confirmar que ao abrir `/produtos`, a network request usa `?limit=50&offset=0` (via `range`) e não puxa 2k linhas.
-- Trocar de página: nova request com `range(50, 99)`.
-- Filtro de status: request inclui `status=in.(...)` e reseta para página 0.
-- Sort por `sku`: request inclui `order=sku.asc.nullslast` e reseta para página 0.
-- `bunx tsc --noEmit` + smoke tests existentes.
+### Validação
 
-## Riscos / pontos de atenção
+- Smoke manual: criar regra de preço em `ClienteView → Preços Especiais` para um produto X com `data_inicio=hoje`, `data_fim` em branco. Abrir um Orçamento, selecionar o cliente, adicionar produto X — `valor_unitario` precisa vir do `preco_especial`, com toast "Preço especial...".
+- Trocar de cliente para um sem regra → preço deve voltar ao `preco_venda` do cadastro (atual lógica já trata via `precoBase`).
+- `bunx vitest run src/lib/precos-especiais.test.ts src/tests/integration/fluxo-venda.test.ts`.
+- `bunx tsc --noEmit`.
 
-- **Quebra perceptível:** usuários que usavam `Ctrl+F` no navegador para achar registro fora da página atual perdem isso. Mitigação: search server-side já existe e cobre o caso.
-- **Total de registros:** `count: 'exact'` é mais caro no Postgres em tabelas muito grandes. Se virar problema, trocar para `'estimated'` (já considerar fallback no hook).
-- **Cache do React Query:** cada página vira uma cache key diferente (já considerado pela `queryKey` que inclui `page`). `prefetchQuery` da próxima página é otimização opcional pós-MVP.
-- **Memória mem://** atualizar `mem://tech/usesupabasecrud-filtros-server.md` (ou criar) descrevendo "modo paged + flag `serverSortable` no DataTable".
+### Memória
 
-## Não escopo (fica para depois)
+Atualizar `mem://features/cadastros-condicoes-comerciais` (ou criar `mem://features/precos-especiais`) registrando: tabela `precos_especiais` usa `data_inicio/data_fim`, apenas preço fixo, aplicação centralizada em `src/lib/precos-especiais.ts`, nunca usar `vigencia_*`/`desconto_percentual` nessa tabela.
 
-- Paginação server-side em demais módulos (Logística, Comercial, Financeiro). Aplicar mesmo padrão em onda futura.
-- Cursor-based pagination (keyset) — `range/offset` é suficiente para o tamanho atual.
-- Prefetch da próxima página.
+## Parte C — Quick wins pendentes da Onda 2 (continuar depois da Parte B)
 
-## Entrega
+Itens curtos identificados na revisão anterior, agrupados em uma rodada só:
 
-1 PR único contendo: ajuste no hook, nova prop no `DataTable`, 4 páginas migradas, atualização do `.lovable/plan.md` (Onda 7 ✅) e memória técnica.
+1. **C-02 (resíduo)** — `src/pages/FormasPagamento.tsx:70`: trocar `tipo: "boleto_dda"` por `tipo: "boleto"` em `emptyForm` (default mais previsível; a chave `boleto_dda` continua selecionável).
+2. **A-03 / BK-02 (Fornecedores)** — `src/services/fornecedores.service.ts:54`: migrar `deleteFornecedor` para soft delete (`update({ ativo: false })`) e checar dependências (pedidos de compra, lançamentos) antes de excluir, espelhando o que já foi feito em Clientes.
+3. **M-09 (Fornecedores)** — `src/pages/Fornecedores.tsx:240`: trocar mensagem de duplicidade `"em outra entidade"` por `"nesta tabela"` (Clientes já foi corrigido).
 
-## Resultado
+Após Parte B + Parte C, atualizo `.lovable/plan.md` marcando esta rodada como concluída e listo o que ainda restou (variações `text[]`, semântica forma-vs-condição, folha de pagamento fora do modal de Funcionário, mobile patches MB-02..MB-05, D-02, D-03).
 
-- `useSupabaseCrud`: reset automático de `page` quando filtros/busca/ordem mudam em modo paged.
-- `DataTable`: prop `serverPagination={{ page, setPage, totalCount, hasMore }}` + flag `serverSortable` por coluna + props `onServerSort`/`serverSortKey`/`serverSortDir`. Quando ativo, não fatia/ordena/filtra local; footer usa `totalCount` real.
-- Hooks novos: `src/hooks/useServerSort.ts` (estado controlado de ordem) e `src/hooks/useTableCount.ts` (count head:true para SummaryCards).
-- Páginas migradas para `pageSize: 50`: **Clientes**, **Fornecedores**, **GruposEconomicos**, **Produtos**.
-- KPIs derivados (Ativos/Inativos/Com Grupo/Produtos/Insumos) vêm de `count()` server-side. "Abaixo do mínimo" em Produtos e "Com Clientes" em Grupos ficaram rotulados "(página)" pois dependem de cálculo runtime.
-- Filtros client-side preservados: "sem_grupo" misto em Clientes/Produtos e situação de estoque em Produtos — agora aplicados apenas dentro da página corrente.
-- Memória: `mem://tech/usesupabasecrud-pagination-server.md`.
-- `bunx tsc --noEmit` ok.
+## Não escopo desta rodada
+
+- Adicionar coluna `desconto_percentual` ou renomear para `vigencia_*` (exigiria migration + reescrita do CRUD; fica para uma onda dedicada se o produto realmente quiser desconto percentual).
+- Refator semântico de `formas_pagamento` (M-01).
+- Mover Folha de Pagamento para fora do modal (M-06).
+- Patches mobile (MB-02..05) e dashboard (D-02, D-03).
