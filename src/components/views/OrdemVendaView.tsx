@@ -839,12 +839,15 @@ export function OrdemVendaView({ id }: Props) {
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Motivo (opcional)</Label>
+              <Label className="text-xs">
+                Motivo {exigirMotivo ? <span className="text-destructive">*</span> : "(opcional)"}
+              </Label>
               <Input
                 value={cancelMotivo}
                 onChange={(e) => setCancelMotivo(e.target.value)}
                 placeholder="Ex: cliente desistiu, duplicidade, ..."
                 maxLength={500}
+                required={exigirMotivo}
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -855,7 +858,7 @@ export function OrdemVendaView({ id }: Props) {
                 variant="destructive"
                 size="sm"
                 onClick={handleCancelarPedido}
-                disabled={locked("cancel_pedido")}
+                disabled={locked("cancel_pedido") || (exigirMotivo && !cancelMotivo.trim())}
               >
                 {locked("cancel_pedido") ? "Cancelando..." : "Confirmar cancelamento"}
               </Button>
