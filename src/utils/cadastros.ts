@@ -61,11 +61,10 @@ export function calcularEstoqueValor(
 // ─── Variações de produto ────────────────────────
 
 /**
- * Converte o campo `produtos.variacoes` (texto livre, separado por vírgula,
- * ou já um array) em uma lista normalizada e estável. Doutrina única usada por
- * todos os autocompletes de produto (orçamento, NF-e entrada, compras, preços
- * especiais, tradução de XML). Mantém a mesma semântica histórica de
- * `OrcamentoItemsGrid` para evitar regressões.
+ * Converte o campo `produtos.variacoes` em uma lista normalizada e estável.
+ * Pós-BK-04 a coluna no banco é `text[]`, mas mantemos suporte a string CSV
+ * para snapshots antigos (ex.: orcamentos_itens.variacao) e payloads de
+ * importação. Doutrina única usada por autocompletes de produto.
  */
 export function parseVariacoes(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.map((v) => String(v).trim()).filter(Boolean);

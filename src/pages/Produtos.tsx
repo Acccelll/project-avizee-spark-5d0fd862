@@ -60,7 +60,7 @@ interface Produto {
   grupo_id: string;unidade_medida: string;preco_custo: number;preco_venda: number;
   estoque_atual: number;estoque_minimo: number;ncm: string;cst: string;cfop_padrao: string;
   peso: number;eh_composto: boolean;ativo: boolean;created_at: string;updated_at?: string;tipo_item: TipoItem;
-  variacoes?: string | string[] | null;
+  variacoes?: string[] | null;
 }
 
 type ProdutoTableRow = Produto & {
@@ -330,11 +330,8 @@ const Produtos = () => {
     setMode("edit");
     setEditingProduct(p);
     setFormErrors({});
-    // `produtos.variacoes` é text no banco, mas dados antigos podem ter chegado como array.
-    // Normalizamos para o input CSV usado no formulário.
-    const variacoesTexto = Array.isArray(p.variacoes)
-      ? (p.variacoes as string[]).join(", ")
-      : (typeof p.variacoes === "string" ? p.variacoes : "");
+    // `produtos.variacoes` agora é text[] no banco. Convertemos para CSV apenas para o input.
+    const variacoesTexto = Array.isArray(p.variacoes) ? p.variacoes.join(", ") : "";
     resetForm({
       id: p.id,
       nome: p.nome, sku: p.sku || "", codigo_interno: p.codigo_interno || "", descricao: p.descricao || "",
@@ -442,23 +439,19 @@ const Produtos = () => {
     if (fornDups.length !== new Set(fornDups).size) { toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes"); return; }
 
     await submit(async () => {
-      // Persistimos como texto canônico (CSV) para casar com a coluna `variacoes text` do banco
-      // e com o snapshot `orcamentos_itens.variacao`. O front converte para chips só na exibição.
-      const variacoesTexto = form.variacoes_texto
-        ? form.variacoes_texto
-            .split(",")
-            .map((v) => v.trim())
-            .filter(Boolean)
-            .join(", ")
-        : null;
+      // Persistimos como text[] no banco (BK-04). Snapshots em orcamentos_itens.variacao
+      // continuam como string CSV (campo separado, não afetado).
+      const variacoesArr = form.variacoes_texto
+        ? form.variacoes_texto.split(",").map((v) => v.trim()).filter(Boolean)
+        : [];
       const { variacoes_texto: _vt, ...rest } = form;
       // Normaliza NCM removendo qualquer máscara (pontos/traços) antes de persistir,
       // garantindo formato consistente no banco e no XML da NF-e.
       const ncmDigits = (form.ncm || "").replace(/\D/g, "");
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...rest,
         ncm: ncmDigits,
-        variacoes: variacoesTexto,
+        variacoes: variacoesArr.length > 0 ? variacoesArr : null,
         preco_custo: form.eh_composto ? custoComposto : form.preco_custo,
       };
       // Código Interno é sempre gerado/mantido pelo backend (trigger PRD/INS).
@@ -646,12 +639,7 @@ const Produtos = () => {
       key: "variacoes",
       label: "Variações",
       render: (p: Produto) => {
-        const raw = p.variacoes;
-        const items: string[] = Array.isArray(raw)
-          ? raw
-          : typeof raw === "string" && raw
-            ? raw.split(",").map((v) => v.trim()).filter(Boolean)
-            : [];
+        const items: string[] = Array.isArray(p.variacoes) ? p.variacoes : [];
         if (items.length === 0) {
           return <span className="text-xs text-muted-foreground">—</span>;
         }

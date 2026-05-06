@@ -5911,7 +5911,7 @@ export type Database = {
           unidade_medida: string | null
           unidade_tributavel: string | null
           updated_at: string
-          variacoes: string | null
+          variacoes: string[] | null
         }
         Insert: {
           ativo?: boolean
@@ -5951,7 +5951,7 @@ export type Database = {
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
-          variacoes?: string | null
+          variacoes?: string[] | null
         }
         Update: {
           ativo?: boolean
@@ -5991,7 +5991,7 @@ export type Database = {
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
-          variacoes?: string | null
+          variacoes?: string[] | null
         }
         Relationships: [
           {
