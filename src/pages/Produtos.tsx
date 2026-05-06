@@ -928,7 +928,7 @@ const Produtos = () => {
           onEdit={openEdit}
           onDelete={canExcluir ? (p) => remove(p.id) : undefined}
           deleteBehavior="soft"
-          mobileIdentifierKey="codigo_interno"
+          mobileIdentifierKey="sku"
           mobileStatusKey="ativo"
         />
         </div>
