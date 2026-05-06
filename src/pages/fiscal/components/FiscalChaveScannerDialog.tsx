@@ -39,6 +39,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FormModal } from "@/components/FormModal";
 import {
@@ -57,6 +64,11 @@ interface FiscalChaveScannerDialogProps {
 
 type Tab = "digitar" | "camera" | "upload";
 
+type CameraDeviceOption = {
+  deviceId: string;
+  label: string;
+};
+
 export function FiscalChaveScannerDialog({
   open,
   onClose,
@@ -74,6 +86,8 @@ export function FiscalChaveScannerDialog({
   const controlsRef = useRef<IScannerControls | null>(null);
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [iniciandoCamera, setIniciandoCamera] = useState(false);
+  const [camerasDisponiveis, setCamerasDisponiveis] = useState<CameraDeviceOption[]>([]);
+  const [cameraSelecionadaId, setCameraSelecionadaId] = useState<string>("");
 
   // Reset ao fechar
   useEffect(() => {
@@ -94,6 +108,41 @@ export function FiscalChaveScannerDialog({
     }
     controlsRef.current = null;
     setCameraAtiva(false);
+  };
+
+  const normalizarLabelCamera = (device: MediaDeviceInfo, index: number) => {
+    const bruto = device.label?.trim();
+    if (bruto) return bruto;
+    return `Câmera ${index + 1}`;
+  };
+
+  const escolherCameraPadrao = (devices: CameraDeviceOption[]) => {
+    if (!devices.length) return "";
+    const traseira = devices.find((device) => /back|rear|environment|traseira/i.test(device.label));
+    return traseira?.deviceId ?? devices[0].deviceId;
+  };
+
+  const carregarCameras = async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setCamerasDisponiveis([]);
+      return [] as CameraDeviceOption[];
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices
+      .filter((device) => device.kind === "videoinput")
+      .map((device, index) => ({
+        deviceId: device.deviceId,
+        label: normalizarLabelCamera(device, index),
+      }));
+
+    setCamerasDisponiveis(cameras);
+    setCameraSelecionadaId((atual) => {
+      if (atual && cameras.some((camera) => camera.deviceId === atual)) return atual;
+      return escolherCameraPadrao(cameras);
+    });
+
+    return cameras;
   };
 
   const aplicarConteudo = (conteudo: string) => {
@@ -136,9 +185,15 @@ export function FiscalChaveScannerDialog({
     try {
       // Pede a maior resolução viável — CODE-128 longo precisa de muitos
       // pixels para que cada barra fina seja distinguível.
+      const cameras = await carregarCameras();
+      const deviceId =
+        cameraSelecionadaId && cameras.some((camera) => camera.deviceId === cameraSelecionadaId)
+          ? cameraSelecionadaId
+          : escolherCameraPadrao(cameras);
+
       const constraints: MediaStreamConstraints = {
         video: {
-          facingMode: { ideal: "environment" },
+          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } }),
           width: { ideal: 1920 },
           height: { ideal: 1080 },
         },
@@ -186,6 +241,17 @@ export function FiscalChaveScannerDialog({
   useEffect(() => {
     if (tab !== "camera") pararCamera();
   }, [tab]);
+
+  useEffect(() => {
+    if (!open || tab !== "camera") return;
+    void carregarCameras();
+  }, [open, tab]);
+
+  useEffect(() => {
+    if (!cameraAtiva || !cameraSelecionadaId) return;
+    pararCamera();
+    void iniciarCamera();
+  }, [cameraSelecionadaId]);
 
   // ── Upload ────────────────────────────────────────────────────
   const handleArquivo = async (file: File) => {
@@ -317,6 +383,25 @@ export function FiscalChaveScannerDialog({
           </TabsContent>
 
           <TabsContent value="camera" className="space-y-3 pt-3">
+            {camerasDisponiveis.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="camera-select" className="text-sm">
+                  Câmera
+                </Label>
+                <Select value={cameraSelecionadaId} onValueChange={setCameraSelecionadaId}>
+                  <SelectTrigger id="camera-select">
+                    <SelectValue placeholder="Selecione uma câmera" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {camerasDisponiveis.map((camera) => (
+                      <SelectItem key={camera.deviceId} value={camera.deviceId}>
+                        {camera.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border bg-black">
               <video
                 ref={videoRef}
