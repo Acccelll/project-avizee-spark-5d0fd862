@@ -16,13 +16,10 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // A API consultadanfe.com é pública, sem cadastro. O header X-Client-App
+  // identifica o integrador apenas para estatísticas. Se o usuário tiver
+  // configurado uma chave (uso futuro/premium), enviamos como Bearer.
   const apiKey = Deno.env.get("CONSULTADANFE_API_KEY");
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({ error: "CONSULTADANFE_API_KEY não configurado." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
 
   let body: ReqBody;
   try {
@@ -46,13 +43,16 @@ Deno.serve(async (req) => {
   const endpoint = action === "danfe" ? "/danfe" : "/consulta";
 
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Client-App": "avizee-erp",
+    };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
     const upstream = await fetch(`${API_BASE}${endpoint}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ chave }),
+      headers,
+      body: JSON.stringify({ chave, format: "json" }),
     });
 
     const text = await upstream.text();
