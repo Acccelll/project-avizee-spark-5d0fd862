@@ -156,11 +156,11 @@ export async function deleteProduto(id: string): Promise<void> {
 export async function listProdutosBasicAtivos() {
   const { data, error } = await supabase
     .from("produtos")
-    .select("id, nome, sku, codigo_interno")
+    .select("id, nome, sku, codigo_interno, variacoes")
     .eq("ativo", true)
     .order("nome");
   if (error) throw error;
-  return (data || []) as { id: string; nome: string; sku: string; codigo_interno: string }[];
+  return (data || []) as { id: string; nome: string; sku: string; codigo_interno: string; variacoes: unknown }[];
 }
 
 /** Vincula um produto a um fornecedor. */
