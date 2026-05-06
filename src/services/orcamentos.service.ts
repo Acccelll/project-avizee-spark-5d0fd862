@@ -13,6 +13,12 @@ interface OrcamentoBase {
   observacoes: string | null;
 }
 
+/**
+ * @deprecated Use `enviarOrcamentoAprovacao` em
+ * `src/services/comercial/orcamentosLifecycle.service.ts` (mesma RPC,
+ * tipagem oficial e telemetria padronizada). Mantido apenas como
+ * fachada compatível para callers antigos da grid.
+ */
 export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
   if (orc.status !== "rascunho") return;
   const { error } = await supabase.rpc("enviar_orcamento_aprovacao", { p_id: orc.id });
@@ -42,9 +48,11 @@ export async function cancelarOrcamento(orcId: string, motivo?: string): Promise
 export interface ConvertToOVOptions {
   poNumber?: string;
   dataPo?: string;
+  /** Quando true, força conversão ignorando reservas/alertas (admin). */
+  forcar?: boolean;
 }
 
-/** @deprecated Use convertToPedido instead */
+/** @deprecated Use `convertToPedido` (mesma assinatura). */
 export const convertToOV = convertToPedido;
 
 /**
@@ -59,6 +67,7 @@ export async function convertToPedido(
     p_orcamento_id: orc.id,
     p_po_number: options.poNumber ?? null,
     p_data_po: options.dataPo ?? null,
+    p_forcar: options.forcar ?? false,
   });
   if (error) throw new Error(`Erro ao converter orçamento em pedido: ${error.message}`);
   const result = data as { ov_id: string; ov_numero: string };

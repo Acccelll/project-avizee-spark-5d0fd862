@@ -27,6 +27,8 @@ import type { OVDetail, NotaFiscalListItem, LancamentoListItem, OrdemVendaItemWi
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
 import { useCan } from "@/hooks/useCan";
+import { useAppConfig } from "@/hooks/useAppConfig";
+import { toast } from "sonner";
 import {
   FileOutput,
   DollarSign,
@@ -85,6 +87,11 @@ export function OrdemVendaView({ id }: Props) {
   const faturarPedido = useFaturarPedido();
   const cancelarPedido = useCancelarPedido();
   const crossToast = useCrossModuleToast();
+  const { value: comercialFlags } = useAppConfig<{ exigir_motivo_cancelamento_pedido?: boolean }>(
+    "comercial",
+    { exigir_motivo_cancelamento_pedido: false },
+  );
+  const exigirMotivo = Boolean(comercialFlags?.exigir_motivo_cancelamento_pedido);
 
   const { data, loading, reload } = useDetailFetch<OVDetail>(id, async (ovId, signal) => {
     const { data: ov, error: ovErr } = await supabase
@@ -198,6 +205,10 @@ export function OrdemVendaView({ id }: Props) {
 
   const handleCancelarPedido = async () => {
     if (!selected) return;
+    if (exigirMotivo && !cancelMotivo.trim()) {
+      toast.error("Informe o motivo do cancelamento.");
+      return;
+    }
     await run("cancel_pedido", async () => {
       await cancelarPedido.mutateAsync({ id: selected.id, motivo: cancelMotivo.trim() || undefined });
       setCancelOpen(false);
@@ -828,12 +839,15 @@ export function OrdemVendaView({ id }: Props) {
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Motivo (opcional)</Label>
+              <Label className="text-xs">
+                Motivo {exigirMotivo ? <span className="text-destructive">*</span> : "(opcional)"}
+              </Label>
               <Input
                 value={cancelMotivo}
                 onChange={(e) => setCancelMotivo(e.target.value)}
                 placeholder="Ex: cliente desistiu, duplicidade, ..."
                 maxLength={500}
+                required={exigirMotivo}
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -844,7 +858,7 @@ export function OrdemVendaView({ id }: Props) {
                 variant="destructive"
                 size="sm"
                 onClick={handleCancelarPedido}
-                disabled={locked("cancel_pedido")}
+                disabled={locked("cancel_pedido") || (exigirMotivo && !cancelMotivo.trim())}
               >
                 {locked("cancel_pedido") ? "Cancelando..." : "Confirmar cancelamento"}
               </Button>
