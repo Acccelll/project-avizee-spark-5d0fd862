@@ -120,6 +120,10 @@ const PedidoForm = () => {
 
   const handleSave = async () => {
     if (!id) return;
+    if (form.status && !validarTransicaoPedido(form.status, pedido?.status_faturamento ?? null)) {
+      toast.error("Transição de status inválida para o faturamento atual do pedido.");
+      return;
+    }
     try {
       await salvarPedido.mutateAsync({
         id,
