@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
+  Aperture,
   ImageUp,
   KeyRound,
   Loader2,
@@ -88,6 +89,7 @@ export function FiscalChaveScannerDialog({
   const [iniciandoCamera, setIniciandoCamera] = useState(false);
   const [camerasDisponiveis, setCamerasDisponiveis] = useState<CameraDeviceOption[]>([]);
   const [cameraSelecionadaId, setCameraSelecionadaId] = useState<string>("");
+  const [capturandoFoto, setCapturandoFoto] = useState(false);
 
   // Reset ao fechar
   useEffect(() => {
@@ -254,6 +256,57 @@ export function FiscalChaveScannerDialog({
   }, [cameraSelecionadaId]);
 
   // ── Upload ────────────────────────────────────────────────────
+  // ── Tirar foto a partir do vídeo ─────────────────────────────
+  const tirarFoto = async () => {
+    setErroLeitura(null);
+    setResultado(null);
+    const video = videoRef.current;
+    if (!video || !cameraAtiva) {
+      setErroLeitura("Inicie a câmera antes de tirar foto.");
+      return;
+    }
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) {
+      setErroLeitura("Câmera ainda não está pronta. Aguarde alguns instantes.");
+      return;
+    }
+    setCapturandoFoto(true);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("canvas indisponível");
+      ctx.drawImage(video, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL("image/png");
+
+      const hints = new Map<DecodeHintType, unknown>();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.QR_CODE,
+        BarcodeFormat.ITF,
+        BarcodeFormat.DATA_MATRIX,
+      ]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      const reader = new BrowserMultiFormatReader(hints);
+      const result = await reader.decodeFromImageUrl(dataUrl);
+      const ok = aplicarConteudo(result.getText());
+      if (ok) {
+        pararCamera();
+        toast.success("Chave detectada na foto.");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErroLeitura(
+        `Não foi possível ler o código na foto (${msg}). ` +
+          `Aproxime mais, mantenha a câmera paralela ao código e tente novamente.`,
+      );
+    } finally {
+      setCapturandoFoto(false);
+    }
+  };
+
   const handleArquivo = async (file: File) => {
     setErroLeitura(null);
     setResultado(null);
@@ -417,9 +470,28 @@ export function FiscalChaveScannerDialog({
             </div>
             <div className="flex justify-end gap-2">
               {cameraAtiva ? (
-                <Button variant="outline" onClick={pararCamera} className="gap-2">
-                  <X className="h-4 w-4" /> Parar câmera
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={tirarFoto}
+                    disabled={capturandoFoto}
+                    className="gap-2"
+                    title="Captura um quadro da câmera e tenta decodificar — útil quando a leitura ao vivo não pega."
+                  >
+                    {capturandoFoto ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Analisando…
+                      </>
+                    ) : (
+                      <>
+                        <Aperture className="h-4 w-4" /> Tirar foto
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" onClick={pararCamera} className="gap-2">
+                    <X className="h-4 w-4" /> Parar câmera
+                  </Button>
+                </>
               ) : (
                 <Button onClick={iniciarCamera} disabled={iniciandoCamera} className="gap-2">
                   {iniciandoCamera ? (
