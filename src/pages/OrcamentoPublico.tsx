@@ -505,7 +505,7 @@ export default function OrcamentoPublico() {
               <Button
                 size="lg"
                 className="gap-2"
-                style={{ background: "#16a34a", color: "#fff", minWidth: 220 }}
+                style={{ background: "#16a34a", color: "#fff", minWidth: 220, minHeight: 44 }}
                 disabled={actionLoading}
                 onClick={() => handleAction("aprovado")}
               >
@@ -516,7 +516,7 @@ export default function OrcamentoPublico() {
                 size="lg"
                 variant="outline"
                 className="gap-2"
-                style={{ borderColor: WINE, color: WINE, minWidth: 220 }}
+                style={{ borderColor: WINE, color: WINE, minWidth: 220, minHeight: 44 }}
                 disabled={actionLoading}
                 onClick={() => handleAction("rejeitado")}
               >
