@@ -32,17 +32,29 @@ interface BuscarPorChaveDialogProps {
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
 
-/** Extrai o XML do payload da API consultadanfe (campos possíveis). */
+/** Decodifica base64 (UTF-8) para string. */
+function fromBase64Utf8(b64: string): string {
+  try {
+    const bin = atob(b64.replace(/\s+/g, ""));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder("utf-8").decode(bytes);
+  } catch {
+    return "";
+  }
+}
+
+/** Extrai o XML do payload da API consultadanfe. */
 function extrairXml(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
-  const candidatos = [
-    obj.xml,
-    obj.xml_nfe,
-    obj.xmlNfe,
-    (obj.data as Record<string, unknown> | undefined)?.xml,
-    (obj.nfe as Record<string, unknown> | undefined)?.xml,
-  ];
+  // Formato canônico: xml_base64
+  if (typeof obj.xml_base64 === "string" && obj.xml_base64.length > 0) {
+    const decoded = fromBase64Utf8(obj.xml_base64);
+    if (decoded.includes("<")) return decoded;
+  }
+  // Fallbacks: xml já decodificado
+  const candidatos = [obj.xml, obj.xmlNfe, obj.xml_nfe];
   for (const c of candidatos) {
     if (typeof c === "string" && c.includes("<")) return c;
   }
