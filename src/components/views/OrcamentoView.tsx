@@ -13,6 +13,7 @@ import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCan } from "@/hooks/useCan";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
