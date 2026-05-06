@@ -181,6 +181,25 @@ interface DataTableProps<T> {
    */
   defaultSortKey?: string;
   defaultSortDir?: 'asc' | 'desc';
+  /**
+   * Quando presente, ativa modo "server pagination":
+   *  - `data` é renderizado direto (sem slice/sort/filter local).
+   *  - Footer usa `totalCount` real e botões ‹ › chamam `setPage`.
+   *  - Filtros internos (popover legacy) ficam desabilitados.
+   *  - Sort fica restrito a colunas marcadas `serverSortable`, via `onServerSort`.
+   */
+  serverPagination?: {
+    page: number;
+    setPage: (page: number) => void;
+    totalCount: number | null;
+    hasMore: boolean;
+  };
+  /** Callback de ordenação server-side. Recebe a chave (ou null para limpar) e a direção. */
+  onServerSort?: (key: string | null, dir: 'asc' | 'desc' | null) => void;
+  /** Estado controlado de ordenação server-side (chave atual). */
+  serverSortKey?: string | null;
+  /** Estado controlado de ordenação server-side (direção atual). */
+  serverSortDir?: 'asc' | 'desc' | null;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
