@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useUrlListState } from "@/hooks/useUrlListState";
 
 /**
  * Backlog OV → NF-e (Onda 4).
@@ -53,7 +54,11 @@ function FatBadge({ status }: { status: string | null }) {
 
 export function BacklogFaturamento() {
   const navigate = useNavigate();
-  const [busca, setBusca] = useState("");
+  const { value: filterState, set: setFilters } = useUrlListState({
+    schema: { q: { type: "string" } },
+  });
+  const busca = filterState.q;
+  const setBusca = (v: string) => setFilters({ q: v });
   const debounced = useDebounce(busca, 300);
 
   const query = useQuery({
