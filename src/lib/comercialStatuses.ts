@@ -9,8 +9,10 @@
 export const OPEN_ORCAMENTO_STATUSES = ['rascunho', 'pendente', 'aprovado'] as const;
 export type OpenOrcamentoStatus = (typeof OPEN_ORCAMENTO_STATUSES)[number];
 
-/** Ordens de venda elegíveis para faturamento (status da OV). */
-export const BACKLOG_OV_STATUSES = ['aprovada', 'em_separacao'] as const;
+/** Ordens de venda elegíveis para faturamento (status da OV).
+ *  Casa com `canFaturarPedido` em `comercialWorkflow.ts`: pedidos
+ *  `separado` ainda podem ser faturados, então contam no backlog. */
+export const BACKLOG_OV_STATUSES = ['aprovada', 'em_separacao', 'separado'] as const;
 export type BacklogOvStatus = (typeof BACKLOG_OV_STATUSES)[number];
 
 /** Status_faturamento que mantêm a OV como "aguardando NF". */
