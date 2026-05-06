@@ -97,6 +97,18 @@ const Pedidos = () => {
   const faturarPedido = useFaturarPedido();
   const { can } = useCan();
   const canFaturar = can("faturamento_fiscal:criar") || can("pedidos:editar");
+  // M-03: alerta_prazo_despacho_dias parametrizável via app_configuracoes("comercial").
+  const { value: comercialFlags } = useAppConfig<{ alerta_prazo_despacho_dias?: number }>(
+    "comercial",
+    { alerta_prazo_despacho_dias: PRAZO_ALERTA_DIAS_DEFAULT },
+  );
+  const prazoAlertaDias = Number(comercialFlags?.alerta_prazo_despacho_dias ?? PRAZO_ALERTA_DIAS_DEFAULT);
+  const prazoFilterOptions: MultiSelectOption[] = [
+    { label: "Atrasados", value: "atrasado" },
+    { label: `Próximos (≤${prazoAlertaDias}d)`, value: "proximo" },
+    { label: "No prazo", value: "ok" },
+    { label: "Sem prazo", value: "sem_prazo" },
+  ];
   const qc = useQueryClient();
   // A-07/SH-03: grid passa a usar React Query puro. As mutações (faturar,
   // cancelar) já chamam RPC + invalidam `["ordens_venda"]` via
@@ -254,7 +266,7 @@ const Pedidos = () => {
       if (clienteFilters.length > 0 && !clienteFilters.includes(pedido.cliente_id || "")) return false;
 
       if (prazoFilters.length > 0) {
-        const ps = getPrazoStatus(pedido.data_prometida_despacho, pedido.status);
+        const ps = getPrazoStatus(pedido.data_prometida_despacho, pedido.status, prazoAlertaDias);
         if (!prazoFilters.includes(ps)) return false;
       }
 
@@ -277,9 +289,9 @@ const Pedidos = () => {
     const total = filteredData.length;
     const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
     const emAndamento = filteredData.filter(o => ["em_separacao", "separado", "em_transporte"].includes(o.status)).length;
-    const atrasados = filteredData.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status) === "atrasado").length;
+    const atrasados = filteredData.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status, prazoAlertaDias) === "atrasado").length;
     return { total, totalValue, emAndamento, atrasados };
-  }, [filteredData]);
+  }, [filteredData, prazoAlertaDias]);
 
   const activeFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -335,7 +347,7 @@ const Pedidos = () => {
     {
       key: "prazo", label: "Prazo Despacho",
       sortValue: (p: Pedido) => p.data_prometida_despacho ?? "",
-      render: (p: Pedido) => <PrazoBadge dataPrazo={p.data_prometida_despacho} status={p.status} />,
+      render: (p: Pedido) => <PrazoBadge dataPrazo={p.data_prometida_despacho} status={p.status} alertaDias={prazoAlertaDias} />,
     },
     {
       key: "status", label: "Status", sortable: true,
