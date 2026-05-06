@@ -23,14 +23,14 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import {
-  sendForApproval,
-  approveOrcamento,
   ensurePublicToken,
   cancelarOrcamento,
   criarRevisaoOrcamento,
   fetchOrcamentoDetalhes,
 } from "@/services/orcamentos.service";
+import { enviarOrcamentoAprovacao } from "@/services/comercial/orcamentosLifecycle.service";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
+import { useAprovarOrcamento } from "@/pages/comercial/hooks/useAprovarOrcamento";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
@@ -77,9 +77,11 @@ export function OrcamentoView({ id }: Props) {
   const { can } = useCan();
   const canAprovar = can("orcamentos:aprovar") || isAdmin;
   const canCancelar = can("orcamentos:cancelar") || isAdmin;
+  const canEditar = can("orcamentos:editar") || isAdmin;
   const { run, locked, isAnyLocked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
   const converterOrcamento = useConverterOrcamento();
+  const aprovarOrcamentoMut = useAprovarOrcamento();
   const crossToast = useCrossModuleToast();
 
   const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(
@@ -105,16 +107,18 @@ export function OrcamentoView({ id }: Props) {
 
   const handleSendForApproval = () =>
     run("send_approval", async () => {
-      await sendForApproval(selected);
+      // F-03: usa serviço canônico (RPC com tipagem oficial).
+      await enviarOrcamentoAprovacao(selected.id);
       await reload();
       invalidate(["orcamentos"]);
+      toast.success(`Orçamento ${selected.numero} enviado para aprovação!`);
     }).catch(() => {});
 
   const handleApprove = () =>
     run("approve", async () => {
-      await approveOrcamento(selected);
+      // F-04: hook RQ com invalidação cross-módulo.
+      await aprovarOrcamentoMut.mutateAsync({ id: selected.id, numero: selected.numero });
       await reload();
-      invalidate(["orcamentos"]);
       setApproveConfirmOpen(false);
     }).catch(() => {});
 
