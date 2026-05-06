@@ -515,6 +515,7 @@ interface ProdutoRow {
   ncm: string | null;
   unidade_medida: string | null;
   preco_venda: number | null;
+  variacoes?: unknown;
 }
 
 function ItemRow({ index, onRemove }: { index: number; onRemove: () => void }) {
