@@ -122,7 +122,7 @@ export function FiscalChaveScannerDialog({
     }
   }, [open]);
 
-  const pararCamera = () => {
+  const pararCamera = ({ preservarCarregando = false }: { preservarCarregando?: boolean } = {}) => {
     try {
       controlsRef.current?.stop();
     } catch {
@@ -133,7 +133,7 @@ export function FiscalChaveScannerDialog({
     controlsRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraAtiva(false);
-    setIniciandoCamera(false);
+    if (!preservarCarregando) setIniciandoCamera(false);
   };
 
   const normalizarLabelCamera = (device: MediaDeviceInfo, index: number) => {
@@ -198,7 +198,7 @@ export function FiscalChaveScannerDialog({
       delayBetweenScanSuccess: 400,
     });
     setIniciandoCamera(true);
-    pararCamera();
+    pararCamera({ preservarCarregando: true });
     try {
       const constraints: MediaStreamConstraints = {
         video: montarVideoConstraints(deviceIdPreferido || cameraSelecionadaId || undefined),
@@ -258,6 +258,21 @@ export function FiscalChaveScannerDialog({
     } finally {
       setIniciandoCamera(false);
     }
+  };
+
+  const handleIniciarCamera = () => {
+    void iniciarCamera();
+  };
+
+  const handleSelecionarCamera = (deviceId: string) => {
+    setCameraSelecionadaId(deviceId);
+    if (cameraAtiva || iniciandoCamera) {
+      void iniciarCamera(deviceId);
+    }
+  };
+
+  const abrirCapturaNativa = () => {
+    fotoInputRef.current?.click();
   };
 
   // Para câmera quando trocar de tab
