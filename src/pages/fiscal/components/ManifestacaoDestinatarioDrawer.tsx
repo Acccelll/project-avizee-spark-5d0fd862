@@ -91,23 +91,7 @@ interface ManifestacaoDrawerProps {
   highlightNfeId?: string | null;
 }
 
-interface NfeCapturada {
-  id: string;
-  chave_acesso: string;
-  cnpj_emitente: string | null;
-  nome_emitente: string | null;
-  numero: string | null;
-  serie: string | null;
-  data_emissao: string | null;
-  valor_total: number | null;
-  protocolo_autorizacao: string | null;
-  status_manifestacao: string;
-  data_manifestacao: string | null;
-  observacao: string | null;
-  xml_importado: boolean;
-  processado?: boolean;
-  data_processamento?: string | null;
-}
+type NfeCapturada = NfeCapturadaRow;
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   sem_manifestacao: { label: "Sem manifestação", variant: "outline" },
@@ -161,18 +145,8 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
   }, [open, highlightNfeId, /* re-roda quando notas chegam: */]);
 
   const { data: notas = [], isLoading } = useQuery({
-    queryKey: ["nfe-distribuicao"],
-    queryFn: async (): Promise<NfeCapturada[]> => {
-      const { data, error } = await supabase
-        .from("nfe_distribuicao")
-        .select(
-          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado, processado, data_processamento",
-        )
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return (data ?? []) as NfeCapturada[];
-    },
+    queryKey: fiscalKeys.nfeDistribuicao(),
+    queryFn: () => listNfeCapturadas(),
     enabled: open,
   });
 
@@ -185,26 +159,19 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
     setSalvando(true);
     try {
       const { cnpj, serie, numero, data } = extrairDoChave(chave);
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("nfe_distribuicao").insert({
+      const { duplicado } = await insertNfeDistribuicaoPorChave({
         chave_acesso: chave,
         cnpj_emitente: cnpj,
         numero,
         serie,
         data_emissao: data,
-        status_manifestacao: "sem_manifestacao",
-        usuario_id: user?.id ?? null,
       });
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("Esta chave já está cadastrada.");
-        } else {
-          throw error;
-        }
+      if (duplicado) {
+        toast.error("Esta chave já está cadastrada.");
       } else {
         toast.success("NF-e adicionada para manifestação.");
         setNovaChave("");
-        qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+        qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
       }
     } catch (e) {
       notifyError(e);
