@@ -431,7 +431,7 @@ export default function OrcamentoForm() {
             if (itensData) {
               // Defesa em profundidade: se o snapshot `variacao` estiver vazio mas o produto
               // vinculado tiver `variacoes` cadastradas, usamos esse texto para exibir ao cliente.
-              const produtosMap = new Map(produtosData.map((p) => [p.id, p]));
+              const produtosMap = new Map(produtos.map((p) => [p.id, p]));
               const hidratado = itensData.map((it) => {
                 const variacaoSnapshot = (it as { variacao?: string | null }).variacao;
                 if (variacaoSnapshot && String(variacaoSnapshot).trim()) return it;
