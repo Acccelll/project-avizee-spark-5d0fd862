@@ -9,12 +9,16 @@ export interface RegraPrecoEspecial {
   produto_id: string;
   /** Preço fixo (quando definido, tem prioridade sobre percentual). */
   preco_especial?: number | null;
-  /** Desconto percentual a ser aplicado sobre o preço de venda. */
-  desconto_percentual?: number | null;
-  /** Data de início de vigência (ISO "YYYY-MM-DD"), inclusive. */
-  vigencia_inicio?: string | null;
-  /** Data de fim de vigência (ISO "YYYY-MM-DD"), inclusive. */
-  vigencia_fim?: string | null;
+  /**
+   * Data de início de vigência (ISO "YYYY-MM-DD"), inclusive.
+   * Mapeia diretamente a coluna `precos_especiais.data_inicio` no banco.
+   */
+  data_inicio?: string | null;
+  /**
+   * Data de fim de vigência (ISO "YYYY-MM-DD"), inclusive.
+   * Mapeia diretamente a coluna `precos_especiais.data_fim` no banco.
+   */
+  data_fim?: string | null;
 }
 
 /**
@@ -26,16 +30,16 @@ export interface RegraPrecoEspecial {
  * @returns `true` se a regra está ativa na data informada.
  */
 export function isRegraVigente(
-  vigenciaInicio: string | null | undefined,
-  vigenciaFim: string | null | undefined,
+  dataInicio: string | null | undefined,
+  dataFim: string | null | undefined,
   hoje: Date,
 ): boolean {
-  if (vigenciaInicio) {
-    const inicio = new Date(vigenciaInicio + 'T00:00:00');
+  if (dataInicio) {
+    const inicio = new Date(dataInicio + 'T00:00:00');
     if (inicio > hoje) return false;
   }
-  if (vigenciaFim) {
-    const fim = new Date(vigenciaFim + 'T23:59:59');
+  if (dataFim) {
+    const fim = new Date(dataFim + 'T23:59:59');
     if (fim < hoje) return false;
   }
   return true;
@@ -57,21 +61,23 @@ export function buscarRegraAplicavel(
   return regras.find(
     (r) =>
       r.produto_id === produtoId &&
-      isRegraVigente(r.vigencia_inicio, r.vigencia_fim, hoje),
+      isRegraVigente(r.data_inicio, r.data_fim, hoje),
   );
 }
 
 /**
  * Aplica uma regra de preço especial a um preço base, retornando o novo preço.
  *
- * Prioridade:
- * 1. `preco_especial` > 0 → preço fixo substitui o preço base.
- * 2. `desconto_percentual` > 0 → preço base com desconto percentual aplicado.
- * 3. Nenhuma das condições → retorna o preço base original.
+ * Atualmente a tabela `precos_especiais` só persiste preço fixo
+ * (`preco_especial`). Desconto percentual ficou fora desta versão até que
+ * uma migration adicione a coluna correspondente.
+ *
+ * - `preco_especial` > 0 → preço fixo substitui o preço base.
+ * - Caso contrário → retorna o preço base original.
  *
  * @param precoBase   Preço de venda original do produto.
  * @param regra       Regra de preço a aplicar.
- * @returns Novo preço calculado (arredondado para 4 casas decimais).
+ * @returns Novo preço calculado.
  */
 export function aplicarPrecoEspecial(
   precoBase: number,
@@ -79,10 +85,6 @@ export function aplicarPrecoEspecial(
 ): number {
   if (regra.preco_especial && Number(regra.preco_especial) > 0) {
     return Number(regra.preco_especial);
-  }
-  if (regra.desconto_percentual && Number(regra.desconto_percentual) > 0) {
-    const desconto = Number(regra.desconto_percentual);
-    return Math.round(precoBase * (1 - desconto / 100) * 10000) / 10000;
   }
   return precoBase;
 }

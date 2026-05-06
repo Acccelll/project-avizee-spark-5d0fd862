@@ -12,6 +12,11 @@ import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
+import {
+  buscarRegraAplicavel,
+  aplicarPrecoEspecial,
+  type RegraPrecoEspecial,
+} from "@/lib/precos-especiais";
 
 interface ProductWithForn extends Tables<"produtos"> {
   produtos_fornecedores?: (Tables<"produtos_fornecedores"> & { fornecedores?: { nome_razao_social: string } | null })[];
@@ -158,15 +163,18 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
           item.origem_custo_padrao = "cadastro_produto";
           item.origem_custo_analise = "cadastro_produto";
 
-        const precoEspecial = precosEspeciais?.find((p) => p.produto_id === value);
         const precoBase = prod.preco_venda || 0;
-        if (precoEspecial) {
-          if (precoEspecial.preco_especial && Number(precoEspecial.preco_especial) > 0) {
-            item.valor_unitario = Number(precoEspecial.preco_especial);
-          } else {
-            item.valor_unitario = precoBase;
+        const regra = buscarRegraAplicavel(
+          (precosEspeciais ?? []) as RegraPrecoEspecial[],
+          value as string,
+          new Date(),
+        );
+        if (regra) {
+          const novoPreco = aplicarPrecoEspecial(precoBase, regra);
+          item.valor_unitario = novoPreco;
+          if (novoPreco !== precoBase) {
+            toast.info(`Preço especial para este cliente aplicado em ${prod.nome}`);
           }
-          toast.info(`Preço especial para este cliente aplicado em ${prod.nome}`);
         } else {
           item.valor_unitario = precoBase;
         }

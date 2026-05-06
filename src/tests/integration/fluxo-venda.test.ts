@@ -33,9 +33,9 @@ const produto = {
 const precosEspeciais: RegraPrecoEspecial[] = [
   {
     produto_id: produtoId,
-    desconto_percentual: 15,
-    vigencia_inicio: '2026-01-01',
-    vigencia_fim: '2026-12-31',
+    preco_especial: 85,
+    data_inicio: '2026-01-01',
+    data_fim: '2026-12-31',
   },
 ];
 
@@ -52,7 +52,7 @@ describe('[Fluxo Venda] Etapa 1: Criação de Orçamento', () => {
       hoje,
     );
 
-    // 100 × (1 - 15%) = 85
+    // preço fixo: 85
     expect(atualizados[0].valor_unitario).toBe(85);
     expect(atualizados[0].valor_total).toBe(425); // 85 × 5
     expect(alterados).toContain(produtoId);
@@ -192,9 +192,9 @@ describe('[Fluxo Venda] Coerência do fluxo completo', () => {
     const regrasVencidas: RegraPrecoEspecial[] = [
       {
         produto_id: produtoId,
-        desconto_percentual: 50,
-        vigencia_inicio: '2025-01-01',
-        vigencia_fim: '2025-12-31',
+        preco_especial: 50,
+        data_inicio: '2025-01-01',
+        data_fim: '2025-12-31',
       },
     ];
     const itens = [

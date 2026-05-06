@@ -237,7 +237,7 @@ const Fornecedores = () => {
       return;
     }
     if (docUnico === false) {
-      setFormErrors((prev) => ({ ...prev, cpf_cnpj: "Documento já cadastrado em outra entidade." }));
+      setFormErrors((prev) => ({ ...prev, cpf_cnpj: "Documento já cadastrado nesta tabela." }));
       toast.error("Documento já cadastrado. Corrija antes de salvar.");
       return;
     }

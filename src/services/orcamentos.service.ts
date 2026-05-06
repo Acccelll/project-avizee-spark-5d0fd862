@@ -240,7 +240,10 @@ export async function getFormaPagamentoDescricao(id: string): Promise<string | n
   return data?.descricao ?? null;
 }
 
-/** Preços especiais válidos hoje para o cliente. */
+/**
+ * Preços especiais válidos hoje para o cliente.
+ * Schema real da tabela: usa `data_inicio`/`data_fim` (não `vigencia_*`).
+ */
 export async function listPrecosEspeciaisAtuais(
   clienteId: string,
 ): Promise<Tables<"precos_especiais">[]> {
@@ -250,9 +253,12 @@ export async function listPrecosEspeciaisAtuais(
     .select("*")
     .eq("cliente_id", clienteId)
     .eq("ativo", true)
-    .or(`vigencia_fim.is.null,vigencia_fim.gte.${today}`)
-    .or(`vigencia_inicio.is.null,vigencia_inicio.lte.${today}`);
-  if (error) throw error;
+    .or(`data_fim.is.null,data_fim.gte.${today}`)
+    .or(`data_inicio.is.null,data_inicio.lte.${today}`);
+  if (error) {
+    console.error("[orcamentos] listPrecosEspeciaisAtuais:", error);
+    throw error;
+  }
   return (data ?? []) as Tables<"precos_especiais">[];
 }
 
