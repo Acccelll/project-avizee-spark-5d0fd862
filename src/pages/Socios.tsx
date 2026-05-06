@@ -231,7 +231,7 @@ export default function Socios() {
         }
       >
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className={mode === "edit" ? "grid w-full grid-cols-2" : "grid w-full grid-cols-1"}>
+          <TabsList className={`sticky top-0 z-10 bg-background ${mode === "edit" ? "grid w-full grid-cols-2" : "grid w-full grid-cols-1"}`}>
             <TabsTrigger value="identificacao">Cadastro</TabsTrigger>
             {mode === "edit" && <TabsTrigger value="participacoes">Participações</TabsTrigger>}
           </TabsList>
