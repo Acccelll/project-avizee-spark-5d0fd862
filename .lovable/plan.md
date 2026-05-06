@@ -100,7 +100,7 @@ Limpeza final e melhorias de UX/dados. **Status:** quase tudo feito.
 - ~~**SH-04 / D-02** `useDashboardData` `fetching` agregado + header "Atualizando…"~~ ✅ feito.
 - ~~**D-03** `GrupoEconomicoView.tsx` `AbortSignal`~~ ✅ já existente (`abortSignal(signal)` em todas as queries).
 - ~~**M-03** `GruposEconomicos.tsx` matrizNomeMap via `useQuery`~~ ✅ feito.
-- **M-06** Funcionários: mover folha de pagamento para aba do `ViewDrawerV2`.
+- ~~**M-06** Funcionários: folha já existe como aba "Folha (N)" em `FuncionarioView` dentro do drawer V2~~ ✅ feito.
 - ~~**MB-04** `GrupoEconomicoView` overflow-x-auto~~ ✅ feito.
 - ~~**MB-05** `MobileCollapsibleBlock` persistência via `useUserPreference`~~ ✅ feito (prop `persistKey`).
 - ~~**B-01** Deletar `UnidadesMedida.tsx`~~ ✅ feito.
