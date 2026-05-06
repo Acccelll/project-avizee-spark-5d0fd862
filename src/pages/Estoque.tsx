@@ -211,6 +211,7 @@ const Estoque = () => {
       ativo: row.ativo,
       estoque_atual: row.estoque_atual,
       estoque_reservado: row.estoque_reservado,
+      variacoes: row.variacoes,
       // Campos extras exigidos pelo tipo gerado mas não usados na coluna:
       created_at: "",
       updated_at: "",
