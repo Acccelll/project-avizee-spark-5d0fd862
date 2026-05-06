@@ -98,14 +98,16 @@ export const produtoInsumoSchema = produtoSchema.extend({
  * Schema de validação para Transportadoras — exige DV de CNPJ.
  */
 export const transportadoraSchema = z.object({
+  tipo_pessoa: z.enum(["F", "J"]).optional(),
   nome_razao_social: z.string().min(2, "Razão Social obrigatória").max(200),
   nome_fantasia: z.string().max(200).optional().or(z.literal("")),
   cpf_cnpj: z.string().optional().refine((val) => {
     if (!val || val.trim() === "") return true;
     const digits = val.replace(/\D/g, "");
-    if (digits.length !== 14) return false;
-    return validateCNPJ(digits);
-  }, { message: "CNPJ inválido" }),
+    if (digits.length === 11) return validateCPF(digits);
+    if (digits.length === 14) return validateCNPJ(digits);
+    return false;
+  }, { message: "CPF/CNPJ inválido" }),
   contato: z.string().max(100).optional().or(z.literal("")),
   telefone: telefoneSchema,
   email: emailSchema,
