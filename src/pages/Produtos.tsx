@@ -46,7 +46,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCan } from "@/hooks/useCan";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
-import { produtoSchema, validateForm } from "@/lib/validationSchemas";
+import { produtoSchema, produtoInsumoSchema, validateForm } from "@/lib/validationSchemas";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
@@ -409,12 +409,10 @@ const Produtos = () => {
       eh_composto: !!form.eh_composto,
       grupo_id: form.grupo_id,
     };
-    // Para insumos, preço de venda é opcional → relaxa schema localmente
+    // Para insumos, preço de venda é opcional → schema dedicado.
     const isInsumo = form.tipo_item === 'insumo';
     const validation = validateForm(
-      isInsumo
-        ? produtoSchema.extend({ preco_venda: produtoSchema.shape.preco_venda.optional().or(undefined as never) })
-        : produtoSchema,
+      isInsumo ? produtoInsumoSchema : produtoSchema,
       dataParaValidar,
     );
     if (!validation.success) {
