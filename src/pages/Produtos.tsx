@@ -290,16 +290,23 @@ const Produtos = () => {
     )},
   ];
 
-  const kpis = useMemo(() => {
-    const ativos = data.filter(p => p.ativo !== false);
-    const criticos = data.filter(p => {
-      const s = getSituacaoEstoque(p);
-      return s === "critico" || s === "zerado";
-    });
-    const insumos = data.filter(p => p.tipo_item === "insumo");
-    const produtos = data.filter(p => (p.tipo_item || "produto") === "produto");
-    return { total: data.length, ativos: ativos.length, criticos: criticos.length, insumos: insumos.length, produtos: produtos.length };
-  }, [data]);
+  // KPIs: total/produtos/insumos vêm de count() server-side; "criticos" só
+  // pode ser calculado sobre a página atual (depende de runtime). Marcamos
+  // o card com sufixo "(página)" para sinalizar.
+  const criticosNaPagina = useMemo(
+    () =>
+      data.filter((p) => {
+        const s = getSituacaoEstoque(p);
+        return s === "critico" || s === "zerado";
+      }).length,
+    [data],
+  );
+  const kpis = {
+    total: totalCount ?? data.length,
+    produtos: totalProdutos ?? 0,
+    insumos: totalInsumos ?? 0,
+    criticos: criticosNaPagina,
+  };
 
   const prodActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -361,7 +368,7 @@ const Produtos = () => {
           <SummaryCard title="Insumos" value={kpis.insumos} icon={Archive} variant="default"
             onClick={kpis.insumos > 0 ? () => setTipoItemFilters(["insumo"]) : undefined}
             subtitle={kpis.insumos > 0 ? "Clique para filtrar" : undefined} />
-          <SummaryCard title="Abaixo do Mínimo" value={kpis.criticos} icon={AlertCircle}
+          <SummaryCard title="Abaixo do Mínimo (página)" value={kpis.criticos} icon={AlertCircle}
             variant={kpis.criticos > 0 ? "danger" : "default"}
             onClick={kpis.criticos > 0 ? () => setEstoqueFilters(["critico", "zerado"]) : undefined}
             subtitle={kpis.criticos > 0 ? "Clique para filtrar" : undefined} />
@@ -376,7 +383,7 @@ const Produtos = () => {
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
           onClearAll={() => clearFilters(["tipo", "tipoItem", "estoque", "grupo", "ativo"])}
-          count={filteredData.length}
+          count={totalCount ?? filteredData.length}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[150px]" />
           <MultiSelect options={tipoItemOptions} selected={tipoItemFilters} onChange={setTipoItemFilters} placeholder="Classificação" className="w-[160px]" />
@@ -401,6 +408,10 @@ const Produtos = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="sku"
             mobileStatusKey="ativo"
+            serverPagination={{ page, setPage, totalCount, hasMore }}
+            onServerSort={sort.onChange}
+            serverSortKey={sort.sortKey}
+            serverSortDir={sort.sortDir}
           />
         </div>
       </PullToRefresh>
