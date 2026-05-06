@@ -47,9 +47,17 @@ import {
   ExternalLink,
   AlertTriangle,
   GitBranch,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   id: string;
