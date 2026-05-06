@@ -340,7 +340,10 @@ const Orcamentos = () => {
       render: (o: Orcamento) => {
         const vs = getValidadeStatus(o.validade, o.status);
         const normalizedStatus = normalizeOrcamentoStatus(o.status);
-        const effectiveStatus = vs === "vencida" && normalizedStatus === "enviado" ? "expirado" : normalizedStatus;
+        // C-02: orçamento "pendente" com validade vencida deve aparecer como "expirado"
+        // (status canônico após Fase 3.2 — antes era "enviado", removido).
+        const effectiveStatus =
+          vs === "vencida" && normalizedStatus === "pendente" ? "expirado" : normalizedStatus;
         return <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />;
       },
     },
