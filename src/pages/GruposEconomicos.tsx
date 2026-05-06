@@ -18,6 +18,8 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Building2, Info, Star, FileText, TrendingUp, ExternalLink, Users, Calendar, UserCheck, AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useServerSort } from "@/hooks/useServerSort";
+import { useTableCount } from "@/hooks/useTableCount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,13 +102,29 @@ const GruposEconomicos = () => {
     return out;
   }, [ativoFilters]);
 
-  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
+  const sort = useServerSort("nome", "asc");
+  const {
+    data,
+    loading,
+    create,
+    update,
+    remove,
+    fetchData,
+    page,
+    setPage,
+    totalCount,
+    hasMore,
+  } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
     searchTerm: debouncedSearch,
     filterAtivo: false,
     filter: serverFilters,
     searchColumns: ["nome"],
+    pageSize: 50,
+    orderBy: sort.orderBy,
+    ascending: sort.ascending,
   });
+  const totalAtivosGrupos = useTableCount("grupos_economicos", { ativo: true }).data ?? null;
 
   // Stable string keys derived from data - avoids infinite effect loops caused by
   // useSupabaseCrud returning a new [] reference on every render while loading.
