@@ -87,10 +87,13 @@ Resolve A-03 e BK-02.
 
 Validação: criar produto com itens, conferir scroll natural, SKU duplicado bloqueado.
 
-### 5d. Filtros server-side em listas (C-03, parcial) ✅
+### 5d. Filtros server-side em listas (C-03) ✅
 
-- **Clientes** e **Fornecedores**: dropdowns de tipo/status/grupo agora viram filtros do `useSupabaseCrud` (`tipo_pessoa`, `ativo`, `grupo_economico_id`). Apenas o caso "sem_grupo" misto continua filtrando client-side.
-- **Pendente:** Produtos e GruposEconomicos (próxima onda) — formato dos filtros é mais complexo (categoria + tipo_item + faixas de preço) e merece sua própria iteração.
+- **Clientes / Fornecedores / GruposEconomicos / Produtos:** dropdowns de tipo/status/grupo/tipo_item/eh_composto viajam server-side via `useSupabaseCrud.filter`.
+- Casos especiais que permanecem client-side:
+  - "sem_grupo" misto (NULL + UUIDs) em Clientes e Produtos.
+  - Situação de estoque em Produtos (derivada em runtime de `estoque_atual` × `estoque_minimo`).
+- Próximo passo opcional: paginação real (`pageSize`) com `range()` por página — adia para nova onda, exige UI de paginação no `DataTable` que hoje pagina sobre o array já carregado.
 
 ---
 
