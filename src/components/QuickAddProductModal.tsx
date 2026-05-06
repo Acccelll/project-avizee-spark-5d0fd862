@@ -103,6 +103,8 @@ export function QuickAddProductModal({
       const { data, error } = await supabase
         .from("produtos")
         .insert({
+          // codigo_interno é gerado pelo trigger trg_produtos_codigo_interno_auto
+          codigo_interno: "",
           nome: form.nome.trim(),
           sku: form.sku.trim() || null,
           grupo_id: form.grupo_id || null,

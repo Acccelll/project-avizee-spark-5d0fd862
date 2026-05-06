@@ -5877,7 +5877,8 @@ export type Database = {
           ativo: boolean
           cest: string | null
           cfop_padrao: string | null
-          codigo_interno: string | null
+          codigo_interno: string
+          codigo_interno_legado: string | null
           codigo_legado: string | null
           created_at: string
           cst: string | null
@@ -5916,7 +5917,8 @@ export type Database = {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
-          codigo_interno?: string | null
+          codigo_interno?: string
+          codigo_interno_legado?: string | null
           codigo_legado?: string | null
           created_at?: string
           cst?: string | null
@@ -5955,7 +5957,8 @@ export type Database = {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
-          codigo_interno?: string | null
+          codigo_interno?: string
+          codigo_interno_legado?: string | null
           codigo_legado?: string | null
           created_at?: string
           cst?: string | null
@@ -9178,6 +9181,7 @@ export type Database = {
         }
         Returns: Json
       }
+      proximo_codigo_interno: { Args: { _tipo: string }; Returns: string }
       proximo_numero_cotacao_compra: { Args: never; Returns: string }
       proximo_numero_nf: { Args: never; Returns: string }
       proximo_numero_nfe: {

@@ -132,3 +132,4 @@
 - [Busca Cliente/Fornecedor](mem://tech/busca-de-cliente-padrao) — Sempre AutocompleteSearch (+ ClientSelector lupa); nunca <Select> com lista completa
 
 - [Exibição de código de produto](mem://tech/exibicao-codigo-produto) — Não repetir codigo_interno/sku em listas/drawers; mostrar sku secundário só se diferir do codigo_interno
+- [Código Interno ERP](mem://tech/codigo-interno-erp) — SKU comercial vs Código Interno sequencial PRD/INS gerado por trigger; default sort SKU em Produtos e nome nos demais grids

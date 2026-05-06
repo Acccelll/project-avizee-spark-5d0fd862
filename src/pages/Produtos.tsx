@@ -427,6 +427,13 @@ const Produtos = () => {
         : null;
       const { variacoes_texto: _vt, ...rest } = form;
       const payload = { ...rest, variacoes: variacoesTexto, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
+      // Código Interno é sempre gerado/mantido pelo backend (trigger PRD/INS).
+      // Em criação: enviamos string vazia (trigger preenche). Em edição: removemos do payload para nunca sobrescrever.
+      if (mode === "create") {
+        payload.codigo_interno = "";
+      } else {
+        delete (payload as Record<string, unknown>).codigo_interno;
+      }
       let produtoId: string;
       if (mode === "create") {
         const result = await create(payload);
@@ -562,12 +569,22 @@ const Produtos = () => {
 
   const columns = [
     {
-      key: "codigo_interno",
-      label: "Código",
+      key: "sku",
+      label: "SKU",
       sortable: true,
       render: (p: ProdutoTableRow) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {p.display_codigo}
+        <span className="font-mono text-xs font-medium" title="SKU — código comercial canônico">
+          {p.sku || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "codigo_interno",
+      label: "Cód. Interno",
+      sortable: true,
+      render: (p: ProdutoTableRow) => (
+        <span className="font-mono text-xs text-muted-foreground" title="Código Interno (ERP) — sequencial PRD/INS">
+          {p.codigo_interno || "—"}
         </span>
       ),
     },
@@ -580,9 +597,6 @@ const Produtos = () => {
         return (
           <div>
             <span className="font-medium text-sm">{p.nome}</span>
-            {p.display_sku_secundario && (
-              <p className="text-[11px] text-muted-foreground font-mono leading-tight">{p.display_sku_secundario}</p>
-            )}
           </div>
         );
       },
@@ -908,12 +922,13 @@ const Produtos = () => {
           data={filteredData}
           loading={loading}
           moduleKey="produtos"
+          defaultSortKey="sku"
           showColumnToggle={true}
           onView={openView}
           onEdit={openEdit}
           onDelete={canExcluir ? (p) => remove(p.id) : undefined}
           deleteBehavior="soft"
-          mobileIdentifierKey="codigo_interno"
+          mobileIdentifierKey="sku"
           mobileStatusKey="ativo"
         />
         </div>
@@ -1023,8 +1038,18 @@ const Produtos = () => {
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-1">Código Interno <span className="text-muted-foreground font-normal text-xs">(uso sistêmico)</span></Label>
-                <Input value={form.codigo_interno} onChange={(e) => setForm({ ...form, codigo_interno: e.target.value })} className="font-mono" placeholder="Ex: CI-0042" />
+                <Label className="flex items-center gap-1">
+                  Código Interno (ERP)
+                  <span className="text-muted-foreground font-normal text-xs">(gerado automaticamente — PRD/INS)</span>
+                </Label>
+                <Input
+                  value={form.codigo_interno}
+                  readOnly
+                  disabled
+                  className="font-mono bg-muted/40"
+                  placeholder={mode === "create" ? "Será gerado ao salvar" : ""}
+                  title="Código sequencial interno do ERP — não editável"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Grupo de Produto</Label>

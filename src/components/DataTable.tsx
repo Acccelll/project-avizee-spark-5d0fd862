@@ -166,6 +166,14 @@ interface DataTableProps<T> {
    * "Receber" (Logística). Evita criar uma segunda coluna chamada "Ações".
    */
   rowExtraActions?: (item: T) => React.ReactNode;
+  /**
+   * Coluna usada para ordenação inicial. Quando ausente, o DataTable
+   * tenta ordenar por `nome` ASC se a coluna existir (padrão do ERP);
+   * caso contrário, mantém a ordem original.
+   * Para Produtos, definir explicitamente como `sku`.
+   */
+  defaultSortKey?: string;
+  defaultSortDir?: 'asc' | 'desc';
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -209,14 +217,23 @@ export function DataTable<T extends Record<string, any>>({
   mobileStatusKey,
   rowAccent,
   rowExtraActions,
+  defaultSortKey,
+  defaultSortDir = 'asc',
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
   const [skipDeleteConfirm, setSkipDeleteConfirm] = useState(() => localStorage.getItem('datatable:skip-delete-confirm') === '1');
   // Estado local do checkbox dentro do dialog: só é persistido em localStorage no Confirmar.
   const [pendingSkipPref, setPendingSkipPref] = useState(false);
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<SortDirection>(null);
+  // Ordem inicial: prop explícita > coluna `nome` (se existir) > nenhuma.
+  const initialSortKey = useMemo<string | null>(() => {
+    if (defaultSortKey && columns.some((c) => c.key === defaultSortKey)) return defaultSortKey;
+    if (columns.some((c) => c.key === 'nome')) return 'nome';
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot inicial; mudanças posteriores em columns não devem alterar a ordenação corrente
+  }, []);
+  const [sortKey, setSortKey] = useState<string | null>(initialSortKey);
+  const [sortDir, setSortDir] = useState<SortDirection>(initialSortKey ? defaultSortDir : null);
   const [currentPage, setCurrentPage] = useState(0);
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());

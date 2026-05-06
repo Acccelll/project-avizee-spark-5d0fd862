@@ -133,6 +133,9 @@ export function useImportacaoFaturamento() {
       const prodByInterno = new Map(
         produtosBanco.filter(p => p.codigo_interno).map(p => [p.codigo_interno, p.id])
       );
+      const prodBySku = new Map(
+        produtosBanco.filter(p => p.sku).map(p => [p.sku, p.id])
+      );
 
       // Aba Produtos do mesmo workbook (1031 itens com COD./GRUPO/Nome/Custo).
       // Usada SOMENTE para enriquecer o lookup das NFs (não persiste cadastro).
@@ -215,6 +218,8 @@ export function useImportacaoFaturamento() {
         const codigoProduto = nd.codigo_produto_nf || nd.codigo_legado_produto || "";
         let produtoId = (nd.codigo_legado_produto && prodByLegado.get(nd.codigo_legado_produto as string))
           || (nd.codigo_produto_nf && prodByInterno.get(nd.codigo_produto_nf as string))
+          || (nd.codigo_produto_nf && prodBySku.get(nd.codigo_produto_nf as string))
+          || (nd.codigo_legado_produto && prodBySku.get(nd.codigo_legado_produto as string))
           || null;
 
         // Fallback: se o código da NF bate com a aba Produtos do workbook,
