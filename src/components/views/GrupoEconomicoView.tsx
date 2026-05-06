@@ -247,9 +247,9 @@ export function GrupoEconomicoView({ id }: Props) {
           {empresas.length === 0 ? (
             <DetailEmpty icon={Users} title="Nenhuma empresa vinculada" message="Vincule clientes a este grupo na tela de Cadastros › Clientes." />
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1 -mx-1 px-1 overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_8px,black_calc(100%-8px),transparent)]">
               {empresas.map((e) => (
-                <div key={e.id} className="flex items-center justify-between py-2 px-2 rounded-md border bg-card hover:bg-muted/30">
+                <div key={e.id} className="flex items-center justify-between gap-3 py-2 px-2 rounded-md border bg-card hover:bg-muted/30 min-w-[320px]">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       {e.id === matriz?.id && <Star className="h-3 w-3 text-warning shrink-0" />}

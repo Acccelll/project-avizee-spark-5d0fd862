@@ -206,6 +206,7 @@ const DashboardContent = () => {
           iconColor="text-primary"
           summary={`Saldo: ${saldoProjetado >= 0 ? '+' : ''}${(saldoProjetado / 1000).toFixed(0)}k`}
           defaultOpen
+          persistKey="financeiro"
         >
           <FinanceiroBlock
             totalReceber={stats.totalReceber}
@@ -258,6 +259,7 @@ const DashboardContent = () => {
           icon={ShoppingBag}
           iconColor="text-secondary"
           summary={`${stats.orcamentos} orç · ${backlogOVsCount} ped`}
+          persistKey="comercial"
         >
           <ComercialBlock
             cotacoesAbertas={stats.orcamentos}
@@ -284,6 +286,7 @@ const DashboardContent = () => {
               : `${stats.produtos} ativos`
           }
           defaultOpen={estoqueBaixo.length > 0}
+          persistKey="estoque"
         >
           <EstoqueBlock
             itensBaixoMinimo={estoqueBaixo}
@@ -306,6 +309,7 @@ const DashboardContent = () => {
                 ? `${remessasAtrasadas} atrasada${remessasAtrasadas > 1 ? 's' : ''}`
                 : `${comprasAguardando.length} aguardando`
             }
+            persistKey="logistica"
           >
             <LogisticaBlock
               comprasAguardando={comprasAguardando}
@@ -329,6 +333,7 @@ const DashboardContent = () => {
                 ? `${fiscalStats.pendentes} pendente${fiscalStats.pendentes > 1 ? 's' : ''}`
                 : `${fiscalStats.emitidas} emitidas`
             }
+            persistKey="fiscal"
           >
             <FiscalBlock stats={fiscalStats} />
           </MobileCollapsibleBlock>
