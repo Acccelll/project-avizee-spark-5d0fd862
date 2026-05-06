@@ -376,6 +376,19 @@ export function DataTable<T extends Record<string, any>>({
   }, [data, rules]);
 
   const handleSort = (key: string) => {
+    if (serverPagination) {
+      // Em modo server-paged, delega 100% ao consumidor.
+      const col = columns.find((c) => c.key === key);
+      if (!col?.serverSortable) return;
+      if (serverSortKey === key) {
+        if (serverSortDir === 'asc') onServerSort?.(key, 'desc');
+        else if (serverSortDir === 'desc') onServerSort?.(null, null);
+        else onServerSort?.(key, 'asc');
+      } else {
+        onServerSort?.(key, 'asc');
+      }
+      return;
+    }
     if (sortKey === key) {
       if (sortDir === 'asc') setSortDir('desc');
       else if (sortDir === 'desc') { setSortKey(null); setSortDir(null); }
@@ -406,7 +419,12 @@ export function DataTable<T extends Record<string, any>>({
     });
   }, [filteredData, sortKey, sortDir, columns]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
+  const totalRowsForPaging = serverPagination
+    ? (serverPagination.totalCount ?? data.length)
+    : sortedData.length;
+  const totalPages = serverPagination
+    ? Math.max(1, Math.ceil(totalRowsForPaging / pageSize))
+    : Math.max(1, Math.ceil(sortedData.length / pageSize));
 
   // Reset page when filters/data shrink the list past the current page.
   useEffect(() => {
@@ -415,8 +433,20 @@ export function DataTable<T extends Record<string, any>>({
     }
   }, [totalPages, currentPage]);
 
-  const pageData = sortedData.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-  const pagedData = viewMode === 'infinite' ? sortedData.slice(0, visibleCount) : pageData;
+  // Em server-paged, `data` já é a página corrente vinda do hook.
+  const pageData = serverPagination
+    ? data
+    : sortedData.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const pagedData = serverPagination
+    ? data
+    : viewMode === 'infinite' ? sortedData.slice(0, visibleCount) : pageData;
+
+  // Página efetiva (controlada pelo consumidor em server-paged).
+  const effectivePage = serverPagination ? serverPagination.page : currentPage;
+  const goToPage = (next: number) => {
+    if (serverPagination) serverPagination.setPage(next);
+    else setCurrentPage(next);
+  };
 
   const toggleSelect = useCallback((id: string) => {
     if (!onSelectionChange) return;
