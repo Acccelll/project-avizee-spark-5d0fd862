@@ -22,7 +22,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { createFolhaPagamento, gerarFinanceiroFolha } from "@/services/rh.service";
+import { createFolhaPagamento, gerarFinanceiroFolha, deleteFuncionario } from "@/services/rh.service";
+import { notifyError } from "@/utils/errorMessages";
+import { toast } from "sonner";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
@@ -347,7 +349,15 @@ export default function Funcionarios() {
             showColumnToggle={true}
             onView={openView}
             onEdit={openEdit}
-            onDelete={canExcluir ? (f) => remove(f.id) : undefined}
+            onDelete={canExcluir ? async (f) => {
+              try {
+                await deleteFuncionario(f.id);
+                toast.success("Funcionário desativado.");
+                fetchData();
+              } catch (err) {
+                notifyError(err);
+              }
+            } : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="cargo"
             mobileStatusKey="ativo"
