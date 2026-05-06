@@ -92,6 +92,10 @@ export function OrcamentoView({ id }: Props) {
   const selected = data?.orcamento ?? null;
   const items = data?.items ?? [];
   const linkedOV = data?.linkedOV ?? null;
+  // C-01: pedido vinculado só bloqueia cancelamento se ainda estiver ATIVO.
+  // Se o pedido derivado foi cancelado, o orçamento de origem deve poder
+  // ser cancelado normalmente.
+  const linkedOVAtivo = !!linkedOV && linkedOV.status !== "cancelada";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -232,24 +236,26 @@ export function OrcamentoView({ id }: Props) {
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
           <FileText className="h-3.5 w-3.5" /> PDF
         </Button>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" aria-label="Editar orçamento" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
-          <Edit className="h-3.5 w-3.5" /> Editar
-        </Button>
+        {canEditar && (
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" aria-label="Editar orçamento" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+        )}
         {canCancelar && (
         <Button
           variant="ghost" size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
           aria-label="Cancelar orçamento"
           onClick={() => {
-            if (linkedOV) {
+            if (linkedOVAtivo) {
               toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
-                description: `Pedido ${linkedOV.numero} está vinculado a este orçamento.`,
+                description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
               });
               return;
             }
             setDeleteConfirmOpen(true);
           }}
-          disabled={Boolean(linkedOV)}
+          disabled={linkedOVAtivo}
         >
           <Trash2 className="h-3.5 w-3.5" /> Cancelar
         </Button>
@@ -280,9 +286,11 @@ export function OrcamentoView({ id }: Props) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
-              <Edit className="h-4 w-4 mr-2" /> Editar
-            </DropdownMenuItem>
+            {canEditar && (
+              <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+                <Edit className="h-4 w-4 mr-2" /> Editar
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
               <FileText className="h-4 w-4 mr-2" /> PDF
             </DropdownMenuItem>
@@ -305,11 +313,11 @@ export function OrcamentoView({ id }: Props) {
             {canCancelar && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              disabled={Boolean(linkedOV)}
+              disabled={linkedOVAtivo}
               onClick={() => {
-                if (linkedOV) {
+                if (linkedOVAtivo) {
                   toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
-                    description: `Pedido ${linkedOV.numero} está vinculado a este orçamento.`,
+                    description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
                   });
                   return;
                 }
