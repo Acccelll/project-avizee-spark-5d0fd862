@@ -336,7 +336,7 @@ const DashboardContent = () => {
             }
             persistKey="fiscal"
           >
-            <FiscalBlock stats={fiscalStats} />
+            <FiscalBlock stats={fiscalStats} scope={scopes?.fiscal} />
           </MobileCollapsibleBlock>
           </div>
         </BlockErrorBoundary>
