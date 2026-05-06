@@ -639,12 +639,7 @@ const Produtos = () => {
       key: "variacoes",
       label: "Variações",
       render: (p: Produto) => {
-        const raw = p.variacoes;
-        const items: string[] = Array.isArray(raw)
-          ? raw
-          : typeof raw === "string" && raw
-            ? raw.split(",").map((v) => v.trim()).filter(Boolean)
-            : [];
+        const items: string[] = Array.isArray(p.variacoes) ? p.variacoes : [];
         if (items.length === 0) {
           return <span className="text-xs text-muted-foreground">—</span>;
         }
