@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { navSections, type NavItem, type NavSection, type NavSectionKey } from '@/lib/navigation';
+import { navSections, type NavSection, type NavSectionKey } from '@/lib/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCan } from '@/hooks/useCan';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -62,14 +62,13 @@ export function useVisibleNavSections(): NavSection[] {
       // a rota é guarded por `AdminRoute`, então o item iria gerar AccessDenied.
       .map((s) => {
         if (s.key !== 'administracao') return s;
-        const filterAdminOnly = (item: NavItem): boolean => {
-          if (item.path === '/admin/audit-duplicidades') return isAdmin;
-          return true;
-        };
+        const filterAdminOnly = (path: string) => path !== '/admin/audit-duplicidades' || isAdmin;
         return {
           ...s,
-          items: s.items.filter(filterAdminOnly),
-          groups: s.groups?.map((g) => ({ ...g, items: g.items.filter(filterAdminOnly) })),
+          items: s.items.map((sub) => ({
+            ...sub,
+            items: sub.items.filter((leaf) => filterAdminOnly(leaf.path)),
+          })).filter((sub) => sub.items.length > 0),
         };
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
