@@ -185,6 +185,8 @@ export function useDashboardData() {
   return {
     ...state,
     loading: query.isLoading,
+    /** True quando há refetch silencioso em andamento (header pode mostrar "Atualizando…"). */
+    fetching: query.isFetching && !query.isLoading,
     loadedAt,
     ticketMedio,
     /** Triggers a manual refetch — use for the dashboard's "Atualizar" button.

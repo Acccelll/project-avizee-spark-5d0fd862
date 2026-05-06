@@ -85,6 +85,7 @@ const DashboardContent = () => {
   const {
     stats,
     loading,
+    fetching,
     loadedAt,
     loadData,
     backlogOVs,
@@ -382,6 +383,7 @@ const DashboardContent = () => {
         <DashboardHeader
           lastUpdated={loadedAt}
           onRefresh={loadData}
+          fetching={fetching}
           rightSlot={
             <DashboardCustomizeMenu
               prefs={prefs}
