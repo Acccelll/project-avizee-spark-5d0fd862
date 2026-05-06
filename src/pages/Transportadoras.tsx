@@ -334,8 +334,15 @@ export default function Transportadoras() {
       ),
     },
     {
-      key: "cpf_cnpj", label: "CNPJ",
-      render: (t: Transportadora) => <span className="font-mono text-xs">{t.cpf_cnpj || "—"}</span>,
+      key: "cpf_cnpj", label: "CPF/CNPJ",
+      render: (t: Transportadora) => (
+        <div className="flex items-center gap-1.5">
+          <span className={`text-[10px] font-semibold ${t.tipo_pessoa === "F" ? "text-info" : "text-muted-foreground"}`}>
+            {t.tipo_pessoa === "F" ? "PF" : "PJ"}
+          </span>
+          <span className="font-mono text-xs">{t.cpf_cnpj || "—"}</span>
+        </div>
+      ),
     },
     {
       key: "contato_principal", label: "Contato",
