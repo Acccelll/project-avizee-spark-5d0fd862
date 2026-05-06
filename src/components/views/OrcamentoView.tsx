@@ -306,7 +306,7 @@ export function OrcamentoView({ id }: Props) {
                 <Send className="h-4 w-4 mr-2" /> Enviar p/ Aprovação
               </DropdownMenuItem>
             )}
-            {["aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
+            {["pendente", "aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
               <DropdownMenuItem onClick={handleCriarRevisao}>
                 <GitBranch className="h-4 w-4 mr-2" /> Criar revisão
               </DropdownMenuItem>

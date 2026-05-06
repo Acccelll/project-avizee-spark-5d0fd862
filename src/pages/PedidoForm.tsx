@@ -209,6 +209,17 @@ const PedidoForm = () => {
       }
     >
       <div className="max-w-3xl space-y-5">
+        {/* MB-04: mini-resumo sticky no topo (mobile) — total + status sempre visíveis ao rolar. */}
+        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/95 backdrop-blur border-b md:hidden flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase text-muted-foreground font-semibold">Pedido {pedido.numero}</p>
+            <p className="font-mono font-bold text-primary text-sm truncate">
+              {formatCurrency(Number(pedido.valor_total || 0))}
+            </p>
+          </div>
+          <StatusBadge status={pedido.status || "pendente"} label={getPedidoStatusLabel(pedido.status)} />
+        </div>
+
         <div className="rounded-xl border bg-muted/20 px-4 py-3">
           <p className="text-xs font-semibold uppercase text-muted-foreground">Escopo desta edição</p>
           <p className="text-sm text-muted-foreground mt-1">

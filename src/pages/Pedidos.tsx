@@ -32,6 +32,7 @@ import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { comercialKeys } from "@/lib/queryKeys/comercial";
 import { notifyError } from "@/utils/errorMessages";
+import { useAppConfig } from "@/hooks/useAppConfig";
 
 interface Pedido {
   id: string;
@@ -53,21 +54,22 @@ interface Pedido {
 }
 
 const TERMINAL_STATUSES_PEDIDO = ["entregue", "faturado", "cancelada"];
-const PRAZO_ALERTA_DIAS = 3;
+// M-03: padrão; agora override via app_configuracoes("comercial").alerta_prazo_despacho_dias.
+const PRAZO_ALERTA_DIAS_DEFAULT = 3;
 const DIAS_ABERTO_ALERTA = 30;
 
-function getPrazoStatus(dataPrazo: string | null, statusOp: string): "atrasado" | "proximo" | "ok" | "sem_prazo" {
+function getPrazoStatus(dataPrazo: string | null, statusOp: string, alertaDias: number): "atrasado" | "proximo" | "ok" | "sem_prazo" {
   if (!dataPrazo) return "sem_prazo";
   if (TERMINAL_STATUSES_PEDIDO.includes(statusOp)) return "ok";
   const daysLeft = calculateDaysBetween(new Date(), dataPrazo);
   if (daysLeft < 0) return "atrasado";
-  if (daysLeft <= PRAZO_ALERTA_DIAS) return "proximo";
+  if (daysLeft <= alertaDias) return "proximo";
   return "ok";
 }
 
-function PrazoBadge({ dataPrazo, status }: { dataPrazo: string | null; status: string }) {
+function PrazoBadge({ dataPrazo, status, alertaDias }: { dataPrazo: string | null; status: string; alertaDias: number }) {
   if (!dataPrazo) return <span className="text-muted-foreground text-xs">—</span>;
-  const ps = getPrazoStatus(dataPrazo, status);
+  const ps = getPrazoStatus(dataPrazo, status, alertaDias);
   const daysLeft = calculateDaysBetween(new Date(), dataPrazo);
 
   if (ps === "atrasado") {
@@ -89,19 +91,24 @@ function PrazoBadge({ dataPrazo, status }: { dataPrazo: string | null; status: s
   return <span className="text-xs">{formatDate(dataPrazo)}</span>;
 }
 
-const prazoFilterOptions: MultiSelectOption[] = [
-  { label: "Atrasados", value: "atrasado" },
-  { label: `Próximos (≤${PRAZO_ALERTA_DIAS}d)`, value: "proximo" },
-  { label: "No prazo", value: "ok" },
-  { label: "Sem prazo", value: "sem_prazo" },
-];
-
 const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const faturarPedido = useFaturarPedido();
   const { can } = useCan();
   const canFaturar = can("faturamento_fiscal:criar") || can("pedidos:editar");
+  // M-03: alerta_prazo_despacho_dias parametrizável via app_configuracoes("comercial").
+  const { value: comercialFlags } = useAppConfig<{ alerta_prazo_despacho_dias?: number }>(
+    "comercial",
+    { alerta_prazo_despacho_dias: PRAZO_ALERTA_DIAS_DEFAULT },
+  );
+  const prazoAlertaDias = Number(comercialFlags?.alerta_prazo_despacho_dias ?? PRAZO_ALERTA_DIAS_DEFAULT);
+  const prazoFilterOptions: MultiSelectOption[] = [
+    { label: "Atrasados", value: "atrasado" },
+    { label: `Próximos (≤${prazoAlertaDias}d)`, value: "proximo" },
+    { label: "No prazo", value: "ok" },
+    { label: "Sem prazo", value: "sem_prazo" },
+  ];
   const qc = useQueryClient();
   // A-07/SH-03: grid passa a usar React Query puro. As mutações (faturar,
   // cancelar) já chamam RPC + invalidam `["ordens_venda"]` via
@@ -240,12 +247,7 @@ const Pedidos = () => {
     try {
       // Usa RPC transacional via mutation hook (invalida fiscal/financeiro/estoque
       // em background — substitui a lógica TS multi-step + fetchData local).
-      await faturarPedido.mutateAsync({
-        id: pedido.id,
-        numero: pedido.numero,
-        cliente_id: pedido.cliente_id,
-        status_faturamento: pedido.status_faturamento,
-      });
+      await faturarPedido.mutateAsync(pedido.id);
       // Não precisa refetch manual: o hook invalida ["ordens_venda"] em
       // INVALIDATION_KEYS.faturamentoPedido e o useQuery acima reage.
     } catch (err: unknown) {
@@ -264,7 +266,7 @@ const Pedidos = () => {
       if (clienteFilters.length > 0 && !clienteFilters.includes(pedido.cliente_id || "")) return false;
 
       if (prazoFilters.length > 0) {
-        const ps = getPrazoStatus(pedido.data_prometida_despacho, pedido.status);
+        const ps = getPrazoStatus(pedido.data_prometida_despacho, pedido.status, prazoAlertaDias);
         if (!prazoFilters.includes(ps)) return false;
       }
 
@@ -280,16 +282,16 @@ const Pedidos = () => {
       if (!query) return true;
       return [pedido.numero, pedido.clientes?.nome_razao_social, pedido.orcamentos?.numero, pedido.po_number, pedido.observacoes].filter(Boolean).join(" ").toLowerCase().includes(query);
     });
-  }, [data, faturamentoFilters, searchTerm, statusFilters, clienteFilters, prazoFilters, dataInicio, dataFim]);
+  }, [data, faturamentoFilters, searchTerm, statusFilters, clienteFilters, prazoFilters, dataInicio, dataFim, prazoAlertaDias]);
 
   // KPIs over filteredData so they reflect the user's current filter selection.
   const kpis = useMemo(() => {
     const total = filteredData.length;
     const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
     const emAndamento = filteredData.filter(o => ["em_separacao", "separado", "em_transporte"].includes(o.status)).length;
-    const atrasados = filteredData.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status) === "atrasado").length;
+    const atrasados = filteredData.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status, prazoAlertaDias) === "atrasado").length;
     return { total, totalValue, emAndamento, atrasados };
-  }, [filteredData]);
+  }, [filteredData, prazoAlertaDias]);
 
   const activeFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -345,7 +347,7 @@ const Pedidos = () => {
     {
       key: "prazo", label: "Prazo Despacho",
       sortValue: (p: Pedido) => p.data_prometida_despacho ?? "",
-      render: (p: Pedido) => <PrazoBadge dataPrazo={p.data_prometida_despacho} status={p.status} />,
+      render: (p: Pedido) => <PrazoBadge dataPrazo={p.data_prometida_despacho} status={p.status} alertaDias={prazoAlertaDias} />,
     },
     {
       key: "status", label: "Status", sortable: true,

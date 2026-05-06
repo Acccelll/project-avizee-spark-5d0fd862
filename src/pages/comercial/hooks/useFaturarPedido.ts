@@ -7,14 +7,14 @@ import {
   type FaturarPedidoVendaResult,
 } from "@/services/comercial/pedidosVenda.service";
 
-interface PedidoBase {
-  id: string;
-  numero: string;
-  cliente_id: string | null;
-  status_faturamento: string | null;
-}
-
 type FaturarPedidoResult = FaturarPedidoVendaResult;
+
+/**
+ * F-01: assinatura simplificada — só `pedidoId`. Os demais campos eram
+ * passados pelos callers mas o service só usava `id`. Mantém a UI limpa
+ * e evita falsa expectativa de que outros campos influenciam a RPC.
+ */
+export type FaturarPedidoInput = string;
 
 /**
  * Wrapper RQ para `faturarPedido` (service comercial).
@@ -22,8 +22,8 @@ type FaturarPedidoResult = FaturarPedidoVendaResult;
 export function useFaturarPedido() {
   const queryClient = useQueryClient();
 
-  return useMutation<FaturarPedidoResult, Error, PedidoBase>({
-    mutationFn: (pedido) => faturarPedido(pedido.id),
+  return useMutation<FaturarPedidoResult, Error, FaturarPedidoInput>({
+    mutationFn: (pedidoId) => faturarPedido(pedidoId),
     onSuccess: (result) => {
       INVALIDATION_KEYS.faturamentoPedido.forEach((key) => {
         queryClient.invalidateQueries({ queryKey: [key] });
