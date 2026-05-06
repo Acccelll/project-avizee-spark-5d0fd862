@@ -22,6 +22,7 @@ export interface ProdutoAtivoRow {
   preco_venda: number | null;
   preco_custo: number | null;
   unidade_medida: string | null;
+  variacoes?: unknown;
 }
 
 export interface FormaPagamentoRow {
