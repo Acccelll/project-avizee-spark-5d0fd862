@@ -18,19 +18,32 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
  * desenvolvimento (StrictMode) e produção.
  */
 
-type Listener = (table: "ordens_venda" | "notas_fiscais") => void;
+export interface ComercialChange {
+  table: "ordens_venda" | "notas_fiscais";
+  /** id da linha afetada (quando disponível). */
+  id?: string;
+  /** id da OV vinculada — útil para listeners de drawer de OV. */
+  ordemVendaId?: string;
+}
+
+type Listener = (change: ComercialChange) => void;
 
 const listeners = new Set<Listener>();
 let channel: RealtimeChannel | null = null;
 
-function broadcast(table: "ordens_venda" | "notas_fiscais") {
+function broadcast(change: ComercialChange) {
   for (const cb of listeners) {
     try {
-      cb(table);
+      cb(change);
     } catch (err) {
       console.error("[comercial-channel] listener threw:", err);
     }
   }
+}
+
+type RowLike = { id?: string | null; ordem_venda_id?: string | null };
+function rowFromPayload(payload: { new?: unknown; old?: unknown }): RowLike {
+  return ((payload?.new as RowLike) ?? (payload?.old as RowLike) ?? {}) as RowLike;
 }
 
 function ensureChannel() {
@@ -40,12 +53,26 @@ function ensureChannel() {
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "ordens_venda" },
-      () => broadcast("ordens_venda"),
+      (payload) => {
+        const row = rowFromPayload(payload);
+        broadcast({
+          table: "ordens_venda",
+          id: row.id ?? undefined,
+          ordemVendaId: row.id ?? undefined,
+        });
+      },
     )
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "notas_fiscais" },
-      () => broadcast("notas_fiscais"),
+      (payload) => {
+        const row = rowFromPayload(payload);
+        broadcast({
+          table: "notas_fiscais",
+          id: row.id ?? undefined,
+          ordemVendaId: row.ordem_venda_id ?? undefined,
+        });
+      },
     )
     .subscribe();
 }
