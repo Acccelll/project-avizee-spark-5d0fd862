@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import type { OVDetail, NotaFiscalListItem, LancamentoListItem, OrdemVendaItemWithProduto } from "@/types/comercial";
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
+import { AuditTimelineMini } from "@/components/views/AuditTimelineMini";
 import { useCan } from "@/hooks/useCan";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { toast } from "sonner";
