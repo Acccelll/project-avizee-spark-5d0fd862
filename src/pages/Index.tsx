@@ -103,6 +103,7 @@ const DashboardContent = () => {
     topClientes,
     valorEstoque,
     vencimentosHoje,
+    scopes,
   } = useDashboardData();
 
   // React Query handles fetching/caching automatically — no useEffect needed.
@@ -335,7 +336,7 @@ const DashboardContent = () => {
             }
             persistKey="fiscal"
           >
-            <FiscalBlock stats={fiscalStats} />
+            <FiscalBlock stats={fiscalStats} scope={scopes?.fiscal} />
           </MobileCollapsibleBlock>
           </div>
         </BlockErrorBoundary>

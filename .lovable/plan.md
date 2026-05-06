@@ -1,42 +1,74 @@
-## Objetivo
-Padronizar a coluna `variacoes` em todas as consultas de `produtos` usadas em lookups, autocompletes, listagens e exibições de item, e renderizar o sufixo de variações na UI — eliminando ambiguidade entre produtos homônimos (ex.: dois "AGULHA INOX" idênticos no autocomplete e na linha "R$ 29,99 · AGULHA INOX").
+## Status da Auditoria Onda 2 — o que já foi feito vs. o que falta
 
-## Escopo de alterações
+Verifiquei item a item da matriz contra o código atual (`src/`, services, schema do banco).
 
-### 1. Services — incluir `variacoes` no SELECT
-- `src/services/produtos.service.ts` → `listProdutosBasicAtivos`: adicionar `variacoes` e tipar retorno.
-- `src/services/precosEspeciais.service.ts` → `listProdutosAtivosBasic`: adicionar `variacoes`.
-- `src/services/pedidosCompra.service.ts` → 2 lookups (`select id, nome, codigo_interno, ...`): adicionar `variacoes`.
-- `src/services/cotacoesCompra.service.ts` → `listProdutos*`: adicionar `variacoes`.
-- `src/services/fiscal/manifestacao.repository.ts` → lookup `id, sku, nome`: adicionar `variacoes`.
-- `src/services/importacao.service.ts` → lookup de produtos: adicionar `variacoes`.
-- `src/hooks/useNotificationDetails.ts` → estoque baixo: adicionar `variacoes`.
-- `src/pages/faturamento/EmitirNFeWizard.tsx` → busca de produtos no wizard: adicionar `variacoes`.
-- `src/services/dashboard.service.ts` → apenas no `estMinResult` (lista exibida); contagens e agregados ficam como estão.
-- `src/services/relatorios/loaders/estoque.ts` e `cadastros.ts`: adicionar `variacoes` onde a linha entra no relatório de produto.
+### Itens JÁ resolvidos (não precisam mais de ação)
 
-(Selects com `select("*")` — `produtos.service.fetchProdutoDetalhes`, `estoque.service`, `orcamentos.service.listProdutosWithFornecedoresAtivos`, `ProdutoForm` — já trazem `variacoes` automaticamente; nada a mudar.)
+| ID | Item | Evidência atual |
+|---|---|---|
+| **C-01** | Produto em FormModal | `Produtos.tsx:179-192` redireciona para `/produtos/novo` e `/produtos/:id/editar` (rotas em `cadastros.routes.tsx`), página dedicada `ProdutoForm.tsx` ativa. |
+| **C-02** | `boleto_dda` ausente | `FormasPagamento.tsx:50` já tem `boleto_dda: "Boleto/DDA"` no `tipoLabel`. |
+| **C-03** | `pageSize` server-side | Produtos, Clientes, Fornecedores, GruposEconomicos todos com `pageSize: 50`. |
+| **A-01 / M-02 / SH-01** | Sócios sem dedup/máscara CPF | `Socios.tsx` já usa `useDocumentoUnico("cpf",…,"socios")` + `MaskedInput mask="cpf"`; enum `DocumentoTable` em `useDocumentoUnico.ts` já inclui `"socios"`. |
+| **A-02** | Transportadoras sem `tipo_pessoa` | Type/form/UI já têm `tipo_pessoa` (default "J") e `useDocumentoUnico` é condicional `cpf`/`cnpj`. |
+| **A-03 / BK-02** | Hard delete em cadastros | Os 4 services usam `safeDelete` com lista de dependências e soft-delete (`update ativo:false`). |
+| **A-04** | Grupos sem URL state | `GruposEconomicos.tsx:82` usa `useUrlListState`. |
+| **BK-01 (parcial)** | UNIQUE CPF | `socios_cpf_key` existe; **`funcionarios.cpf` ainda sem UNIQUE**. |
+| **BK-03** | `set_principal_endereco` com `as never` | Cast removido em `clientes.service.ts:75`. |
+| **SH-05** | `fetchClienteDetalhes` | já usa `Promise.allSettled` (linha 244). |
+| **B-01** | UnidadesMedida.tsx código morto | Arquivo já removido. |
 
-### 2. UI — exibir sufixo de variação
-- `src/components/precos/PrecosEspeciaisTab.tsx`:
-  - `ProdutoOption` recebe `variacoes`.
-  - No `AutocompleteSearch` de produto: `label = nome + formatVariacoesSuffix(p.variacoes)`.
-  - Na linha da regra (`item.produtos?.nome`): concatenar `formatVariacoesSuffix`.
-  - Atualizar `select` do `listPrecosEspeciais` para trazer `produtos(nome, sku, preco_venda, variacoes)`.
-- `src/components/QuickAddProductModal.tsx`: nada a mudar (criação).
-- `AutocompleteSearch` continua agnóstico — sufixo concatenado no `label` pelo chamador.
-- `ProductAutocomplete` e `ItemsGrid` já tratam variações; manter.
+### Itens que AINDA faltam
 
-### 3. Tipagem
-- Reaproveitar `parseVariacoes`/`formatVariacoesSuffix` de `src/utils/cadastros.ts` (já existem).
-- Onde houver tipagem manual de produto (`{ id; nome; sku }`), incluir `variacoes?: string | string[] | null`.
+🔴 **Bug remanescente**
+- **A-07 — FiscalBlock ScopeBadge incoerente.** `FiscalBlock.tsx:81` continua `kind: 'fixed-window', janela: 'mes-atual'`, enquanto `useDashboardData.ts:80` já marca o escopo do bloco como `fixed-window`. ✅ Coincide hoje — **mas o badge está hardcoded** em vez de consumir `scope.fiscal` do estado, o que é frágil. Trocar para `<ScopeBadge scope={scope.fiscal} />`.
 
-## Fora de escopo
-- Migração de `variacoes` para `text[]` (item M-medio do audit, separado).
-- Selects puramente agregados (counts/sum) que não exibem nome de produto.
-- Edge functions e XMLs fiscais (NCM/descrição fiscal, não nome interno).
+🟠 **Alto**
+- **A-05** — `produtoSchema.shape.preco_venda.optional().or(undefined as never)` ainda no `ProdutoForm.tsx`. Criar `produtoInsumoSchema` separado.
+- **A-06 / BK-04** — `produtos.variacoes` continua `text` com dual-path (`Array.isArray ? : split(",")`). Migration para `text[]` + normalização.
+- **BK-01 (resto)** — adicionar `funcionarios_cpf_unique`.
+- **BK-05** — `save_produto_fornecedores` ainda recebe `String(...)` para campos numéricos.
 
-## Validação
-- Abrir aba "Preços Especiais" do cliente Antonio: dois produtos "AGULHA INOX" devem aparecer com sufixo distintivo (ex.: "AGULHA INOX · 0,30mm" vs "AGULHA INOX · 0,40mm").
-- `tsc --noEmit` limpo.
-- Suítes existentes (`precos-especiais`, `fluxo-venda`) seguem passando.
+🟡 **Médio**
+- **M-01** — Semântica meio × condição em `formas_pagamento` (refator de domínio).
+- **M-03** — `GruposEconomicos.matrizNomeMap` ainda em `useEffect` direto (não React Query).
+- **M-04** — Documentar/sinalizar quais blocos do Dashboard ignoram período global.
+- **M-05** — Lookups de grupo/fornecedor/unidade no `ProdutoForm` ainda fora de React Query.
+- **M-06** — Folha de pagamento como modal aninhado em Funcionários.
+- **M-07** — Sem validação de unicidade de SKU (nem hook nem constraint).
+- **M-08** — NCM normalizado no `openEdit` (`ProdutoForm.tsx:168`) e no submit (`:291`) ✅ já tratado; **mas o input livre ainda permite máscara**. Aceitar como resolvido.
+- **M-09** — Mensagem "em outra entidade" → "nesta tabela" em Clientes/Fornecedores.
+- **SH-02** — Lookups de Produtos para React Query.
+- **SH-03** — `useSocios` para React Query.
+- **SH-04** — Loading agregado do Dashboard.
+
+🟢 **Baixo**
+- **B-02** — `Skeleton h-[220px]` → `min-h-[220px]` no `LazyInViewWidget`.
+- **MB-02 / MB-03 / MB-04 / MB-05** — ajustes mobile (abas sócios, intervalos parcelas, scroll-x grupos, persistência de colapso).
+- **D-02** — Feedback "atualizando..." ao mudar período.
+- **D-03** — `AbortSignal` em `GrupoEconomicoView`.
+- **MB-01 / D-01** — resolvidos junto com C-01.
+
+---
+
+### Recomendação de execução (3 ondas)
+
+**Onda A — bugs e segurança (≈4-6h)**
+1. A-07 — `FiscalBlock` consumir `scope.fiscal` do `useDashboardData`.
+2. BK-01 — migration `funcionarios_cpf_unique`.
+3. M-09 — texto da mensagem de duplicidade.
+4. A-05 — `produtoInsumoSchema` separado, remover `as never`.
+5. BK-05 — passar `number` direto para `save_produto_fornecedores`.
+
+**Onda B — schema/dados (≈1 dia)**
+6. A-06 / BK-04 — migration `variacoes text[]` + backfill + remoção do dual-path.
+7. M-07 — UNIQUE em `produtos.sku` + check no front via `useDocumentoUnico`.
+
+**Onda C — refinos UX/perf (≈1 dia)**
+8. SH-02 / SH-03 / M-03 / M-05 — migrar lookups para React Query.
+9. SH-04 — loading agregado do Dashboard.
+10. B-02 / D-02 / D-03 / MB-02..MB-05 — polimento.
+11. M-01 — discutir e aprovar separação meio × condição (refator próprio).
+12. M-06 — folha de pagamento como aba do ViewDrawerV2.
+
+Posso começar pela **Onda A** se aprovado.

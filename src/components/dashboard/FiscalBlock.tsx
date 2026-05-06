@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, FileText, CheckCircle, AlertCircle, Clock, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatNumber, formatCurrency } from '@/lib/format';
-import { ScopeBadge } from './ScopeBadge';
+import { ScopeBadge, type ScopeKind } from './ScopeBadge';
 import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 
 interface FiscalStats {
@@ -16,9 +16,10 @@ interface FiscalStats {
 
 interface FiscalBlockProps {
   stats: FiscalStats;
+  scope?: ScopeKind;
 }
 
-export function FiscalBlock({ stats }: FiscalBlockProps) {
+export function FiscalBlock({ stats, scope }: FiscalBlockProps) {
   const navigate = useNavigate();
 
   const items = [
@@ -78,7 +79,7 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-secondary" />
           Fiscal
-          <ScopeBadge scope={{ kind: 'fixed-window', janela: 'mes-atual' }} />
+          <ScopeBadge scope={scope ?? { kind: 'fixed-window', janela: 'mes-atual' }} />
           {stats.pendentes > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">
               <Clock className="h-2.5 w-2.5" />
