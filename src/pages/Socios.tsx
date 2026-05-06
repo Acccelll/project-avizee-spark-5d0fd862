@@ -71,6 +71,8 @@ export default function Socios() {
   const { participacoes, create: createPart, remove: removePart } = useSocioParticipacoes(selected?.id);
   const [novaPart, setNovaPart] = useState({ percentual: 0, vigencia_inicio: new Date().toISOString().split("T")[0], vigencia_fim: "" });
 
+  const { isUnique: cpfUnico } = useDocumentoUnico("cpf", form.cpf, selected?.id, "socios");
+
   const kpis = useMemo(() => {
     const ativos = socios.filter((s) => s.ativo);
     const somaAtual = ativos.reduce((acc, s) => acc + Number(s.percentual_participacao_atual ?? 0), 0);
