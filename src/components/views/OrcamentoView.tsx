@@ -635,6 +635,9 @@ export function OrcamentoView({ id }: Props) {
                 )}
               </div>
             </div>
+
+            {/* M-04: mini-timeline de auditoria (admins) */}
+            <AuditTimelineMini tabela="orcamentos" registroId={id} />
           </div>
         </TabsContent>
       </Tabs>
