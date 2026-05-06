@@ -251,6 +251,9 @@ export default function Socios() {
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-cpf">CPF</Label>
                     <MaskedInput id="soc-cpf" mask="cpf" showValidation value={form.cpf} onChange={(v) => setForm({ ...form, cpf: v })} placeholder="000.000.000-00" />
+                    {cpfUnico === false && (
+                      <p className="text-[10px] text-destructive">CPF já cadastrado para outro sócio</p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-status">Status</Label>
