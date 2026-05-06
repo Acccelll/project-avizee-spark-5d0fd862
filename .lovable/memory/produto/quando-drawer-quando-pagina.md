@@ -28,6 +28,10 @@ type: design
   drawer abre para visualizar; "Editar" navega para `/{modulo}/:id`.
   Aceitável — drawer mantém stack relacional para visualização cruzada;
   edição séria de itens vai para página.
+- **Produtos** (desde C-01/MB-01/D-01): visualização via `ViewDrawerV2`
+  (`pushView("produto", id)`); criação/edição em página dedicada
+  `/produtos/novo` e `/produtos/:id/editar` (`src/pages/produtos/ProdutoForm.tsx`).
+  Justificativa: composição e fornecedores são tabelas editáveis dentro do form.
 
 ## Regras de implementação
 
