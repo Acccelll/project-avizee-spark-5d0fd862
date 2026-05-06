@@ -39,6 +39,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FormModal } from "@/components/FormModal";
 import {
@@ -56,6 +63,11 @@ interface FiscalChaveScannerDialogProps {
 }
 
 type Tab = "digitar" | "camera" | "upload";
+
+type CameraDeviceOption = {
+  deviceId: string;
+  label: string;
+};
 
 export function FiscalChaveScannerDialog({
   open,
