@@ -34,6 +34,7 @@ import {
   BrowserMultiFormatReader,
   type IScannerControls,
 } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +73,7 @@ export function FiscalChaveScannerDialog({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const [cameraAtiva, setCameraAtiva] = useState(false);
+  const [iniciandoCamera, setIniciandoCamera] = useState(false);
 
   // Reset ao fechar
   useEffect(() => {
@@ -116,16 +118,35 @@ export function FiscalChaveScannerDialog({
       setErroLeitura("Este navegador não suporta acesso à câmera.");
       return;
     }
-    const reader = new BrowserMultiFormatReader();
+    // Hints: focar nos formatos do DANFE/NFC-e e ativar TRY_HARDER.
+    // CODE-128 de 44 dígitos é longo e exige mais esforço de decodificação.
+    const hints = new Map<DecodeHintType, unknown>();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.CODE_128,
+      BarcodeFormat.QR_CODE,
+      BarcodeFormat.ITF,
+      BarcodeFormat.DATA_MATRIX,
+    ]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    const reader = new BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 80,
+      delayBetweenScanSuccess: 400,
+    });
+    setIniciandoCamera(true);
     try {
-      // `undefined` deixa o zxing escolher; em mobile pediremos a traseira
-      // via constraints quando possível.
+      // Pede a maior resolução viável — CODE-128 longo precisa de muitos
+      // pixels para que cada barra fina seja distinguível.
       const constraints: MediaStreamConstraints = {
-        video: { facingMode: { ideal: "environment" } },
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (!videoRef.current) {
         stream.getTracks().forEach((t) => t.stop());
+        setIniciandoCamera(false);
         return;
       }
       const controls = await reader.decodeFromStream(
@@ -156,6 +177,8 @@ export function FiscalChaveScannerDialog({
       } else {
         setErroLeitura(`Falha ao iniciar câmera: ${err.message}`);
       }
+    } finally {
+      setIniciandoCamera(false);
     }
   };
 
@@ -305,14 +328,24 @@ export function FiscalChaveScannerDialog({
                   <X className="h-4 w-4" /> Parar câmera
                 </Button>
               ) : (
-                <Button onClick={iniciarCamera} className="gap-2">
-                  <Camera className="h-4 w-4" /> Iniciar câmera
+                <Button onClick={iniciarCamera} disabled={iniciandoCamera} className="gap-2">
+                  {iniciandoCamera ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Iniciando…
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="h-4 w-4" /> Iniciar câmera
+                    </>
+                  )}
                 </Button>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground">
               Aponte para o código de barras (NF-e) ou QR Code (NFC-e) do DANFE.
-              Em celular, a câmera traseira é selecionada automaticamente quando disponível.
+              Para CODE-128 longo do DANFE, mantenha a câmera <strong>paralela</strong>
+              ao código, com boa iluminação e a barra ocupando toda a largura do quadro.
+              Em celular, a câmera traseira é selecionada automaticamente.
             </p>
           </TabsContent>
 
