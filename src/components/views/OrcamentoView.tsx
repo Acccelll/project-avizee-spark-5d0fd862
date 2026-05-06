@@ -648,7 +648,12 @@ export function OrcamentoView({ id }: Props) {
         onConfirm={async () => {
           try {
             // Usa a RPC oficial `cancelar_orcamento` para garantir auditoria.
-            await cancelarOrcamento(id, cancelMotivo.trim() || undefined);
+            const motivo = cancelMotivo.trim();
+            if (exigirMotivoCancel && !motivo) {
+              toast.error("Informe o motivo do cancelamento.");
+              return;
+            }
+            await cancelarOrcamento(id, motivo || undefined);
             invalidate(["orcamentos"]);
             await reload();
             setCancelMotivo("");
@@ -665,12 +670,15 @@ export function OrcamentoView({ id }: Props) {
         confirmVariant="destructive"
       >
         <div className="space-y-2 mt-2">
-          <Label className="text-xs">Motivo (opcional)</Label>
+          <Label className="text-xs">
+            Motivo {exigirMotivoCancel ? <span className="text-destructive">*</span> : "(opcional)"}
+          </Label>
           <Input
             value={cancelMotivo}
             onChange={(e) => setCancelMotivo(e.target.value)}
             placeholder="Ex: cliente desistiu, valor fora do orçado..."
             className="h-9"
+            required={exigirMotivoCancel}
           />
           <p className="text-[10px] text-muted-foreground">O motivo é registrado na auditoria do orçamento.</p>
         </div>
