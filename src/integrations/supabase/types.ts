@@ -9461,6 +9461,10 @@ export type Database = {
         Args: { p_id: string; p_itens: Json; p_payload: Json }
         Returns: string
       }
+      salvar_pedido_operacional: {
+        Args: { p_id: string; p_patch: Json }
+        Returns: string
+      }
       salvar_secret_vault: {
         Args: { p_name: string; p_secret: string }
         Returns: string
