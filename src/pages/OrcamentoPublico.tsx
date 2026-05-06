@@ -254,7 +254,8 @@ export default function OrcamentoPublico() {
 
   const handleAction = async (acao: "aprovado" | "rejeitado") => {
     if (!data || !token || actionLoading) return;
-    if (!["pendente", "rascunho"].includes(data.status)) {
+    // C-03: somente orçamentos enviados (status pendente) podem ser respondidos.
+    if (data.status !== "pendente") {
       toast.error("Este orçamento não está mais disponível para resposta.");
       return;
     }

@@ -452,7 +452,8 @@ const Pedidos = () => {
                 disabled={stockCheckPending || generatingNfId === p.id}
                 onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
               >
-                <FileOutput className="w-3 h-3" /> Gerar NF
+                <FileOutput className="w-3 h-3" />
+                {p.status_faturamento === "parcial" ? "Gerar NF complementar" : "Gerar NF"}
               </Button>
             ) : null
           )}
@@ -490,7 +491,8 @@ const Pedidos = () => {
                 disabled={stockCheckPending || generatingNfId === p.id}
                 onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
               >
-                <FileOutput className="w-4 h-4" /> Gerar NF
+                <FileOutput className="w-4 h-4" />
+                {p.status_faturamento === "parcial" ? "Gerar NF complementar" : "Gerar NF"}
               </Button>
             );
           }}

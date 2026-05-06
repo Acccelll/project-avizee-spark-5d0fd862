@@ -130,9 +130,15 @@ const Orcamentos = () => {
 
   // Realtime: invalida grid quando orçamentos mudam (aprovação/conversão em
   // outras abas, RPCs ou triggers) — mantém a lista sincronizada sem refresh.
+  // F-06: também invalida `faturamentoPedido` para que confirmação de NF em
+  // outra aba reflita o status `convertido` do orçamento.
   useEffect(() => {
     return subscribeComercial(() => {
-      INVALIDATION_KEYS.conversaoOrcamento.forEach((key) => {
+      const keys = new Set<string>([
+        ...INVALIDATION_KEYS.conversaoOrcamento,
+        ...INVALIDATION_KEYS.faturamentoPedido,
+      ]);
+      keys.forEach((key) => {
         qc.invalidateQueries({ queryKey: [key] });
       });
       fetchData();
@@ -340,7 +346,10 @@ const Orcamentos = () => {
       render: (o: Orcamento) => {
         const vs = getValidadeStatus(o.validade, o.status);
         const normalizedStatus = normalizeOrcamentoStatus(o.status);
-        const effectiveStatus = vs === "vencida" && normalizedStatus === "enviado" ? "expirado" : normalizedStatus;
+        // C-02: orçamento "pendente" com validade vencida deve aparecer como "expirado"
+        // (status canônico após Fase 3.2 — antes era "enviado", removido).
+        const effectiveStatus =
+          vs === "vencida" && normalizedStatus === "pendente" ? "expirado" : normalizedStatus;
         return <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />;
       },
     },

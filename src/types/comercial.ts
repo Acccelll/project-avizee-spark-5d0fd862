@@ -74,7 +74,7 @@ export type LancamentoListItem = Pick<
 export interface OrcamentoDetail {
   orcamento: OrcamentoWithCliente & { public_token?: string | null; revisao?: number | null };
   items: OrcamentoItemWithProduto[];
-  linkedOV: Pick<OrdemVendaRow, "id" | "numero"> | null;
+  linkedOV: Pick<OrdemVendaRow, "id" | "numero" | "status"> | null;
 }
 
 export interface OVDetail {

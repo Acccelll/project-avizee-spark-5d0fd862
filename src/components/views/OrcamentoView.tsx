@@ -23,14 +23,14 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import {
-  sendForApproval,
-  approveOrcamento,
   ensurePublicToken,
   cancelarOrcamento,
   criarRevisaoOrcamento,
   fetchOrcamentoDetalhes,
 } from "@/services/orcamentos.service";
+import { enviarOrcamentoAprovacao } from "@/services/comercial/orcamentosLifecycle.service";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
+import { useAprovarOrcamento } from "@/pages/comercial/hooks/useAprovarOrcamento";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
@@ -77,9 +77,11 @@ export function OrcamentoView({ id }: Props) {
   const { can } = useCan();
   const canAprovar = can("orcamentos:aprovar") || isAdmin;
   const canCancelar = can("orcamentos:cancelar") || isAdmin;
+  const canEditar = can("orcamentos:editar") || isAdmin;
   const { run, locked, isAnyLocked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
   const converterOrcamento = useConverterOrcamento();
+  const aprovarOrcamentoMut = useAprovarOrcamento();
   const crossToast = useCrossModuleToast();
 
   const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(
@@ -90,6 +92,10 @@ export function OrcamentoView({ id }: Props) {
   const selected = data?.orcamento ?? null;
   const items = data?.items ?? [];
   const linkedOV = data?.linkedOV ?? null;
+  // C-01: pedido vinculado só bloqueia cancelamento se ainda estiver ATIVO.
+  // Se o pedido derivado foi cancelado, o orçamento de origem deve poder
+  // ser cancelado normalmente.
+  const linkedOVAtivo = !!linkedOV && linkedOV.status !== "cancelada";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -105,16 +111,18 @@ export function OrcamentoView({ id }: Props) {
 
   const handleSendForApproval = () =>
     run("send_approval", async () => {
-      await sendForApproval(selected);
+      // F-03: usa serviço canônico (RPC com tipagem oficial).
+      await enviarOrcamentoAprovacao(selected.id);
       await reload();
       invalidate(["orcamentos"]);
+      toast.success(`Orçamento ${selected.numero} enviado para aprovação!`);
     }).catch(() => {});
 
   const handleApprove = () =>
     run("approve", async () => {
-      await approveOrcamento(selected);
+      // F-04: hook RQ com invalidação cross-módulo.
+      await aprovarOrcamentoMut.mutateAsync({ id: selected.id, numero: selected.numero });
       await reload();
-      invalidate(["orcamentos"]);
       setApproveConfirmOpen(false);
     }).catch(() => {});
 
@@ -228,24 +236,26 @@ export function OrcamentoView({ id }: Props) {
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
           <FileText className="h-3.5 w-3.5" /> PDF
         </Button>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" aria-label="Editar orçamento" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
-          <Edit className="h-3.5 w-3.5" /> Editar
-        </Button>
+        {canEditar && (
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs hidden md:inline-flex" aria-label="Editar orçamento" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+        )}
         {canCancelar && (
         <Button
           variant="ghost" size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
           aria-label="Cancelar orçamento"
           onClick={() => {
-            if (linkedOV) {
+            if (linkedOVAtivo) {
               toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
-                description: `Pedido ${linkedOV.numero} está vinculado a este orçamento.`,
+                description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
               });
               return;
             }
             setDeleteConfirmOpen(true);
           }}
-          disabled={Boolean(linkedOV)}
+          disabled={linkedOVAtivo}
         >
           <Trash2 className="h-3.5 w-3.5" /> Cancelar
         </Button>
@@ -276,9 +286,11 @@ export function OrcamentoView({ id }: Props) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
-              <Edit className="h-4 w-4 mr-2" /> Editar
-            </DropdownMenuItem>
+            {canEditar && (
+              <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+                <Edit className="h-4 w-4 mr-2" /> Editar
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
               <FileText className="h-4 w-4 mr-2" /> PDF
             </DropdownMenuItem>
@@ -301,11 +313,11 @@ export function OrcamentoView({ id }: Props) {
             {canCancelar && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              disabled={Boolean(linkedOV)}
+              disabled={linkedOVAtivo}
               onClick={() => {
-                if (linkedOV) {
+                if (linkedOVAtivo) {
                   toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
-                    description: `Pedido ${linkedOV.numero} está vinculado a este orçamento.`,
+                    description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
                   });
                   return;
                 }
