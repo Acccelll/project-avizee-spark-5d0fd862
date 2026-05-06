@@ -8,6 +8,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert } from "@/integrations/supabase/types";
+import { safeDelete } from "@/services/_shared/safeDelete";
 
 export interface GerarFinanceiroFolhaResult {
   ok?: boolean;
@@ -31,4 +32,27 @@ export async function gerarFinanceiroFolha(
   });
   if (error) throw error;
   return (data || {}) as GerarFinanceiroFolhaResult;
+}
+
+/**
+ * Remove (desativa) um funcionário. Soft delete por padrão; bloqueia
+ * quando há folha de pagamento ou lançamentos financeiros vinculados.
+ * Use `hardDelete: true` apenas em fluxos administrativos (gate por
+ * `useCanHardDelete`).
+ */
+export async function deleteFuncionario(
+  id: string,
+  opts?: { hardDelete?: boolean },
+): Promise<void> {
+  await safeDelete({
+    table: "funcionarios",
+    id,
+    entityLabel: "Funcionário",
+    hardDelete: opts?.hardDelete,
+    dependencies: [
+      { table: "folha_pagamento", column: "funcionario_id", label: "folhas de pagamento" },
+      { table: "financeiro_lancamentos", column: "funcionario_id", label: "lançamentos financeiros" },
+      { table: "fechamento_fopag_resumo", column: "funcionario_id", label: "fechamentos de folha" },
+    ],
+  });
 }
