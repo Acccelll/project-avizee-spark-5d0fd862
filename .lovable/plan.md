@@ -93,7 +93,7 @@ Validação: criar produto com itens, conferir scroll natural, SKU duplicado blo
 
 Limpeza final e melhorias de UX/dados. **Status:** quase tudo feito.
 
-- **BK-03** `set_principal_endereco`: rodar `read_query` em `pg_proc` para confirmar existência; se ok, regenerar tipos via supabase types e remover `as never`. Se não existir, criar a função em migration (SECURITY DEFINER, `search_path = public`).
+- ~~**BK-03** `set_principal_endereco`: confirmada via `pg_proc`, tipos já gerados, `as never` removido em `clientes.service.ts`~~ ✅ feito.
 - **A-06 / BK-04** `produtos.variacoes` migrar para `text[]`: migration com `USING (string_to_array(variacoes, ','))`, normalizar valores antigos JSON, remover dual-path no frontend.
 - ~~**SH-05** `fetchClienteDetalhes` → `Promise.allSettled`~~ ✅ feito.
 - ~~**SH-03** `useSocios.ts` migrar para `useQuery`~~ ✅ já estava migrado (`src/hooks/useSocios.ts`).

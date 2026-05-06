@@ -72,10 +72,10 @@ export async function setEnderecoPrincipal(
   clienteId: string,
   enderecoId: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc("set_principal_endereco" as never, {
+  const { error } = await supabase.rpc("set_principal_endereco", {
     p_cliente_id: clienteId,
     p_endereco_id: enderecoId,
-  } as never);
+  });
   if (error) throw error;
 }
 
