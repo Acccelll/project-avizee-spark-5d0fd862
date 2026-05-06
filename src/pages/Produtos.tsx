@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -194,7 +195,28 @@ function dedupeProdutosCanonicos<T extends Produto>(produtos: T[]): T[] {
 const Produtos = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
+  const { value: filterValue, set: setFilter, clear: clearFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      tipo: { type: "stringArray" },
+      tipoItem: { type: "stringArray" },
+      estoque: { type: "stringArray" },
+      grupo: { type: "stringArray" },
+      ativo: { type: "stringArray" },
+    },
+  });
+  const searchTerm = filterValue.q;
+  const setSearchTerm = (v: string) => setFilter({ q: v });
+  const tipoFilters = filterValue.tipo;
+  const setTipoFilters = (v: string[]) => setFilter({ tipo: v });
+  const tipoItemFilters = filterValue.tipoItem;
+  const setTipoItemFilters = (v: string[]) => setFilter({ tipoItem: v });
+  const estoqueFilters = filterValue.estoque;
+  const setEstoqueFilters = (v: string[]) => setFilter({ estoque: v });
+  const grupoFilters = filterValue.grupo;
+  const setGrupoFilters = (v: string[]) => setFilter({ grupo: v });
+  const ativoFilters = filterValue.ativo;
+  const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
   const { can } = useCan();
@@ -217,11 +239,6 @@ const Produtos = () => {
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const [margemOverride, setMargemOverride] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [tipoFilters, setTipoFilters] = useState<string[]>([]);
-  const [tipoItemFilters, setTipoItemFilters] = useState<string[]>([]);
-  const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
-  const [grupoFilters, setGrupoFilters] = useState<string[]>([]);
-  const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [grupos, setGrupos] = useState<{id: string; nome: string; sigla?: string | null}[]>([]);
   const { buscarNcm, loading: ncmLoading } = useNcmLookup();
 
@@ -790,11 +807,11 @@ const Produtos = () => {
   }, [ativoFilters, tipoFilters, tipoItemFilters, estoqueFilters, grupoFilters, grupos]);
 
   const handleRemoveProdFilter = (key: string, value?: string) => {
-    if (key === "ativo") setAtivoFilters(prev => prev.filter(v => v !== value));
-    if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
-    if (key === "tipoItem") setTipoItemFilters(prev => prev.filter(v => v !== value));
-    if (key === "estoque") setEstoqueFilters(prev => prev.filter(v => v !== value));
-    if (key === "grupo") setGrupoFilters(prev => prev.filter(v => v !== value));
+    if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
+    if (key === "tipo") setTipoFilters(tipoFilters.filter(v => v !== value));
+    if (key === "tipoItem") setTipoItemFilters(tipoItemFilters.filter(v => v !== value));
+    if (key === "estoque") setEstoqueFilters(estoqueFilters.filter(v => v !== value));
+    if (key === "grupo") setGrupoFilters(grupoFilters.filter(v => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [
@@ -874,7 +891,7 @@ const Produtos = () => {
           searchPlaceholder="Buscar por nome, SKU ou código..."
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
-          onClearAll={() => { setAtivoFilters([]); setTipoFilters([]); setTipoItemFilters([]); setEstoqueFilters([]); setGrupoFilters([]); }}
+          onClearAll={() => clearFilters(["tipo", "tipoItem", "estoque", "grupo", "ativo"])}
           count={filteredData.length}
         >
           <MultiSelect

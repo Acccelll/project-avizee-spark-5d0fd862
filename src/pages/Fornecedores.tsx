@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -74,7 +75,19 @@ const Fornecedores = () => {
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
   const { can } = useCan();
   const canExcluir = can("fornecedores:excluir");
-  const [searchTerm, setSearchTerm] = useState("");
+  const { value: filterValue, set: setFilter, clear: clearFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      tipo: { type: "stringArray" },
+      ativo: { type: "stringArray" },
+    },
+  });
+  const searchTerm = filterValue.q;
+  const setSearchTerm = (v: string) => setFilter({ q: v });
+  const tipoFilters = filterValue.tipo;
+  const setTipoFilters = (v: string[]) => setFilter({ tipo: v });
+  const ativoFilters = filterValue.ativo;
+  const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -106,8 +119,6 @@ const Fornecedores = () => {
   );
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [tipoFilters, setTipoFilters] = useState<string[]>([]);
-  const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [modalProdutosForn, setModalProdutosForn] = useState<Array<{
     id: string; produto_nome: string; preco_compra: number | null;
     lead_time_dias: number | null; eh_principal: boolean | null;
@@ -319,8 +330,8 @@ const Fornecedores = () => {
   }, [tipoFilters, ativoFilters]);
 
   const handleRemoveFornFilter = (key: string, value?: string) => {
-    if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
-    if (key === "ativo") setAtivoFilters(prev => prev.filter(v => v !== value));
+    if (key === "tipo") setTipoFilters(tipoFilters.filter(v => v !== value));
+    if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [
@@ -358,7 +369,7 @@ const Fornecedores = () => {
           searchPlaceholder="Buscar por razão social, CNPJ, e-mail ou cidade..."
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
-          onClearAll={() => { setSearchTerm(""); setTipoFilters([]); setAtivoFilters([]); }}
+          onClearAll={() => clearFilters()}
           count={filteredData.length}
         >
           <MultiSelect

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -112,7 +113,22 @@ const MAX_OBSERVACOES_LENGTH = 2000;
 const Clientes = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
+  const { value: filterValue, set: setFilter, clear: clearFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      tipo: { type: "stringArray" },
+      grupo: { type: "stringArray" },
+      ativo: { type: "stringArray" },
+    },
+  });
+  const searchTerm = filterValue.q;
+  const setSearchTerm = (v: string) => setFilter({ q: v });
+  const tipoFilters = filterValue.tipo;
+  const setTipoFilters = (v: string[]) => setFilter({ tipo: v });
+  const grupoFilters = filterValue.grupo;
+  const setGrupoFilters = (v: string[]) => setFilter({ grupo: v });
+  const ativoFilters = filterValue.ativo;
+  const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
@@ -142,9 +158,6 @@ const Clientes = () => {
 
   const [grupos, setGrupos] = useState<GrupoEconomico[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoBasic[]>([]);
-  const [tipoFilters, setTipoFilters] = useState<string[]>([]);
-  const [grupoFilters, setGrupoFilters] = useState<string[]>([]);
-  const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
 
   const [enderecosCount, setEnderecosCount] = useState(0);
   const [comunicacoesCount, setComunicacoesCount] = useState(0);
@@ -330,9 +343,9 @@ const Clientes = () => {
   }, [tipoFilters, grupoFilters, grupos, ativoFilters]);
 
   const handleRemoveCliFilter = (key: string, value?: string) => {
-    if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
-    if (key === "grupo") setGrupoFilters(prev => prev.filter(v => v !== value));
-    if (key === "ativo") setAtivoFilters(prev => prev.filter(v => v !== value));
+    if (key === "tipo") setTipoFilters(tipoFilters.filter(v => v !== value));
+    if (key === "grupo") setGrupoFilters(grupoFilters.filter(v => v !== value));
+    if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [
@@ -377,7 +390,7 @@ const Clientes = () => {
           searchPlaceholder="Buscar por nome, CNPJ, e-mail ou cidade..."
           activeFilters={cliActiveFilters}
           onRemoveFilter={handleRemoveCliFilter}
-          onClearAll={() => { setTipoFilters([]); setGrupoFilters([]); setAtivoFilters([]); }}
+          onClearAll={() => clearFilters(["tipo", "grupo", "ativo"])}
           count={filteredData.length}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[130px]" />
