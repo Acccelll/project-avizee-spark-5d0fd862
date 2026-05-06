@@ -44,6 +44,7 @@ interface PedidoRecord {
   id: string;
   numero: string;
   status: string | null;
+  status_faturamento: string | null;
   data_emissao: string | null;
   po_number: string | null;
   data_po_cliente: string | null;
@@ -79,7 +80,7 @@ const PedidoForm = () => {
       try {
         const { data, error } = await supabase
           .from("ordens_venda")
-          .select("id, numero, status, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(numero)")
+          .select("id, numero, status, status_faturamento, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(numero)")
           .eq("id", id)
           .maybeSingle();
         if (error) throw error;
