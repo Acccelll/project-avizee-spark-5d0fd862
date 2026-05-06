@@ -17,6 +17,7 @@ import { useCan } from "@/hooks/useCan";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import { notifyError } from "@/utils/errorMessages";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
@@ -83,6 +84,11 @@ export function OrcamentoView({ id }: Props) {
   const converterOrcamento = useConverterOrcamento();
   const aprovarOrcamentoMut = useAprovarOrcamento();
   const crossToast = useCrossModuleToast();
+  // B-03: motivo obrigatório de cancelamento de orçamento (paralelo ao do pedido).
+  const { value: comercialFlags } = useAppConfig<{
+    exigir_motivo_cancelamento_orcamento?: boolean;
+  }>("comercial", { exigir_motivo_cancelamento_orcamento: false });
+  const exigirMotivoCancel = Boolean(comercialFlags?.exigir_motivo_cancelamento_orcamento);
 
   const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(
     id,
