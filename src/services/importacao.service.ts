@@ -81,7 +81,7 @@ export interface ConsolidacaoResult {
 export async function listProdutosLookup() {
   const { data, error } = await supabase
     .from("produtos")
-    .select("id, codigo_interno, codigo_legado, nome, preco_custo, preco_venda, estoque_atual");
+    .select("id, codigo_interno, codigo_legado, sku, nome, preco_custo, preco_venda, estoque_atual");
   if (error) throw error;
   return data ?? [];
 }
