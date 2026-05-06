@@ -41,6 +41,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
 import { useCan } from "@/hooks/useCan";
 import { logger } from "@/lib/logger";
+import { formatVariacoesSuffix } from "@/utils/cadastros";
 
 type ProdutoRow = TableRow<"produtos">;
 
@@ -248,14 +249,9 @@ const Estoque = () => {
     if (pendingSubmit || saving) return;
     if (!form.produto_id) { toast.error("Selecione um produto"); return; }
     if (form.quantidade <= 0) { toast.error("A quantidade deve ser maior que zero"); return; }
-    if (!form.motivo.trim()) {
-      const motivoMsg =
-        form.tipo === "saida" ? "Informe o motivo da saída de estoque" :
-        form.tipo === "entrada" ? "Informe a origem da entrada de estoque" :
-        "Informe o motivo do ajuste manual";
-      toast.error(motivoMsg);
-      return;
-    }
+    // Justificativa opcional por ora — RPC `ajustar_estoque_manual` exige
+    // `motivo_estruturado` com >=10 chars para tipos críticos; aplicamos
+    // fallback automático no executeMovimentacao quando vazia.
     // Warn about negative balance (allow with explicit confirmation via ConfirmDialog)
     if (form.tipo === "saida") {
       const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
@@ -289,15 +285,18 @@ const Estoque = () => {
       //  - atualização atômica de produtos.estoque_atual + auditoria
       const tipoRpc = pendingMovForm.tipo;
       const isCritico = tipoRpc === "ajuste";
+      const motivoFinal = pendingMovForm.motivo?.trim()
+        ? pendingMovForm.motivo
+        : "Ajuste sem justificativa registrada";
       // Para entrada/saída a quantidade é o delta; para ajuste é o saldo absoluto.
       const quantidadeRpc = tipoRpc === "ajuste" ? pendingMovForm.quantidade : Math.abs(qty);
       await ajustar.mutateAsync({
         produto_id: pendingMovForm.produto_id,
         tipo: tipoRpc,
         quantidade: quantidadeRpc,
-        motivo: pendingMovForm.motivo,
+        motivo: motivoFinal,
         categoria_ajuste: isCritico ? pendingMovForm.categoria_ajuste : undefined,
-        motivo_estruturado: isCritico ? pendingMovForm.motivo : undefined,
+        motivo_estruturado: isCritico ? motivoFinal : undefined,
       });
       // Variáveis de saldo previstas mantidas apenas para preview na UI.
       void saldo_anterior; void saldo_atual;
