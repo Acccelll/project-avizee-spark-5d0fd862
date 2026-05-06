@@ -23,7 +23,7 @@ import {
 export async function loadEstoque(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   let query = supabase
     .from("produtos")
-    .select("id, codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
+    .select("id, sku, codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
     .eq("ativo", true)
     .order("nome");
   if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
@@ -41,7 +41,7 @@ export async function loadEstoque(filtros: FiltroRelatorio): Promise<RelatorioRe
     else criticidade = "OK";
     return {
       produtoId: item.id as string,
-      codigo: (item.codigo_interno as string | null) || "-",
+      codigo: (item.codigo_interno as string | null) || (item.sku as string | null) || "-",
       produto: item.nome as string,
       grupo: ((item.grupos_produto as { nome?: string } | null)?.nome) || "-",
       unidade: (item.unidade_medida as string | null) || "UN",
@@ -83,7 +83,7 @@ export async function loadEstoque(filtros: FiltroRelatorio): Promise<RelatorioRe
 export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   let query = supabase
     .from("estoque_movimentos")
-    .select("produto_id, tipo, quantidade, saldo_anterior, saldo_atual, documento_tipo, motivo, created_at, produtos(nome, codigo_interno)")
+    .select("produto_id, tipo, quantidade, saldo_anterior, saldo_atual, documento_tipo, motivo, created_at, produtos(nome, sku, codigo_interno)")
     .order("created_at", { ascending: false });
 
   query = withDateRange(query, "created_at", filtros);
@@ -126,7 +126,7 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
       produtoId: item.produto_id as string | null,
       data: item.created_at,
       produto: ((item.produtos as { nome?: string } | null)?.nome) || "-",
-      codigo: ((item.produtos as { codigo_interno?: string } | null)?.codigo_interno) || "-",
+      codigo: ((item.produtos as { codigo_interno?: string | null; sku?: string | null } | null)?.codigo_interno) || ((item.produtos as { sku?: string | null } | null)?.sku) || "-",
       tipo,
       statusKey: meta.key,
       statusKind: meta.kind,
@@ -177,7 +177,7 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
 export async function loadMargemProdutos(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   let query = supabase
     .from("produtos")
-    .select("id, codigo_interno, nome, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
+    .select("id, sku, codigo_interno, nome, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
     .eq("ativo", true)
     .order("nome");
   if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
@@ -192,7 +192,7 @@ export async function loadMargemProdutos(filtros: FiltroRelatorio): Promise<Rela
     const markup = custo > 0 ? ((venda - custo) / custo) * 100 : 0;
     return {
       produtoId: item.id,
-      codigo: item.codigo_interno || "-",
+      codigo: item.codigo_interno || (item as { sku?: string | null }).sku || "-",
       produto: item.nome,
       grupo: item.grupos_produto?.nome || "-",
       custUnit: custo,
@@ -224,7 +224,7 @@ export async function loadMargemProdutos(filtros: FiltroRelatorio): Promise<Rela
 export async function loadEstoqueMinimo(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   let query = supabase
     .from("produtos")
-    .select("id, codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
+    .select("id, sku, codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
     .eq("ativo", true)
     .order("nome");
   if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
@@ -241,7 +241,7 @@ export async function loadEstoqueMinimo(filtros: FiltroRelatorio): Promise<Relat
       const criticidade = atual <= 0 ? "Zerado" : "Abaixo do mínimo";
       return {
         produtoId: p.id,
-        codigo: p.codigo_interno || "-",
+        codigo: p.codigo_interno || (p as { sku?: string | null }).sku || "-",
         produto: p.nome,
         grupo: p.grupos_produto?.nome || "-",
         unidade: p.unidade_medida || "UN",
