@@ -482,25 +482,42 @@ export default function OrcamentoForm() {
 
           // Recalculate prices for existing items if they have special prices
           if (items.length > 0) {
-            let applied = false;
-            const nextItems = items.map(item => {
-              if (!item.produto_id) return item;
-              const rule = rules.find((r: { produto_id: string }) => r.produto_id === item.produto_id);
-              if (rule) {
-                const ruleAny = rule as { preco_especial?: number };
-                if (ruleAny.preco_especial && Number(ruleAny.preco_especial) > 0) {
-                  const newPrice = Number(ruleAny.preco_especial);
-                  applied = true;
-                  return { ...item, valor_unitario: newPrice, valor_total: item.quantidade * newPrice };
-                }
-              }
-              return item;
-            });
-            setItems(nextItems);
-            if (applied) {
+            const itensCompat = items
+              .filter((it) => it.produto_id)
+              .map((it) => ({
+                produto_id: it.produto_id as string,
+                valor_unitario: it.valor_unitario,
+                quantidade: it.quantidade,
+              }));
+            const { alterados } = aplicarPrecosEspeciaisEmLote(
+              itensCompat,
+              rules as RegraPrecoEspecial[],
+              new Date(),
+            );
+            if (alterados.length > 0) {
+              const alteradosSet = new Set(alterados);
+              const nextItems = items.map((item) => {
+                if (!item.produto_id || !alteradosSet.has(item.produto_id)) return item;
+                const regra = (rules as RegraPrecoEspecial[]).find(
+                  (r) => r.produto_id === item.produto_id,
+                );
+                const novoPreco = regra?.preco_especial
+                  ? Number(regra.preco_especial)
+                  : item.valor_unitario;
+                return {
+                  ...item,
+                  valor_unitario: novoPreco,
+                  valor_total: Math.round(item.quantidade * novoPreco * 100) / 100,
+                };
+              });
+              setItems(nextItems);
               toast.info("Preços recalculados com base nas regras do cliente selecionado");
             }
           }
+        })
+        .catch((err) => {
+          console.error("[orcamento] preços especiais:", err);
+          notifyError(err);
         });
     } else {
       setPrecosEspeciais([]);
