@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Send, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -17,12 +16,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import {
-  enviarCartaCorrecao,
-  resolverUrlSefaz,
-  type AmbienteSefaz,
-} from "@/services/fiscal/sefaz";
+import { enviarCartaCorrecao, resolverUrlSefaz } from "@/services/fiscal/sefaz";
 import { registrarEventoFiscal } from "@/services/fiscal.service";
+import {
+  getEmpresaSefazContext,
+  listCCeHistorico,
+  registrarEventoCCe,
+} from "@/services/fiscal/manifestacao.repository";
+import { fiscalKeys } from "@/lib/queryKeys/fiscal";
 import { notifyError } from "@/utils/errorMessages";
 import type { NotaFiscal } from "@/types/domain";
 
@@ -30,17 +31,6 @@ interface CartaCorrecaoDrawerProps {
   nf: NotaFiscal;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-interface EventoCCe {
-  id: string;
-  sequencia: number;
-  correcao: string | null;
-  protocolo: string | null;
-  data_evento: string | null;
-  status_sefaz: string;
-  motivo_retorno: string | null;
-  created_at: string;
 }
 
 const MAX_CCE = 20;
@@ -53,17 +43,8 @@ export function CartaCorrecaoDrawer({ nf, open, onOpenChange }: CartaCorrecaoDra
   const [enviando, setEnviando] = useState(false);
 
   const { data: historico = [], isLoading } = useQuery({
-    queryKey: ["cce-historico", nf.id],
-    queryFn: async (): Promise<EventoCCe[]> => {
-      const { data, error } = await supabase
-        .from("eventos_fiscais")
-        .select("id, sequencia, correcao, protocolo, data_evento, status_sefaz, motivo_retorno, created_at")
-        .eq("nota_fiscal_id", nf.id)
-        .eq("tipo_evento", "cce")
-        .order("sequencia", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as EventoCCe[];
-    },
+    queryKey: fiscalKeys.cceHistorico(nf.id),
+    queryFn: () => listCCeHistorico(nf.id),
     enabled: open,
   });
 
@@ -82,44 +63,29 @@ export function CartaCorrecaoDrawer({ nf, open, onOpenChange }: CartaCorrecaoDra
     }
     setEnviando(true);
     try {
-      const { data: cfg } = await supabase
-        .from("empresa_config")
-        .select("uf, ambiente_sefaz, ambiente_padrao, cnpj")
-        .limit(1)
-        .maybeSingle();
-      if (!cfg?.cnpj || !cfg?.uf) {
-        throw new Error("Configuração da empresa incompleta (CNPJ/UF).");
-      }
-      let ambiente: AmbienteSefaz = "2";
-      if (cfg.ambiente_sefaz === "1" || cfg.ambiente_sefaz === "2") ambiente = cfg.ambiente_sefaz;
-      else if (cfg.ambiente_padrao === "producao") ambiente = "1";
-
-      const url = resolverUrlSefaz(cfg.uf.toUpperCase(), ambiente, "evento");
+      const ctx = await getEmpresaSefazContext({ requireUf: true });
+      const url = resolverUrlSefaz(ctx.uf, ctx.ambiente, "evento");
       const result = await enviarCartaCorrecao(
         {
           chave: nf.chave_acesso,
           correcao: correcao.trim(),
-          cnpjEmitente: cfg.cnpj,
+          cnpjEmitente: ctx.cnpj,
           sequencia: proximaSeq,
-          ambiente,
+          ambiente: ctx.ambiente,
         },
         { tipo: "A1", conteudo: "", senha: "" },
         url,
       );
 
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("eventos_fiscais").insert({
+      await registrarEventoCCe({
         nota_fiscal_id: nf.id,
-        tipo_evento: "cce",
-        codigo_evento: "110110",
         sequencia: proximaSeq,
         correcao: correcao.trim(),
         protocolo: result.protocolo ?? null,
-        data_evento: result.dataRetorno ?? new Date().toISOString(),
+        data_evento: result.dataRetorno ?? null,
         status_sefaz: result.sucesso ? "autorizado" : "rejeitado",
         motivo_retorno: result.motivo ?? null,
         xml_retorno: result.xmlRetorno ?? null,
-        usuario_id: user?.id ?? null,
       });
 
       await registrarEventoFiscal({
@@ -135,7 +101,7 @@ export function CartaCorrecaoDrawer({ nf, open, onOpenChange }: CartaCorrecaoDra
       } else {
         toast.error(`SEFAZ rejeitou: ${result.motivo ?? "—"}`);
       }
-      qc.invalidateQueries({ queryKey: ["cce-historico", nf.id] });
+      qc.invalidateQueries({ queryKey: fiscalKeys.cceHistorico(nf.id) });
     } catch (e) {
       notifyError(e);
     } finally {

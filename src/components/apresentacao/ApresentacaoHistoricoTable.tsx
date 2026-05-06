@@ -41,5 +41,13 @@ export function ApresentacaoHistoricoTable({
     },
   ];
 
-  return <DataTable columns={columns} data={geracoes} loading={isLoading} emptyTitle="Nenhuma geração encontrada." />;
+  return (
+    <DataTable
+      columns={columns}
+      data={geracoes}
+      loading={isLoading}
+      emptyTitle="Nenhuma geração encontrada."
+      mobileStatusKey="status"
+    />
+  );
 }

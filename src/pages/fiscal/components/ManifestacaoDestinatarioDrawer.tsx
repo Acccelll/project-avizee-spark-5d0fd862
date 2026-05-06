@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +43,26 @@ import {
   statusManifestacaoFromEvento,
   tipoEventoFiscalFromManifestacao,
   sincronizarDistDFe,
-  type AmbienteSefaz,
   type TipoManifestacao,
 } from "@/services/fiscal/sefaz";
+import {
+  atualizarStatusManifestacao,
+  getEmpresaSefazContext,
+  insertNfeDistribuicaoPorChave,
+  listFornecedoresAtivosMin,
+  listNfeCapturadas,
+  listNfeDistribuicaoItens,
+  listProdutosAtivosMin,
+  mapearProdutoNfeItem,
+  processarNfeDistribuicao,
+  registrarEventoManifestacao,
+  upsertNfeFromXml,
+  type FornecedorMinRow,
+  type NfeCapturadaRow,
+  type NfeDistItemRow,
+  type ProdutoMinRow,
+} from "@/services/fiscal/manifestacao.repository";
+import { fiscalKeys } from "@/lib/queryKeys/fiscal";
 import { notifyError } from "@/utils/errorMessages";
 import { parseNFeXml, type NFeXmlItem } from "@/services/fiscal/nfeXmlParser.service";
 import { formatCurrency } from "@/lib/format";
@@ -75,23 +91,7 @@ interface ManifestacaoDrawerProps {
   highlightNfeId?: string | null;
 }
 
-interface NfeCapturada {
-  id: string;
-  chave_acesso: string;
-  cnpj_emitente: string | null;
-  nome_emitente: string | null;
-  numero: string | null;
-  serie: string | null;
-  data_emissao: string | null;
-  valor_total: number | null;
-  protocolo_autorizacao: string | null;
-  status_manifestacao: string;
-  data_manifestacao: string | null;
-  observacao: string | null;
-  xml_importado: boolean;
-  processado?: boolean;
-  data_processamento?: string | null;
-}
+type NfeCapturada = NfeCapturadaRow;
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   sem_manifestacao: { label: "Sem manifestação", variant: "outline" },
@@ -145,18 +145,8 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
   }, [open, highlightNfeId, /* re-roda quando notas chegam: */]);
 
   const { data: notas = [], isLoading } = useQuery({
-    queryKey: ["nfe-distribuicao"],
-    queryFn: async (): Promise<NfeCapturada[]> => {
-      const { data, error } = await supabase
-        .from("nfe_distribuicao")
-        .select(
-          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado, processado, data_processamento",
-        )
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return (data ?? []) as NfeCapturada[];
-    },
+    queryKey: fiscalKeys.nfeDistribuicao(),
+    queryFn: () => listNfeCapturadas(),
     enabled: open,
   });
 
@@ -169,26 +159,19 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
     setSalvando(true);
     try {
       const { cnpj, serie, numero, data } = extrairDoChave(chave);
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("nfe_distribuicao").insert({
+      const { duplicado } = await insertNfeDistribuicaoPorChave({
         chave_acesso: chave,
         cnpj_emitente: cnpj,
         numero,
         serie,
         data_emissao: data,
-        status_manifestacao: "sem_manifestacao",
-        usuario_id: user?.id ?? null,
       });
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("Esta chave já está cadastrada.");
-        } else {
-          throw error;
-        }
+      if (duplicado) {
+        toast.error("Esta chave já está cadastrada.");
       } else {
         toast.success("NF-e adicionada para manifestação.");
         setNovaChave("");
-        qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+        qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
       }
     } catch (e) {
       notifyError(e);
@@ -204,57 +187,41 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
   ) => {
     setManifestando(nf.id);
     try {
-      const { data: cfg } = await supabase
-        .from("empresa_config")
-        .select("cnpj, ambiente_sefaz, ambiente_padrao")
-        .limit(1)
-        .maybeSingle();
-      if (!cfg?.cnpj) {
-        throw new Error("Configuração da empresa incompleta (CNPJ).");
-      }
-      let ambiente: AmbienteSefaz = "2";
-      if (cfg.ambiente_sefaz === "1" || cfg.ambiente_sefaz === "2") ambiente = cfg.ambiente_sefaz;
-      else if (cfg.ambiente_padrao === "producao") ambiente = "1";
-
+      const ctx = await getEmpresaSefazContext();
       const result = await enviarManifestacao(
         {
           chave: nf.chave_acesso,
-          cnpjDestinatario: cfg.cnpj,
+          cnpjDestinatario: ctx.cnpj,
           tpEvento,
-          ambiente,
+          ambiente: ctx.ambiente,
           justificativa,
         },
         { tipo: "A1", conteudo: "", senha: "" },
       );
 
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("eventos_fiscais").insert({
+      await registrarEventoManifestacao({
         nfe_distribuicao_id: nf.id,
         tipo_evento: tipoEventoFiscalFromManifestacao(tpEvento),
         codigo_evento: tpEvento,
-        sequencia: 1,
         justificativa: justificativa ?? null,
         protocolo: result.protocolo ?? null,
-        data_evento: result.dataRetorno ?? new Date().toISOString(),
+        data_evento: result.dataRetorno ?? null,
         status_sefaz: result.sucesso ? "autorizado" : "rejeitado",
         motivo_retorno: result.motivo ?? null,
         xml_retorno: result.xmlRetorno ?? null,
-        usuario_id: user?.id ?? null,
       });
 
       if (result.sucesso) {
-        await supabase
-          .from("nfe_distribuicao")
-          .update({
-            status_manifestacao: statusManifestacaoFromEvento(tpEvento),
-            data_manifestacao: result.dataRetorno ?? new Date().toISOString(),
-          })
-          .eq("id", nf.id);
+        await atualizarStatusManifestacao({
+          nfeId: nf.id,
+          status: statusManifestacaoFromEvento(tpEvento),
+          dataManifestacao: result.dataRetorno ?? new Date().toISOString(),
+        });
         toast.success(`Manifestação registrada — protocolo ${result.protocolo ?? "—"}`);
       } else {
         toast.error(`SEFAZ rejeitou: ${result.motivo ?? "—"}`);
       }
-      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+      qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
     } catch (e) {
       notifyError(e);
     } finally {
@@ -284,9 +251,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
     try {
       const text = await file.text();
       const parsed = parseNFeXml(text);
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const payloadHeader = {
+      await upsertNfeFromXml({
         chave_acesso: parsed.chave,
         cnpj_emitente: parsed.cnpjEmitente,
         nome_emitente: parsed.nomeEmitente,
@@ -299,50 +264,15 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
         natureza_operacao: parsed.naturezaOperacao,
         uf_emitente: parsed.ufEmitente,
         ie_emitente: parsed.ieEmitente,
-        protocolo_autorizacao: parsed.protocolo,
-        xml_nfe: text,
-        xml_importado: true,
-        usuario_id: user?.id ?? null,
-      };
-
-      // Upsert por chave_acesso (UNIQUE). Mantém status_manifestacao existente
-      // ao não enviar — onConflict atualiza apenas as colunas do payload.
-      const { data: upserted, error } = await supabase
-        .from("nfe_distribuicao")
-        .upsert(payloadHeader, { onConflict: "chave_acesso" })
-        .select("id")
-        .single();
-      if (error) throw error;
-
-      // Reescreve itens (delete + insert) para evitar drift quando reimportado
-      await supabase
-        .from("nfe_distribuicao_itens")
-        .delete()
-        .eq("nfe_distribuicao_id", upserted.id);
-
-      if (parsed.itens.length > 0) {
-        const itensRows = parsed.itens.map((it) => ({
-          nfe_distribuicao_id: upserted.id,
-          numero_item: it.numero,
-          codigo: it.codigo,
-          descricao: it.descricao,
-          ncm: it.ncm,
-          cfop: it.cfop,
-          unidade: it.unidade,
-          quantidade: it.quantidade,
-          valor_unitario: it.valorUnitario,
-          valor_total: it.valorTotal,
-        }));
-        const { error: itErr } = await supabase
-          .from("nfe_distribuicao_itens")
-          .insert(itensRows);
-        if (itErr) throw itErr;
-      }
+        protocolo: parsed.protocolo,
+        xml: text,
+        itens: parsed.itens,
+      });
 
       toast.success(
         `XML importado — NF ${parsed.numero}/${parsed.serie} (${parsed.itens.length} ${parsed.itens.length === 1 ? "item" : "itens"})`,
       );
-      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+      qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
     } catch (e) {
       notifyError(e);
     } finally {
@@ -362,7 +292,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
       toast.success(
         `Sincronizado: ${r.novos} nova(s), ${r.duplicados} já existente(s). NSU ${r.ultNSU ?? "—"}/${r.maxNSU ?? "—"}`,
       );
-      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+      qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
     } catch (e) {
       notifyError(e);
     } finally {
@@ -659,7 +589,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
         nf={processarTarget}
         onClose={() => setProcessarTarget(null)}
         onProcessed={() => {
-          qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+          qc.invalidateQueries({ queryKey: fiscalKeys.nfeDistribuicao() });
           setProcessarTarget(null);
         }}
       />
@@ -678,25 +608,20 @@ interface ItensDialogProps {
 
 function ItensDialog({ nf, onClose }: ItensDialogProps) {
   const { data: itens = [], isLoading } = useQuery({
-    queryKey: ["nfe-distribuicao-itens", nf?.id],
+    queryKey: fiscalKeys.nfeDistribuicaoItens(nf?.id),
     queryFn: async (): Promise<NFeXmlItem[]> => {
       if (!nf) return [];
-      const { data, error } = await supabase
-        .from("nfe_distribuicao_itens")
-        .select("numero_item, codigo, descricao, ncm, cfop, unidade, quantidade, valor_unitario, valor_total")
-        .eq("nfe_distribuicao_id", nf.id)
-        .order("numero_item");
-      if (error) throw error;
-      return (data ?? []).map((r) => ({
+      const rows = await listNfeDistribuicaoItens(nf.id);
+      return rows.map((r) => ({
         numero: r.numero_item,
         codigo: r.codigo,
         descricao: r.descricao,
         ncm: r.ncm,
         cfop: r.cfop,
         unidade: r.unidade,
-        quantidade: Number(r.quantidade ?? 0),
-        valorUnitario: Number(r.valor_unitario ?? 0),
-        valorTotal: Number(r.valor_total ?? 0),
+        quantidade: r.quantidade,
+        valorUnitario: r.valor_unitario,
+        valorTotal: r.valor_total,
       }));
     },
     enabled: !!nf,
@@ -778,29 +703,9 @@ interface ProcessarEntradaProps {
   onProcessed: () => void;
 }
 
-interface ItemLinha {
-  id: string;
-  numero_item: number;
-  descricao: string;
-  ncm: string | null;
-  cfop: string | null;
-  quantidade: number;
-  valor_total: number;
-  produto_id: string | null;
-}
-
-interface ProdutoOpt {
-  id: string;
-  sku: string | null;
-  nome: string;
-}
-
-interface FornecedorOpt {
-  id: string;
-  nome_razao_social: string | null;
-  nome_fantasia: string | null;
-  cpf_cnpj: string | null;
-}
+type ItemLinha = NfeDistItemRow;
+type ProdutoOpt = ProdutoMinRow;
+type FornecedorOpt = FornecedorMinRow;
 
 function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaProps) {
   const qc = useQueryClient();
@@ -818,55 +723,22 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
   }
 
   const { data: fornecedores = [] } = useQuery({
-    queryKey: ["fornecedores-ativos-min"],
-    queryFn: async (): Promise<FornecedorOpt[]> => {
-      const { data, error } = await supabase
-        .from("fornecedores")
-        .select("id, nome_razao_social, nome_fantasia, cpf_cnpj")
-        .eq("ativo", true)
-        .order("nome_razao_social")
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as FornecedorOpt[];
-    },
+    queryKey: fiscalKeys.fornecedoresAtivosMin(),
+    queryFn: () => listFornecedoresAtivosMin(),
     enabled: !!nf,
   });
 
   const { data: produtos = [] } = useQuery({
-    queryKey: ["produtos-min-busca"],
-    queryFn: async (): Promise<ProdutoOpt[]> => {
-      const { data, error } = await supabase
-        .from("produtos")
-        .select("id, sku, nome")
-        .eq("ativo", true)
-        .order("nome")
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as ProdutoOpt[];
-    },
+    queryKey: fiscalKeys.produtosAtivosMin(),
+    queryFn: () => listProdutosAtivosMin(),
     enabled: !!nf,
   });
 
   const { data: itens = [], refetch: refetchItens } = useQuery({
-    queryKey: ["nfe-dist-itens-mapear", nf?.id],
+    queryKey: fiscalKeys.nfeDistItensMapear(nf?.id),
     queryFn: async (): Promise<ItemLinha[]> => {
       if (!nf) return [];
-      const { data, error } = await supabase
-        .from("nfe_distribuicao_itens")
-        .select("id, numero_item, descricao, ncm, cfop, quantidade, valor_total, produto_id")
-        .eq("nfe_distribuicao_id", nf.id)
-        .order("numero_item");
-      if (error) throw error;
-      return (data ?? []).map((r) => ({
-        id: r.id,
-        numero_item: r.numero_item,
-        descricao: r.descricao,
-        ncm: r.ncm,
-        cfop: r.cfop,
-        quantidade: Number(r.quantidade ?? 0),
-        valor_total: Number(r.valor_total ?? 0),
-        produto_id: r.produto_id,
-      }));
+      return listNfeDistribuicaoItens(nf.id);
     },
     enabled: !!nf,
   });
@@ -888,15 +760,12 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
   }
 
   const handleMapearProduto = async (itemId: string, produtoId: string | null) => {
-    const { error } = await supabase
-      .from("nfe_distribuicao_itens")
-      .update({ produto_id: produtoId })
-      .eq("id", itemId);
-    if (error) {
+    try {
+      await mapearProdutoNfeItem(itemId, produtoId);
+      refetchItens();
+    } catch (error) {
       notifyError(error);
-      return;
     }
-    refetchItens();
   };
 
   const itensComProduto = itens.filter((i) => i.produto_id).length;
@@ -905,18 +774,11 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
     if (!nf || !fornecedorId) return;
     setProcessando(true);
     try {
-      const { data, error } = await supabase.rpc("processar_nfe_distribuicao", {
-        p_nfe_id: nf.id,
-        p_fornecedor_id: fornecedorId,
-        p_data_vencimento: vencimento,
-        p_descricao: null,
+      const r = await processarNfeDistribuicao({
+        nfeId: nf.id,
+        fornecedorId,
+        dataVencimento: vencimento,
       });
-      if (error) throw error;
-      const r = (data ?? {}) as {
-        itens_processados?: number;
-        itens_total?: number;
-        itens_sem_produto?: number;
-      };
       toast.success(
         `Entrada processada — ${r.itens_processados ?? 0}/${r.itens_total ?? 0} itens em estoque, 1 título a pagar gerado.`,
         r.itens_sem_produto && r.itens_sem_produto > 0
