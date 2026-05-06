@@ -1023,8 +1023,18 @@ const Produtos = () => {
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-1">Código Interno <span className="text-muted-foreground font-normal text-xs">(uso sistêmico)</span></Label>
-                <Input value={form.codigo_interno} onChange={(e) => setForm({ ...form, codigo_interno: e.target.value })} className="font-mono" placeholder="Ex: CI-0042" />
+                <Label className="flex items-center gap-1">
+                  Código Interno (ERP)
+                  <span className="text-muted-foreground font-normal text-xs">(gerado automaticamente — PRD/INS)</span>
+                </Label>
+                <Input
+                  value={form.codigo_interno}
+                  readOnly
+                  disabled
+                  className="font-mono bg-muted/40"
+                  placeholder={mode === "create" ? "Será gerado ao salvar" : ""}
+                  title="Código sequencial interno do ERP — não editável"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Grupo de Produto</Label>
