@@ -268,8 +268,8 @@ export default function Funcionarios() {
   }, [ativoFilters, tipoContratoFilters]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
-    if (key === "ativo") setAtivoFilters(prev => prev.filter(v => v !== value));
-    else if (key === "tipo_contrato") setTipoContratoFilters(prev => prev.filter(v => v !== value));
+    if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
+    else if (key === "tipo_contrato") setTipoContratoFilters(tipoContratoFilters.filter(v => v !== value));
   };
 
   const ativoOptions: MultiSelectOption[] = [
