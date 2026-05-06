@@ -60,6 +60,13 @@ export interface Column<T> {
    * Example: `sortValue: (item) => item.cliente?.nome ?? ''`.
    */
   sortValue?: (item: T) => string | number | null | undefined;
+  /**
+   * Quando `true` e o DataTable estiver em modo `serverPagination`, a coluna
+   * permanece clicável para ordenação — o callback `onServerSort` recebe a
+   * chave/direção e a página deve repassar para `useSupabaseCrud` (orderBy/ascending).
+   * Demais colunas perdem o ícone de sort no modo server-paged.
+   */
+  serverSortable?: boolean;
 }
 
 type FilterOperator = 'contains' | 'equals' | 'gt' | 'between';
