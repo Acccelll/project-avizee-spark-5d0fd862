@@ -103,6 +103,7 @@ const DashboardContent = () => {
     topClientes,
     valorEstoque,
     vencimentosHoje,
+    scopes,
   } = useDashboardData();
 
   // React Query handles fetching/caching automatically — no useEffect needed.
