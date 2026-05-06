@@ -511,9 +511,9 @@ const Produtos = () => {
           descricao_fornecedor: f.descricao_fornecedor || "",
           referencia_fornecedor: f.referencia_fornecedor || "",
           unidade_fornecedor: f.unidade_fornecedor || "",
-          lead_time_dias: f.lead_time_dias != null ? String(f.lead_time_dias) : "",
-          preco_compra: f.preco_compra != null ? String(f.preco_compra) : "",
-          fator_conversao: f.fator_conversao != null ? String(f.fator_conversao) : "1",
+          lead_time_dias: f.lead_time_dias ?? null,
+          preco_compra: f.preco_compra ?? null,
+          fator_conversao: f.fator_conversao ?? 1,
         }));
       await saveProdutoFornecedores({
         produtoId,
