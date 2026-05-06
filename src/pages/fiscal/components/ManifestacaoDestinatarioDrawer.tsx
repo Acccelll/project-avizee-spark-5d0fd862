@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +43,26 @@ import {
   statusManifestacaoFromEvento,
   tipoEventoFiscalFromManifestacao,
   sincronizarDistDFe,
-  type AmbienteSefaz,
   type TipoManifestacao,
 } from "@/services/fiscal/sefaz";
+import {
+  atualizarStatusManifestacao,
+  getEmpresaSefazContext,
+  insertNfeDistribuicaoPorChave,
+  listFornecedoresAtivosMin,
+  listNfeCapturadas,
+  listNfeDistribuicaoItens,
+  listProdutosAtivosMin,
+  mapearProdutoNfeItem,
+  processarNfeDistribuicao,
+  registrarEventoManifestacao,
+  upsertNfeFromXml,
+  type FornecedorMinRow,
+  type NfeCapturadaRow,
+  type NfeDistItemRow,
+  type ProdutoMinRow,
+} from "@/services/fiscal/manifestacao.repository";
+import { fiscalKeys } from "@/lib/queryKeys/fiscal";
 import { notifyError } from "@/utils/errorMessages";
 import { parseNFeXml, type NFeXmlItem } from "@/services/fiscal/nfeXmlParser.service";
 import { formatCurrency } from "@/lib/format";
