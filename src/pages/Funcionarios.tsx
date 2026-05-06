@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
@@ -81,7 +82,19 @@ function isValidCpf(cpf: string): boolean {
 }
 
 export default function Funcionarios() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const { value: filterValue, set: setFilter, clear: clearFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      ativo: { type: "stringArray" },
+      contrato: { type: "stringArray" },
+    },
+  });
+  const searchTerm = filterValue.q;
+  const setSearchTerm = (v: string) => setFilter({ q: v });
+  const ativoFilters = filterValue.ativo;
+  const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
+  const tipoContratoFilters = filterValue.contrato;
+  const setTipoContratoFilters = (v: string[]) => setFilter({ contrato: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Funcionario>({
     table: "funcionarios",
@@ -100,8 +113,7 @@ export default function Funcionarios() {
   const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
   const { can } = useCan();
   const canExcluir = can("administracao:visualizar"); // funcionários: gerenciados por admin/RH
-  const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
-  const [tipoContratoFilters, setTipoContratoFilters] = useState<string[]>([]);
+  // (filters above migrated to useUrlListState)
 
   // Deep-link: abrir edição via ?editId=… (usado pelo drawer ao clicar em "Editar").
   useEditDeepLink<Funcionario>({
@@ -256,8 +268,8 @@ export default function Funcionarios() {
   }, [ativoFilters, tipoContratoFilters]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
-    if (key === "ativo") setAtivoFilters(prev => prev.filter(v => v !== value));
-    else if (key === "tipo_contrato") setTipoContratoFilters(prev => prev.filter(v => v !== value));
+    if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
+    else if (key === "tipo_contrato") setTipoContratoFilters(tipoContratoFilters.filter(v => v !== value));
   };
 
   const ativoOptions: MultiSelectOption[] = [
@@ -307,7 +319,7 @@ export default function Funcionarios() {
           searchPlaceholder="Buscar por nome, cargo, CPF, departamento..."
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => { setAtivoFilters([]); setTipoContratoFilters([]); }}
+          onClearAll={() => clearFilters(["ativo", "contrato"])}
           count={filteredData.length}
         >
           <MultiSelect

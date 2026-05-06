@@ -4,7 +4,7 @@ import {
   fetchEstoquePosicao,
   type ProdutoRow,
   type EstoquePosicaoRow,
-} from "../services/estoque.service";
+} from "@/services/estoque.service";
 
 export function useEstoque() {
   return useQuery<ProdutoRow[], Error>({

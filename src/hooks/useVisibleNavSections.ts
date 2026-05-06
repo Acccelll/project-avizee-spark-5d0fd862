@@ -56,6 +56,20 @@ export function useVisibleNavSections(): NavSection[] {
           return resources.some((resource) => can(`${resource}:visualizar`));
         }
         return resources.some((resource) => can(`${resource}:visualizar`));
+      })
+      // A-01: itens admin-only dentro de seções visíveis devem ser ocultados
+      // para usuários que têm `administracao:visualizar` mas não são admin —
+      // a rota é guarded por `AdminRoute`, então o item iria gerar AccessDenied.
+      .map((s) => {
+        if (s.key !== 'administracao') return s;
+        const filterAdminOnly = (path: string) => path !== '/admin/audit-duplicidades' || isAdmin;
+        return {
+          ...s,
+          items: s.items.map((sub) => ({
+            ...sub,
+            items: sub.items.filter((leaf) => filterAdminOnly(leaf.path)),
+          })).filter((sub) => sub.items.length > 0),
+        };
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
 }

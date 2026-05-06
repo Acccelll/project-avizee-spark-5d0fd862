@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useUrlListState } from "@/hooks/useUrlListState";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
@@ -89,10 +90,20 @@ const MODALIDADE_LABEL: Record<string, string> = {
 };
 
 export default function Transportadoras() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const { value: filterValue, set: setFilter, clear: clearFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      ativo: { type: "stringArray" },
+      modalidade: { type: "stringArray" },
+    },
+  });
+  const searchTerm = filterValue.q;
+  const setSearchTerm = (v: string) => setFilter({ q: v });
+  const ativoFilters = filterValue.ativo;
+  const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
+  const modalidadeFilters = filterValue.modalidade;
+  const setModalidadeFilters = (v: string[]) => setFilter({ modalidade: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
-  const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
-  const [modalidadeFilters, setModalidadeFilters] = useState<string[]>([]);
 
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
@@ -386,8 +397,8 @@ export default function Transportadoras() {
   }, [ativoFilters, modalidadeFilters]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
-    if (key === "ativo") setAtivoFilters(prev => prev.filter(v => v !== value));
-    if (key === "modalidade") setModalidadeFilters(prev => prev.filter(v => v !== value));
+    if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
+    if (key === "modalidade") setModalidadeFilters(modalidadeFilters.filter(v => v !== value));
   };
 
   const summaryAtivos = useMemo(() => data.filter(t => t.ativo).length, [data]);
@@ -412,7 +423,7 @@ export default function Transportadoras() {
           searchPlaceholder="Buscar por nome, CNPJ ou cidade..."
           activeFilters={activeFilterChips}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => { setAtivoFilters([]); setModalidadeFilters([]); }}
+          onClearAll={() => clearFilters(["ativo", "modalidade"])}
           count={filteredData.length}
         >
           <MultiSelect
