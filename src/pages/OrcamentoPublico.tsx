@@ -481,7 +481,7 @@ export default function OrcamentoPublico() {
               {data.frete_tipo && (
                 <div><div style={{ color: "#7a6a48", fontSize: 11.5 }}>Frete</div><strong>{data.frete_tipo}</strong></div>
               )}
-              {data.modalidade && (
+              {data.modalidade && data.modalidade !== data.frete_tipo && (
                 <div><div style={{ color: "#7a6a48", fontSize: 11.5 }}>Modalidade</div><strong>{data.modalidade}</strong></div>
               )}
               {data.servico_frete && (
