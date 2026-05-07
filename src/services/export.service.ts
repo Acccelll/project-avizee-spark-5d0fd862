@@ -241,7 +241,7 @@ export const PDF_MAX_ROWS = 200;
  * download. Empty input → toast.warning + return.
  */
 export async function exportarParaPdf(options: ExportOptions): Promise<void> {
-  const { titulo, rows, columns, empresa, dataInicio = "", dataFim = "", resultado } = options;
+  const { titulo, rows, columns, empresa, dataInicio = "", dataFim = "", resultado, origem } = options;
 
   if (!rows.length) {
     toast.warning(EMPTY_TOAST_MSG);
@@ -256,6 +256,7 @@ export async function exportarParaPdf(options: ExportOptions): Promise<void> {
     empresa: empresa ?? null,
     dataInicio,
     dataFim,
+    origem,
   });
 
   doc.save(buildExportFilename(resultado?.title ?? titulo, "pdf"));
@@ -269,11 +270,12 @@ interface PdfBuildParams {
   empresa: EmpresaInfo | null;
   dataInicio: string;
   dataFim: string;
+  origem?: ExportOptions["origem"];
 }
 
 /** Returns a configured jsPDF document (landscape A4). */
 export async function buildPdfDocument(params: PdfBuildParams) {
-  const { titulo, subtitulo, rows, columns, empresa, dataInicio, dataFim } = params;
+  const { titulo, subtitulo, rows, columns, empresa, dataInicio, dataFim, origem } = params;
   const { default: jsPDF } = await import("jspdf");
 
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -311,6 +313,25 @@ export async function buildPdfDocument(params: PdfBuildParams) {
       : `Gerado em: ${new Date().toLocaleDateString("pt-BR")}`;
   doc.text(periodoText, margin, y);
   y += 8;
+
+  // Carimbo de origem (modo / fonte / geração) — facilita reconciliação entre
+  // Relatórios, Workbook e Apresentação para o mesmo período.
+  if (origem && (origem.modo || origem.fonte || origem.geradoPor || origem.geradoEm)) {
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
+    const partes: string[] = [];
+    if (origem.modo) partes.push(`Modo: ${origem.modo}`);
+    if (origem.fonte) partes.push(`Fonte: ${origem.fonte}`);
+    if (origem.geradoPor) partes.push(`Por: ${origem.geradoPor}`);
+    const ts = origem.geradoEm
+      ? new Date(origem.geradoEm).toLocaleString("pt-BR")
+      : new Date().toLocaleString("pt-BR");
+    partes.push(`Em: ${ts}`);
+    doc.text(partes.join("  ·  "), margin, y);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9);
+    y += 6;
+  }
 
   if (rows.length > 0) {
     // Determine columns to render: prefer config columns, fallback to raw keys
