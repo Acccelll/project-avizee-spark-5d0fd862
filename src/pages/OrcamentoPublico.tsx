@@ -583,6 +583,47 @@ export default function OrcamentoPublico() {
           <div>Documento gerado eletronicamente. Este orçamento é informativo e não tem valor fiscal.</div>
         </footer>
       </div>
+
+      <Dialog open={dialogAcao !== null} onOpenChange={(open) => { if (!open && !actionLoading) { setDialogAcao(null); setComentario(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialogAcao === "aprovado" ? "Confirmar aceite do orçamento" : "Solicitar revisão"}
+            </DialogTitle>
+            <DialogDescription>
+              {dialogAcao === "aprovado"
+                ? "Confirme o aceite. Você pode adicionar uma observação opcional para nossa equipe."
+                : "Conte o que precisa ser ajustado para que possamos enviar uma nova versão."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Comentário {dialogAcao === "rejeitado" ? <span className="text-destructive">*</span> : <span className="text-muted-foreground">(opcional)</span>}
+            </label>
+            <Textarea
+              value={comentario}
+              onChange={(e) => setComentario(e.target.value)}
+              placeholder={dialogAcao === "rejeitado" ? "Ex.: prazo de entrega, ajuste de quantidade, condição de pagamento..." : "Mensagem opcional para nossa equipe"}
+              rows={4}
+              maxLength={1000}
+              autoFocus
+            />
+            <div className="text-xs text-muted-foreground text-right">{comentario.length}/1000</div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={actionLoading} onClick={() => { setDialogAcao(null); setComentario(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={actionLoading || (dialogAcao === "rejeitado" && comentario.trim().length < 3)}
+              style={dialogAcao === "aprovado" ? { background: "#16a34a", color: "#fff" } : { background: WINE, color: "#fff" }}
+              onClick={() => dialogAcao && handleAction(dialogAcao, comentario)}
+            >
+              {actionLoading ? "Enviando..." : dialogAcao === "aprovado" ? "Confirmar aceite" : "Enviar solicitação"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
