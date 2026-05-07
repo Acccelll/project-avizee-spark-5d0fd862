@@ -367,6 +367,11 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
             </p>
           ) : (
             <div className="space-y-3 pt-1">
+              {isMockTracking && (
+                <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">
+                  Dados simulados
+                </Badge>
+              )}
               {eventos.slice(0, 5).map((ev, i) => (
                 <div key={ev.id} className="flex gap-3">
                   <div className="flex flex-col items-center">
