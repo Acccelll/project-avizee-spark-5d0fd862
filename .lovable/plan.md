@@ -1,142 +1,99 @@
+## Plano — Onda 6: Hardening do Módulo Financeiro
 
-# Revisão End-to-End — Onda 8 (Relatórios · Workbook · Apresentação · Budget)
-
-## 1. Resumo da Onda 8
-
-A Onda 8 consolida toda a camada **analítica e de output executivo** do AviZee. Hoje ela cobre:
-
-- **Relatórios Operacionais** (`/relatorios`) — 20 relatórios em 5 categorias (financeiro, comercial, compras, estoque, cadastros), com catálogo, filtros canônicos (`PeriodoFilter` próprio), KPIs, gráficos (recharts), tabela (`DataTable`), drill-down, exportação CSV/XLSX/PDF, favoritos persistidos e preview pré-impressão.
-- **Workbook Gerencial** (`/workbook-gerencial`) — geração de planilha .xlsx (exceljs) consumindo views materializadas `vw_workbook_*`, dois modos (dinâmico/fechado), histórico, download e CSV de histórico.
-- **Apresentação Gerencial** (`/apresentacao-gerencial`) — geração de .pptx (pptxgenjs), templates, comentários editáveis, fluxo de aprovação (rascunho → revisão → final), cadências automáticas, telemetria de slides.
-- **Budget Mensal** (`/budget`) — input manual de metas (`budgets_mensais`) consumido pelo Workbook nas colunas Δ% / orçado.
-- **Camada de dados:** `relatorios.service` (dispatcher) com 6 loaders dedicados; `lib/workbook/fetchWorkbookData` agregando 21 fontes; `lib/apresentacao/fetchPresentationData`. Views `vw_workbook_*` definidas em `20260411210000_workbook_gerencial.sql` (97 ocorrências em migrations).
-
-Arquitetura geral é sólida e em linha com a doutrina do projeto (statusKind canônico, design tokens, RLS). Esta revisão consolida os gaps remanescentes que ainda atrapalham confiabilidade dos números, performance e mobile.
+Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03 + BK-04) que travam uso real em produção. Médios/baixos agrupados em fase final.
 
 ---
 
-## 2. Problemas críticos (bloqueiam confiança/uso)
+### Fase 1 — Críticos (impacto imediato em produção)
 
-1. **DRE com heurística de substring frágil** — `loaders/financeiro.ts:310` classifica CMV verificando `descricao.toLowerCase().includes("compra")`. Viola a regra "status/tipo nunca por substring" e produz CMV inflado/deflacionado conforme o operador escreve "Compra de mat.", "compra avulsa", "compras gerais". Precisa ler `nota_fiscal_id IS NOT NULL` + categoria contábil real (`conta_contabil_id`) ou `tipo_documento`.
-2. **PDF sem *streaming* nem aviso real de risco** — `useRelatorioExport` corta em 200 linhas e mostra um toast, mas o usuário só percebe a perda de dados depois do download. O aviso precisa aparecer **antes** (modal de confirmação com opção "Excel completo") e o builder não tem proteção contra colunas extra-largas (overflow horizontal silencioso em relatórios com 12+ colunas).
-3. **Workbook modo "fechado" perde V2** — `fetchClosedModeData` retorna `dre/caixaEvolutivo/vendasVendedor/abc/regiao/funil/comprasFornecedor/giro/critico/logistica/fiscal/budget = []` sem qualquer aviso visual no XLSX. O usuário gera um workbook vazio nas abas analíticas sem entender por quê.
-4. **Origem dos dados não é declarada nos outputs** — Nem o PDF (export.service), nem o Workbook, nem a Apresentação carimbam **fonte/escopo/modo de geração** ("dinâmico vs fechado", "view vs snapshot"), conforme exige o ponto crítico #1 do escopo. Dois usuários comparando o mesmo relatório em momentos diferentes não conseguem reconciliar.
-5. **`useRelatorio` não invalida quando os módulos de origem mudam** — `staleTime` 10min e `queryKey: ['relatorio', tipo, filtros]` isolam relatórios das mutations dos módulos. Vender um pedido / pagar um título não atualiza KPIs/DRE até refetch manual ou 10min. Falta `queryClient.invalidateQueries({ queryKey: ['relatorio'] })` nos pontos de mutação críticos (financeiro, faturamento, compras, estoque, fiscal).
-6. **Sem limite no Excel/CSV** — exporta 100% das linhas em memória; em `vendas`, `movimentos_estoque`, `aging` (centenas de milhares) trava o navegador. Precisa de teto + chunked export OR aviso quando `rows.length > 10000`.
-7. **`BudgetMensal` sem chave única** — não há `UNIQUE(competencia, categoria, centro_custo_id)`. Possíveis duplicatas inflam o orçado e quebram comparativos no Workbook.
-8. **Apresentação consome `slides_json.ativos` com `as any`** (`ApresentacaoGerencial.tsx:55`) e `dataAvailability` com regra `!c.comentario_automatico?.includes('indisponíveis')` — outra heurística de substring para indicar disponibilidade. Precisa flag estruturada (`dados_indisponiveis: boolean`).
+**1.1 — `useRegistrarBaixa` invalida saldos de conta e fluxo de caixa (C-03)**
+- Adicionar `["contas_bancarias"]` e `["fluxo-caixa"]` em todos os `onSuccess` de `useBaixaFinanceira.ts` (registrar, estornar, gerar parcelas, gerar folha).
+- Replicar nos `processarBaixaLote` e `processarEstorno` quando chamados fora do hook.
 
-## 3. Problemas altos
+**1.2 — Constraint UNIQUE em conciliação (BK-04)**
+- Migration: `CREATE UNIQUE INDEX uq_baixa_conta_extrato_ref ON financeiro_baixas (conta_bancaria_id, conciliacao_extrato_referencia) WHERE conciliacao_extrato_referencia IS NOT NULL;`
+- RPC `financeiro_conciliar_baixa`: validar antes do UPDATE que a referência ainda não foi usada noutra baixa ativa; mensagem clara.
 
-9. **Catálogo `RelatorioCatalogo` inteiro é montado mesmo quando o usuário já selecionou um tipo** (chave `tipo` no URL). Mantido como rota independente seria mais barato; hoje renderiza KPI cards e descrições em todos os render passes do `Relatorios.tsx`.
-10. **Loaders não paginam** — `vendas`, `compras`, `aging`, `movimentos_estoque` puxam até o limite default (1000 do Supabase) e silenciosamente truncam. Sem warning na UI; KPIs ficam errados quando há 1001+ registros.
-11. **`PeriodoFilter` local diverge do `PeriodFilter` global canônico** (`mem://produto/contrato-de-periodos`). Faltam presets `15d`, `90d`, `year` e o suporte a `direction` futura. Usuário muda padrão entre módulos.
-12. **DRE: deduções por NF saída independe do regime de caixa** — receita por `valor_pago` (cash basis) mas deduções por `data_emissao` (regime de competência). Mistura métodos sem aviso, distorcendo Receita Líquida.
-13. **`isQuantityReport` propaga via `_isQuantityReport`/`_isDreReport`** com prefixo underscore (legado). Migrar tudo para `meta.kind` / `meta.valueNature` (já existe parcialmente). Risco baixo, mas confuso para novos loaders.
-14. **Apresentação `numericPairs/findArrayRows` é heurístico** — chuta o que renderizar via inspeção do dicionário (`generatePresentation.ts:32-60`). Slide novo com schema diferente quebra silenciosamente. Falta esquema declarado por `SlideCodigo`.
-15. **`fetchWorkbookData` faz 21 fetchs em paralelo** sem `AbortController`. Se o usuário fechar o dialog enquanto gera, fluxos continuam consumindo conexões/Bandwidth.
-16. **Budget — sem suporte a centro de custo na UI** apesar do schema permitir (coluna `centro_custo_id`); workbook recebe sempre `null`.
-17. **Mobile: tabela colapsada por padrão dificulta cópia/seleção** (Relatorios.tsx:667). Para relatórios pequenos (<10 linhas) o usuário precisa abrir explicitamente — defaultOpen quando `rows<=15`.
+**1.3 — Persistência do extrato OFX (C-02)**
+- Nova tabela `financeiro_extrato_importacoes` (`conta_bancaria_id`, `fitid`, `data`, `valor`, `descricao`, `competencia`, `status` ∈ {pendente, conciliado, ignorado}, `baixa_id` opcional, `arquivo_hash`, `importado_por`).
+- `UNIQUE (conta_bancaria_id, fitid)` para idempotência de re-import.
+- RLS por `empresa_id` (trigger `set_empresa_id_default`).
+- `useConciliacaoBancaria.importarExtrato`:
+  - calcular `fitid` final (FITID original ou hash sha256 de `data+valor+descricao` quando ausente — corrige M-05);
+  - `upsert` com `onConflict: "conta_bancaria_id,fitid"` e `ignoreDuplicates: true`;
+  - re-buscar transações do banco em vez de manter em estado local.
+- Pares confirmados também persistem (status `pendente` → `conciliado` ao salvar).
+- Reload da página: `useQuery(["conciliacao-extrato", contaId, periodo])` recupera tudo.
 
-## 4. Melhorias médias / baixas
-
-18. **Persistir `hiddenColumns`** por `tipo` em `localStorage` (UX recorrente).
-19. **Gráfico**: oferecer toggle pizza ↔ barras (chart-type override) sem precisar editar `relatoriosConfig`.
-20. **Workbook**: nome de arquivo poderia incluir `modo` (`workbook_gerencial_2026-01_2026-03_dinamico_xxx.xlsx`).
-21. **Apresentação**: indicador de progresso por slide durante geração (hoje só "Gerando…").
-22. **Relatórios**: barra "Atualizado há X" para reforçar que é um snapshot cacheado por 10min.
-23. **Budget**: import CSV em massa e botão "Replicar último mês".
-24. **Favoritos**: agrupar por categoria e suportar reordenação.
-
-## 5. Problemas mobile
-
-25. **`PeriodoFilter` local ocupa duas linhas** (`Hoje 7d 30d Mês Personalizado`) — quebra em viewports <360 px.
-26. **`ExportMenu` no card desktop não está espelhado para mobile** dentro do Sheet de filtros — usuário precisa fechar o sheet, ver tabela, scroll até o final. Adicionar acesso a "Exportar" no header mobile.
-27. **Gráfico (recharts) avisa `width(0) height(0)`** (visto no console). Container `h-56` pode renderizar antes do layout nas tabs/sheets — wrap com `<ResponsiveContainer minHeight={224}>` e usar `aspect`.
-28. **Workbook/Apresentação**: o botão "Gerar" é um dialog que **não cabe** em smartphones <375px (formulário tem 5 colunas em sm:grid-cols-5). Precisa stack vertical até md.
-29. **DataTable**: `mobileStatusKey/mobileIdentifierKey` derivados heuristicamente; em relatórios sem coluna textual (DRE, fluxo) o cartão mobile fica sem identificador.
-
-## 6. Problemas desktop
-
-30. **`Relatorios.tsx` 800 linhas** — mistura dispatch, layout, KPIs, render. Quebrar em `RelatorioWorkspace` (estado), `RelatorioFiltrosBar` (filtros desktop+mobile sheet), `RelatorioBody` (KPIs+chart+tabela).
-31. **Densidade compacta** afeta apenas KPI cards, não a tabela. Usuário espera tabela densa também.
-32. **Coluna `Ações` (drill-down)** sempre à direita, mesmo em layouts horizontais largos. Considerar flutuante/sticky.
-33. **Apresentação: `ApresentacaoTelemetriaPanel`, `TemplateManager`, `CadenciaManager`** todos visíveis simultaneamente — página fica longa demais. Consolidar em abas.
-
-## 7. Problemas de dados / performance
-
-34. **DRE/Workbook/Apresentação não usam o **mesmo** dado fonte** — DRE em Relatórios usa `financeiro_lancamentos` cru, Workbook usa `vw_workbook_dre_mensal`, Apresentação usa `fetchPresentationData`. Possível divergência numérica entre as 3 visões para o mesmo período. Precisa de **uma view canônica** + 3 consumidores.
-35. **Views `vw_workbook_*` não estão indexadas** para `competencia` (substring `slice(0,7)` em PG retorna texto sem usar índice em date). Em produção com >2 anos de histórico a geração demora >10s.
-36. **Sem cache server-side para o Workbook** — toda geração refaz 21 queries. Considerar `workbook_geracoes.parametros_json + hash` como cache lookup antes de gerar.
-37. **`fetchPresentationData` repete queries do Workbook** sem reuso. Quando ambos rodam em sequência, dobra a carga.
-
-## 8. Problemas frontend / services / hooks
-
-38. **`useRelatoriosFiltrosData` busca clientes/fornecedores/grupos** sem filtros — para tenants com 5k clientes, cada entrada na tela puxa lista inteira. Já tem `limits` mas precisa de **server-side search** no select.
-39. **Tipos `RelatorioResultado` largos com `_isQuantityReport` / `_isDreReport`** legados — limpar e tipar via `meta.kind` discriminado.
-40. **`(supabase as any).from(...)` em fetchWorkbookData** — ~21 ocorrências. Gerar tipos das views (`Database['public']['Views']`) e remover `any`.
-41. **`useRelatorioExport` não invalida nada**, mas registra timing/`isExporting` por hook instance. Expor `exportProgress` (start/end) para UI mais rica.
-42. **`relatoriosFavoritos.service`** não valida unicidade no client (server tem). Toast genérico em duplicate.
-43. **Apresentação: `dataAvailability` reconstruído por reduce em todo render** — memorizar com `useMemo`.
+**1.4 — Paginação server-side em `Financeiro.tsx` (C-01) [maior esforço — pode ficar para sub-fase 1.4 separada]**
+- Substituir `useSupabaseCrud` por `useQuery(["financeiro_lancamentos", filtros, page])` com `range()` server-side.
+- Mover filtros (`tipo`, `status` exceto `vencido`, `contaBancariaId`, `formasPagamento`, `monthRange`) para `.eq/.in/.gte/.lte` no Supabase.
+- Filtro `vencido` mapeado para `status='aberto' AND data_vencimento < hoje`.
+- KPIs passam a usar exclusivamente `useFinanceiroKpisRpc` (resolve SH-02; remover `useFinanceiroKpis` legado ou marcar `@deprecated`).
+- Filtros restantes (A-02) ficam server-side por consequência.
+- Lookups de cliente/fornecedor (M-01): `select id,nome_razao_social` com cache longo.
 
 ---
 
-## 9. Plano de Execução
+### Fase 2 — Altos
 
-Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.lovable/plan.md`. Risco classificado: 🟢 baixo · 🟡 médio · 🔴 alto.
+**2.1 — Remover fallback de UPDATE direto em `processarBaixaLote` (A-03)**
+- Quando RPC retorna `erros`, apenas reportar (`toast.warning` já existe). Sem UPDATE manual.
+- Não tentar reprocessar item-a-item silenciosamente — opcionalmente disparar `registrarBaixaFinanceira` por item se desejado, mas com confirmação.
 
-### Sprint 8.1 — Confiabilidade dos números (🔴)
-- 8.1.1 ✅ DRE cash basis vs competência: filtro "Regime" (caixa/competência) persistido na URL (`drmo`); loader `loadDre` alterna entre `data_pagamento`+status pago/parcial e `data_emissao`+`valor` integral; subtítulo do relatório indica o regime ativo.
-- 8.1.2 ✅ Substituir heurística "compra" no CMV por classificação estruturada (`nota_fiscal_id` / `pedido_compra_id` / `origem_tabela`).
-- 8.1.3 ✅ Carimbo de origem (modo, fonte, data de geração) no cabeçalho do PDF, aba "Origem" do XLSX e capa do PPTX.
-- 8.1.4 ✅ RPC canônica `get_dre_periodo(p_modo, p_data_inicio, p_data_fim)` (SECURITY DEFINER, search_path=public) substitui o cálculo manual em `loadDre`. Workbook/Apresentação continuam usando `vw_workbook_dre_mensal` (granularidade mensal); a RPC vira a fonte única para Relatórios com período arbitrário.
-- 8.1.5 ✅ `BudgetMensal`: índice `ux_budgets_mensais_unique (competencia, categoria, COALESCE(centro_custo_id, ...))` já aplicado em produção.
+**2.2 — Guard admin-only para exclusão física (A-01)**
+- `FinanceiroDrawer`: separar `canCancelar` (status → `cancelado`) de `canExcluirFisico` (`isAdmin && origem_tipo='manual' && sem baixas ativas`).
+- Renderizar dois botões distintos com ícones e textos diferentes; confirm dialog específico.
 
-### Sprint 8.2 — Exportação segura (🟡)
-- 8.2.1 ✅ Confirmação pré-export PDF (`window.confirm`) quando rows > 200 com mensagem orientando o uso de Excel.
-- 8.2.2 ✅ Confirmação pré-export Excel (>10k) e CSV (>50k) com opção "continuar".
-- 8.2.3 ✅ Em PDF: layout A3 paisagem ativado automaticamente quando há mais de 10 colunas em `buildPdfDocument` (overflow horizontal silencioso eliminado).
-- 8.2.4 Worker para geração de XLSX/PDF (off main thread) — opcional via flag.
+**2.3 — Documentar caminhos de estorno (A-04 / SH-01)**
+- JSDoc claro em `estornarBaixaFinanceira` (unitário) e `processarEstorno` (lote).
+- `FinanceiroDrawer`: histórico de baixas com botão "Estornar esta baixa" (unitário) + botão principal "Estornar todas" (lote).
 
-### Sprint 8.3 — Cache e invalidação cross-módulo (🟡)
-- 8.3.1 ✅ Helper `invalidateRelatoriosByDomain(qc, ...domains)` criado em `src/pages/relatorios/hooks/invalidateRelatorios.ts`. Próximo passo: cableamento nas mutations dos módulos.
-- 8.3.2 ✅ `ReportHeader` agora exibe `atualizado há Xmin/h/d` (relativo a `dataUpdatedAt` do react-query) tanto desktop quanto mobile.
-- 8.3.3 ✅ Detect `rows.length === 1000` e warning "Resultado pode estar truncado" no workspace de Relatórios.
+**2.4 — `sugerirConciliacao` excluir títulos sem `data_baixa` (A-05)**
+- `calcularScoreConciliacao`: se `titulo.status === 'aberto'`, retornar score 0.
+- Apenas `pago/parcial` entram no matching.
 
-### Sprint 8.4 — Workbook & Apresentação robustos (🟡)
-- 8.4.1 ✅ Modo fechado: aba `00b_Aviso_Modo_Fechado` listando cortes V2 indisponíveis com motivo (em vez de abas vazias).
-- 8.4.2 ✅ `gerarApresentacao` reutiliza geração concluída (`is_final`) com mesmo `hash_geracao` nas últimas 24h baixando o `arquivo_path` do storage (cache hit retorna `fromCache: true`).
-- 8.4.3 ✅ `dataAvailability` agora deriva de `tags_json.tags.includes('indisponivel')` (estruturado), com fallback substring para registros legados.
-- 8.4.4 ✅ `SlideDefinition.dataSchema` (`arrayKey`/`labelField`/`valueField(s)`/`cardKeys`) declarado em `slideDefinitions.ts` para todos os slides com payload conhecido. `generatePresentation` (cards, tabela, coluna/linha, barra horizontal, donut, stacked/waterfall) consome o schema com fallback heurístico para payloads legados.
-- 8.4.5 ✅ Parâmetro `signal?: AbortSignal` adicionado a `fetchWorkbookData` e `fetchPresentationData`, com `throwIfAborted` antes/depois do fetch principal (consumidores podem cancelar fluxo).
+**2.5 — Advisory lock em RPCs de baixa (BK-01)**
+- `registrar_baixa_financeira`: `PERFORM pg_advisory_xact_lock(hashtext(p_lancamento_id::text));` no início.
+- Idem em `estornar_baixa_financeira` e (por item) em `registrar_baixa_lote_financeira`.
 
-### Sprint 8.5 — Mobile UX (🟢)
-- 8.5.1 ✅ `PeriodoFilter` agora expõe presets canônicos `Hoje · 7d · 15d · 30d · Mês · 90d · Ano` com chips compactos e wrap responsivo.
-- 8.5.2 ✅ `ExportMenu` exposto na barra mobile (entre Filtros e Atualizar) — usuário não precisa mais rolar até a tabela para exportar.
-- 8.5.3 ✅ `RelatorioChart` com `min-h-[224px]`, `min-w-[1px]` e `ResponsiveContainer minHeight=200` (elimina warnings width(0)/height(0)).
-- 8.5.4 ✅ Dialogs do Workbook e da Apresentação ganham `max-w-[95vw] sm:max-w-...` (cabem em smartphones <375 px) e mantêm scroll interno.
-- 8.5.5 ✅ Em mobile, `Collapsible` da tabela abre automaticamente quando `sortedRows.length ≤ 15` (Relatorios.tsx).
+**2.6 — CHECK de motivo no banco (BK-02)**
+- `financeiro_cancelar_lancamento`: `IF length(trim(p_motivo)) < 5 THEN RAISE EXCEPTION ... USING ERRCODE='22023'`.
 
-### Sprint 8.6 — Refactor Relatorios.tsx (🟢)
-- 8.6.1 ✅ Decompose concluído: extraídos `RelatorioKpiGrid`, `RelatorioFiltrosBar`, `RelatorioMobileToolbar` e agora `RelatorioBody` (chart mobile + tabela + chart desktop + footer sticky). `Relatorios.tsx` reduzido de 846 → 570 linhas. Estado seguirá centralizado nos hooks já dedicados (`useRelatorioUrlState`, `useRelatorioExport`, `useActiveFilterChips`, `useRelatorioDrillDown`).
-- 8.6.2 ✅ Flags legadas `_isQuantityReport/_isDreReport` removidas de `RelatorioResultado`, dos loaders (`estoque`, `financeiro`) e do consumidor (`Relatorios.tsx`). Discriminação via `meta.kind` / `meta.valueNature` é a única fonte.
-- 8.6.3 ✅ `hiddenColumns` agora persistido por `tipo` via `useDataTablePrefs(`relatorios-${tipo}`)` (cross-device, com migração one-shot do localStorage). Trocar de relatório preserva preferências por tipo.
+**2.7 — Tipagem RPC (SH-04)**
+- Adicionar entradas em `src/types/rpc.ts` para `registrar_baixa_financeira`, `registrar_baixa_lote_financeira`, `financeiro_processar_estorno`, `financeiro_conciliar_baixa`, `financeiro_cancelar_lancamento`.
+- Substituir `as never`/`as any` por casts tipados via wrapper `rpc<T>()` já usado no projeto.
 
-### Sprint 8.7 — Tipagem e qualidade (🟢)
-- 8.7.1 ✅ `(supabase as any)` consolidado em um único helper `sb` em `fetchWorkbookData.ts` (27 → 0 ocorrências). Tipagem completa das `vw_workbook_*` em `Database['public']['Views']` fica para quando o gerador de tipos do Supabase exportar essas views automaticamente.
-- 8.7.2 ✅ `useRelatoriosFiltrosData` não pré-carrega mais 300 clientes + 300 fornecedores. Selects já usavam `AsyncMultiSelect` com `loadOptions` ilike server-side; agora os chips de filtros ativos consomem o novo `useSelectedRefLabels(clienteIds, fornecedorIds)` que faz `.in('id', ...)` apenas quando há seleção, eliminando o fetch das listas inteiras na entrada da tela.
-- 8.7.3 ✅ `dataAvailability` envelopado em `useMemo` (recomputa só quando `comentarios` muda).
-- 8.7.4 ⚠️ Testes parciais — `src/services/__tests__/export.pdf.test.ts` cobre A3 vs A4 e `PDF_MAX_ROWS`. Substring DRE já não existe (8.1.2) e modo fechado vazio é coberto pela aba `00b_Aviso_Modo_Fechado` (8.4.1); resta wire de teste e2e do XLSX em sprint dedicado.
-
-### Sprint 8.8 — Polimento (🟢)
-- Favoritos por categoria, replicar Budget do mês anterior, indicador de progresso por slide, telemetria de geração.
+**2.8 — Invalidação granular (A-06)**
+- Trocar `["financeiro"]` por `["financeiro", "lancamentos"]` + `["financeiro", "kpis"]` em baixas individuais; manter prefixo amplo apenas em lote.
 
 ---
 
-## Critérios de aceite globais
-- Zero heurísticas de substring para status/tipo (grep `.toLowerCase().includes(` nos loaders zera).
-- PDF nunca exporta sem confirmação quando >limit; XLSX avisa quando >10k.
-- Mesmo período + mesma fonte → DRE bate em Relatórios, Workbook e Apresentação (teste e2e).
-- Mobile (375 px) sem overflow horizontal nas 4 telas; gráfico sem warnings 0×0 no console.
-- Mutations de Financeiro/Comercial/Compras/Estoque invalidam queries de relatório.
-- Relatorios.tsx ≤ 400 linhas após refactor.
+### Fase 3 — Médios / Mobile / Banco
+
+- **M-02**: alinhar algoritmo de score client-side com pg_trgm (usar tokens iguais) ou desabilitar fallback quando RPC disponível.
+- **M-03**: optimistic update em `budget.service` (`onMutate` no React Query).
+- **M-04**: `FinanceiroCalendar` recebe `contaBancariaId` filtrada como prop.
+- **M-06**: warning visual (não bloqueante) em `calcularJurosDiarios` quando taxa > 0,034%/dia.
+- **MB-01**: `BaixaLoteModal` com `mobileCard` para itens.
+- **MB-02**: `BaixaParcialDialog` campos com `min-h-[44px]` e labels `text-sm`.
+- **MB-03**: `FinanceiroCalendar` mobile = lista por dia (drawer expandível) em vez de grid.
+- **B-01/B-02/D-01/D-02**: comentário `@deprecated`, padronizar touch target, lazy import `WorkbookGeracaoDialog`, RPC para auditoria de duplicidades.
+- Atualizar `docs/financeiro-modelo-estrutural.md` com extrato persistido e advisory locks.
+
+---
+
+### Detalhes Técnicos
+
+**Migrations** (uma por fase, evita lock prolongado):
+1. `20260508_financeiro_unique_extrato_ref.sql` — UNIQUE conciliação + extrato_importacoes + advisory locks + CHECK motivo.
+2. `20260508_financeiro_extrato_persistencia.sql` — tabela e RLS.
+
+**Código**:
+- ~12 arquivos editados, ~3 novos hooks/services para extrato.
+- Verificar: `vitest run financeiro` + `tsc --noEmit` após cada fase.
+- Atualizar `mem://features/conciliacao-bancaria` com nova arquitetura.
+
+**Ordem de execução sugerida**: 1.1 → 1.2 → 1.3 → 2.1/2.2/2.4/2.5/2.6/2.7/2.8 (em paralelo lógico) → 1.4 (maior, isolado) → Fase 3.
+
+Posso iniciar pela Fase 1 (críticos) ou seguir outra ordem se preferir.
