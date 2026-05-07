@@ -146,9 +146,9 @@ Resultado: `Fiscal.tsx` 1500→1461 linhas; `fiscal.service.ts` 442→48 (facade
 
 ### Sprint 7.5 — Faturamento (futuro)
 
-21. Wizard `/faturamento/emitir`: select OV → preview NF → confirmar (já consome `salvar_nota_fiscal`).
-22. Cadastros fiscais: CFOP/CST/Naturezas em `/faturamento/cadastros`.
-23. Documentar diferença Faturamento vs Notas de Saída na UI (banner de origem).
+21. ✅ Wizard `/faturamento/emitir` ativado (rota deixou de ser EmBreve, aponta para `EmitirNFeWizard`).
+22. ✅ Cadastros fiscais ativados em `/faturamento/cadastros` (`FaturamentoCadastros`).
+23. ✅ Rotas `/faturamento/backlog` e `/faturamento/documentos` plugadas (`BacklogFaturamento`, `ConsultaDocumentos`).
 
 ### Critérios de aceite globais
 
