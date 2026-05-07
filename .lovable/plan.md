@@ -95,7 +95,7 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 ### Sprint 8.2 — Exportação segura (🟡)
 - 8.2.1 ✅ Confirmação pré-export PDF (`window.confirm`) quando rows > 200 com mensagem orientando o uso de Excel.
 - 8.2.2 ✅ Confirmação pré-export Excel (>10k) e CSV (>50k) com opção "continuar".
-- 8.2.3 Em PDF: layout de página A3 quando colunas >10; fallback para "muitas colunas → use Excel".
+- 8.2.3 ✅ Em PDF: layout A3 paisagem ativado automaticamente quando há mais de 10 colunas em `buildPdfDocument` (overflow horizontal silencioso eliminado).
 - 8.2.4 Worker para geração de XLSX/PDF (off main thread) — opcional via flag.
 
 ### Sprint 8.3 — Cache e invalidação cross-módulo (🟡)
@@ -119,7 +119,7 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 
 ### Sprint 8.6 — Refactor Relatorios.tsx (🟢)
 - 8.6.1 Quebrar em `RelatorioWorkspace`, `RelatorioFiltrosBar`, `RelatorioBody`, `RelatorioKpiGrid`.
-- 8.6.2 Eliminar flags `_isQuantityReport/_isDreReport`; usar discriminated union em `meta`.
+- 8.6.2 ✅ Flags legadas `_isQuantityReport/_isDreReport` removidas de `RelatorioResultado`, dos loaders (`estoque`, `financeiro`) e do consumidor (`Relatorios.tsx`). Discriminação via `meta.kind` / `meta.valueNature` é a única fonte.
 - 8.6.3 ✅ `hiddenColumns` agora persistido por `tipo` via `useDataTablePrefs(`relatorios-${tipo}`)` (cross-device, com migração one-shot do localStorage). Trocar de relatório preserva preferências por tipo.
 
 ### Sprint 8.7 — Tipagem e qualidade (🟢)

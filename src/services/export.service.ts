@@ -304,7 +304,12 @@ export async function buildPdfDocument(params: PdfBuildParams) {
   const { titulo, subtitulo, rows, columns, empresa, dataInicio, dataFim, origem } = params;
   const { default: jsPDF } = await import("jspdf");
 
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  // 8.2.3 — escala automática para A3 quando há muitas colunas (>10),
+  // evitando overflow horizontal silencioso. PDFs com até 10 colunas
+  // permanecem em A4 paisagem (padrão atual).
+  const colCount = columns?.length ?? (rows[0] ? Object.keys(rows[0]).length : 0);
+  const pdfFormat: "a3" | "a4" = colCount > 10 ? "a3" : "a4";
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: pdfFormat });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
   let y = 20;

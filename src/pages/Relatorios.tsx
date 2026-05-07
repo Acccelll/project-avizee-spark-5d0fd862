@@ -113,8 +113,8 @@ export default function Relatorios() {
   const { data: resultado, isLoading, isError, refetch, dataUpdatedAt } = useRelatorio(tipo, filtros);
 
   const reportMeta = resultado?.meta;
-  const isQtyReport = reportMeta?.valueNature === 'quantidade' || resultado?._isQuantityReport === true;
-  const isDreReport = reportMeta?.kind === 'dre' || resultado?._isDreReport === true;
+  const isQtyReport = reportMeta?.valueNature === 'quantidade';
+  const isDreReport = reportMeta?.kind === 'dre';
   const rows = useMemo(() => (resultado?.rows ?? []) as Record<string, unknown>[], [resultado?.rows]);
 
   const selectedMeta = tipo ? reportConfigs[tipo as TipoRelatorio] : undefined;
