@@ -11,6 +11,7 @@ import { DetailEmpty } from "@/components/ui/DetailStates";
 import { Edit, Trash2, CreditCard, RotateCcw, AlertCircle, Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchBaixasAtivasDoLancamento } from "@/services/financeiro";
 import { cn } from "@/lib/utils";
 import type { Lancamento } from "@/types/domain";
 import { useDrawerData } from "@/hooks/useDrawerData";
@@ -54,13 +55,8 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
     open,
     selectedId,
     async (id, signal) => {
-      const { data } = await supabase
-        .from("financeiro_baixas")
-        .select("*")
-        .eq("lancamento_id", id)
-        .order("data_baixa", { ascending: false })
-        .abortSignal(signal);
-      return (data as Baixa[]) || [];
+      const data = await fetchBaixasAtivasDoLancamento(id, signal);
+      return data as unknown as Baixa[];
     },
   );
   const baixasList = baixas ?? [];

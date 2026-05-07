@@ -295,27 +295,14 @@ export async function confirmarConciliacao(payload: {
   }>;
   usuario_id?: string;
 }): Promise<string> {
-  const { data: conc, error } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- limitação do tipo Supabase (regenerar types)
-    .from('conciliacao_bancaria' as any)
-    .insert({
-      conta_bancaria_id: payload.conta_bancaria_id,
-      data_conciliacao: payload.data_conciliacao,
-      total_pares: payload.pares.length,
-      usuario_id: payload.usuario_id ?? null,
-    })
-    .select('id')
-    .single();
+  // RPC transacional: cabeçalho + pares em uma única transação.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC ainda não tipada
+  const { data, error } = await (supabase.rpc as any)("financeiro_conciliar_lote", {
+    p_conta_bancaria_id: payload.conta_bancaria_id,
+    p_data_conciliacao: payload.data_conciliacao,
+    p_pares: payload.pares,
+    p_observacoes: null,
+  });
   if (error) throw new Error(error.message);
-
-  if (payload.pares.length > 0) {
-    const { error: paresError } = await supabase
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- limitação do tipo Supabase (regenerar types)
-      .from('conciliacao_pares' as any)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- limitação do tipo Supabase (regenerar types)
-      .insert(payload.pares.map(p => ({ ...p, conciliacao_id: (conc as any).id })));
-    if (paresError) throw new Error(paresError.message);
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- limitação do tipo Supabase (regenerar types)
-  return (conc as any).id;
+  return data as string;
 }

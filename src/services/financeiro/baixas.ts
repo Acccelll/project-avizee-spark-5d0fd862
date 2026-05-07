@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { calcularPagamentoParcialLote } from "@/lib/financeiro";
 import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
+import { supabase } from "@/integrations/supabase/client";
 import {
   registrarBaixaLoteFinanceira,
   type BaixaLoteItemRpc,
@@ -124,4 +125,36 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
 // Mantido apenas para compatibilidade de imports — não usado mais.
 export async function _legacyProcessarBaixaLoteRpc(): Promise<null> {
   return null;
+}
+
+/**
+ * Busca baixas ativas (não estornadas) de um lançamento, ordenadas
+ * por `data_baixa` desc. Usado por dialogs e drawers.
+ */
+export interface BaixaAtiva {
+  id: string;
+  valor_pago: number;
+  desconto?: number | null;
+  juros?: number | null;
+  multa?: number | null;
+  abatimento?: number | null;
+  data_baixa: string;
+  forma_pagamento: string | null;
+  observacoes: string | null;
+  created_at: string;
+}
+
+export async function fetchBaixasAtivasDoLancamento(
+  lancamentoId: string,
+  signal?: AbortSignal,
+): Promise<BaixaAtiva[]> {
+  const query = supabase
+    .from("financeiro_baixas")
+    .select("id, valor_pago, desconto, juros, multa, abatimento, data_baixa, forma_pagamento, observacoes, created_at")
+    .eq("lancamento_id", lancamentoId)
+    .is("estornada_em", null)
+    .order("data_baixa", { ascending: false });
+  const { data, error } = signal ? await query.abortSignal(signal) : await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as BaixaAtiva[];
 }
