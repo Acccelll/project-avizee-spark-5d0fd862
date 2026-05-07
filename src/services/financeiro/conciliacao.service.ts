@@ -7,6 +7,11 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import type { TransacaoExtrato } from "./ofxParser.service";
+import {
+  registrarBaixaFinanceiraRpc,
+  financeiroConciliarBaixaRpc,
+  financeiroConciliarLoteRpc,
+} from "@/types/rpc";
 
 /** Representa um título/lançamento financeiro para fins de conciliação. */
 export interface TituloParaConciliacao {
