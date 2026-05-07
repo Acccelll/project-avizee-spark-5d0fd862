@@ -278,22 +278,6 @@ export function useCotacoesCompra() {
       return;
     }
 
-    // Confirmação de impacto: cria pedido permanente e marca cotação como convertida.
-    const fornecedorNome =
-      propostasSelecionadas[0]?.fornecedores?.nome_razao_social ?? "fornecedor selecionado";
-    const totalEstimado = propostasSelecionadas.reduce((sum, p) => {
-      const item = viewItems.find((i) => i.id === p.item_id);
-      return sum + Number(p.preco_unitario || 0) * Number(item?.quantidade || 0);
-    }, 0);
-    const ok = window.confirm(
-      `Gerar pedido de compra?\n\n` +
-      `Fornecedor: ${fornecedorNome}\n` +
-      `Total estimado: ${totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n` +
-      `Itens: ${propostasSelecionadas.length}\n\n` +
-      `Esta ação marca a cotação como CONVERTIDA e não pode ser desfeita.`
-    );
-    if (!ok) return;
-
     // Delega para a RPC transacional `gerar_pedido_compra` via mutation hook.
     // O hook já invalida `cotacoes_compra` + `pedidos_compra` cross-módulo.
     try {

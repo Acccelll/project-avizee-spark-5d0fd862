@@ -29,6 +29,7 @@ import {
 import { CotacaoCompraHeaderSummary } from "./CotacaoCompraHeader";
 import { CotacaoCompraItensTable } from "./CotacaoCompraItensTable";
 import { CotacaoCompraPropostasPanel } from "./CotacaoCompraPropostasPanel";
+import { AuditTimelineMini } from "@/components/views/AuditTimelineMini";
 import { formatDate } from "@/lib/format";
 
 interface DrawerStats {
@@ -86,6 +87,7 @@ export function CotacaoCompraDrawer({
   const [rejectMotivo, setRejectMotivo] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState("");
+  const [gerarOpen, setGerarOpen] = useState(false);
 
   // Memoize the approved-total to avoid recomputing the reduce on every render of the Decisão tab.
   const totalAprovado = useMemo(() => {
@@ -135,7 +137,7 @@ export function CotacaoCompraDrawer({
                   size="lg"
                   className="w-full h-12 gap-2 shadow-md"
                   disabled={gerarPending}
-                  onClick={() => runGerar(onGerarPedido)}
+                  onClick={() => setGerarOpen(true)}
                 >
                   <ShoppingCart className="h-4 w-4" /> Gerar Pedido de Compra
                   <ChevronRight className="h-4 w-4 ml-auto" />
@@ -349,6 +351,11 @@ export function CotacaoCompraDrawer({
                         Todos os itens têm fornecedor selecionado. Envie para aprovação ou aprove diretamente.
                       </div>
                     )}
+
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-2">Histórico de auditoria</p>
+                      <AuditTimelineMini tabela="cotacoes_compra" registroId={selected.id} />
+                    </div>
                   </div>
                 ),
               },
@@ -391,7 +398,7 @@ export function CotacaoCompraDrawer({
                   </Button>
                 )}
                 {cotacaoCanGeneratePedido(selected.status) && (
-                  <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={gerarPending} onClick={() => runGerar(() => onGerarPedido())}>
+                  <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={gerarPending} onClick={() => setGerarOpen(true)}>
                     <ClipboardList className="h-4 w-4" /> Gerar Pedido de Compra
                   </Button>
                 )}
@@ -454,6 +461,23 @@ export function CotacaoCompraDrawer({
             placeholder="Ex: necessidade cancelada / cotação substituída"
           />
         </ConfirmDialog>
+        <ConfirmDialog
+          open={gerarOpen}
+          onClose={() => setGerarOpen(false)}
+          onConfirm={() => {
+            setGerarOpen(false);
+            runGerar(() => onGerarPedido());
+          }}
+          title="Gerar pedido de compra"
+          description={
+            `Será criado o pedido com base nas propostas selecionadas` +
+            (drawerStats.selectedSupplierName ? ` (fornecedor: ${drawerStats.selectedSupplierName})` : "") +
+            `, total estimado ${formatCurrency(totalAprovado)}. ` +
+            `A cotação será marcada como CONVERTIDA e não poderá ser editada.`
+          }
+          confirmLabel="Gerar pedido"
+          confirmVariant="default"
+        />
       </>
     )}
     </>

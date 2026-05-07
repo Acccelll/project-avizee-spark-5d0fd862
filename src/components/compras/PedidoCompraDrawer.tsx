@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
+import { AuditTimelineMini } from "@/components/views/AuditTimelineMini";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Edit,
@@ -204,7 +205,48 @@ export function PedidoCompraDrawer({
     <div className="space-y-3">
       {viewItems.length > 0 ? (
         <>
-          <div className="rounded-lg border overflow-hidden">
+          {/* Mobile: cards verticais */}
+          <div className="md:hidden space-y-2">
+            {viewItems.map((i) => {
+              const produtos = i.produtos;
+              const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+              const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
+              return (
+                <div key={String(i.id)} className="rounded-lg border bg-card p-3 space-y-2">
+                  <div>
+                    <p className="font-medium text-sm">{produtos?.nome ?? "—"}</p>
+                    {produtos?.codigo_interno && (
+                      <p className="text-[10px] font-mono text-muted-foreground">{produtos.codigo_interno}</p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Qtd</p>
+                      <p className="font-mono">{String(i.quantidade)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Vlr. Unit.</p>
+                      <p className="font-mono">{formatCurrency(Number(i.valor_unitario))}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Total</p>
+                      <p className="font-mono font-semibold">{formatCurrency(Number(i.valor_total))}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-success uppercase">Recebido</p>
+                      <p className="font-mono text-success">{qtdRec > 0 ? qtdRec : "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-warning uppercase">Pendente</p>
+                      <p className="font-mono text-warning">{qtdPend > 0 ? qtdPend : "—"}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Desktop: tabela */}
+          <div className="hidden md:block rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b">
@@ -581,6 +623,10 @@ export function PedidoCompraDrawer({
             className="py-6"
           />
         )}
+      </ViewSection>
+
+      <ViewSection title="Histórico de auditoria">
+        <AuditTimelineMini tabela="pedidos_compra" registroId={String(selected.id)} />
       </ViewSection>
     </div>
   );

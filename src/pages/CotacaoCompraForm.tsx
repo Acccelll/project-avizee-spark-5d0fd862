@@ -342,7 +342,10 @@ export default function CotacaoCompraForm() {
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <div className="space-y-2">
                 <Label>Número *</Label>
-                <Input value={form.numero} onChange={(e) => updateForm({ ...form, numero: e.target.value })} required className="font-mono" />
+                <Input value={form.numero} disabled required className="font-mono" />
+                <p className="text-[11px] text-muted-foreground">
+                  Número atribuído automaticamente pelo sistema.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Data Cotação</Label>

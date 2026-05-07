@@ -191,7 +191,55 @@ export function RegistrarRecebimentoDialog({ open, onClose, pedidoId, pedidoNume
               </div>
             </div>
 
-            <div className="rounded-lg border max-h-80 overflow-auto">
+            {/* Mobile: cards verticais */}
+            <div className="md:hidden space-y-2 max-h-[55vh] overflow-y-auto">
+              {items.map((i) => (
+                <div key={i.id} className="rounded-lg border bg-card p-3 space-y-2">
+                  <div>
+                    <p className="font-medium text-sm">{i.produto_nome}</p>
+                    {i.codigo_interno && (
+                      <p className="text-[10px] font-mono text-muted-foreground">{i.codigo_interno}</p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Pedido</p>
+                      <p className="font-mono">{i.quantidade}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Recebido</p>
+                      <p className="font-mono text-success">{i.quantidade_recebida}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-warning uppercase">Pendente</p>
+                      <p className="font-mono text-warning font-semibold">{i.pendente}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-primary uppercase">Receber agora</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      min={0}
+                      max={i.pendente}
+                      value={i.receber}
+                      disabled={i.pendente === 0 || saving}
+                      onChange={(e) => updateReceber(i.id, e.target.value)}
+                      className="h-11 text-right font-mono"
+                    />
+                  </div>
+                </div>
+              ))}
+              <div className="rounded-lg bg-muted/30 p-3 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase text-muted-foreground">Total a receber</span>
+                <span className="font-mono text-sm font-bold">
+                  {totalReceberQtd} un · {formatCurrency(totalReceberValor)}
+                </span>
+              </div>
+            </div>
+
+            {/* Desktop: tabela */}
+            <div className="hidden md:block rounded-lg border max-h-80 overflow-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr className="border-b">
