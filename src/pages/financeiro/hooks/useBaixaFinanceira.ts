@@ -23,6 +23,8 @@ export function useRegistrarBaixa() {
     mutationFn: (params: RegistrarBaixaParams) => registrarBaixaFinanceira(params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financeiro"] });
+      qc.invalidateQueries({ queryKey: ["contas_bancarias"] });
+      qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success("Baixa registrada com sucesso");
     },
@@ -42,6 +44,8 @@ export function useEstornarBaixa() {
     mutationFn: (input: { baixaId: string; motivo?: string }) => estornarBaixaFinanceira(input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financeiro"] });
+      qc.invalidateQueries({ queryKey: ["contas_bancarias"] });
+      qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success("Baixa estornada com sucesso");
     },
@@ -67,6 +71,7 @@ export function useGerarParcelas() {
     mutationFn: (params: GerarParcelasParams) => gerarParcelasFinanceirasRpc(params),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["financeiro"] });
+      qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
       toast.success(`${vars.numParcelas} parcelas geradas com sucesso`);
     },
     onError: (error) => {
@@ -86,6 +91,7 @@ export function useGerarFinanceiroFolha() {
       gerarFinanceiroFolhaRpc(input),
     onSuccess: (count) => {
       qc.invalidateQueries({ queryKey: ["financeiro"] });
+      qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
       qc.invalidateQueries({ queryKey: ["folha"] });
       toast.success(count > 0 ? `${count} lançamentos gerados` : "Nenhum lançamento novo a gerar");
     },

@@ -82,6 +82,11 @@ export async function estornarBaixaFinanceira(input: {
   baixaId: string;
   motivo?: string;
 }): Promise<void> {
+  /**
+   * Estorna UMA baixa específica por ID. Para estornar TODAS as baixas
+   * ativas de um lançamento, use `processarEstorno(lancamentoId)` em
+   * `services/financeiro/estornos.ts`.
+   */
   const { error } = await supabase.rpc("estornar_baixa_financeira", {
     p_baixa_id: input.baixaId,
     p_motivo: input.motivo,

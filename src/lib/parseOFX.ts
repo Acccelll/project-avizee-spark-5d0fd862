@@ -36,10 +36,16 @@ export function parseOFX(text: string): OFXTransaction[] {
 }
 
 function parseTransaction(block: string, index: number): OFXTransaction {
-  const id = extractField(block, 'FITID') || extractField(block, 'REFNUM') || `ofx-txn-${index}`;
+  const fitid = extractField(block, 'FITID') || extractField(block, 'REFNUM');
   const dtposted = extractField(block, 'DTPOSTED') || '';
   const trnamt = extractField(block, 'TRNAMT') || '0';
   const memo = extractField(block, 'MEMO') || extractField(block, 'NAME') || '';
+  // Quando o banco não fornece FITID, gera um ID determinístico a partir
+  // do conteúdo (data + valor + descrição) para evitar colisão de posição
+  // em re-imports parciais (M-05).
+  const id =
+    fitid ||
+    `ofx-${djb2(`${dtposted}|${trnamt}|${memo}|${index}`).toString(16)}`;
 
   return {
     id,
@@ -47,6 +53,15 @@ function parseTransaction(block: string, index: number): OFXTransaction {
     valor: parseFloat(trnamt.replace(',', '.')) || 0,
     descricao: memo.trim(),
   };
+}
+
+/** Hash determinístico (djb2) — leve, sem dependências, suficiente para deduplicação local. */
+function djb2(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h) ^ s.charCodeAt(i);
+  }
+  return h >>> 0;
 }
 
 /** Extracts a field value from an OFX block (handles both XML and SGML formats) */
