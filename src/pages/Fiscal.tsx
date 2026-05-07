@@ -290,6 +290,21 @@ const Fiscal = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- atalho ?new=1 one-shot; openCreate/setSearchParams capturados via closure
   }, [searchParams, autoOpened]);
 
+  // Deep-link `/fiscal?nf=:id` — abre o NotaFiscalDrawer da nota indicada.
+  // Substitui a antiga rota /fiscal/:id (FiscalDetail), agora deprecada (D-2).
+  useEffect(() => {
+    const nfId = searchParams.get("nf");
+    if (!nfId || loading) return;
+    const found = data.find((n) => n.id === nfId);
+    if (!found) return;
+    setSelected(found);
+    setDrawerOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("nf");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot via querystring
+  }, [searchParams, data, loading]);
+
   // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.
   useEffect(() => {
     if (autoOpened || !pedidoCompraOriginId || tipoOriginParam !== "entrada") return;

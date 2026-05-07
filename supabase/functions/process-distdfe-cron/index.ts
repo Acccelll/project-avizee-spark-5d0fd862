@@ -69,14 +69,34 @@ Deno.serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // ambiente: padrão = 2 (homologação). Pode vir no body para override manual.
+  // Ambiente: prioridade body > empresa_config.ambiente_sefaz > "2" (homolog).
+  // Antes o default era homologação fixa, o que silenciosamente perdia DistDF-e
+  // em produção. Agora consultamos a configuração da empresa principal.
   let ambiente: "1" | "2" = "2";
   try {
     const body = await req.json().catch(() => ({}));
-    if (body?.ambiente === "1" || body?.ambiente === "2") ambiente = body.ambiente;
+    if (body?.ambiente === "1" || body?.ambiente === "2") {
+      ambiente = body.ambiente;
+    } else {
+      const { data: cfg } = await admin
+        .from("empresa_config")
+        .select("ambiente_sefaz, ambiente_padrao")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      const cfgAmb = (cfg as { ambiente_sefaz?: string | number; ambiente_padrao?: string } | null);
+      if (cfgAmb) {
+        if (cfgAmb.ambiente_sefaz === "1" || cfgAmb.ambiente_sefaz === 1 || cfgAmb.ambiente_padrao === "producao") {
+          ambiente = "1";
+        } else if (cfgAmb.ambiente_sefaz === "2" || cfgAmb.ambiente_sefaz === 2 || cfgAmb.ambiente_padrao === "homologacao") {
+          ambiente = "2";
+        }
+      }
+    }
   } catch {
-    // sem body — ok
+    // sem body / sem config — mantém default conservador
   }
+  log.info("Ambiente DistDF-e resolvido", { ambiente });
 
   const inicio = new Date().toISOString();
   const resultados: Array<{
