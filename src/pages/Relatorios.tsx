@@ -241,7 +241,7 @@ export default function Relatorios() {
   }, [hasActions, getRowActions, navigateAction]);
 
   const handleSelectTipo = (next: TipoRelatorio) => {
-    setHiddenColumns([]);
+    // 8.6.3 — Não limpar `hiddenColumns`: cada `tipo` tem suas próprias preferências persistidas.
     setSearchParams({ tipo: next });
   };
 
