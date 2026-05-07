@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -12,6 +12,7 @@ import { PedidoCompraFilters } from "@/components/compras/PedidoCompraFilters";
 import { PedidoCompraTable } from "@/components/compras/PedidoCompraTable";
 import { PedidoCompraFormModal } from "@/components/compras/PedidoCompraFormModal";
 import { PedidoCompraDrawer } from "@/components/compras/PedidoCompraDrawer";
+import { RegistrarRecebimentoDialog } from "@/components/compras/RegistrarRecebimentoDialog";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCan } from "@/hooks/useCan";
@@ -24,6 +25,7 @@ export default function PedidosCompra() {
   const ctx = usePedidosCompra();
   const { isAdmin } = useIsAdmin();
   const { can } = useCan();
+  const [recebDialog, setRecebDialog] = useState<{ id: string; numero: string } | null>(null);
   // Aprovar/Cancelar/Rejeitar pedido de compra requer permissão explícita; admin
   // mantém acesso total. Mantemos a prop `isAdmin` no Drawer para evitar refactor
   // amplo — semântica passa a ser "pode operar" (admin OU permissão).
@@ -134,7 +136,7 @@ export default function PedidosCompra() {
           onView={ctx.openView}
           onEdit={ctx.openEdit}
           onSend={ctx.marcarEnviado}
-          onReceive={ctx.darEntrada}
+          onReceive={(p) => setRecebDialog({ id: String(p.id), numero: String(p.numero ?? p.id) })}
         />
       </ModulePage>
 
@@ -179,6 +181,16 @@ export default function PedidosCompra() {
           onAfterRecebimentoChange={() => { ctx.refreshAll(); ctx.setDrawerOpen(false); }}
           isAdmin={canOperate}
           statusLabels={statusLabels}
+        />
+      )}
+
+      {recebDialog && (
+        <RegistrarRecebimentoDialog
+          open={true}
+          onClose={() => setRecebDialog(null)}
+          pedidoId={recebDialog.id}
+          pedidoNumero={recebDialog.numero}
+          onSuccess={() => { ctx.refreshAll(); setRecebDialog(null); }}
         />
       )}
     </>
