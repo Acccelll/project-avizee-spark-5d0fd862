@@ -21,12 +21,11 @@ Aplicação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03), q
 - Manter `consultadanfe-proxy` apenas como fallback opcional sob `VITE_FEATURE_FALLBACK_CONSULTADANFE` (default `false`).
 - Atualizar `mem/features/fiscal-busca-por-chave-flag.md` resolvendo o conflito com `fiscal-consulta-por-chave.md` (uma única narrativa: "DistDFe é oficial; consultadanfe é fallback opcional").
 
-**1.2 — `sefaz-proxy` autoriza por permissão fiscal (C-02 / EF-01)**
-- Adicionar helper `requireFiscalRole(req)` que, depois de `requireAuth`, consulta `user_permissions` (RLS via `service_role`) e exige `faturamento_fiscal:emitir` OU role `admin`/`fiscal_emissor`.
-- Aplicar em todas as actions sensíveis: `assinar-e-enviar-vault`, `enviar-sem-assinatura-vault`, `parse-certificado`, `manifesto-ciencia`.
-- `health` segue com `requireAuth` mas omite `hasPfxPassword` para não-admins (M-01).
-- Replicar o mesmo helper em `sefaz-distdfe` para `consultar-chave` e `consultar-nsu` (exigir `faturamento_fiscal:visualizar` no mínimo).
-- Mensagens 403 padronizadas ("Sem permissão para operações fiscais").
+**1.2 — `sefaz-proxy` e `sefaz-distdfe` autorizam por permissão fiscal (C-02 / EF-01) ✅**
+- ✅ Criado helper `supabase/functions/_shared/permissions.ts` (`requireAnyPermission`) que valida `user_permissions` via SERVICE_ROLE, respeita `expires_at` e dá bypass para `user_roles=admin`.
+- ✅ `sefaz-proxy`: mapa `ACTION_PERMISSIONS` por action (`health`/`parse-certificado`/`assinar-e-enviar-vault`/`enviar-sem-assinatura-vault`) — admin_fiscal e roles operacionais (criar/cancelar/visualizar) liberam conforme criticidade. Mensagem 403 padronizada.
+- ✅ `sefaz-distdfe`: ambas as actions (`consultar-nsu`/`consultar-chave`) exigem ao menos `faturamento_fiscal:visualizar` (admin global ignora). Bypass automático quando o Authorization é o SERVICE_ROLE (chamadas internas do `process-distdfe-cron`).
+- ✅ `process-distdfe-cron` agora envia `Authorization: Bearer <SERVICE_ROLE>` em vez de `ANON_KEY` para se identificar como invocação privilegiada na chamada interna do `sefaz-distdfe`.
 
 **1.3 — Limpar `fiscalInternalStatusMap` — separar ERP × SEFAZ (C-03)**
 - `FiscalInternalStatus` reduzido a 5 valores canônicos: `rascunho · pendente · confirmada · importada · cancelada`.
