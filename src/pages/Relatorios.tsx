@@ -25,7 +25,10 @@ import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFo
 import { PreviewDocument } from '@/pages/relatorios/components/PreviewDocument';
 import { RelatorioCatalogo } from '@/pages/relatorios/components/RelatorioCatalogo';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
-import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
+import {
+  useRelatoriosFiltrosData,
+  useSelectedRefLabels,
+} from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
 import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { useRelatorioUrlState } from '@/pages/relatorios/hooks/useRelatorioUrlState';
 import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
@@ -94,7 +97,12 @@ export default function Relatorios() {
 
   const { favoritos, salvar: salvarFavorito, remover: removerFavorito } = useRelatoriosFavoritos();
 
-  const { clientes, fornecedores, grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
+  const { grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
+  // Resolve labels apenas para os ids selecionados (sem pré-carregar listas inteiras).
+  const { clientes, fornecedores } = useSelectedRefLabels(
+    filtrosState.clienteIds,
+    filtrosState.fornecedorIds,
+  );
 
   const { getRowActions, navigateAction, hasActions } = useRelatorioDrillDown(tipo as TipoRelatorio | undefined);
 
