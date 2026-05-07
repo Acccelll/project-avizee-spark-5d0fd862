@@ -247,3 +247,5 @@ export function ConsultaDocumentos() {
     </Card>
   );
 }
+
+export default ConsultaDocumentos;
