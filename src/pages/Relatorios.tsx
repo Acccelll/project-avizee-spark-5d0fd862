@@ -276,7 +276,6 @@ export default function Relatorios() {
 
   const handleCarregarFavorito = (params: string) => {
     setSearchParams(new URLSearchParams(params));
-    setHiddenColumns([]);
     toast.success('Favorito aplicado aos filtros atuais.');
   };
 
@@ -325,7 +324,6 @@ export default function Relatorios() {
   const handleClearAllFilters = () => {
     // Mantém o tipo de relatório, limpa o restante.
     setSearchParams({ tipo });
-    setHiddenColumns([]);
   };
 
   const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
