@@ -122,17 +122,13 @@ export function PedidoCompraDrawer({
   })();
 
 
-  const estoquePorProduto: Record<string, number> = viewEstoque.reduce<Record<string, number>>(
-    (acc, m) => {
-      const key = String(m.produto_id);
-      acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
-      return acc;
-    },
-    {},
-  );
+  // CM-03: fonte canônica do quanto foi recebido por item é
+  // pedidos_compra_itens.quantidade_recebida (o produto pode aparecer
+  // em mais de um item dentro do mesmo pedido).
+  const recebidoPorItem = (i: PedidoItemRow) => Number(i.quantidade_recebida ?? 0);
 
   const totalOrdenado = viewItems.reduce((s, i) => s + Number(i.quantidade || 0), 0);
-  const totalRecebido = viewEstoque.reduce((s, m) => s + Number(m.quantidade || 0), 0);
+  const totalRecebido = viewItems.reduce((s, i) => s + recebidoPorItem(i), 0);
   const pctRecebimento =
     totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
