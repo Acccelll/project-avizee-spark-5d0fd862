@@ -24,6 +24,8 @@ import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFo
 import { PreviewDocument } from '@/pages/relatorios/components/PreviewDocument';
 import { RelatorioCatalogo } from '@/pages/relatorios/components/RelatorioCatalogo';
 import { RelatorioKpiGrid } from '@/pages/relatorios/components/RelatorioKpiGrid';
+import { RelatorioFiltrosBar } from '@/pages/relatorios/components/RelatorioFiltrosBar';
+import { RelatorioMobileToolbar } from '@/pages/relatorios/components/RelatorioMobileToolbar';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import {
   useRelatoriosFiltrosData,
@@ -39,7 +41,7 @@ import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDril
 import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, SearchX, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { BookmarkPlus, BookOpen, Hash, Trash2, RefreshCcw, SearchX, ChevronDown } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
