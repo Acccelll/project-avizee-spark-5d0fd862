@@ -307,6 +307,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === "rastrear" && req.method === "GET") {
+      // Onda 5 / C-04: rastreio só para usuários autenticados.
+      await requireUserWithRole(req);
       const codigo = url.searchParams.get("codigo") || "";
       if (!codigo) {
         return new Response(
