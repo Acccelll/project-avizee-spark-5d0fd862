@@ -351,6 +351,11 @@ export function CotacaoCompraDrawer({
                         Todos os itens têm fornecedor selecionado. Envie para aprovação ou aprove diretamente.
                       </div>
                     )}
+
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-2">Histórico de auditoria</p>
+                      <AuditTimelineMini tabela="cotacoes_compra" registroId={selected.id} />
+                    </div>
                   </div>
                 ),
               },
