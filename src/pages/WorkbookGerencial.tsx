@@ -148,14 +148,16 @@ export default function WorkbookGerencial() {
         />
       </ModulePage>
 
-      {canGerar && (
-        <WorkbookGeracaoDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          templates={templates}
-          onGerar={async (p) => { await gerarMutation.mutateAsync(p); }}
-          isGenerating={gerarMutation.isPending}
-        />
+      {canGerar && dialogOpen && (
+        <Suspense fallback={null}>
+          <WorkbookGeracaoDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            templates={templates}
+            onGerar={async (p) => { await gerarMutation.mutateAsync(p); }}
+            isGenerating={gerarMutation.isPending}
+          />
+        </Suspense>
       )}
     </>
   );
