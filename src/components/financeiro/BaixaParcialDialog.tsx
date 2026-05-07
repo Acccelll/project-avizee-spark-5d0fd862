@@ -294,7 +294,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
               <div className="space-y-1.5">
                 <Label className="text-xs">Forma de Pagamento *</Label>
                 <Select value={formaPagamento || "none"} onValueChange={(v) => setFormaPagamento(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-10"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Selecione...</SelectItem>
                     {FORMA_PAGAMENTO_OPTIONS.map((o) => (
@@ -306,7 +306,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
               <div className="col-span-2 space-y-1.5">
                 <Label className="text-xs">Conta Bancária *</Label>
                 <Select value={contaBancariaId || "none"} onValueChange={(v) => setContaBancariaId(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-10"><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Selecione...</SelectItem>
                     {contasBancarias.map(c => (
@@ -322,7 +322,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                   </Label>
                   {cartoesAtivos.length > 0 ? (
                     <Select value={cartaoId || "none"} onValueChange={(v) => setCartaoId(v === "none" ? "" : v)}>
-                      <SelectTrigger><SelectValue placeholder="Selecione cartão..." /></SelectTrigger>
+                      <SelectTrigger className="h-11 sm:h-10"><SelectValue placeholder="Selecione cartão..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Selecione...</SelectItem>
                         {cartoesAtivos.map((c) => (
