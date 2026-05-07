@@ -104,9 +104,9 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 - 8.3.3 ✅ Detect `rows.length === 1000` e warning "Resultado pode estar truncado" no workspace de Relatórios.
 
 ### Sprint 8.4 — Workbook & Apresentação robustos (🟡)
-- 8.4.1 Modo fechado: avisos visuais por aba ("snapshot fechado não disponibiliza este corte") em vez de aba vazia.
+- 8.4.1 ✅ Modo fechado: aba `00b_Aviso_Modo_Fechado` listando cortes V2 indisponíveis com motivo (em vez de abas vazias).
 - 8.4.2 Cache de geração via `hash_geracao` — se idêntico nos últimos 24h, devolver artefato existente.
-- 8.4.3 Apresentação `dataAvailability` estruturado (campo `dados_indisponiveis: boolean` em `comentarios`).
+- 8.4.3 ✅ `dataAvailability` agora deriva de `tags_json.tags.includes('indisponivel')` (estruturado), com fallback substring para registros legados.
 - 8.4.4 Schema declarado por `SlideCodigo` (substituir `numericPairs/findArrayRows`).
 - 8.4.5 `AbortController` em `fetchWorkbookData` / `fetchPresentationData`.
 
