@@ -106,12 +106,12 @@ const modeloLabels: Record<string, string> = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getStatusRules(status: string) {
+function getStatusRules(status: string, statusSefaz?: string | null) {
   return {
     // Fully locked: no changes at all
-    isFullyLocked: isFiscalReadOnly(status),
+    isFullyLocked: isFiscalReadOnly(status, statusSefaz),
     // Structurally locked: only observações can be changed
-    isStructurallyLocked: isFiscalStructurallyLocked(status),
+    isStructurallyLocked: isFiscalStructurallyLocked(status, statusSefaz),
     // Rejeitada: editable again (SEFAZ rejected, needs correction)
     canConfirmar: canConfirmFiscal(status),
   };
@@ -188,7 +188,8 @@ export function NotaFiscalEditModal({
   totalImpostos,
   totalNF,
 }: NotaFiscalEditModalProps) {
-  const rules = getStatusRules(selected.status);
+  const statusSefaz = (selected as { status_sefaz?: string }).status_sefaz ?? null;
+  const rules = getStatusRules(selected.status, statusSefaz);
   const modelo =
     modeloLabels[selected.modelo_documento || "55"] ||
     selected.modelo_documento;
