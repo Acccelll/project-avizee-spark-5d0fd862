@@ -255,7 +255,7 @@ const Financeiro = () => {
     estornoProcessing,
     estornoMotivo,
     setEstornoMotivo,
-  } = useFinanceiroActions({ data: data, getLancamentoStatus, create, update, fetchData });
+  } = useFinanceiroActions({ filteredData: data, getLancamentoStatus, create, update, fetchData });
 
   // KPIs server-side via RPC `kpis_financeiro` — fonte única, sem fallback local.
   const { data: kpisRpc } = useFinanceiroKpisRpc({
