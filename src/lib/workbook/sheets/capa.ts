@@ -30,6 +30,13 @@ export async function buildCapa(
   sub.font = { italic: true, color: { argb: COLORS.MUTED }, size: 11 };
   sub.alignment = { horizontal: 'left', indent: 1 };
 
+  // Carimbo de origem (reconciliação cross-output)
+  ws.mergeCells('A3:F3');
+  const stamp = ws.getCell('A3');
+  stamp.value = `Fonte: vw_workbook_* · Gerado em ${new Date().toLocaleString('pt-BR')}`;
+  stamp.font = { italic: true, color: { argb: COLORS.MUTED }, size: 9 };
+  stamp.alignment = { horizontal: 'left', indent: 1 };
+
   // Logo (best-effort)
   if (data.empresa?.logo_url) {
     try {
