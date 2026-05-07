@@ -79,6 +79,7 @@ export default function Relatorios() {
   const [saveName, setSaveName] = useState('');
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [tableExpanded, setTableExpanded] = useState(false);
+  const [tableAutoOpened, setTableAutoOpened] = useState(false);
 
   const isMobile = useIsMobile();
 
