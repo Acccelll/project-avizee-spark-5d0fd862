@@ -7,13 +7,33 @@ import type { Column } from "@/components/DataTable";
 import type { Lancamento } from "@/types/domain";
 
 const mockUseSupabaseCrud = vi.fn();
+const mockUseFinanceiroLancamentosPaged = vi.fn();
+const mockUseFinanceiroKpisRpc = vi.fn();
 
 vi.mock("@/components/AppLayout", () => ({
   AppLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
+// Concede todas as permissões para que `PermissionGate` libere o botão "Baixar".
+vi.mock("@/hooks/useCan", () => ({
+  useCan: () => ({ can: () => true, loading: false }),
+}));
+vi.mock("@/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
 vi.mock("@/hooks/useSupabaseCrud", () => ({
   useSupabaseCrud: (...args: unknown[]) => mockUseSupabaseCrud(...args),
+}));
+
+// Após 1.4 (paginação server-side), Financeiro usa estes hooks ao invés de useSupabaseCrud.
+vi.mock("@/pages/financeiro/hooks/useFinanceiroLancamentosPaged", () => ({
+  useFinanceiroLancamentosPaged: (...args: unknown[]) =>
+    mockUseFinanceiroLancamentosPaged(...args),
+  useResetPageOnFiltersChange: () => undefined,
+}));
+vi.mock("@/pages/financeiro/hooks/useFinanceiroKpisRpc", () => ({
+  useFinanceiroKpisRpc: (...args: unknown[]) => mockUseFinanceiroKpisRpc(...args),
 }));
 
 vi.mock("@/integrations/supabase/client", () => {
@@ -51,13 +71,22 @@ vi.mock("@/components/AdvancedFilterBar", () => ({
 }));
 
 vi.mock("@/components/DataTable", () => ({
-  DataTable: ({ columns, data }: { columns: Column<Lancamento>[]; data: Lancamento[] }) => (
+  DataTable: ({
+    columns,
+    data,
+    rowExtraActions,
+  }: {
+    columns: Column<Lancamento>[];
+    data: Lancamento[];
+    rowExtraActions?: (row: Lancamento) => React.ReactNode;
+  }) => (
     <div>
       <div>Rows: {data.length}</div>
       {data.map((row) => (
         <div key={row.id}>
           <span>{row.descricao}</span>
           {columns.find((c) => c.key === "acoes_rapidas")?.render(row)}
+          {rowExtraActions?.(row)}
         </div>
       ))}
     </div>
@@ -83,9 +112,10 @@ vi.mock("@/components/financeiro/FinanceiroCalendar", () => ({
 describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
   beforeEach(() => {
     mockUseSupabaseCrud.mockReset();
+    mockUseFinanceiroLancamentosPaged.mockReset();
+    mockUseFinanceiroKpisRpc.mockReset();
 
-    const lancamentos = {
-      data: [
+    const rows = [
         {
           id: "l1",
           tipo: "receber",
@@ -114,21 +144,30 @@ describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
           parcela_numero: 0,
           parcela_total: 0,
         },
-      ],
-      loading: false,
-      create: vi.fn(),
-      update: vi.fn(),
-      remove: vi.fn(),
-      fetchData: vi.fn(),
-    };
+    ];
 
     const emptyResult = { data: [], loading: false, create: vi.fn(), update: vi.fn(), remove: vi.fn(), fetchData: vi.fn() };
 
-    // Stable implementation: return lancamentos for the financeiro table, empty for others
-    mockUseSupabaseCrud.mockImplementation((opts: { table: string }) => {
-      if (opts.table === "financeiro_lancamentos") return lancamentos;
-      return emptyResult;
-    });
+    mockUseSupabaseCrud.mockImplementation(() => emptyResult);
+    // Após 1.4, busca é server-side: o hook recebe `filters.search` e devolve
+    // apenas as linhas que casam (simulação simples por substring).
+    mockUseFinanceiroLancamentosPaged.mockImplementation(
+      (filters: { search?: string | null }) => {
+        const term = (filters?.search ?? "").trim().toLowerCase();
+        const filtered = term
+          ? rows.filter((r) => r.descricao.toLowerCase().includes(term))
+          : rows;
+        return {
+          data: filtered,
+          totalCount: filtered.length,
+          loading: false,
+          refetching: false,
+          refetch: vi.fn(),
+          error: null,
+        };
+      },
+    );
+    mockUseFinanceiroKpisRpc.mockReturnValue({ data: undefined });
   });
 
   it("abre financeiro, aplica busca principal e permite iniciar baixa", async () => {

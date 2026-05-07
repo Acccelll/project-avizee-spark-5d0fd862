@@ -6,15 +6,15 @@ Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03
 
 ### Fase 1 — Críticos (impacto imediato em produção)
 
-**1.1 — `useRegistrarBaixa` invalida saldos de conta e fluxo de caixa (C-03)**
+**1.1 — `useRegistrarBaixa` invalida saldos de conta e fluxo de caixa (C-03)** ✅
 - Adicionar `["contas_bancarias"]` e `["fluxo-caixa"]` em todos os `onSuccess` de `useBaixaFinanceira.ts` (registrar, estornar, gerar parcelas, gerar folha).
 - Replicar nos `processarBaixaLote` e `processarEstorno` quando chamados fora do hook.
 
-**1.2 — Constraint UNIQUE em conciliação (BK-04)**
+**1.2 — Constraint UNIQUE em conciliação (BK-04)** ✅
 - Migration: `CREATE UNIQUE INDEX uq_baixa_conta_extrato_ref ON financeiro_baixas (conta_bancaria_id, conciliacao_extrato_referencia) WHERE conciliacao_extrato_referencia IS NOT NULL;`
 - RPC `financeiro_conciliar_baixa`: validar antes do UPDATE que a referência ainda não foi usada noutra baixa ativa; mensagem clara.
 
-**1.3 — Persistência do extrato OFX (C-02)**
+**1.3 — Persistência do extrato OFX (C-02)** ✅
 - Nova tabela `financeiro_extrato_importacoes` (`conta_bancaria_id`, `fitid`, `data`, `valor`, `descricao`, `competencia`, `status` ∈ {pendente, conciliado, ignorado}, `baixa_id` opcional, `arquivo_hash`, `importado_por`).
 - `UNIQUE (conta_bancaria_id, fitid)` para idempotência de re-import.
 - RLS por `empresa_id` (trigger `set_empresa_id_default`).
@@ -38,11 +38,11 @@ Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03
 
 ### Fase 2 — Altos
 
-**2.1 — Remover fallback de UPDATE direto em `processarBaixaLote` (A-03)**
+**2.1 — Remover fallback de UPDATE direto em `processarBaixaLote` (A-03)** ✅
 - Quando RPC retorna `erros`, apenas reportar (`toast.warning` já existe). Sem UPDATE manual.
 - Não tentar reprocessar item-a-item silenciosamente — opcionalmente disparar `registrarBaixaFinanceira` por item se desejado, mas com confirmação.
 
-**2.2 — Guard admin-only para exclusão física (A-01)**
+**2.2 — Guard admin-only para exclusão física (A-01)** ✅ (gate no RPC; UI expõe apenas Cancelar)
 - `FinanceiroDrawer`: separar `canCancelar` (status → `cancelado`) de `canExcluirFisico` (`isAdmin && origem_tipo='manual' && sem baixas ativas`).
 - Renderizar dois botões distintos com ícones e textos diferentes; confirm dialog específico.
 
@@ -50,15 +50,15 @@ Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03
 - JSDoc claro em `estornarBaixaFinanceira` (unitário) e `processarEstorno` (lote).
 - `FinanceiroDrawer`: histórico de baixas com botão "Estornar esta baixa" (unitário) + botão principal "Estornar todas" (lote).
 
-**2.4 — `sugerirConciliacao` excluir títulos sem `data_baixa` (A-05)**
+**2.4 — `sugerirConciliacao` excluir títulos sem `data_baixa` (A-05)** ✅
 - `calcularScoreConciliacao`: se `titulo.status === 'aberto'`, retornar score 0.
 - Apenas `pago/parcial` entram no matching.
 
-**2.5 — Advisory lock em RPCs de baixa (BK-01)**
+**2.5 — Advisory lock em RPCs de baixa (BK-01)** ✅
 - `registrar_baixa_financeira`: `PERFORM pg_advisory_xact_lock(hashtext(p_lancamento_id::text));` no início.
 - Idem em `estornar_baixa_financeira` e (por item) em `registrar_baixa_lote_financeira`.
 
-**2.6 — CHECK de motivo no banco (BK-02)**
+**2.6 — CHECK de motivo no banco (BK-02)** ✅
 - `financeiro_cancelar_lancamento`: `IF length(trim(p_motivo)) < 5 THEN RAISE EXCEPTION ... USING ERRCODE='22023'`.
 
 **2.7 — Tipagem RPC (SH-04)** ✅
