@@ -32,6 +32,28 @@ export const SECAO_ORDEM: SlideSecao[] = [
   'encerramento',
 ];
 
+/**
+ * Schema declarado por slide consumido pelo `generatePresentation`
+ * (PPTX) para evitar a heurística `numericPairs` / `findArrayRows`.
+ *
+ * Quando ausente, os renderers caem nos heurísticos antigos.
+ */
+export interface SlideDataSchema {
+  /** Chave dentro de `dados` que contém o array (ex.: 'serie', 'ranking'). */
+  arrayKey?: string;
+  /** Campo de cada item do array que é o label do eixo X / categoria. */
+  labelField?: string;
+  /** Campo de cada item do array que é o valor numérico (séries simples). */
+  valueField?: string;
+  /** Para charts multi-série (ex.: receita_vs_despesa): vários `valueField`. */
+  valueFields?: string[];
+  /**
+   * Para `chartType: 'cards'`, lista ordenada das chaves escalares de `dados`
+   * que devem virar cards (ignora as demais).
+   */
+  cardKeys?: string[];
+}
+
 export interface SlideDefinition {
   codigo: SlideCodigo;
   titulo: string;
@@ -47,6 +69,8 @@ export interface SlideDefinition {
   modeSupport: ApresentacaoModoGeracao[];
   criticalInClosedMode?: boolean;
   secao: SlideSecao;
+  /** Schema explícito do payload `dados`. */
+  dataSchema?: SlideDataSchema;
 }
 
 export const APRESENTACAO_SLIDES_V2: SlideDefinition[] = [
