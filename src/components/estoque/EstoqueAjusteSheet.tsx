@@ -235,7 +235,18 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
 
             {/* Preview de impacto */}
             {produtoSelecionado && (
-              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <div
+                className={cn(
+                  "rounded-lg border p-3",
+                  // Sticky em mobile para manter o preview de saldo visível enquanto rola o form
+                  "max-sm:sticky max-sm:top-0 max-sm:z-10 max-sm:shadow-sm",
+                  novoSaldoPreview < 0
+                    ? "border-destructive/40 bg-destructive/5"
+                    : novoSaldoPreview === 0
+                    ? "border-warning/40 bg-warning/5"
+                    : "border-primary/30 bg-primary/5",
+                )}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Saldo Atual</p>
