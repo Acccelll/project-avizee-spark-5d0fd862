@@ -652,6 +652,7 @@ export type Database = {
           competencia: string
           created_at: string
           created_by: string | null
+          empresa_id: string | null
           id: string
           observacoes: string | null
           updated_at: string
@@ -663,6 +664,7 @@ export type Database = {
           competencia: string
           created_at?: string
           created_by?: string | null
+          empresa_id?: string | null
           id?: string
           observacoes?: string | null
           updated_at?: string
@@ -674,6 +676,7 @@ export type Database = {
           competencia?: string
           created_at?: string
           created_by?: string | null
+          empresa_id?: string | null
           id?: string
           observacoes?: string | null
           updated_at?: string
@@ -778,6 +781,7 @@ export type Database = {
           data_abertura: string | null
           data_fechamento: string
           data_vencimento: string
+          empresa_id: string | null
           id: string
           observacoes: string | null
           status: string
@@ -791,6 +795,7 @@ export type Database = {
           data_abertura?: string | null
           data_fechamento: string
           data_vencimento: string
+          empresa_id?: string | null
           id?: string
           observacoes?: string | null
           status?: string
@@ -804,6 +809,7 @@ export type Database = {
           data_abertura?: string | null
           data_fechamento?: string
           data_vencimento?: string
+          empresa_id?: string | null
           id?: string
           observacoes?: string | null
           status?: string
@@ -1475,6 +1481,7 @@ export type Database = {
         Row: {
           conciliacao_id: string
           criado_em: string
+          empresa_id: string | null
           extrato_id: string
           id: string
           lancamento_id: string | null
@@ -1484,6 +1491,7 @@ export type Database = {
         Insert: {
           conciliacao_id: string
           criado_em?: string
+          empresa_id?: string | null
           extrato_id: string
           id?: string
           lancamento_id?: string | null
@@ -1493,6 +1501,7 @@ export type Database = {
         Update: {
           conciliacao_id?: string
           criado_em?: string
+          empresa_id?: string | null
           extrato_id?: string
           id?: string
           lancamento_id?: string | null
