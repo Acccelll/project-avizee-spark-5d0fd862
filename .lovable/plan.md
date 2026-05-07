@@ -104,8 +104,8 @@ Ajuste manual ──► ajustar_estoque_manual (RPC) → audit log
 
 ### Bloco 3 — Melhorias (curtas)
 12. ✅ `EtiquetaCorreiosCard.handleCancelar` → `useConfirmDialog`. (MB-03)
-13. Cards mobile para Movimentações e Recebimentos. (MB-02) — pendente
-14. Tooltip "Visão consolidada" nas abas de Logística. (MB-08) — banner já existe na aba Entregas; tooltip nas TabsTrigger pendente
+13. ✅ Cards mobile para Movimentações (qty/saldo/origem/data) e Recebimentos (prev./qtd. recebida/pendência) via `mobileCard`. (MB-02)
+14. ✅ Tooltips "Visão consolidada / Acompanhamento / Operação real" nas TabsTrigger de Logística. (MB-08)
 15. ✅ Index `remessa_eventos(remessa_id, data_hora DESC)` criado. (DB-06)
 
 ### Bloco 4 — Dívida técnica (deferível)
