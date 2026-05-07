@@ -455,6 +455,23 @@ export function CotacaoCompraDrawer({
             placeholder="Ex: necessidade cancelada / cotação substituída"
           />
         </ConfirmDialog>
+        <ConfirmDialog
+          open={gerarOpen}
+          onClose={() => setGerarOpen(false)}
+          onConfirm={() => {
+            setGerarOpen(false);
+            runGerar(() => onGerarPedido());
+          }}
+          title="Gerar pedido de compra"
+          description={
+            `Será criado o pedido com base nas propostas selecionadas` +
+            (drawerStats.selectedSupplierName ? ` (fornecedor: ${drawerStats.selectedSupplierName})` : "") +
+            `, total estimado ${formatCurrency(totalAprovado)}. ` +
+            `A cotação será marcada como CONVERTIDA e não poderá ser editada.`
+          }
+          confirmLabel="Gerar pedido"
+          confirmVariant="default"
+        />
       </>
     )}
     </>
