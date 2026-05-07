@@ -9184,6 +9184,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      financeiro_conciliar_lote: {
+        Args: {
+          p_conta_bancaria_id: string
+          p_data_conciliacao: string
+          p_observacoes?: string
+          p_pares: Json
+        }
+        Returns: string
+      }
       financeiro_processar_baixa_lote: {
         Args: { p_items: Json }
         Returns: Json
