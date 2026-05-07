@@ -54,6 +54,20 @@ export default function ApresentacaoGerencial() {
   const selectedGeracao = useMemo<ApresentacaoGeracao | null>(() => geracoes.find((g) => g.id === selectedGeracaoId) ?? null, [geracoes, selectedGeracaoId]);
   const selectedSlides = useMemo<SlideCodigo[]>(() => (selectedGeracao?.slides_json as any)?.ativos ?? [], [selectedGeracao]);
 
+  // 8.4.3 — disponibilidade estruturada via tags_json.tags (inclui 'indisponivel')
+  // com fallback à substring legada para registros antigos.
+  const dataAvailability = useMemo<Record<string, boolean>>(() => {
+    const map: Record<string, boolean> = {};
+    for (const c of comentarios) {
+      const tags = (c.tags_json && typeof c.tags_json === 'object' ? (c.tags_json as { tags?: unknown }).tags : null);
+      const isUnavailable = Array.isArray(tags)
+        ? tags.includes('indisponivel')
+        : (c.comentario_automatico ?? '').toLowerCase().includes('indispon');
+      map[c.slide_codigo] = !isUnavailable;
+    }
+    return map;
+  }, [comentarios]);
+
   const gerarMutation = useMutation({
     mutationFn: gerarApresentacao,
     onSuccess: ({ blob, geracaoId, aguardandoAprovacao }, variables) => {
@@ -195,7 +209,7 @@ export default function ApresentacaoGerencial() {
 
           <ApresentacaoSlidesPreview
             activeSlides={selectedSlides.length ? selectedSlides : undefined}
-            dataAvailability={Object.fromEntries(comentarios.map((c) => [c.slide_codigo, !c.comentario_automatico?.includes('indisponíveis')])) as any}
+            dataAvailability={dataAvailability}
           />
 
           {canEditarComentarios && !!selectedGeracaoId && (

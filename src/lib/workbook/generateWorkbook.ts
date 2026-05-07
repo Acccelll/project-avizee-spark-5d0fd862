@@ -107,6 +107,45 @@ export async function generateWorkbook(options: GenerateWorkbookOptions): Promis
 
   // 4b. Build V2 analytical sheets
   if (incluir('capa')) await buildCapa(workbook, data, competenciaInicial, competenciaFinal, modoGeracao);
+
+  // 8.4.1 — Modo fechado: avisa em uma aba dedicada quais cortes V2 não têm snapshot.
+  if (modoGeracao === 'fechado') {
+    const ws = workbook.addWorksheet('00b_Aviso_Modo_Fechado');
+    ws.columns = [{ width: 32 }, { width: 70 }];
+    const titleRow = ws.addRow(['Modo fechado — cortes indisponíveis']);
+    titleRow.font = { bold: true, size: 13 };
+    ws.mergeCells('A1:B1');
+    ws.addRow([]);
+    ws.addRow(['Período', `${competenciaInicial} a ${competenciaFinal}`]);
+    ws.addRow([]);
+    const intro = ws.addRow([
+      'Este workbook foi gerado a partir do snapshot de fechamento mensal. Os cortes abaixo não são preservados em snapshot e foram suprimidos para evitar números enganosos. Use o modo dinâmico se precisar destes cortes.',
+    ]);
+    intro.getCell(1).alignment = { wrapText: true, vertical: 'top' };
+    ws.mergeCells(`A${intro.number}:B${intro.number}`);
+    intro.height = 48;
+    ws.addRow([]);
+    const headerRow = ws.addRow(['Aba', 'Motivo']);
+    headerRow.font = { bold: true };
+    const indisponiveis: Array<[string, string]> = [
+      ['01_DRE', 'DRE V2 não snapshotada — recalcular requer base ao vivo.'],
+      ['02_Caixa Evolutivo', 'Saldo evolutivo depende de movimentações pós-fechamento.'],
+      ['03_Vendas por Vendedor', 'Comissionamento por NF não preservado em snapshot.'],
+      ['04_Vendas Cliente ABC', 'Curva ABC reconstruída só com base ao vivo.'],
+      ['05_Vendas por Região', 'Cubo regional não snapshotado.'],
+      ['06_Funil Orçamentos', 'Pipeline comercial mantém estado dinâmico.'],
+      ['07_Compras por Fornecedor', 'Lead time recalculado em tempo real.'],
+      ['08_Estoque Giro', 'Giro 90d depende de movimentos atuais.'],
+      ['09_Estoque Crítico', 'Mínimos/atual mudam após fechamento.'],
+      ['10_Logística', 'Status de remessas continua evoluindo.'],
+      ['11_Fiscal', 'NF-es pós-fechamento alteram totais.'],
+      ['Budget', 'Metas seguem disponíveis somente no modo dinâmico.'],
+    ];
+    for (const [aba, motivo] of indisponiveis) {
+      ws.addRow([aba, motivo]);
+    }
+  }
+
   if (incluir('financeiro')) {
     buildDre(workbook, data, competenciaInicial, competenciaFinal);
     buildCaixaEvolutivo(workbook, data, competenciaInicial, competenciaFinal);
