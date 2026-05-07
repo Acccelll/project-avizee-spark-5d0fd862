@@ -78,6 +78,38 @@ export async function inutilizarNotaFiscal(
   if (error) throw error;
 }
 
+/**
+ * Registra retorno SEFAZ (autorização/rejeição/cancelamento/etc) de forma
+ * atômica: atualiza `notas_fiscais` (status_sefaz, protocolo, chave, motivo,
+ * ambiente) e insere o evento correspondente em `notas_fiscais_eventos` na
+ * mesma transação. Substitui o padrão antigo "update + insert evento" feito
+ * lado-cliente em `useSefazAcoes`/`useSefazAutorizacao`.
+ */
+export async function registrarRetornoSefaz(params: {
+  nfId: string;
+  statusSefaz:
+    | "nao_enviada" | "enviada" | "processando" | "autorizada"
+    | "rejeitada" | "cancelada_sefaz" | "denegada" | "inutilizada";
+  protocolo?: string | null;
+  chaveAcesso?: string | null;
+  motivo?: string | null;
+  ambiente?: "homologacao" | "producao" | null;
+  xmlRetorno?: string | null;
+  payloadResumido?: Record<string, unknown> | null;
+}): Promise<void> {
+  const { error } = await supabase.rpc("registrar_retorno_sefaz", {
+    p_nf_id: params.nfId,
+    p_status_sefaz: params.statusSefaz,
+    p_protocolo: params.protocolo ?? null,
+    p_chave_acesso: params.chaveAcesso ?? null,
+    p_motivo: params.motivo ?? null,
+    p_ambiente: params.ambiente ?? null,
+    p_xml_retorno: params.xmlRetorno ?? null,
+    p_payload_resumido: (params.payloadResumido ?? null) as never,
+  } as never);
+  if (error) throw error;
+}
+
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
 //
 // As funções `confirmarNotaFiscal`, `estornarNotaFiscal` e `processarDevolucao`
