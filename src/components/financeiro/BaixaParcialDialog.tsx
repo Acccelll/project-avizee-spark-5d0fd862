@@ -13,6 +13,7 @@ import { notifyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/lib/financeiro";
 import type { CartaoCredito } from "@/services/cartoesCredito.service";
+import { fetchBaixasAtivasDoLancamento } from "@/services/financeiro";
 
 interface ContaBancaria {
   id: string;
@@ -100,13 +101,14 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
 
   const loadBaixas = async (lancamentoId: string) => {
     setLoadingBaixas(true);
-    const { data } = await supabase
-      .from("financeiro_baixas")
-      .select("*")
-      .eq("lancamento_id", lancamentoId)
-      .order("data_baixa", { ascending: false });
-    setBaixasAnteriores((data ?? []) as Baixa[]);
-    setLoadingBaixas(false);
+    try {
+      const data = await fetchBaixasAtivasDoLancamento(lancamentoId);
+      setBaixasAnteriores(data as unknown as Baixa[]);
+    } catch {
+      setBaixasAnteriores([]);
+    } finally {
+      setLoadingBaixas(false);
+    }
   };
 
   const handleSubmit = async () => {
