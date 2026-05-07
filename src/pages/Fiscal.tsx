@@ -3,19 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { OriginContextBanner } from "@/components/navigation/OriginContextBanner";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
-import { FormModal } from "@/components/FormModal";
-import { ParcelasFiscalEditor } from "@/pages/fiscal/components/ParcelasFiscalEditor";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import { listCartoesAtivos, type CartaoCredito } from "@/services/cartoesCredito.service";
-import { calcularFaturaParaData, calcularFaturasParcelas } from "@/lib/cartaoFatura";
+import { calcularFaturaParaData } from "@/lib/cartaoFatura";
 import { SummaryCard } from "@/components/SummaryCard";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
-import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,7 +48,6 @@ import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
-import { FiscalImpostosSection } from "@/pages/fiscal/components/FiscalImpostosSection";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -74,6 +67,7 @@ import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidad
 import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
+import { NfeCreateFormModal } from "@/pages/fiscal/components/NfeCreateFormModal";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
@@ -1301,152 +1295,39 @@ const Fiscal = () => {
       </ModulePage>
 
       {/* Form Modal - Create */}
-      <FormModal
+      <NfeCreateFormModal
         open={modalOpen && mode === "create"}
         onClose={() => { setModalOpen(false); setXmlOriginInfo(null); setTraducaoLinhas([]); }}
-        title="Nova Nota Fiscal"
-        size="xl"
-        mode="create"
-        createHint="Importe um XML para preencher automaticamente, ou comece definindo o tipo (entrada/saída) e o emitente."
-      >
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {xmlOriginInfo && traducaoLinhas.length > 0 && (
-            <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-              <div>
-                <strong>NF importada de XML.</strong> Tradução automática aplicada para <em>{xmlOriginInfo.fornecedorNome}</em>.
-                <span className="text-muted-foreground"> Os campos fiscais do XML são preservados.</span>
-              </div>
-              <Button type="button" size="sm" variant="outline" onClick={() => { setTraducaoReadOnly(false); setTraducaoOpen(true); }}>
-                Ver/editar tradução
-              </Button>
-            </div>
-          )}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="space-y-2"><Label>Tipo</Label>
-              <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="entrada">Entrada</SelectItem><SelectItem value="saida">Saída</SelectItem></SelectContent></Select>
-            </div>
-            <div className="space-y-2"><Label>Modelo</Label>
-              <Select value={form.modelo_documento || "55"} onValueChange={(v) => setForm({ ...form, modelo_documento: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="55">NF-e (Modelo 55)</SelectItem><SelectItem value="65">NFC-e (Modelo 65)</SelectItem><SelectItem value="57">CT-e (Modelo 57)</SelectItem><SelectItem value="67">CT-e OS (Modelo 67)</SelectItem><SelectItem value="nfse">NFS-e (Serviço)</SelectItem><SelectItem value="outro">Outro</SelectItem></SelectContent></Select>
-            </div>
-            <div className="space-y-2"><Label>Número *</Label><Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} required className="font-mono" /></div>
-            <div className="space-y-2"><Label>Série</Label><Input value={form.serie} onChange={(e) => setForm({ ...form, serie: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Data Emissão</Label><Input type="date" value={form.data_emissao} onChange={(e) => setForm({ ...form, data_emissao: e.target.value })} /></div>
-          </div>
-          <div className="col-span-2 space-y-2"><Label>Chave de Acesso</Label><Input value={form.chave_acesso} onChange={(e) => setForm({ ...form, chave_acesso: e.target.value })} className="font-mono text-xs" /></div>
-          <div className="bg-accent/30 rounded-lg p-4 space-y-3">
-            {form.tipo === "entrada" ? (
-              <><Label className="text-sm font-semibold">Fornecedor</Label><AutocompleteSearch options={fornecedoresCrud.data.map((f) => ({ id: f.id, label: f.nome_razao_social, sublabel: f.cpf_cnpj }))} value={form.fornecedor_id} onChange={(id) => setForm({ ...form, fornecedor_id: id })} placeholder="Buscar fornecedor..." /></>
-            ) : (
-              <><Label className="text-sm font-semibold">Cliente</Label><AutocompleteSearch options={clientesCrud.data.map((c) => ({ id: c.id, label: c.nome_razao_social, sublabel: c.cpf_cnpj }))} value={form.cliente_id} onChange={(id) => setForm({ ...form, cliente_id: id })} placeholder="Buscar cliente..." /></>
-            )}
-          </div>
-          {form.tipo === "saida" && ordensVenda.length > 0 && (
-            <div className="space-y-2"><Label>Pedido (opcional)</Label>
-              <Select value={form.ordem_venda_id || "none"} onValueChange={(v) => setForm({ ...form, ordem_venda_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular a um Pedido..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhum</SelectItem>{ordensVenda.map((ov) => (<SelectItem key={ov.id} value={ov.id}>{ov.numero} — {ov.clientes?.nome_razao_social || ""}</SelectItem>))}</SelectContent></Select>
-            </div>
-          )}
-          <ItemsGrid
-            items={items}
-            onChange={setItems}
-            produtos={produtosCrud.data}
-            title="Itens da Nota"
-            onCreateProduto={() => { setQuickProdutoLinhaIdx(-1); setQuickProdutoNome(""); }}
-          />
-          {items.length > 0 && contasContabeis.length > 0 && (
-            <div className="space-y-2"><Label className="text-sm font-semibold">Conta Contábil por Item</Label>
-              <div className="space-y-2 rounded-lg border p-3">
-                {items.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground min-w-[120px] truncate">{item.descricao || `Item ${idx + 1}`}</span>
-                    <Select value={itemContaContabil[idx] || "none"} onValueChange={(v) => setItemContaContabil(prev => ({ ...prev, [idx]: v === "none" ? "" : v }))}><SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Conta contábil..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}</SelectContent></Select>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <FiscalImpostosSection
-            values={form}
-            onChange={(key, value) => setForm({ ...form, [key]: value })}
-          />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2"><Label>Forma de Pagamento</Label>
-              <Select value={form.forma_pagamento} onValueChange={(v) => setForm({ ...form, forma_pagamento: v, cartao_id: v === "cartao_credito" ? form.cartao_id : "" })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto_dda">Boleto/DDA</SelectItem><SelectItem value="cartao_credito">Cartão de Crédito</SelectItem><SelectItem value="cartao_debito">Cartão de Débito</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>
-            </div>
-            {form.forma_pagamento === "cartao_credito" && (
-              <div className="space-y-2"><Label>Cartão *</Label>
-                <Select value={form.cartao_id || ""} onValueChange={(v) => setForm({ ...form, cartao_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o cartão..." /></SelectTrigger>
-                  <SelectContent>
-                    {cartoes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome}{c.ultimos4 ? ` ····${c.ultimos4}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="space-y-2"><Label>Condição</Label>
-              <Select value={form.condicao_pagamento} onValueChange={(v) => setForm({ ...form, condicao_pagamento: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="a_vista">À Vista</SelectItem><SelectItem value="a_prazo">A Prazo</SelectItem></SelectContent></Select>
-            </div>
-            {form.condicao_pagamento === "a_prazo" && <div className="space-y-2"><Label>Nº Parcelas</Label><Input type="number" min={1} max={48} value={parcelas} onChange={(e) => setParcelas(Number(e.target.value))} /></div>}
-            <div className="space-y-2 flex items-end gap-4">
-              <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" checked={form.movimenta_estoque} onChange={(e) => setForm({ ...form, movimenta_estoque: e.target.checked })} className="rounded" />Mov. Estoque</label>
-              <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" checked={form.gera_financeiro} onChange={(e) => setForm({ ...form, gera_financeiro: e.target.checked })} className="rounded" />Gera Financeiro</label>
-            </div>
-          </div>
-          {form.condicao_pagamento === "a_prazo" && form.gera_financeiro && (
-            <ParcelasFiscalEditor
-              total={totalNF || form.valor_total}
-              qtdParcelas={parcelas}
-              dataEmissao={form.data_emissao}
-              primeiroVencimento={primeiroVencimento}
-              intervaloDias={intervaloDias}
-              parcelas={parcelasPlano}
-              onPrimeiroVencimentoChange={setPrimeiroVencimento}
-              onIntervaloChange={setIntervaloDias}
-              onParcelasChange={setParcelasPlano}
-            />
-          )}
-          {form.forma_pagamento === "cartao_credito" && form.cartao_id && form.gera_financeiro && (() => {
-            const cartao = cartoes.find((c) => c.id === form.cartao_id);
-            if (!cartao) return null;
-            const n = form.condicao_pagamento === "a_prazo" ? Math.max(parcelas, 1) : 1;
-            const previews = calcularFaturasParcelas(form.data_emissao, cartao.dia_fechamento, cartao.dia_vencimento, n);
-            return (
-              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-                <p className="font-medium text-foreground">Faturas previstas para este cartão:</p>
-                <ul className="space-y-0.5 text-muted-foreground">
-                  {previews.map((p, i) => (
-                    <li key={i}>
-                      Parcela {i + 1}/{n} — competência {p.competencia} · fecha {p.dataFechamento.toLocaleDateString("pt-BR")} · vence <strong>{p.dataVencimento.toLocaleDateString("pt-BR")}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })()}
-          {contasContabeis.length > 0 && (
-            <div className="space-y-2"><Label>Conta Contábil Geral (fallback para itens sem conta)</Label>
-              <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => setForm({ ...form, conta_contabil_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhuma</SelectItem>{contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}</SelectContent></Select>
-            </div>
-          )}
-          <div className="bg-accent/50 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Produtos:</span><span className="font-mono font-semibold">{formatCurrency(valorProdutos)}</span></div>
-            {Number(form.frete_valor || 0) > 0 && <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Frete:</span><span className="font-mono">{formatCurrency(Number(form.frete_valor))}</span></div>}
-            {totalImpostos > 0 && <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Impostos:</span><span className="font-mono">{formatCurrency(totalImpostos)}</span></div>}
-            {Number(form.desconto_valor || 0) > 0 && <div className="flex justify-between items-center text-sm text-destructive"><span>Desconto:</span><span className="font-mono">-{formatCurrency(Number(form.desconto_valor))}</span></div>}
-            <div className="flex justify-between items-center text-sm font-bold border-t pt-2"><span>Total da NF:</span><span className="font-mono text-lg">{formatCurrency(totalNF)}</span></div>
-            {form.condicao_pagamento === "a_prazo" && parcelas > 1 && <div className="flex justify-between items-center text-xs text-muted-foreground"><span>{parcelas}× de</span><span className="font-mono font-semibold">{formatCurrency(totalNF / parcelas)}</span></div>}
-          </div>
-          {!form.gera_financeiro && <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 text-sm text-warning">⚠️ "Gera Financeiro" está desmarcado — esta NF <strong>não</strong> gerará lançamentos financeiros ao ser confirmada.</div>}
-          <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
-          </div>
-        </form>
-      </FormModal>
+        form={form as unknown as Record<string, string | number | boolean>}
+        setForm={(next) => setForm(next as unknown as typeof form)}
+        items={items}
+        setItems={setItems}
+        itemContaContabil={itemContaContabil}
+        setItemContaContabil={setItemContaContabil}
+        parcelas={parcelas}
+        setParcelas={setParcelas}
+        primeiroVencimento={primeiroVencimento}
+        setPrimeiroVencimento={setPrimeiroVencimento}
+        intervaloDias={intervaloDias}
+        setIntervaloDias={setIntervaloDias}
+        parcelasPlano={parcelasPlano}
+        setParcelasPlano={setParcelasPlano}
+        saving={saving}
+        onSubmit={handleSubmit}
+        fornecedores={fornecedoresCrud.data}
+        clientes={clientesCrud.data}
+        produtos={produtosCrud.data}
+        ordensVenda={ordensVenda}
+        contasContabeis={contasContabeis}
+        cartoes={cartoes}
+        valorProdutos={valorProdutos}
+        totalImpostos={totalImpostos}
+        totalNF={totalNF}
+        xmlOriginInfo={xmlOriginInfo}
+        traducaoLinhasCount={traducaoLinhas.length}
+        onAbrirTraducao={() => { setTraducaoReadOnly(false); setTraducaoOpen(true); }}
+        onCriarProdutoQuick={() => { setQuickProdutoLinhaIdx(-1); setQuickProdutoNome(""); }}
+      />
 
       {/* Edit Modal */}
       {selected && (
