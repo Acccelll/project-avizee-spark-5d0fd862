@@ -602,8 +602,6 @@ export default function Relatorios() {
                   onExportPdf={handleExportPdf}
                   onExportExcel={handleExportXlsx}
                   onExportCsv={handleExportCsv}
-                  triggerClassName="min-h-11 min-w-11"
-                  iconOnly
                 />
                 <Button
                   variant="outline"
