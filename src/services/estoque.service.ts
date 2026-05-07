@@ -6,7 +6,7 @@ export type EstoqueMovimentoRow = TableRow<"estoque_movimentos">;
 export type EstoqueMovimentoInsert = TableInsert<"estoque_movimentos">;
 
 export interface EstoqueMovimento extends EstoqueMovimentoRow {
-  produtos?: { nome: string; sku: string | null } | null;
+  produtos?: { nome: string; sku: string | null; variacoes?: unknown } | null;
 }
 
 /** Simplified shape returned by the vw_estoque_posicao view. */
