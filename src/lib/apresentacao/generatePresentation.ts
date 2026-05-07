@@ -52,7 +52,7 @@ function findArrayRows(dados: Record<string, unknown>, schema?: SlideDataSchema)
   if (schema?.arrayKey) {
     const v = dados[schema.arrayKey];
     if (Array.isArray(v) && v.length && typeof v[0] === 'object') return v as Array<Record<string, unknown>>;
-    return [];
+    // fallback heurístico se o payload veio com outra chave (ex.: legado)
   }
   for (const value of Object.values(dados)) {
     if (Array.isArray(value) && value.length && typeof value[0] === 'object') return value as Array<Record<string, unknown>>;
