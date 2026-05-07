@@ -64,6 +64,8 @@ export function useRelatorioUrlState(): RelatorioUrlState {
       dreCompetencia:
         (searchParams.get('drc') as FiltrosRelatorioState['dreCompetencia']) || 'mes',
       dreMes: searchParams.get('drm') || new Date().toISOString().slice(0, 7),
+      dreModo:
+        (searchParams.get('drmo') as FiltrosRelatorioState['dreModo']) || 'caixa',
     }),
     [searchParams],
   );
@@ -98,6 +100,8 @@ export function useRelatorioUrlState(): RelatorioUrlState {
     if ('dreCompetencia' in partial)
       patch.drc = partial.dreCompetencia === 'mes' ? undefined : partial.dreCompetencia;
     if ('dreMes' in partial) patch.drm = partial.dreMes;
+    if ('dreModo' in partial)
+      patch.drmo = partial.dreModo === 'caixa' ? undefined : partial.dreModo;
     updateParams(patch);
   };
 
