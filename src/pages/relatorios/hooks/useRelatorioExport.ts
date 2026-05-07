@@ -154,6 +154,11 @@ export function useRelatorioExport({
         titulo: resultado?.title || String(tipo),
         rows: sortedRows,
         columns: exportColumnDefs,
+        origem: {
+          modo: 'dinâmico',
+          fonte: tipo ? `relatorio:${tipo}` : undefined,
+          geradoEm: new Date().toISOString(),
+        },
       });
       toast.success('Excel gerado com sucesso!', {
         id: tid,
