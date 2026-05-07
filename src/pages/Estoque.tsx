@@ -250,9 +250,13 @@ const Estoque = () => {
     if (pendingSubmit || saving) return;
     if (!form.produto_id) { toast.error("Selecione um produto"); return; }
     if (form.quantidade <= 0) { toast.error("A quantidade deve ser maior que zero"); return; }
-    // Justificativa opcional por ora — RPC `ajustar_estoque_manual` exige
-    // `motivo_estruturado` com >=10 chars para tipos críticos; aplicamos
-    // fallback automático no executeMovimentacao quando vazia.
+    if (form.tipo === "ajuste") {
+      const motivo = form.motivo?.trim() ?? "";
+      if (motivo.length < 10) {
+        toast.error("Justificativa obrigatória (mínimo 10 caracteres) para ajustes críticos.");
+        return;
+      }
+    }
     // Warn about negative balance (allow with explicit confirmation via ConfirmDialog)
     if (form.tipo === "saida") {
       const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
