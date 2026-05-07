@@ -118,7 +118,7 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 - 8.5.5 ✅ Em mobile, `Collapsible` da tabela abre automaticamente quando `sortedRows.length ≤ 15` (Relatorios.tsx).
 
 ### Sprint 8.6 — Refactor Relatorios.tsx (🟢)
-- 8.6.1 Quebrar em `RelatorioWorkspace`, `RelatorioFiltrosBar`, `RelatorioBody`, `RelatorioKpiGrid`.
+- 8.6.1 ⚠️ Parcial — extraídos `RelatorioKpiGrid`, `RelatorioFiltrosBar` (desktop) e `RelatorioMobileToolbar` (mobile sheet + export + refresh). `Relatorios.tsx` reduzido de 846 → 710 linhas. Restam `RelatorioBody` (resultado/tabela/chart/footer mobile sticky) e `RelatorioWorkspace` (estado) para alcançar ≤400 linhas.
 - 8.6.2 ✅ Flags legadas `_isQuantityReport/_isDreReport` removidas de `RelatorioResultado`, dos loaders (`estoque`, `financeiro`) e do consumidor (`Relatorios.tsx`). Discriminação via `meta.kind` / `meta.valueNature` é a única fonte.
 - 8.6.3 ✅ `hiddenColumns` agora persistido por `tipo` via `useDataTablePrefs(`relatorios-${tipo}`)` (cross-device, com migração one-shot do localStorage). Trocar de relatório preserva preferências por tipo.
 
