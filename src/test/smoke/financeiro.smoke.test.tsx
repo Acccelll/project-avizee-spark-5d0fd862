@@ -7,6 +7,8 @@ import type { Column } from "@/components/DataTable";
 import type { Lancamento } from "@/types/domain";
 
 const mockUseSupabaseCrud = vi.fn();
+const mockUseFinanceiroLancamentosPaged = vi.fn();
+const mockUseFinanceiroKpisRpc = vi.fn();
 
 vi.mock("@/components/AppLayout", () => ({
   AppLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -14,6 +16,16 @@ vi.mock("@/components/AppLayout", () => ({
 
 vi.mock("@/hooks/useSupabaseCrud", () => ({
   useSupabaseCrud: (...args: unknown[]) => mockUseSupabaseCrud(...args),
+}));
+
+// Após 1.4 (paginação server-side), Financeiro usa estes hooks ao invés de useSupabaseCrud.
+vi.mock("@/pages/financeiro/hooks/useFinanceiroLancamentosPaged", () => ({
+  useFinanceiroLancamentosPaged: (...args: unknown[]) =>
+    mockUseFinanceiroLancamentosPaged(...args),
+  useResetPageOnFiltersChange: () => undefined,
+}));
+vi.mock("@/pages/financeiro/hooks/useFinanceiroKpisRpc", () => ({
+  useFinanceiroKpisRpc: (...args: unknown[]) => mockUseFinanceiroKpisRpc(...args),
 }));
 
 vi.mock("@/integrations/supabase/client", () => {
@@ -83,9 +95,10 @@ vi.mock("@/components/financeiro/FinanceiroCalendar", () => ({
 describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
   beforeEach(() => {
     mockUseSupabaseCrud.mockReset();
+    mockUseFinanceiroLancamentosPaged.mockReset();
+    mockUseFinanceiroKpisRpc.mockReset();
 
-    const lancamentos = {
-      data: [
+    const rows = [
         {
           id: "l1",
           tipo: "receber",
@@ -114,21 +127,20 @@ describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
           parcela_numero: 0,
           parcela_total: 0,
         },
-      ],
-      loading: false,
-      create: vi.fn(),
-      update: vi.fn(),
-      remove: vi.fn(),
-      fetchData: vi.fn(),
-    };
+    ];
 
     const emptyResult = { data: [], loading: false, create: vi.fn(), update: vi.fn(), remove: vi.fn(), fetchData: vi.fn() };
 
-    // Stable implementation: return lancamentos for the financeiro table, empty for others
-    mockUseSupabaseCrud.mockImplementation((opts: { table: string }) => {
-      if (opts.table === "financeiro_lancamentos") return lancamentos;
-      return emptyResult;
+    mockUseSupabaseCrud.mockImplementation(() => emptyResult);
+    mockUseFinanceiroLancamentosPaged.mockReturnValue({
+      data: rows,
+      totalCount: rows.length,
+      loading: false,
+      refetching: false,
+      refetch: vi.fn(),
+      error: null,
     });
+    mockUseFinanceiroKpisRpc.mockReturnValue({ data: undefined });
   });
 
   it("abre financeiro, aplica busca principal e permite iniciar baixa", async () => {
