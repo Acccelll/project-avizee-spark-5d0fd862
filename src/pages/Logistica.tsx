@@ -376,14 +376,15 @@ export default function Logistica() {
       return;
     }
     try {
-      await updateStatusTransporte(remessaIds[0], status);
+      await transicionarRemessa.mutateAsync({
+        remessaId: remessaIds[0],
+        novoStatus: status as RemessaTransition,
+      });
     } catch (err) {
       notifyError(err);
+    } finally {
       setUpdatingEntregaId(null);
-      return;
     }
-    toast.success("Status atualizado");
-    setUpdatingEntregaId(null);
   };
 
   /**
