@@ -14,6 +14,14 @@ vi.mock("@/components/AppLayout", () => ({
   AppLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
+// Concede todas as permissões para que `PermissionGate` libere o botão "Baixar".
+vi.mock("@/hooks/useCan", () => ({
+  useCan: () => ({ can: () => true, loading: false }),
+}));
+vi.mock("@/components/PermissionGate", () => ({
+  PermissionGate: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
 vi.mock("@/hooks/useSupabaseCrud", () => ({
   useSupabaseCrud: (...args: unknown[]) => mockUseSupabaseCrud(...args),
 }));
