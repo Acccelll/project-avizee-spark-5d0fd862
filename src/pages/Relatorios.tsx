@@ -107,7 +107,9 @@ export default function Relatorios() {
   const { getRowActions, navigateAction, hasActions } = useRelatorioDrillDown(tipo as TipoRelatorio | undefined);
 
   const filtros = useMemo(() => {
-    if (tipo === 'dre') return buildDreDateRange(filtrosState, dataInicio, dataFim);
+    if (tipo === 'dre') {
+      return { ...buildDreDateRange(filtrosState, dataInicio, dataFim), dreModo: filtrosState.dreModo };
+    }
     return {
       dataInicio: dataInicio || undefined,
       dataFim: dataFim || undefined,

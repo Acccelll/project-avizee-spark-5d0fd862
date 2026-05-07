@@ -257,28 +257,31 @@ export async function loadAging(filtros: FiltroRelatorio): Promise<RelatorioResu
 
 export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   // ── Demonstrativo Gerencial Simplificado ─────────────────────────────────
-  // GERENCIAL approximation — derived from financeiro_lancamentos + notas_fiscais.
-  // Receita Bruta = soma de receber pago/parcial (cash basis via valor_pago).
-  // Deduções = ICMS/PIS/COFINS/IPI sobre NFs de saída no período.
-  // CMV = pagar vinculado a NF de entrada ou pedido de compra (classificação estruturada).
-  // Despesas Op. = demais lançamentos pagar.
-  // Resultado = Receita Líquida − CMV − Despesas Operacionais.
+  // Suporta dois regimes (`filtros.dreModo`):
+  //  - 'caixa' (default): usa data_pagamento + status pago/parcial; valor = valor_pago.
+  //  - 'competencia': usa data_emissao; considera todos os lançamentos ativos do período;
+  //    valor = `valor` integral (independente de pagamento).
+  // Deduções = ICMS/PIS/COFINS/IPI sobre NFs de saída no período (data_emissao).
+  // CMV = pagar vinculado a NF de entrada / pedido de compra / origem_tabela.
+
+  const modo = filtros.dreModo ?? 'caixa';
+  const dateField = modo === 'caixa' ? 'data_pagamento' : 'data_emissao';
 
   let receitaQuery = supabase
     .from("financeiro_lancamentos")
     .select("valor, valor_pago, status")
     .eq("ativo", true)
-    .eq("tipo", "receber")
-    .in("status", ["pago", "parcial"]);
-  receitaQuery = withDateRange(receitaQuery, "data_pagamento", filtros);
+    .eq("tipo", "receber");
+  if (modo === 'caixa') receitaQuery = receitaQuery.in("status", ["pago", "parcial"]);
+  receitaQuery = withDateRange(receitaQuery, dateField, filtros);
 
   let pagosQuery = supabase
     .from("financeiro_lancamentos")
     .select("valor, valor_pago, status, descricao, nota_fiscal_id, pedido_compra_id, origem_tabela")
     .eq("ativo", true)
-    .eq("tipo", "pagar")
-    .in("status", ["pago", "parcial"]);
-  pagosQuery = withDateRange(pagosQuery, "data_pagamento", filtros);
+    .eq("tipo", "pagar");
+  if (modo === 'caixa') pagosQuery = pagosQuery.in("status", ["pago", "parcial"]);
+  pagosQuery = withDateRange(pagosQuery, dateField, filtros);
 
   let nfSaidaQuery = supabase
     .from("notas_fiscais")
@@ -293,13 +296,14 @@ export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResult
 
   if (!receitas && !pagos && !nfSaida) throw new Error("Erro ao carregar dados do DRE");
 
-  const cashAmount = (r: Record<string, unknown>) => {
+  const amount = (r: Record<string, unknown>) => {
+    if (modo === 'competencia') return Number(r.valor || 0);
     const status = (r.status as string | null) ?? '';
     if (status === 'parcial' && r.valor_pago != null) return Number(r.valor_pago);
     return Number(r.valor || 0);
   };
 
-  const receitaBruta = (receitas || []).reduce((s: number, r: Record<string, unknown>) => s + cashAmount(r), 0);
+  const receitaBruta = (receitas || []).reduce((s: number, r: Record<string, unknown>) => s + amount(r), 0);
 
   const deducoes = (nfSaida || []).reduce((s: number, nf: Record<string, unknown>) => {
     return s + Number(nf.icms_valor || 0) + Number(nf.pis_valor || 0) + Number(nf.cofins_valor || 0) + Number(nf.ipi_valor || 0);
@@ -318,10 +322,10 @@ export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResult
   };
 
   const cmv = (pagos || []).filter(isCmv)
-    .reduce((s: number, p: Record<string, unknown>) => s + cashAmount(p), 0);
+    .reduce((s: number, p: Record<string, unknown>) => s + amount(p), 0);
 
   const despesasOp = (pagos || []).filter((p: Record<string, unknown>) => !isCmv(p))
-    .reduce((s: number, p: Record<string, unknown>) => s + cashAmount(p), 0);
+    .reduce((s: number, p: Record<string, unknown>) => s + amount(p), 0);
 
   const lucroBruto = receitaLiquida - cmv;
   const resultado = lucroBruto - despesasOp;
@@ -338,7 +342,10 @@ export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResult
 
   return {
     title: "DRE — Demonstrativo de Resultado",
-    subtitle: "Receitas, deduções, custos e resultado do exercício.",
+    subtitle:
+      modo === 'caixa'
+        ? 'Regime de caixa: receitas e custos efetivamente movimentados no período.'
+        : 'Regime de competência: receitas e custos reconhecidos pela emissão no período.',
     rows,
     chartData: [
       { name: "Receita Bruta", value: receitaBruta },

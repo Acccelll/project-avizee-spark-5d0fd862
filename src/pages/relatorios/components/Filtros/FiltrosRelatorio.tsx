@@ -23,6 +23,7 @@ import type { ClienteRef, FornecedorRef, GrupoProdutoRef } from "../../hooks/use
 
 export type Agrupamento = "padrao" | "valor_desc" | "status" | "vencimento";
 export type DreCompetencia = "mes" | "trimestre" | "ano" | "personalizado";
+export type DreModo = "competencia" | "caixa";
 
 export interface FiltrosRelatorioState {
   clienteIds: string[];
@@ -33,6 +34,7 @@ export interface FiltrosRelatorioState {
   tipos: string[];
   dreCompetencia: DreCompetencia;
   dreMes: string;
+  dreModo: DreModo;
 }
 
 export interface FiltrosRelatorioProps {
@@ -169,6 +171,24 @@ export function FiltrosRelatorio({
 
       {filters.showDreCompetencia && (
         <div className="flex flex-wrap gap-3 items-end mt-3 pt-3 border-t">
+          <div className="space-y-1">
+            <Label className="text-xs font-medium">Regime</Label>
+            <Select
+              value={state.dreModo}
+              onValueChange={(v) => onChange({ dreModo: v as DreModo })}
+            >
+              <SelectTrigger className="h-9 w-[210px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="competencia">Competência (emissão)</SelectItem>
+                <SelectItem value="caixa">Caixa (pagamento)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground max-w-[220px]">
+              {state.dreModo === 'caixa'
+                ? 'Considera apenas valores efetivamente recebidos/pagos no período.'
+                : 'Considera valores reconhecidos no período pela emissão/competência.'}
+            </p>
+          </div>
           <div className="space-y-1">
             <Label className="text-xs font-medium">Competência</Label>
             <Select
