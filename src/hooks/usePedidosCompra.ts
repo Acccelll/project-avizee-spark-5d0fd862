@@ -29,6 +29,7 @@ export interface PedidoItemRow {
   id: string | number;
   produto_id: string | number | null;
   quantidade: number | null;
+  quantidade_recebida?: number | null;
   preco_unitario?: number | null;
   subtotal?: number | null;
   valor_unitario?: number | null;
