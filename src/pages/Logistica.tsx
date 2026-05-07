@@ -562,14 +562,14 @@ export default function Logistica() {
       const atrasado = isAtrasadoRecebimento(item);
       return (<span className="inline-flex flex-col items-start gap-0.5"><StatusBadge status={cfg.badgeStatus} label={cfg.label} />{atrasado && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1"><AlertTriangle className="h-2.5 w-2.5" />Atrasado</Badge>}</span>);
     }},
-    { key: "previsao_entrega", label: "Prev. Entrega", render: (item: Recebimento) => {
+    { key: "previsao_entrega", label: "Prev. Entrega", mobileCard: true, render: (item: Recebimento) => {
       if (!item.previsao_entrega) return <span className="text-muted-foreground text-xs">—</span>;
       const atrasado = isAtrasadoRecebimento(item);
       return <span className={`text-xs ${atrasado ? "text-destructive font-medium" : ""}`}>{formatDate(item.previsao_entrega)}</span>;
     }},
     { key: "data_recebimento", label: "Recebido em", render: (item: Recebimento) => item.data_recebimento ? <span className="text-xs">{formatDate(item.data_recebimento)}</span> : <span className="text-muted-foreground text-xs">—</span> },
     { key: "quantidade_pedida", label: "Qtd. Pedida", render: (item: Recebimento) => <span className="text-xs">{formatNumber(item.quantidade_pedida)}</span> },
-    { key: "quantidade_recebida", label: "Qtd. Recebida", render: (item: Recebimento) => (
+    { key: "quantidade_recebida", label: "Qtd. Recebida", mobileCard: true, render: (item: Recebimento) => (
       <div className="inline-flex flex-col items-start gap-0.5">
         <span className="text-xs">{formatNumber(item.quantidade_recebida)}</span>
         <span className={`text-[10px] ${getRecebimentoSourceMeta(item.recebimento_real).className}`}>
@@ -580,7 +580,7 @@ export default function Logistica() {
         )}
       </div>
     ) },
-    { key: "pendencia", label: "Pendência", render: (item: Recebimento) => item.pendencia > 0 ? (
+    { key: "pendencia", label: "Pendência", mobileCard: true, render: (item: Recebimento) => item.pendencia > 0 ? (
       <div className="inline-flex flex-col items-start gap-0.5">
         <span className="text-xs text-warning font-medium">{formatNumber(item.pendencia)}</span>
         {!item.recebimento_real && item.status_logistico === "recebimento_parcial" && (
@@ -670,9 +670,24 @@ export default function Logistica() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <ScrollableTabsList className="mb-4" data-help-id="logistica.tabs">
-            <TabsTrigger value="entregas">Entregas</TabsTrigger>
-            <TabsTrigger value="recebimentos">Recebimentos</TabsTrigger>
-            <TabsTrigger value="remessas">Remessas</TabsTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="entregas">Entregas</TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Visão consolidada por pedido de venda (derivada de remessas).</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="recebimentos">Recebimentos</TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Acompanhamento logístico dos pedidos de compra. Consolidação oficial em Compras.</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="remessas">Remessas</TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Operação real de envio (uma OV pode gerar várias remessas).</TooltipContent>
+            </Tooltip>
           </ScrollableTabsList>
 
           {/* ── Tab: Entregas ── */}
