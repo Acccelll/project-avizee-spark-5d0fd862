@@ -83,7 +83,9 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const { can } = useCan();
   const canPermBaixar = can("financeiro:baixar");
   const canPermEditar = can("financeiro:editar");
-  const canPermCancelar = can("financeiro:cancelar") || can("financeiro:excluir");
+  // Cancelar é operação reversível (status='cancelado'); separada de hard-delete,
+  // que exige `financeiro:excluir` + admin via gate da própria RPC.
+  const canPermCancelar = can("financeiro:cancelar");
 
   // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
   if (!open || !selected) return null;
