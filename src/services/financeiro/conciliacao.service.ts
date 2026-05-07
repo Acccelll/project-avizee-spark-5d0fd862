@@ -120,6 +120,11 @@ export function calcularScoreConciliacao(
   const valorMatch = Math.abs(Math.abs(titulo.valor) - transacao.valor) < 0.01;
   if (!valorMatch) return 0;
 
+  // Apenas títulos com baixa real entram no matching.
+  // Títulos em aberto (sem data_baixa) não devem ser sugeridos —
+  // alinha com o eixo canônico do modelo (conciliação por baixa, não por previsão).
+  if (!titulo.data_baixa && titulo.status === "aberto") return 0;
+
   // Eixo de comparação: data_baixa quando o título já foi liquidado;
   // fallback para data_vencimento em títulos ainda em aberto.
   // Reflete o modelo canônico (conciliação por baixa real, não por previsão).
