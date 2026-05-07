@@ -195,7 +195,7 @@ export default function ApresentacaoGerencial() {
 
           <ApresentacaoSlidesPreview
             activeSlides={selectedSlides.length ? selectedSlides : undefined}
-            dataAvailability={Object.fromEntries(comentarios.map((c) => [c.slide_codigo, !c.comentario_automatico?.includes('indisponíveis')])) as any}
+            dataAvailability={dataAvailability}
           />
 
           {canEditarComentarios && !!selectedGeracaoId && (
