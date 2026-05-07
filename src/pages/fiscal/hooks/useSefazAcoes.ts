@@ -17,6 +17,7 @@ import {
 import {
   cancelarNotaFiscalSefaz,
   registrarEventoFiscal,
+  registrarRetornoSefaz,
 } from "@/services/fiscal.service";
 import { validarPreEmissao } from "@/services/fiscal/validadores/preEmissao.validator";
 import type { NotaFiscal } from "@/types/domain";
@@ -170,23 +171,16 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
           url,
         );
         const proxima_status = result.sucesso ? "autorizada" : "rejeitada";
-        await supabase
-          .from("notas_fiscais")
-          .update({
-            status_sefaz: proxima_status,
-            protocolo_autorizacao: result.protocolo ?? null,
-            chave_acesso: result.chave ?? nfAtual.chave_acesso,
-            motivo_rejeicao: result.sucesso ? null : (result.motivo ?? null),
-            ambiente_emissao: cfg.ambiente === "1" ? "producao" : "homologacao",
-          })
-          .eq("id", nfAtual.id);
-        await registrarEventoFiscal({
-          nota_fiscal_id: nfAtual.id,
-          tipo_evento: result.sucesso ? "autorizacao" : "rejeicao",
-          status_anterior: nfAtual.status_sefaz ?? "nao_enviada",
-          status_novo: proxima_status,
-          descricao: result.motivo ?? undefined,
-          payload_resumido: { protocolo: result.protocolo, status: result.status },
+        // Atômico: status_sefaz + evento na mesma transação (RPC).
+        await registrarRetornoSefaz({
+          nfId: nfAtual.id,
+          statusSefaz: proxima_status,
+          protocolo: result.protocolo ?? null,
+          chaveAcesso: result.chave ?? nfAtual.chave_acesso ?? null,
+          motivo: result.motivo ?? null,
+          ambiente: cfg.ambiente === "1" ? "producao" : "homologacao",
+          xmlRetorno: result.xmlAutorizado ?? null,
+          payloadResumido: { protocolo: result.protocolo, status: result.status },
         });
         setUltimoRetorno({
           protocolo: result.protocolo,
