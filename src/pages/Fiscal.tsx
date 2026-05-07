@@ -31,7 +31,6 @@ import {
   listContasContabeisLancaveis,
   getPedidoCompraResumo,
   listNotaFiscalItensCompletos,
-  getEmpresaConfigPrincipal,
   upsertNotaFiscalComItens,
 } from "@/services/fiscal.service";
 import {
