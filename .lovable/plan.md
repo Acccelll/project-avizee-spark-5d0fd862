@@ -138,11 +138,11 @@ Resultado: `Fiscal.tsx` 1500→1461 linhas; `fiscal.service.ts` 442→48 (facade
 
 ### Sprint 7.4 — Edge / SEFAZ hardening (P2)
 
-16. Remover modo `assinar-e-enviar` (cert do client) do `sefaz-proxy`.
+16. ✅ Removido modo `assinar-e-enviar` (cert do client) do `sefaz-proxy` — retorna 410 Gone; cliente sempre usa Vault.
 17. ✅ Circuit breaker cStat=656 no cron (chave `distdfe_circuit_break_until_<amb>` em `app_configuracoes`, 65 min).
 18. ✅ `proxySecretFp` suprimido em produção (mantido em dev via `ENVIRONMENT=development`).
-19. Telemetria: tabela `fiscal_telemetria` (action, sucesso, latência, cStat) gravada por todas edges.
-20. `cloud_status` check no início do cron.
+19. ✅ Tabela `fiscal_telemetria` criada (RLS admin-only) e gravada por `process-distdfe-cron` por execução e por CNPJ.
+20. ⏭️ `cloud_status` check no cron — pulado (não há acesso direto ao management API a partir da edge function; o circuit breaker e o gate `CRON_SECRET` cobrem o cenário prático de bloqueio).
 
 ### Sprint 7.5 — Faturamento (futuro)
 

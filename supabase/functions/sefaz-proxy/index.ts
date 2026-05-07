@@ -5,7 +5,6 @@
  * e parsing de certificados A1 (PFX/P12).
  *
  * Actions:
- *   - assinar-e-enviar: Assina XML com certificado A1 e envia para SEFAZ via SOAP
  *   - parse-certificado: Extrai metadados (CNPJ, razão social, validade) do PFX
  *   - assinar-e-enviar-vault: Igual ao assinar-e-enviar, porém lê o .pfx do
  *     Storage privado `dbavizee/certificados/empresa.pfx` e a senha do secret
@@ -380,7 +379,7 @@ Deno.serve(async (req) => {
       return json(
         {
           error:
-            "Campo 'action' ausente. Use 'health', 'parse-certificado', 'assinar-e-enviar', 'assinar-e-enviar-vault' ou 'enviar-sem-assinatura-vault'.",
+            "Campo 'action' ausente. Use 'health', 'parse-certificado', 'assinar-e-enviar-vault' ou 'enviar-sem-assinatura-vault'.",
         },
         400,
       );
@@ -423,24 +422,16 @@ Deno.serve(async (req) => {
     }
 
     if (action === "assinar-e-enviar") {
-      const { xml, url, soapAction, certificado_base64, certificado_senha } =
-        body;
-      if (!xml || !url || !soapAction || !certificado_base64 || !certificado_senha) {
-        return json(
-          { error: "xml, url, soapAction, certificado_base64 e certificado_senha são obrigatórios" },
-          400,
-        );
-      }
-
-      let xmlAssinado: string;
-      try {
-        xmlAssinado = assinarXml(xml, certificado_base64, certificado_senha);
-      } catch (e: any) {
-        return json({ sucesso: false, erro: `Erro na assinatura: ${e.message}` });
-      }
-
-      const resultado = await enviarSoap(xmlAssinado, url, soapAction);
-      return json(resultado);
+      // Modo legado removido: o certificado A1 deve permanecer server-side
+      // (Storage privado + Vault). Use sempre `assinar-e-enviar-vault`.
+      return json(
+        {
+          sucesso: false,
+          erro:
+            "Action 'assinar-e-enviar' foi descontinuada por segurança. Use 'assinar-e-enviar-vault'.",
+        },
+        410,
+      );
     }
 
     if (action === "assinar-e-enviar-vault") {
@@ -568,7 +559,7 @@ Deno.serve(async (req) => {
 
     return json(
       {
-        error: `action '${action}' inválida. Use 'health', 'parse-certificado', 'assinar-e-enviar', 'assinar-e-enviar-vault' ou 'enviar-sem-assinatura-vault'.`,
+        error: `action '${action}' inválida. Use 'health', 'parse-certificado', 'assinar-e-enviar-vault' ou 'enviar-sem-assinatura-vault'.`,
       },
       400,
     );
