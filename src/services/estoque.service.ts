@@ -88,14 +88,27 @@ export async function fetchMovimentacoesPorProduto(
   return (data ?? []) as EstoqueMovimento[];
 }
 
+/**
+ * @deprecated Use `ajustarEstoqueManual` (RPC) diretamente. Mantido como
+ * fachada que delega para a RPC para garantir atomicidade entre o INSERT em
+ * `estoque_movimentos` e o UPDATE em `produtos.estoque_atual`. INSERT direto
+ * não atualiza o saldo desnormalizado e era a origem de divergências (Onda 5/C-03).
+ */
 export async function registrarMovimentacao(
   payload: EstoqueMovimentoInsert,
 ): Promise<void> {
-  const { error: movError } = await supabase
-    .from("estoque_movimentos")
-    .insert(payload);
-
-  if (movError) throw new Error(movError.message);
+  const tipo = (payload.tipo ?? "entrada") as TipoAjusteEstoque;
+  if (!["entrada", "saida", "ajuste"].includes(tipo)) {
+    throw new Error(`Tipo de movimentação '${tipo}' não suportado via fachada. Use a RPC adequada.`);
+  }
+  await ajustarEstoqueManual({
+    produto_id: payload.produto_id,
+    tipo,
+    quantidade: Number(payload.quantidade ?? 0),
+    motivo: (payload.motivo as string | undefined) ?? undefined,
+    categoria_ajuste: (payload.categoria_ajuste as string | undefined) ?? undefined,
+    motivo_estruturado: (payload.motivo_estruturado as string | undefined) ?? undefined,
+  });
 }
 
 /* -------- Ajuste manual via RPC transacional -------- */
