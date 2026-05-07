@@ -37,6 +37,7 @@ async function fetchEntregas(): Promise<Entrega[]> {
     data_entrega: string | null;
     status_consolidado: string;
     total_remessas: number | null;
+    responsavel_nome?: string | null;
   };
 
   return ((vRes.data as Row[]) ?? []).map((r) => {
@@ -55,7 +56,7 @@ async function fetchEntregas(): Promise<Entrega[]> {
       data_expedicao: r.data_expedicao,
       data_entrega: r.data_entrega,
       status_logistico: r.status_consolidado,
-      responsavel: "—",
+      responsavel: r.responsavel_nome ?? "—",
       codigo_rastreio: remessas[0]?.codigo_rastreio ?? null,
       remessas_count: count,
       remessa_ids: remessas.map((x) => x.id),

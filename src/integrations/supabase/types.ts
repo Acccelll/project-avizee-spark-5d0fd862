@@ -8596,34 +8596,6 @@ export type Database = {
           unidade_medida: string | null
           variacoes: string[] | null
         }
-        Insert: {
-          ativo?: boolean | null
-          codigo_interno?: string | null
-          estoque_atual?: never
-          estoque_minimo?: number | null
-          estoque_reservado?: never
-          preco_custo?: number | null
-          preco_venda?: number | null
-          produto_id?: string | null
-          produto_nome?: string | null
-          sku?: string | null
-          unidade_medida?: string | null
-          variacoes?: string[] | null
-        }
-        Update: {
-          ativo?: boolean | null
-          codigo_interno?: string | null
-          estoque_atual?: never
-          estoque_minimo?: number | null
-          estoque_reservado?: never
-          preco_custo?: number | null
-          preco_venda?: number | null
-          produto_id?: string | null
-          produto_nome?: string | null
-          sku?: string | null
-          unidade_medida?: string | null
-          variacoes?: string[] | null
-        }
         Relationships: []
       }
       vw_fluxo_caixa_financeiro: {
@@ -8654,6 +8626,8 @@ export type Database = {
           previsao_entrega: string | null
           quantidade_pedida: number | null
           quantidade_recebida: number | null
+          responsavel_id: string | null
+          responsavel_nome: string | null
           status_logistico: string | null
           tem_consolidacao_real: boolean | null
           tem_divergencia: boolean | null

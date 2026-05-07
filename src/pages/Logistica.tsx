@@ -36,6 +36,7 @@ import { useRecebimentos } from "@/pages/logistica/hooks/useRecebimentos";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
 import { useTransicionarRemessa, type RemessaTransition } from "@/pages/logistica/hooks/useTransicionarRemessa";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useLogisticaRealtime } from "@/hooks/useLogisticaRealtime";
 import {
   trackAndPersistEventos,
   updateStatusTransporte,
@@ -116,6 +117,10 @@ export default function Logistica() {
   const [recebimentoDialogPedido, setRecebimentoDialogPedido] = useState<Recebimento | null>(null);
   const [trackingTarget, setTrackingTarget] = useState<{ codigo: string; remessaId: string } | null>(null);
   const queryClient = useQueryClient();
+
+  // Singleton de Realtime do módulo Logística (remessas, recebimentos,
+  // estoque). Substitui múltiplos canais paralelos.
+  useLogisticaRealtime();
 
   // Derived lists for filters (computed from hook data)
   const transportadorasList = useMemo(

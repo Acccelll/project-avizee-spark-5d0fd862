@@ -142,12 +142,24 @@ export function EtiquetaSimplesPreviewDialog({ open, remessaIds, onClose }: Prop
       const blob = await buildBlob();
       if (!blob) return;
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(`${expandidas.length} etiqueta(s) baixadas em PDF A4.`);
+      // iOS Safari ignora `download` em blob: — abre em nova aba como fallback
+      const isIOS =
+        typeof navigator !== "undefined" &&
+        /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+        !(window as unknown as { MSStream?: unknown }).MSStream;
+      if (isIOS) {
+        const win = window.open(url, "_blank", "noopener");
+        if (!win) toast.error("Pop-up bloqueado — habilite pop-ups para baixar o PDF.");
+        else toast.success(`${expandidas.length} etiqueta(s) abertas — toque em compartilhar para salvar.`);
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast.success(`${expandidas.length} etiqueta(s) baixadas em PDF A4.`);
+      }
     } catch (e) {
       toast.error((e as Error).message || "Falha ao gerar PDF");
     } finally {
