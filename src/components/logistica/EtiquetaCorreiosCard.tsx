@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText, Send, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useCan } from "@/hooks/useCan";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   baixarEtiqueta,
   cancelarEtiqueta,
@@ -41,6 +42,7 @@ export function EtiquetaCorreiosCard({
   clienteId,
 }: Props) {
   const { can } = useCan();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [etiquetas, setEtiquetas] = useState<RemessaEtiqueta[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -100,7 +102,14 @@ export function EtiquetaCorreiosCard({
   }
 
   async function handleCancelar(et: RemessaEtiqueta) {
-    if (!confirm("Cancelar a pré-postagem nos Correios? Esta ação só funciona se o objeto ainda não foi postado fisicamente.")) return;
+    const ok = await confirm({
+      title: "Cancelar pré-postagem?",
+      description:
+        "Esta ação só funciona se o objeto ainda não foi postado fisicamente nos Correios.",
+      confirmLabel: "Cancelar pré-postagem",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
     try {
       await cancelarEtiqueta(et);
       toast.success("Pré-postagem cancelada.");
@@ -209,6 +218,7 @@ export function EtiquetaCorreiosCard({
           </ul>
         )}
       </CardContent>
+      {confirmDialog}
     </Card>
   );
 }
