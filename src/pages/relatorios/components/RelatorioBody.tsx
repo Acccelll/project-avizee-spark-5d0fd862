@@ -13,7 +13,7 @@ import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFo
 import { ExportMenu } from '@/pages/relatorios/components/ExportMenu';
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
 import type { DreRow } from '@/types/relatorios';
-import type { ActiveFilterChip } from '@/pages/relatorios/hooks/useActiveFilterChips';
+import type { ActiveFilterChip } from '@/pages/relatorios/components/ActiveFiltersBar';
 
 interface ColumnDef {
   key: string;
