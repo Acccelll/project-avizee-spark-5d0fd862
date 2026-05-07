@@ -28,6 +28,7 @@ import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
 import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { useRelatorioUrlState } from '@/pages/relatorios/hooks/useRelatorioUrlState';
+import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
 import { useRelatorioDensity } from '@/pages/relatorios/hooks/useRelatorioDensity';
 import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport';
 import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
