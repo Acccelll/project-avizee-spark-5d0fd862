@@ -94,8 +94,8 @@ export function RelatorioChart({
       <CardContent className="space-y-4">
         {chartData.length > 0 ? (
           <>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-56 min-h-[224px] w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={200}>
                 {useLine ? (
                   <LineChart data={chartData}>
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
