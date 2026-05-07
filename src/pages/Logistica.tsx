@@ -670,9 +670,24 @@ export default function Logistica() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <ScrollableTabsList className="mb-4" data-help-id="logistica.tabs">
-            <TabsTrigger value="entregas">Entregas</TabsTrigger>
-            <TabsTrigger value="recebimentos">Recebimentos</TabsTrigger>
-            <TabsTrigger value="remessas">Remessas</TabsTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="entregas">Entregas</TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Visão consolidada por pedido de venda (derivada de remessas).</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="recebimentos">Recebimentos</TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Acompanhamento logístico dos pedidos de compra. Consolidação oficial em Compras.</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="remessas">Remessas</TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Operação real de envio (uma OV pode gerar várias remessas).</TooltipContent>
+            </Tooltip>
           </ScrollableTabsList>
 
           {/* ── Tab: Entregas ── */}
