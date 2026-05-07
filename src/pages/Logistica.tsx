@@ -483,12 +483,25 @@ export default function Logistica() {
     );
     if (rastreiaveis.length === 0) { toast.info("Nenhuma remessa com rastreio pendente"); return; }
     setBulkTracking(true);
-    let updated = 0;
-    for (const r of rastreiaveis) {
-      try { await handleRastrear(r); updated++; } catch { /* skip */ }
+    const toastId = toast.loading(`Atualizando rastreios (0/${rastreiaveis.length})…`);
+    let done = 0, ok = 0;
+    const limit = 4;
+    const queue = [...rastreiaveis];
+    async function worker() {
+      while (queue.length) {
+        const r = queue.shift()!;
+        try {
+          await trackAndPersistEventos(r.codigo_rastreio!, r.id);
+          ok++;
+        } catch { /* skip */ }
+        done++;
+        toast.loading(`Atualizando rastreios (${done}/${rastreiaveis.length})…`, { id: toastId });
+      }
     }
+    await Promise.all(Array.from({ length: Math.min(limit, rastreiaveis.length) }, worker));
     setBulkTracking(false);
-    toast.success(`${updated} remessa(s) atualizada(s)`);
+    toast.success(`${ok} remessa(s) atualizada(s)`, { id: toastId });
+    queryClient.invalidateQueries({ queryKey: ["remessas"] });
   };
 
   const transportadoraOptions: MultiSelectOption[] = transportadorasList.map((t) => ({ label: t, value: t }));
