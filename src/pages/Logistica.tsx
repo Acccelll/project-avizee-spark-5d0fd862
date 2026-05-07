@@ -908,7 +908,12 @@ export default function Logistica() {
       <EntregaDrawer open={!!selectedEntrega} onClose={() => setSelectedEntrega(null)} entrega={selectedEntrega} />
 
       {/* Recebimento Drawer */}
-      <RecebimentoDrawer open={!!selectedRecebimento} onClose={() => setSelectedRecebimento(null)} recebimento={selectedRecebimento} />
+      <RecebimentoDrawer
+        open={!!selectedRecebimento}
+        onClose={() => setSelectedRecebimento(null)}
+        recebimento={selectedRecebimento}
+        onRegistrarRecebimento={(r) => setRecebimentoDialogPedido(r)}
+      />
 
       {/* Diálogo oficial de registro de recebimento (Compras) */}
       <RegistrarRecebimentoDialog
