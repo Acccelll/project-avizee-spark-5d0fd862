@@ -1,15 +1,12 @@
 /**
- * Fetches the reference data needed by the Reports module filter controls:
- *   - clientes (up to 300 active)
- *   - fornecedores (up to 300 active)
- *   - grupos de produto (all active)
+ * Reference data for the Reports module filter controls:
+ *   - grupos de produto (small, all active loaded eagerly)
  *   - empresa config (name / CNPJ for PDF header)
+ *   - clientes/fornecedores selecionados → buscados por id (server-side)
  *
- * Data is cached for 30 minutes — these lists change rarely.
- *
- * For very large bases, prefer the async loaders exported below
- * (`makeClienteLoader`, `makeFornecedorLoader`) which paginate via Supabase
- * `ilike` instead of trusting a static cap.
+ * As listas completas de clientes/fornecedores NÃO são mais pré-carregadas:
+ * o select usa `loadClienteOptions`/`loadFornecedorOptions` (ilike no servidor)
+ * e os chips usam `useSelectedRefLabels` para resolver apenas os ids ativos.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -38,42 +35,6 @@ export interface EmpresaConfigRef {
 }
 
 const STALE = 30 * 60 * 1000; // 30 minutes
-
-function useClientesRef() {
-  return useQuery<ClienteRef[]>({
-    queryKey: ["ref-clientes"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("id, nome_razao_social")
-        .eq("ativo", true)
-        .order("nome_razao_social")
-        .limit(300);
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: STALE,
-    refetchOnWindowFocus: false,
-  });
-}
-
-function useFornecedoresRef() {
-  return useQuery<FornecedorRef[]>({
-    queryKey: ["ref-fornecedores"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fornecedores")
-        .select("id, nome_razao_social")
-        .eq("ativo", true)
-        .order("nome_razao_social")
-        .limit(300);
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: STALE,
-    refetchOnWindowFocus: false,
-  });
-}
 
 function useGruposRef() {
   return useQuery<GrupoProdutoRef[]>({
@@ -111,20 +72,63 @@ function useEmpresaConfig() {
 
 /** Aggregates all reference data needed by the Reports module. */
 export function useRelatoriosFiltrosData() {
-  const clientes = useClientesRef();
-  const fornecedores = useFornecedoresRef();
   const grupos = useGruposRef();
   const empresaConfig = useEmpresaConfig();
 
   return {
-    clientes: clientes.data ?? [],
-    fornecedores: fornecedores.data ?? [],
+    clientes: [] as ClienteRef[],
+    fornecedores: [] as FornecedorRef[],
     grupos: grupos.data ?? [],
     empresaConfig: empresaConfig.data ?? null,
     limits: {
-      clientes: 300,
-      fornecedores: 300,
+      // Listas server-side: sem cap fixo — exibimos hint genérico no select.
+      clientes: 0,
+      fornecedores: 0,
     },
+  };
+}
+
+/**
+ * Resolve labels (nome_razao_social) apenas para os ids selecionados.
+ * Usado pelos chips de filtros ativos para evitar pré-carregar listas inteiras.
+ */
+export function useSelectedRefLabels(clienteIds: string[], fornecedorIds: string[]) {
+  const cliKey = [...clienteIds].sort().join(",");
+  const forKey = [...fornecedorIds].sort().join(",");
+
+  const clientes = useQuery<ClienteRef[]>({
+    queryKey: ["ref-clientes-selected", cliKey],
+    enabled: clienteIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, nome_razao_social")
+        .in("id", clienteIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: STALE,
+    refetchOnWindowFocus: false,
+  });
+
+  const fornecedores = useQuery<FornecedorRef[]>({
+    queryKey: ["ref-fornecedores-selected", forKey],
+    enabled: fornecedorIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fornecedores")
+        .select("id, nome_razao_social")
+        .in("id", fornecedorIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: STALE,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    clientes: clientes.data ?? [],
+    fornecedores: fornecedores.data ?? [],
   };
 }
 
