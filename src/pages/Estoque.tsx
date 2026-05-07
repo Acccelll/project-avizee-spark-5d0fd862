@@ -381,7 +381,7 @@ const Estoque = () => {
         </Badge>
       );
     }},
-    { key: "quantidade", label: "Qtd", render: (m: Movimento) => {
+    { key: "quantidade", label: "Qtd", mobileCard: true, render: (m: Movimento) => {
       const cfg = getTipoMovConfig(m.tipo);
       const neg = cfg.direction === "out";
       const qtyTextClass =
@@ -389,13 +389,13 @@ const Estoque = () => {
         (neg ? "text-destructive" : "text-success");
       return <span className={`font-mono font-semibold ${qtyTextClass}`}>{neg ? "-" : "+"}{formatNumber(m.quantidade)}</span>;
     }},
-    { key: "saldo_atual", label: "Saldo", render: (m: Movimento) => <span className="font-semibold font-mono">{formatNumber(m.saldo_atual)}</span> },
-    { key: "origem", label: "Origem", render: (m: Movimento) => {
+    { key: "saldo_atual", label: "Saldo", mobileCard: true, render: (m: Movimento) => <span className="font-semibold font-mono">{formatNumber(m.saldo_atual)}</span> },
+    { key: "origem", label: "Origem", mobileCard: true, render: (m: Movimento) => {
       const origem = getOrigemConfig(m.documento_tipo);
       return <Badge variant="outline" className={`text-xs ${origem.className}`}>{origem.label}</Badge>;
     } },
     { key: "motivo", label: "Motivo / Observação", render: (m: Movimento) => m.motivo || <span className="text-muted-foreground">—</span> },
-    { key: "created_at", label: "Data", render: (m: Movimento) => new Date(m.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) },
+    { key: "created_at", label: "Data", mobileCard: true, render: (m: Movimento) => new Date(m.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) },
   ];
 
   const posColumns = [
