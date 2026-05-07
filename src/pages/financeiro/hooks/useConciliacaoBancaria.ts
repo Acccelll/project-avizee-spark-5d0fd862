@@ -5,7 +5,7 @@
  * e expõe funções para importar, conciliar e desconciliar transações.
  */
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
@@ -19,6 +19,12 @@ import {
   listLancamentosParaConciliacao,
   sugerirConciliacaoBancariaRpc,
 } from "@/services/financeiro/conciliacaoQueries";
+import {
+  persistirExtratoOFX,
+  listarExtratoPersistido,
+  type ExtratoTransacaoPersistida,
+} from "@/services/financeiro/extratoImportacoes.service";
+import { useState } from "react";
 
 /** Par de conciliação: transação do extrato ↔ lançamento ERP. */
 export interface ParConciliacao {
@@ -75,7 +81,6 @@ export function useConciliacaoBancaria(
   dataFim: string,
 ): UseConciliacaoBancariaResult {
   const queryClient = useQueryClient();
-  const [extratoItems, setExtratoItems] = useState<TransacaoExtrato[]>([]);
   const [pares, setPares] = useState<ParConciliacao[]>([]);
 
   // ── Busca de lançamentos pendentes via React Query ────────────────────────
@@ -85,13 +90,43 @@ export function useConciliacaoBancaria(
     enabled: Boolean(contaId),
   });
 
+  // ── Extrato persistido (sobrevive a reload) ───────────────────────────────
+  const { data: extratoPersistido = [] } = useQuery<ExtratoTransacaoPersistida[]>({
+    queryKey: ["conciliacao-extrato", contaId, dataInicio, dataFim],
+    queryFn: () => listarExtratoPersistido({ contaBancariaId: contaId, dataInicio, dataFim }),
+    enabled: Boolean(contaId),
+  });
+
+  const extratoItems: TransacaoExtrato[] = extratoPersistido
+    .filter((t) => t.status !== "ignorado")
+    .map((t) => ({
+      id: t.fitid,
+      data: t.data,
+      descricao: t.descricao ?? "",
+      valor: Math.abs(Number(t.valor)),
+      tipo: Number(t.valor) >= 0 ? "C" : "D",
+    }));
+
   // ── Importar extrato OFX ──────────────────────────────────────────────────
   const importarExtrato = useCallback(async (file: File) => {
+    if (!contaId) {
+      toast.error("Selecione uma conta bancária antes de importar o extrato.");
+      return;
+    }
     const transacoes = await parseOFX(file);
-    setExtratoItems(transacoes);
+    const { inseridas } = await persistirExtratoOFX({
+      contaBancariaId: contaId,
+      transacoes,
+    });
     setPares([]);
-    toast.success(`${transacoes.length} transação(ões) importada(s) do extrato.`);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: ["conciliacao-extrato", contaId] });
+    const duplicadas = transacoes.length - inseridas;
+    toast.success(
+      duplicadas > 0
+        ? `${inseridas} transação(ões) importada(s); ${duplicadas} já existia(m).`
+        : `${inseridas} transação(ões) importada(s) do extrato.`,
+    );
+  }, [contaId, queryClient]);
 
   // ── Gestão de pares ───────────────────────────────────────────────────────
   const confirmarPar = useCallback((extratoId: string, lancamentoId: string) => {
@@ -170,6 +205,9 @@ export function useConciliacaoBancaria(
       queryClient.invalidateQueries({
         queryKey: ["conciliacao-lancamentos", contaId],
       });
+      queryClient.invalidateQueries({ queryKey: ["conciliacao-extrato", contaId] });
+      queryClient.invalidateQueries({ queryKey: ["financeiro"] });
+      queryClient.invalidateQueries({ queryKey: ["contas_bancarias"] });
     },
     onError: (err) => {
       notifyError(err);
