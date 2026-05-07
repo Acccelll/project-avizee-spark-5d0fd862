@@ -54,6 +54,16 @@ export interface ExportOptions {
   dataFim?: string;
   /** Full report result (used for PDF subtitle) */
   resultado?: RelatorioResultado;
+  /**
+   * Carimbo de origem dos dados (modo de geração, view/fonte, hash).
+   * Renderizado no cabeçalho do PDF e no rodapé do XLSX para reconciliação.
+   */
+  origem?: {
+    modo?: string;          // ex.: "dinâmico" | "fechado"
+    fonte?: string;         // ex.: "vw_workbook_dre_mensal"
+    geradoPor?: string;     // user/email
+    geradoEm?: string;      // ISO timestamp
+  };
 }
 
 /** Multi-sheet payload for Excel exports. */
