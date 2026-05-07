@@ -105,10 +105,10 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 
 ### Sprint 8.4 — Workbook & Apresentação robustos (🟡)
 - 8.4.1 ✅ Modo fechado: aba `00b_Aviso_Modo_Fechado` listando cortes V2 indisponíveis com motivo (em vez de abas vazias).
-- 8.4.2 Cache de geração via `hash_geracao` — se idêntico nos últimos 24h, devolver artefato existente.
+- 8.4.2 ✅ `gerarApresentacao` reutiliza geração concluída (`is_final`) com mesmo `hash_geracao` nas últimas 24h baixando o `arquivo_path` do storage (cache hit retorna `fromCache: true`).
 - 8.4.3 ✅ `dataAvailability` agora deriva de `tags_json.tags.includes('indisponivel')` (estruturado), com fallback substring para registros legados.
 - 8.4.4 Schema declarado por `SlideCodigo` (substituir `numericPairs/findArrayRows`).
-- 8.4.5 `AbortController` em `fetchWorkbookData` / `fetchPresentationData`.
+- 8.4.5 ✅ Parâmetro `signal?: AbortSignal` adicionado a `fetchWorkbookData` e `fetchPresentationData`, com `throwIfAborted` antes/depois do fetch principal (consumidores podem cancelar fluxo).
 
 ### Sprint 8.5 — Mobile UX (🟢)
 - 8.5.1 ✅ `PeriodoFilter` agora expõe presets canônicos `Hoje · 7d · 15d · 30d · Mês · 90d · Ano` com chips compactos e wrap responsivo.
