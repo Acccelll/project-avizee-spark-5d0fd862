@@ -116,7 +116,7 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r, onRegistrarRe
             </div>
           </ViewField>
           <ViewField label="Responsável">
-            <span className="font-mono text-xs">{r.responsavel !== "—" ? r.responsavel.slice(0, 8) + "…" : "—"}</span>
+            <span className="text-xs text-muted-foreground">—</span>
           </ViewField>
         </div>
       </ViewSection>
