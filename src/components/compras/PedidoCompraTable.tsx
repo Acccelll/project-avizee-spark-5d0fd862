@@ -120,8 +120,11 @@ export function PedidoCompraTable({
         const status = canonicalPedidoStatus(p.status);
         if (status === "recebido") return <StatusBadge status="recebido" />;
         if (status === "parcialmente_recebido") return <StatusBadge status="recebido_parcial" label="Recebimento Parcial" />;
-        if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(status)) {
-          return <StatusBadge status="aguardando" />;
+        if (status === "aprovado") {
+          return <StatusBadge status="aguardando" label="Aguardando envio" />;
+        }
+        if (["aguardando_recebimento", "enviado_ao_fornecedor"].includes(status)) {
+          return <StatusBadge status="aguardando" label="Aguardando recebimento" />;
         }
         if (status === "cancelado") return <span className="text-xs text-muted-foreground">—</span>;
         return <StatusBadge status="rascunho" />;

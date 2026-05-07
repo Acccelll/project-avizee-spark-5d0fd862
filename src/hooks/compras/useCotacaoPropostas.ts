@@ -69,11 +69,22 @@ export function useCotacaoPropostas(params: {
 
   const handleSelectProposal = async (propostaId: string, itemId: string) => {
     if (!selected) return;
+    // Optimistic update: marca local imediatamente para feedback instantâneo,
+    // depois reconcilia com o servidor.
+    const previous = viewPropostas;
+    setViewPropostas(
+      viewPropostas.map((p) =>
+        p.item_id === itemId
+          ? { ...p, selecionado: p.id === propostaId }
+          : p,
+      ) as Proposta[],
+    );
     try {
       await ccs.selectCotacaoProposta({ cotacaoId: selected.id, itemId, propostaId });
       toast.success("Fornecedor selecionado!");
       await reload();
     } catch (err: unknown) {
+      setViewPropostas(previous);
       notifyError(err);
     }
   };

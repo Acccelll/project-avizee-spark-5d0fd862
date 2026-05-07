@@ -122,17 +122,13 @@ export function PedidoCompraDrawer({
   })();
 
 
-  const estoquePorProduto: Record<string, number> = viewEstoque.reduce<Record<string, number>>(
-    (acc, m) => {
-      const key = String(m.produto_id);
-      acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
-      return acc;
-    },
-    {},
-  );
+  // CM-03: fonte canônica do quanto foi recebido por item é
+  // pedidos_compra_itens.quantidade_recebida (o produto pode aparecer
+  // em mais de um item dentro do mesmo pedido).
+  const recebidoPorItem = (i: PedidoItemRow) => Number(i.quantidade_recebida ?? 0);
 
   const totalOrdenado = viewItems.reduce((s, i) => s + Number(i.quantidade || 0), 0);
-  const totalRecebido = viewEstoque.reduce((s, m) => s + Number(m.quantidade || 0), 0);
+  const totalRecebido = viewItems.reduce((s, i) => s + recebidoPorItem(i), 0);
   const pctRecebimento =
     totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
@@ -209,7 +205,7 @@ export function PedidoCompraDrawer({
           <div className="md:hidden space-y-2">
             {viewItems.map((i) => {
               const produtos = i.produtos;
-              const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+              const qtdRec = recebidoPorItem(i);
               const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
               return (
                 <div key={String(i.id)} className="rounded-lg border bg-card p-3 space-y-2">
@@ -264,7 +260,7 @@ export function PedidoCompraDrawer({
               <tbody>
                 {viewItems.map((i) => {
                   const produtos = i.produtos;
-                  const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+                  const qtdRec = recebidoPorItem(i);
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
                   return (
                     <tr key={String(i.id)} className="border-b last:border-b-0 hover:bg-muted/20">
@@ -353,7 +349,7 @@ export function PedidoCompraDrawer({
         <ViewSection title="Progresso por Item">
           <div className="space-y-3">
             {viewItems.map((i) => {
-              const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+              const qtdRec = recebidoPorItem(i);
               const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
               const pct =
                 Number(i.quantidade) > 0

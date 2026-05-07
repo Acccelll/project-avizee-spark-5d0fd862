@@ -26,8 +26,6 @@ export const cotacaoStatusLabelMap: Record<string, string> = {
 export const pedidoStatusLabelMap: Record<string, string> = {
   ...Object.fromEntries(Object.entries(statusPedidoCompra).map(([k, v]) => [k, v.label])),
   recebido_parcial: statusPedidoCompra.parcialmente_recebido.label,
-  aguardando_aprovacao: "Aguardando Aprovação",
-  rejeitado: "Rejeitado",
 };
 
 export const COTACAO_FLOW_STEPS = [

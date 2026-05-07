@@ -29,6 +29,7 @@ export interface PedidoItemRow {
   id: string | number;
   produto_id: string | number | null;
   quantidade: number | null;
+  quantidade_recebida?: number | null;
   preco_unitario?: number | null;
   subtotal?: number | null;
   valor_unitario?: number | null;
@@ -386,7 +387,6 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
           "Estoque atualizado. Lance a NF de entrada para gerar o contas a pagar.",
         duration: 5000,
       });
-      setDrawerOpen(false);
       // Invalidação cross-módulo: estoque, financeiro, NFs, pedidos.
       await Promise.all(
         INVALIDATION_KEYS.recebimentoCompra.map((key) =>
@@ -407,6 +407,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
         pedido_compra_id: String(p.id),
       });
       if (p.fornecedor_id) params.set("fornecedor_id", String(p.fornecedor_id));
+      // Drawer fecha por desmontagem natural ao navegar.
       navigate(`/fiscal?${params.toString()}`);
     }
   };
