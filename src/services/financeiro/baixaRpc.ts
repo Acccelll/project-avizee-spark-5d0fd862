@@ -1,4 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  registrarBaixaFinanceiraRpc,
+  registrarBaixaLoteFinanceiraRpc,
+  estornarBaixaFinanceiraRpc,
+} from "@/types/rpc";
 
 /* -------- Baixa transacional (RPCs) -------- */
 
@@ -17,7 +22,7 @@ export interface RegistrarBaixaParams {
 }
 
 export async function registrarBaixaFinanceira(params: RegistrarBaixaParams): Promise<string> {
-  const { data, error } = await supabase.rpc("registrar_baixa_financeira", {
+  return registrarBaixaFinanceiraRpc({
     p_lancamento_id: params.lancamentoId,
     p_valor_pago: params.valorPago,
     p_data_baixa: params.dataBaixa,
@@ -29,9 +34,7 @@ export async function registrarBaixaFinanceira(params: RegistrarBaixaParams): Pr
     p_multa: params.multa ?? 0,
     p_abatimento: params.abatimento ?? 0,
     p_grupo_baixa_id: params.grupoBaixaId ?? undefined,
-  } as never);
-  if (error) throw error;
-  return data as string;
+  });
 }
 
 /* -------- Baixa em lote (RPC oficial) -------- */
@@ -67,14 +70,13 @@ export interface RegistrarBaixaLoteResult {
 export async function registrarBaixaLoteFinanceira(
   params: RegistrarBaixaLoteParams,
 ): Promise<RegistrarBaixaLoteResult> {
-  const { data, error } = await supabase.rpc("registrar_baixa_lote_financeira", {
-    p_items: params.items as never,
+  const data = await registrarBaixaLoteFinanceiraRpc({
+    p_items: params.items as unknown as import("@/integrations/supabase/types").Json,
     p_data_baixa: params.dataBaixa,
     p_forma_pagamento: params.formaPagamento,
     p_conta_bancaria_id: params.contaBancariaId,
     p_observacoes: params.observacoes ?? undefined,
-  } as never);
-  if (error) throw error;
+  });
   return data as unknown as RegistrarBaixaLoteResult;
 }
 
@@ -87,11 +89,10 @@ export async function estornarBaixaFinanceira(input: {
    * ativas de um lançamento, use `processarEstorno(lancamentoId)` em
    * `services/financeiro/estornos.ts`.
    */
-  const { error } = await supabase.rpc("estornar_baixa_financeira", {
+  await estornarBaixaFinanceiraRpc({
     p_baixa_id: input.baixaId,
     p_motivo: input.motivo,
   });
-  if (error) throw error;
 }
 
 /* -------- Geração de parcelas -------- */
