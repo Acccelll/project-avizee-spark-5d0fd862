@@ -115,7 +115,7 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 - 8.5.2 ✅ `ExportMenu` exposto na barra mobile (entre Filtros e Atualizar) — usuário não precisa mais rolar até a tabela para exportar.
 - 8.5.3 ✅ `RelatorioChart` com `min-h-[224px]`, `min-w-[1px]` e `ResponsiveContainer minHeight=200` (elimina warnings width(0)/height(0)).
 - 8.5.4 ✅ Dialogs do Workbook e da Apresentação ganham `max-w-[95vw] sm:max-w-...` (cabem em smartphones <375 px) e mantêm scroll interno.
-- 8.5.5 DataTable mobile defaultOpen quando ≤15 rows.
+- 8.5.5 ✅ Em mobile, `Collapsible` da tabela abre automaticamente quando `sortedRows.length ≤ 15` (Relatorios.tsx).
 
 ### Sprint 8.6 — Refactor Relatorios.tsx (🟢)
 - 8.6.1 Quebrar em `RelatorioWorkspace`, `RelatorioFiltrosBar`, `RelatorioBody`, `RelatorioKpiGrid`.

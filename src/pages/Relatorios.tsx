@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
@@ -119,6 +119,16 @@ export default function Relatorios() {
     () => sortarRows(filteredRows, filtrosState.agrupamento, { statusField: semantics?.statusField, valueSortField: semantics?.valueSortField, dateSortField: semantics?.dateSortField }),
     [filteredRows, filtrosState.agrupamento, semantics?.statusField, semantics?.valueSortField, semantics?.dateSortField],
   );
+
+  // 8.5.5 — Em mobile, abre a tabela automaticamente para resultados pequenos (≤15 linhas).
+  // Mantém o estado controlado pelo usuário a partir do primeiro toggle manual.
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isLoading || isError) return;
+    if (sortedRows.length > 0 && sortedRows.length <= 15) {
+      setTableExpanded(true);
+    }
+  }, [isMobile, isLoading, isError, sortedRows.length, tipo]);
 
   const kpiCards = useMemo(() => {
     if (!resultado || !tipo) return [];
