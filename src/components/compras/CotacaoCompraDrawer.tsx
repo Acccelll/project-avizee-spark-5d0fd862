@@ -86,6 +86,7 @@ export function CotacaoCompraDrawer({
   const [rejectMotivo, setRejectMotivo] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState("");
+  const [gerarOpen, setGerarOpen] = useState(false);
 
   // Memoize the approved-total to avoid recomputing the reduce on every render of the Decisão tab.
   const totalAprovado = useMemo(() => {
