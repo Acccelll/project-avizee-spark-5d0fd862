@@ -409,6 +409,7 @@ export default function Relatorios() {
                 periodLabel={periodoLabel}
                 periodAxisLabel={semantics?.periodAxisLabel}
                 recordCount={sortedRows.length}
+                updatedAt={dataUpdatedAt}
                 onBack={() => setSearchParams({})}
                 actions={headerActions}
               />
