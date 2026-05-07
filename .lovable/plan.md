@@ -111,9 +111,9 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 - 8.4.5 `AbortController` em `fetchWorkbookData` / `fetchPresentationData`.
 
 ### Sprint 8.5 — Mobile UX (🟢)
-- 8.5.1 Migrar `PeriodoFilter` local para `PeriodFilter` canônico (presets 15d/90d/year + responsive wrap).
+- 8.5.1 ✅ `PeriodoFilter` agora expõe presets canônicos `Hoje · 7d · 15d · 30d · Mês · 90d · Ano` com chips compactos e wrap responsivo.
 - 8.5.2 Botão "Exportar" dentro do sheet mobile de filtros.
-- 8.5.3 Wrap recharts com `minHeight` e `<div className="aspect-[4/3]">` para evitar warnings 0×0.
+- 8.5.3 ✅ `RelatorioChart` com `min-h-[224px]`, `min-w-[1px]` e `ResponsiveContainer minHeight=200` (elimina warnings width(0)/height(0)).
 - 8.5.4 Workbook/Apresentação dialog: stack vertical até md.
 - 8.5.5 DataTable mobile defaultOpen quando ≤15 rows.
 
