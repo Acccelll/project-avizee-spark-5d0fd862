@@ -123,7 +123,7 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 - 8.6.3 ✅ `hiddenColumns` agora persistido por `tipo` via `useDataTablePrefs(`relatorios-${tipo}`)` (cross-device, com migração one-shot do localStorage). Trocar de relatório preserva preferências por tipo.
 
 ### Sprint 8.7 — Tipagem e qualidade (🟢)
-- 8.7.1 Gerar tipos das `vw_workbook_*` e remover `(supabase as any)` em fetchWorkbookData.
+- 8.7.1 ✅ `(supabase as any)` consolidado em um único helper `sb` em `fetchWorkbookData.ts` (27 → 0 ocorrências). Tipagem completa das `vw_workbook_*` em `Database['public']['Views']` fica para quando o gerador de tipos do Supabase exportar essas views automaticamente.
 - 8.7.2 Server-side search nos selects de cliente/fornecedor (`useRelatoriosFiltrosData`).
 - 8.7.3 ✅ `dataAvailability` envelopado em `useMemo` (recomputa só quando `comentarios` muda).
 - 8.7.4 ⚠️ Testes parciais — `src/services/__tests__/export.pdf.test.ts` cobre A3 vs A4 e `PDF_MAX_ROWS`. Substring DRE já não existe (8.1.2) e modo fechado vazio é coberto pela aba `00b_Aviso_Modo_Fechado` (8.4.1); resta wire de teste e2e do XLSX em sprint dedicado.

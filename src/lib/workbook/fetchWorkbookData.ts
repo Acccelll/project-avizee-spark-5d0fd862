@@ -7,6 +7,16 @@ import { supabase } from '@/integrations/supabase/client';
 import type { WorkbookModoGeracao } from '@/types/workbook';
 import { fetchFolhaPagamentoRange, fetchEmpresaConfigBrand } from '@/services/workbook';
 
+/**
+ * As views `vw_workbook_*` ainda não estão refletidas em
+ * `Database['public']['Views']`. Em vez de espalhar `(supabase as any)` em
+ * cada chamada, encapsulamos o cast em um único helper tipado que devolve o
+ * builder do supabase-js. Os rows continuam sendo normalizados via
+ * `Record<string, unknown>` nos mapeadores abaixo, mantendo runtime safety.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as unknown as { from: (name: string) => any };
+
 export interface WorkbookRawData {
   receita: Array<{ competencia: string; total_receita: number; total_recebido: number; quantidade: number }>;
   despesa: Array<{ competencia: string; total_despesa: number; total_pago: number; quantidade: number }>;
@@ -66,46 +76,27 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     dreRes, caixaEvoRes, vendVendRes, vendAbcRes, vendRegRes, orcFunilRes,
     comprasForRes, estGiroRes, estCritRes, logRes, fiscalRes, budgetRes, empresaRes,
   ] = await Promise.all([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_receita_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_despesa_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_faturamento_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_bancos_saldo').select('*'),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_estoque_posicao').select('*'),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_aging_cr').select('*'),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_aging_cp').select('*'),
+        sb.from('vw_workbook_receita_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_despesa_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_faturamento_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_bancos_saldo').select('*'),
+        sb.from('vw_workbook_estoque_posicao').select('*'),
+        sb.from('vw_workbook_aging_cr').select('*'),
+        sb.from('vw_workbook_aging_cp').select('*'),
     fetchFolhaPagamentoRange(iniYM, fimYM).then((data) => ({ data, error: null as null })),
     // V2 ──────────────────────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_dre_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_caixa_evolutivo').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_vendas_vendedor').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_vendas_cliente_abc').select('*').limit(50),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_vendas_regiao').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_orcamentos_funil').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_compras_fornecedor').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_estoque_giro').select('*').order('valor_estoque', { ascending: false }).limit(100),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_estoque_critico').select('*').order('deficit', { ascending: false }).limit(100),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_logistica_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_fiscal_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('budgets_mensais').select('competencia, categoria, centro_custo_id, valor').gte('competencia', `${iniYM}-01`).lte('competencia', `${fimYM}-31`),
+        sb.from('vw_workbook_dre_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_caixa_evolutivo').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_vendas_vendedor').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_vendas_cliente_abc').select('*').limit(50),
+        sb.from('vw_workbook_vendas_regiao').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_orcamentos_funil').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_compras_fornecedor').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_estoque_giro').select('*').order('valor_estoque', { ascending: false }).limit(100),
+        sb.from('vw_workbook_estoque_critico').select('*').order('deficit', { ascending: false }).limit(100),
+        sb.from('vw_workbook_logistica_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+        sb.from('vw_workbook_fiscal_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+        sb.from('budgets_mensais').select('competencia, categoria, centro_custo_id, valor').gte('competencia', `${iniYM}-01`).lte('competencia', `${fimYM}-31`),
     fetchEmpresaConfigBrand().then((data) => ({ data, error: null as null })),
   ]);
 
@@ -260,8 +251,7 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
   const fimYM = compFim.slice(0, 7);
 
   // Validate that fechamentos exist for the period
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: fechamentos } = await (supabase as any)
+  const { data: fechamentos } = await sb
     .from('fechamentos_mensais')
     .select('id, competencia, status')
     .gte('competencia', iniYM)
@@ -279,14 +269,10 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
 
   // Fetch from snapshot tables
   const [finRes, caixaRes, estoqueRes, fopagRes] = await Promise.all([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('fechamento_caixa_saldos').select('*, contas_bancarias(descricao, agencia, conta, bancos(nome))').in('fechamento_id', fechamentoIds),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('fechamento_estoque_saldos').select('*, produtos(nome, sku, grupo_id, grupos_produto(nome))').in('fechamento_id', fechamentoIds),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('fechamento_fopag_resumo').select('*, funcionarios(nome)').in('fechamento_id', fechamentoIds),
+        sb.from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
+        sb.from('fechamento_caixa_saldos').select('*, contas_bancarias(descricao, agencia, conta, bancos(nome))').in('fechamento_id', fechamentoIds),
+        sb.from('fechamento_estoque_saldos').select('*, produtos(nome, sku, grupo_id, grupos_produto(nome))').in('fechamento_id', fechamentoIds),
+        sb.from('fechamento_fopag_resumo').select('*, funcionarios(nome)').in('fechamento_id', fechamentoIds),
   ]);
 
   // Build receita/despesa from snapshot financeiro
@@ -353,10 +339,8 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
 
   // Aging - not snapshotted in closed mode currently, use live data
   const [agingCRRes, agingCPRes] = await Promise.all([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_aging_cr').select('*'),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_aging_cp').select('*'),
+        sb.from('vw_workbook_aging_cr').select('*'),
+        sb.from('vw_workbook_aging_cp').select('*'),
   ]);
 
   const mapAging = (data: Record<string, unknown>[], idField: string) => (data ?? []).map((r: Record<string, unknown>) => ({
