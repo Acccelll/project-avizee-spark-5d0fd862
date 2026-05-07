@@ -121,13 +121,25 @@ export async function addEvento(input: {
   descricao: string;
   local?: string | null;
 }): Promise<void> {
+  const empresaId = await getEmpresaIdDaRemessa(input.remessaId);
   const payload: RemessaEventoInsert = {
     remessa_id: input.remessaId,
     descricao: input.descricao,
     local: input.local ?? null,
+    empresa_id: empresaId,
   };
   const { error } = await supabase.from("remessa_eventos").insert(payload);
   if (error) throw new Error(error.message);
+}
+
+async function getEmpresaIdDaRemessa(remessaId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("remessas")
+    .select("empresa_id")
+    .eq("id", remessaId)
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Remessa não encontrada");
+  return (data as { empresa_id: string }).empresa_id;
 }
 
 /**
@@ -152,6 +164,8 @@ export async function trackAndPersistEventos(
     return { novos: 0, isMock: true, eventos: eventosNormalizados };
   }
 
+  const empresaId = await getEmpresaIdDaRemessa(remessaId);
+
   // Deduplicate against existing DB events
   const { data: existentes } = await supabase
     .from("remessa_eventos")
@@ -164,7 +178,9 @@ export async function trackAndPersistEventos(
   const novosEventos = eventosNormalizados.filter((e) => !existentesSet.has(eventKey(e)));
 
   if (novosEventos.length > 0) {
-    await supabase.from("remessa_eventos").insert(novosEventos);
+    await supabase
+      .from("remessa_eventos")
+      .insert(novosEventos.map((e) => ({ ...e, empresa_id: empresaId })));
   }
 
   return { novos: novosEventos.length, isMock: false, eventos: eventosNormalizados };
@@ -266,6 +282,8 @@ export async function persistirEventosNormalizados(input: {
   const { remessaId, eventos } = input;
   if (eventos.length === 0) return 0;
 
+  const empresaId = await getEmpresaIdDaRemessa(remessaId);
+
   const { data: existentes, error: selErr } = await supabase
     .from("remessa_eventos")
     .select("descricao, local, data_hora")
@@ -278,7 +296,9 @@ export async function persistirEventosNormalizados(input: {
   const novos = eventos.filter((e) => !existentesSet.has(eventKey(e)));
 
   if (novos.length > 0) {
-    const { error: insErr } = await supabase.from("remessa_eventos").insert(novos);
+    const { error: insErr } = await supabase
+      .from("remessa_eventos")
+      .insert(novos.map((e) => ({ ...e, empresa_id: empresaId })));
     if (insErr) throw new Error(insErr.message);
   }
   return novos.length;
