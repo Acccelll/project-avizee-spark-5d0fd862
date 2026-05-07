@@ -13,6 +13,7 @@ import { PedidoCompraTable } from "@/components/compras/PedidoCompraTable";
 import { PedidoCompraFormModal } from "@/components/compras/PedidoCompraFormModal";
 import { PedidoCompraDrawer } from "@/components/compras/PedidoCompraDrawer";
 import { RegistrarRecebimentoDialog } from "@/components/compras/RegistrarRecebimentoDialog";
+import { pedidoNumero } from "@/components/compras/pedidoCompraTypes";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCan } from "@/hooks/useCan";
@@ -136,7 +137,7 @@ export default function PedidosCompra() {
           onView={ctx.openView}
           onEdit={ctx.openEdit}
           onSend={ctx.marcarEnviado}
-          onReceive={(p) => setRecebDialog({ id: String(p.id), numero: String(p.numero ?? p.id) })}
+          onReceive={(p) => setRecebDialog({ id: String(p.id), numero: pedidoNumero(p) })}
         />
       </ModulePage>
 
