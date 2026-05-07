@@ -125,6 +125,7 @@ Deno.serve(async (req) => {
   log.info("Ambiente DistDF-e resolvido", { ambiente });
 
   const inicio = new Date().toISOString();
+  const inicioMs = Date.now();
   const resultados: Array<{
     cnpj: string;
     sucesso: boolean;
@@ -315,6 +316,40 @@ Deno.serve(async (req) => {
       detalhes: resultados,
     },
   });
+
+  // Sprint 7.4 #19 — telemetria fiscal (uma linha por execução do cron + uma por CNPJ)
+  try {
+    await admin.from("fiscal_telemetria").insert({
+      funcao: "process-distdfe-cron",
+      action: "run",
+      sucesso: totalErros === 0,
+      latencia_ms: Date.now() - inicioMs,
+      ambiente,
+      detalhes: {
+        total_cnpjs: resultados.length,
+        total_novos: totalNovos,
+        total_duplicados: totalDuplicados,
+        total_erros: totalErros,
+      },
+    });
+    if (resultados.length > 0) {
+      await admin.from("fiscal_telemetria").insert(
+        resultados.map((r) => ({
+          funcao: "sefaz-distdfe",
+          action: "consultar-nsu",
+          sucesso: r.sucesso,
+          ambiente,
+          cnpj: r.cnpj,
+          cstat: r.cStat ?? null,
+          xmotivo: r.xMotivo ?? null,
+          erro: r.erro ?? null,
+          detalhes: { novos: r.novos, duplicados: r.duplicados },
+        })),
+      );
+    }
+  } catch (e) {
+    log.info("telemetria fiscal falhou (seguindo)", { erro: (e as Error).message });
+  }
 
   log.info("Sincronização DistDF-e concluída", {
     total_cnpjs: resultados.length,
