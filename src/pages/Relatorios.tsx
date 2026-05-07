@@ -110,7 +110,7 @@ export default function Relatorios() {
     };
   }, [tipo, dataInicio, dataFim, filtrosState]);
 
-  const { data: resultado, isLoading, isError, refetch } = useRelatorio(tipo, filtros);
+  const { data: resultado, isLoading, isError, refetch, dataUpdatedAt } = useRelatorio(tipo, filtros);
 
   const reportMeta = resultado?.meta;
   const isQtyReport = reportMeta?.valueNature === 'quantidade' || resultado?._isQuantityReport === true;
