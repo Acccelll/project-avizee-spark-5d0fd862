@@ -62,6 +62,32 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const log = createLogger("process-distdfe-cron");
+
+  // Sprint 7.1 P0 — gate de invocação anônima.
+  // verify_jwt=false (necessário para o pg_cron chamar via net.http_post sem
+  // sessão), portanto a função fica exposta. Exigimos um secret compartilhado
+  // CRON_SECRET que o pg_cron envia via header X-Cron-Secret (ou query
+  // ?cron_secret=). Quando o secret NÃO está configurado no projeto, mantemos
+  // o comportamento antigo (open) para não quebrar deployments legados, mas
+  // logamos um WARN bem visível para o operador atualizar.
+  const expectedSecret = Deno.env.get("CRON_SECRET")?.trim();
+  if (expectedSecret) {
+    const url = new URL(req.url);
+    const provided =
+      req.headers.get("x-cron-secret")?.trim() ||
+      url.searchParams.get("cron_secret")?.trim() ||
+      "";
+    if (provided !== expectedSecret) {
+      log.info("invocação rejeitada: cron secret inválido/ausente", {
+        hasHeader: !!req.headers.get("x-cron-secret"),
+        hasQuery: !!url.searchParams.get("cron_secret"),
+      });
+      return json({ sucesso: false, erro: "Unauthorized: cron secret inválido." }, 401);
+    }
+  } else {
+    log.info("CRON_SECRET não configurado — execução aberta (configure o secret e atualize o pg_cron)");
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
