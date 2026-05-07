@@ -5,6 +5,8 @@ project_id = "cpvdncsxzostovdduhci"
     verify_jwt = false
   [functions.notify-admin-new-signup]
     verify_jwt = false
+  [functions.notify-orcamento-resposta]
+    verify_jwt = false
   [functions.process-email-queue]
     verify_jwt = true
   [functions.validate-invite]
