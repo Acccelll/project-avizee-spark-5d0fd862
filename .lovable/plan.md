@@ -1,158 +1,142 @@
 
-# Onda 7 — Revisão End-to-End: Fiscal & Faturamento
+# Revisão End-to-End — Onda 8 (Relatórios · Workbook · Apresentação · Budget)
 
-## 1. Resumo da Onda 7
+## 1. Resumo da Onda 8
 
-A Onda 7 cobre todo o domínio fiscal do AviZee: emissão e recebimento de NF-e, ciclo de vida (rascunho → confirmada → autorizada/cancelada), eventos SEFAZ (CC-e, cancelamento, inutilização, manifestação), DistDFe, importação/tradução de XML, certificado A1 (Storage privado + Vault), edge functions (`sefaz-proxy`, `sefaz-distdfe`, `process-distdfe-cron`, `consultadanfe-proxy`) e o esqueleto do módulo Faturamento (em breve, atalho para Pedidos).
+A Onda 8 consolida toda a camada **analítica e de output executivo** do AviZee. Hoje ela cobre:
 
-Estado atual:
-- `Fiscal.tsx` ainda é god component (~1.500 linhas após extração de `NfeCreateFormModal`).
-- `FiscalDetail` foi descontinuada (D-2) → redirect para `/fiscal?nf=:id`.
-- Lifecycle confirmar/estornar/devolver migrado para RPCs atômicas (idempotentes via guards `NOT EXISTS`).
-- DistDFe roda via Cron + edge `sefaz-distdfe` (mTLS direto Deno ou Worker opt-in via `SEFAZ_USE_MTLS_PROXY`).
-- Busca por chave hoje usa `consultadanfe-proxy` (oficial), `BuscarPorChaveDialog` está ATIVO.
-- Faturamento existe como atalho/EmptyState; sub-rotas `/faturamento/cadastros` e `/faturamento/emitir` são `EmBreve`.
+- **Relatórios Operacionais** (`/relatorios`) — 20 relatórios em 5 categorias (financeiro, comercial, compras, estoque, cadastros), com catálogo, filtros canônicos (`PeriodoFilter` próprio), KPIs, gráficos (recharts), tabela (`DataTable`), drill-down, exportação CSV/XLSX/PDF, favoritos persistidos e preview pré-impressão.
+- **Workbook Gerencial** (`/workbook-gerencial`) — geração de planilha .xlsx (exceljs) consumindo views materializadas `vw_workbook_*`, dois modos (dinâmico/fechado), histórico, download e CSV de histórico.
+- **Apresentação Gerencial** (`/apresentacao-gerencial`) — geração de .pptx (pptxgenjs), templates, comentários editáveis, fluxo de aprovação (rascunho → revisão → final), cadências automáticas, telemetria de slides.
+- **Budget Mensal** (`/budget`) — input manual de metas (`budgets_mensais`) consumido pelo Workbook nas colunas Δ% / orçado.
+- **Camada de dados:** `relatorios.service` (dispatcher) com 6 loaders dedicados; `lib/workbook/fetchWorkbookData` agregando 21 fontes; `lib/apresentacao/fetchPresentationData`. Views `vw_workbook_*` definidas em `20260411210000_workbook_gerencial.sql` (97 ocorrências em migrations).
 
-## 2. Fluxos fiscais mapeados
+Arquitetura geral é sólida e em linha com a doutrina do projeto (statusKind canônico, design tokens, RLS). Esta revisão consolida os gaps remanescentes que ainda atrapalham confiabilidade dos números, performance e mobile.
 
-```text
-EMISSÃO (saída)
-  /fiscal → "Nova NF" → NfeCreateFormModal → upsertNotaFiscalComItens (RPC salvar_nota_fiscal)
-    → Confirmar NF (RPC confirmar_nota_fiscal) → estoque_movimentos + financeiro_lancamentos (idempotente)
-    → SefazAcoesPanel → autorizar (sefaz-proxy assinar-e-enviar-vault)
-    → registrar_retorno_sefaz (status_sefaz=autorizada, protocolo, xml)
-    → eventos: CC-e / Cancelar SEFAZ / Inutilizar
+---
 
-RECEBIMENTO (entrada)
-  Cron process-distdfe-cron → sefaz-distdfe consultar-nsu (mTLS A1)
-    → docZip (procNFe/resNFe) → nfe_distribuicao (XML preservado)
-    → Manifestação Destinatário (drawer)
-    → Importação XML (manual upload OU "puxar do DistDFe") → useNFeXmlImport
-       → parser → match fornecedor (CNPJ) + produtos (SKU) → TraducaoXmlDrawer
-       → upsertNotaFiscalComItens (origem=importacao_xml) → Confirmar (entrada → contas a pagar + entrada de estoque)
+## 2. Problemas críticos (bloqueiam confiança/uso)
 
-DEVOLUÇÃO
-  NotaFiscalDrawer → Devolução → DevolucaoDialog → RPC gerar_devolucao_nota_fiscal
-    → cria NF tipo oposto vinculada → confirmar gera movimento contrário
+1. **DRE com heurística de substring frágil** — `loaders/financeiro.ts:310` classifica CMV verificando `descricao.toLowerCase().includes("compra")`. Viola a regra "status/tipo nunca por substring" e produz CMV inflado/deflacionado conforme o operador escreve "Compra de mat.", "compra avulsa", "compras gerais". Precisa ler `nota_fiscal_id IS NOT NULL` + categoria contábil real (`conta_contabil_id`) ou `tipo_documento`.
+2. **PDF sem *streaming* nem aviso real de risco** — `useRelatorioExport` corta em 200 linhas e mostra um toast, mas o usuário só percebe a perda de dados depois do download. O aviso precisa aparecer **antes** (modal de confirmação com opção "Excel completo") e o builder não tem proteção contra colunas extra-largas (overflow horizontal silencioso em relatórios com 12+ colunas).
+3. **Workbook modo "fechado" perde V2** — `fetchClosedModeData` retorna `dre/caixaEvolutivo/vendasVendedor/abc/regiao/funil/comprasFornecedor/giro/critico/logistica/fiscal/budget = []` sem qualquer aviso visual no XLSX. O usuário gera um workbook vazio nas abas analíticas sem entender por quê.
+4. **Origem dos dados não é declarada nos outputs** — Nem o PDF (export.service), nem o Workbook, nem a Apresentação carimbam **fonte/escopo/modo de geração** ("dinâmico vs fechado", "view vs snapshot"), conforme exige o ponto crítico #1 do escopo. Dois usuários comparando o mesmo relatório em momentos diferentes não conseguem reconciliar.
+5. **`useRelatorio` não invalida quando os módulos de origem mudam** — `staleTime` 10min e `queryKey: ['relatorio', tipo, filtros]` isolam relatórios das mutations dos módulos. Vender um pedido / pagar um título não atualiza KPIs/DRE até refetch manual ou 10min. Falta `queryClient.invalidateQueries({ queryKey: ['relatorio'] })` nos pontos de mutação críticos (financeiro, faturamento, compras, estoque, fiscal).
+6. **Sem limite no Excel/CSV** — exporta 100% das linhas em memória; em `vendas`, `movimentos_estoque`, `aging` (centenas de milhares) trava o navegador. Precisa de teto + chunked export OR aviso quando `rows.length > 10000`.
+7. **`BudgetMensal` sem chave única** — não há `UNIQUE(competencia, categoria, centro_custo_id)`. Possíveis duplicatas inflam o orçado e quebram comparativos no Workbook.
+8. **Apresentação consome `slides_json.ativos` com `as any`** (`ApresentacaoGerencial.tsx:55`) e `dataAvailability` com regra `!c.comentario_automatico?.includes('indisponíveis')` — outra heurística de substring para indicar disponibilidade. Precisa flag estruturada (`dados_indisponiveis: boolean`).
 
-CONSULTA POR CHAVE / SCANNER
-  BuscarPorChaveDialog → consultadanfe-proxy (API pública)
-  FiscalChaveScannerDialog → câmera/QR → mesmo fluxo
-```
+## 3. Problemas altos
 
-## 3. Problemas críticos (P0)
+9. **Catálogo `RelatorioCatalogo` inteiro é montado mesmo quando o usuário já selecionou um tipo** (chave `tipo` no URL). Mantido como rota independente seria mais barato; hoje renderiza KPI cards e descrições em todos os render passes do `Relatorios.tsx`.
+10. **Loaders não paginam** — `vendas`, `compras`, `aging`, `movimentos_estoque` puxam até o limite default (1000 do Supabase) e silenciosamente truncam. Sem warning na UI; KPIs ficam errados quando há 1001+ registros.
+11. **`PeriodoFilter` local diverge do `PeriodFilter` global canônico** (`mem://produto/contrato-de-periodos`). Faltam presets `15d`, `90d`, `year` e o suporte a `direction` futura. Usuário muda padrão entre módulos.
+12. **DRE: deduções por NF saída independe do regime de caixa** — receita por `valor_pago` (cash basis) mas deduções por `data_emissao` (regime de competência). Mistura métodos sem aviso, distorcendo Receita Líquida.
+13. **`isQuantityReport` propaga via `_isQuantityReport`/`_isDreReport`** com prefixo underscore (legado). Migrar tudo para `meta.kind` / `meta.valueNature` (já existe parcialmente). Risco baixo, mas confuso para novos loaders.
+14. **Apresentação `numericPairs/findArrayRows` é heurístico** — chuta o que renderizar via inspeção do dicionário (`generatePresentation.ts:32-60`). Slide novo com schema diferente quebra silenciosamente. Falta esquema declarado por `SlideCodigo`.
+15. **`fetchWorkbookData` faz 21 fetchs em paralelo** sem `AbortController`. Se o usuário fechar o dialog enquanto gera, fluxos continuam consumindo conexões/Bandwidth.
+16. **Budget — sem suporte a centro de custo na UI** apesar do schema permitir (coluna `centro_custo_id`); workbook recebe sempre `null`.
+17. **Mobile: tabela colapsada por padrão dificulta cópia/seleção** (Relatorios.tsx:667). Para relatórios pequenos (<10 linhas) o usuário precisa abrir explicitamente — defaultOpen quando `rows<=15`.
 
-1. **Busca por chave não está desativada** apesar do enunciado da revisão sugerir o contrário. `BuscarPorChaveDialog` segue chamando `consultadanfe-proxy` (terceiro). Decisão necessária: manter como oficial (memória já diz isso) ou colocar feature flag até validar custo/SLA.
-2. **`confirmar_nota_fiscal` não valida `status_sefaz`** — uma NF de saída pode ser "confirmada" (gerando estoque/financeiro) antes da autorização SEFAZ; se rejeitada depois, estoque/financeiro já foram tocados. Há guarda em estorno mas não no fluxo direto.
-3. **`confirmar_nota_fiscal` insere `financeiro_lancamentos` sem `cliente_id`/`fornecedor_id` checados pelo `tipo`** — entrada com `cliente_id` preenchido pode gerar conta a receber espúria. Falta `CASE` por `v_tipo_fin`.
-4. **`process-distdfe-cron` roda com `verify_jwt = false`** sem evidência de header secret/HMAC. Risco de invocação anônima.
-5. **`upsertNotaFiscalComItens` permite editar NF já confirmada/autorizada** se RPC `salvar_nota_fiscal` não bloquear (precisa confirmar trigger `trg_nf_protege_edicao`).
+## 4. Melhorias médias / baixas
 
-## 4. Problemas altos (P1)
+18. **Persistir `hiddenColumns`** por `tipo` em `localStorage` (UX recorrente).
+19. **Gráfico**: oferecer toggle pizza ↔ barras (chart-type override) sem precisar editar `relatoriosConfig`.
+20. **Workbook**: nome de arquivo poderia incluir `modo` (`workbook_gerencial_2026-01_2026-03_dinamico_xxx.xlsx`).
+21. **Apresentação**: indicador de progresso por slide durante geração (hoje só "Gerando…").
+22. **Relatórios**: barra "Atualizado há X" para reforçar que é um snapshot cacheado por 10min.
+23. **Budget**: import CSV em massa e botão "Replicar último mês".
+24. **Favoritos**: agrupar por categoria e suportar reordenação.
 
-6. **`Fiscal.tsx` continua god component (1.500 linhas)** — falta extrair `FiscalDanfeViewer` e `FiscalDevolucaoFlow` (decisão D-3 já aprovada).
-7. **`useFiscalKpis` + grid usam queries separadas** — sem paginação server-side, duplica round-trip e ignora limite de 1.000 linhas Supabase.
-8. **`status` ERP e `status_sefaz` confundidos em filtros** — `useFiscalFilters` mantém ambos mas o badge mobile só mostra um eixo no card primário; risco de operação errada.
-9. **Estorno não notifica módulos downstream** — `useEstornarNotaFiscal` invalida `notas_fiscais/estoque/financeiro` mas não `comercial` (devolução/OV) nem `compras` (vínculo pedido).
-10. **`registrar_retorno_sefaz` aceita `xml_retorno` direto do client** — risco de payload inflar tabela; falta validação de tamanho/whitelist de tags.
-11. **`sefaz-distdfe` lê `empresa_config` sem `empresa_id`** — single-tenant ainda hard-coded; quebra se Onda multi-tenant avançar.
+## 5. Problemas mobile
 
-## 5. Melhorias médias/baixas (P2/P3)
+25. **`PeriodoFilter` local ocupa duas linhas** (`Hoje 7d 30d Mês Personalizado`) — quebra em viewports <360 px.
+26. **`ExportMenu` no card desktop não está espelhado para mobile** dentro do Sheet de filtros — usuário precisa fechar o sheet, ver tabela, scroll até o final. Adicionar acesso a "Exportar" no header mobile.
+27. **Gráfico (recharts) avisa `width(0) height(0)`** (visto no console). Container `h-56` pode renderizar antes do layout nas tabs/sheets — wrap com `<ResponsiveContainer minHeight={224}>` e usar `aspect`.
+28. **Workbook/Apresentação**: o botão "Gerar" é um dialog que **não cabe** em smartphones <375px (formulário tem 5 colunas em sm:grid-cols-5). Precisa stack vertical até md.
+29. **DataTable**: `mobileStatusKey/mobileIdentifierKey` derivados heuristicamente; em relatórios sem coluna textual (DRE, fluxo) o cartão mobile fica sem identificador.
 
-- Centralizar `STATUS_VARIANT_MAP` para `status_sefaz` (alguns chips usam cores hard-coded).
-- DistDFeHistorico não tem PeriodFilter canônico (`/contrato-de-periodos`).
-- `FiscalChaveScannerDialog` (611 linhas) merece extrair lógica de câmera para hook `useQrScanner`.
-- `NotaFiscalForm.tsx` (página `/fiscal/novo`) e `NfeCreateFormModal` divergem em validações Zod vs handlers manuais — unificar via `NFeForm` + `nfeSchema`.
-- Faturamento: rota `/faturamento/emitir` está EmBreve mas Comercial já gera NF a partir de Pedido — alinhar discoverability (link explícito).
-- `consultadanfe-proxy` sem rate-limit por usuário.
-- `CartaCorrecaoDrawer`/`InutilizacaoDrawer` não compartilham componente base de evento SEFAZ.
+## 6. Problemas desktop
 
-## 6. Problemas mobile
+30. **`Relatorios.tsx` 800 linhas** — mistura dispatch, layout, KPIs, render. Quebrar em `RelatorioWorkspace` (estado), `RelatorioFiltrosBar` (filtros desktop+mobile sheet), `RelatorioBody` (KPIs+chart+tabela).
+31. **Densidade compacta** afeta apenas KPI cards, não a tabela. Usuário espera tabela densa também.
+32. **Coluna `Ações` (drill-down)** sempre à direita, mesmo em layouts horizontais largos. Considerar flutuante/sticky.
+33. **Apresentação: `ApresentacaoTelemetriaPanel`, `TemplateManager`, `CadenciaManager`** todos visíveis simultaneamente — página fica longa demais. Consolidar em abas.
 
-- Banner "Pendentes" mobile não respeita memória `produto/contrato-de-status` (cor `warning/10` pode colidir com tema dark).
-- `NotaFiscalDrawer` mobile tem 3 tabs mas `Mais` não usa accordion — viola padrão `produto/configuracoes-mobile` (≥4 grupos).
-- `NfeCreateFormModal` em mobile renderiza grid de itens sem o "card-list" — ItemsGrid horizontal estoura viewport <768px.
-- Scanner QR não trata permissão negada com fallback de upload de imagem.
+## 7. Problemas de dados / performance
 
-## 7. Problemas desktop
+34. **DRE/Workbook/Apresentação não usam o **mesmo** dado fonte** — DRE em Relatórios usa `financeiro_lancamentos` cru, Workbook usa `vw_workbook_dre_mensal`, Apresentação usa `fetchPresentationData`. Possível divergência numérica entre as 3 visões para o mesmo período. Precisa de **uma view canônica** + 3 consumidores.
+35. **Views `vw_workbook_*` não estão indexadas** para `competencia` (substring `slice(0,7)` em PG retorna texto sem usar índice em date). Em produção com >2 anos de histórico a geração demora >10s.
+36. **Sem cache server-side para o Workbook** — toda geração refaz 21 queries. Considerar `workbook_geracoes.parametros_json + hash` como cache lookup antes de gerar.
+37. **`fetchPresentationData` repete queries do Workbook** sem reuso. Quando ambos rodam em sequência, dobra a carga.
 
-- Drawer de NF tem header com badge ERP+SEFAZ mas não exibe `protocolo` truncado clicável (copiar).
-- Grid sem `useDataTablePrefs` → colunas não persistem.
-- `FiscalDashboard` recharts sem `aria-busy` durante refetch.
+## 8. Problemas frontend / services / hooks
 
-## 8. Edge Functions / SEFAZ
+38. **`useRelatoriosFiltrosData` busca clientes/fornecedores/grupos** sem filtros — para tenants com 5k clientes, cada entrada na tela puxa lista inteira. Já tem `limits` mas precisa de **server-side search** no select.
+39. **Tipos `RelatorioResultado` largos com `_isQuantityReport` / `_isDreReport`** legados — limpar e tipar via `meta.kind` discriminado.
+40. **`(supabase as any).from(...)` em fetchWorkbookData** — ~21 ocorrências. Gerar tipos das views (`Database['public']['Views']`) e remover `any`.
+41. **`useRelatorioExport` não invalida nada**, mas registra timing/`isExporting` por hook instance. Expor `exportProgress` (start/end) para UI mais rica.
+42. **`relatoriosFavoritos.service`** não valida unicidade no client (server tem). Toast genérico em duplicate.
+43. **Apresentação: `dataAvailability` reconstruído por reduce em todo render** — memorizar com `useMemo`.
 
-- `sefaz-proxy` aceita `assinar-e-enviar` com cert vindo do client (modo legado). Manter apenas `*-vault` (D-?).
-- `sefaz-distdfe`: log `proxySecretFp` expõe primeiros/últimos 4 chars do secret — ok p/ debug, mas remover em prod.
-- Falta circuit breaker quando AN devolve cStat=656 (consumo indevido / bloqueio 1h) — atualmente loga mas o cron pode reentrar.
-- `process-distdfe-cron` não verifica `cloud_status` antes de invocar.
-- `consultadanfe-proxy` não logga `request_id` correlacionável.
-- Nenhuma das funções fiscais publica métricas (sucesso/falha) em `app_configuracoes` ou tabela de telemetria.
+---
 
-## 9. Banco / RPC
+## 9. Plano de Execução
 
-- `confirmar_nota_fiscal`: faltam guards já citados (status_sefaz, tipo×parceiro).
-- `gerar_devolucao_nota_fiscal`: não retorna lista de itens devolvidos parciais (só id).
-- `cancelar_nota_fiscal_sefaz` não dispara estorno automático (memória diz que cancelar interno estorna; SEFAZ deveria também).
-- Trigger `trg_nf_status_transicao` precisa whitelist explícita; não verificada agora.
-- Faltam constraints `chk_` em `notas_fiscais.status_sefaz` e `tipo` (memória diz que é doutrina).
-- Falta índice composto `(empresa_id, status, data_emissao desc)` — KPI/dashboard varrem tabela.
+Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.lovable/plan.md`. Risco classificado: 🟢 baixo · 🟡 médio · 🔴 alto.
 
-## 10. Frontend / services / hooks
+### Sprint 8.1 — Confiabilidade dos números (🔴)
+- 8.1.1 DRE cash basis vs competência: documentar e oferecer toggle no filtro (`competencia | caixa`). Loader recalcula deduções do método escolhido.
+- 8.1.2 Substituir heurística "compra" no CMV por classificação estruturada (`nota_fiscal_id IS NOT NULL` + tag `tipo_lancamento_dre`).
+- 8.1.3 Carimbo de origem (modo, data de geração, view de fonte) no rodapé do PDF, capa do XLSX, capa da PPTX.
+- 8.1.4 View canônica `vw_dre_periodo` consumida por Relatórios + Workbook + Apresentação (eliminar 3 cálculos paralelos).
+- 8.1.5 `BudgetMensal`: migration `UNIQUE(competencia, categoria, COALESCE(centro_custo_id, '00000000-...'))`.
 
-- `useNotaFiscalLifecycle` invalida queries por string literal — usar `INVALIDATION_KEYS.fiscal.*`.
-- `useNFeXmlImport` faz match O(n×m) de produtos — substituir por Map.
-- `fiscal.service.ts` (442 linhas) mistura RPCs, lookups e empresa_config — quebrar em `nf-lifecycle.service`, `nf-eventos.service`, `nf-lookups.service`, `empresa-config.service`.
-- `useSefazAcoes` (312 linhas) faz dupla chamada RPC para numeração — extrair para `nfeNumbering.service` (sequence atômica).
-- `NotaFiscalForm.tsx` página vs `NfeCreateFormModal` modal: duas fontes de verdade do schema. Unificar.
+### Sprint 8.2 — Exportação segura (🟡)
+- 8.2.1 Modal pré-export PDF com `recordCount` real, alerta visual quando >200, opção "exportar Excel".
+- 8.2.2 Limite Excel/CSV configurável (default 10000) + aviso e opção "continuar".
+- 8.2.3 Em PDF: layout de página A3 quando colunas >10; fallback para "muitas colunas → use Excel".
+- 8.2.4 Worker para geração de XLSX/PDF (off main thread) — opcional via flag.
 
-## 11. Plano de Execução
+### Sprint 8.3 — Cache e invalidação cross-módulo (🟡)
+- 8.3.1 Helper `invalidateRelatoriosByDomain(domain)` chamado em mutations de Financeiro, Comercial, Compras, Estoque, Fiscal.
+- 8.3.2 Selo "Atualizado há X · Atualizar" exposto em `ReportHeader`.
+- 8.3.3 Detect `rows.length === 1000` e exibir warning "Resultado pode estar truncado".
 
-### Sprint 7.1 — Segurança e idempotência (P0)
+### Sprint 8.4 — Workbook & Apresentação robustos (🟡)
+- 8.4.1 Modo fechado: avisos visuais por aba ("snapshot fechado não disponibiliza este corte") em vez de aba vazia.
+- 8.4.2 Cache de geração via `hash_geracao` — se idêntico nos últimos 24h, devolver artefato existente.
+- 8.4.3 Apresentação `dataAvailability` estruturado (campo `dados_indisponiveis: boolean` em `comentarios`).
+- 8.4.4 Schema declarado por `SlideCodigo` (substituir `numericPairs/findArrayRows`).
+- 8.4.5 `AbortController` em `fetchWorkbookData` / `fetchPresentationData`.
 
-1. Migração: adicionar guards em `confirmar_nota_fiscal` (`status_sefaz NOT IN ('rejeitada','denegada','cancelada_sefaz')` para saída antes de tocar estoque/financeiro; `CASE` por `tipo` no INSERT financeiro com `cliente_id`/`fornecedor_id` corretos).
-2. Migração: `cancelar_nota_fiscal_sefaz` chama estorno automático (mesma lógica de `estornar_nota_fiscal`).
-3. Edge `process-distdfe-cron`: exigir header `X-Cron-Secret` (Vault `CRON_SECRET`); rejeitar 401 caso ausente.
-4. Decidir busca-por-chave: confirmar `consultadanfe` como oficial (já registrado) e adicionar feature flag `VITE_FEATURE_BUSCA_CHAVE` para kill-switch.
-5. Validar `salvar_nota_fiscal` bloqueia edição quando `status='confirmada'`.
+### Sprint 8.5 — Mobile UX (🟢)
+- 8.5.1 Migrar `PeriodoFilter` local para `PeriodFilter` canônico (presets 15d/90d/year + responsive wrap).
+- 8.5.2 Botão "Exportar" dentro do sheet mobile de filtros.
+- 8.5.3 Wrap recharts com `minHeight` e `<div className="aspect-[4/3]">` para evitar warnings 0×0.
+- 8.5.4 Workbook/Apresentação dialog: stack vertical até md.
+- 8.5.5 DataTable mobile defaultOpen quando ≤15 rows.
 
-### Sprint 7.2 — Decomposição Fiscal (P1) ✅ executado (parcial)
+### Sprint 8.6 — Refactor Relatorios.tsx (🟢)
+- 8.6.1 Quebrar em `RelatorioWorkspace`, `RelatorioFiltrosBar`, `RelatorioBody`, `RelatorioKpiGrid`.
+- 8.6.2 Eliminar flags `_isQuantityReport/_isDreReport`; usar discriminated union em `meta`.
+- 8.6.3 Persistir `hiddenColumns` por `tipo` em `useDataTablePrefs` existente.
 
-6. ✅ `FiscalDanfeViewer` extraído (`pages/fiscal/components/FiscalDanfeViewer.tsx`).
-7. ✅ `FiscalDevolucaoFlow` extraído (`pages/fiscal/components/FiscalDevolucaoFlow.tsx`).
-8. ✅ `fiscal.service.ts` virou facade re-exportando 5 submódulos em `services/fiscal/`:
-    `eventos`, `lifecycle`, `sefaz`, `lookups`, `empresaConfig`.
-9. ✅ `NfeFormBody` é a única fonte do markup do form de NF, consumida tanto por `NfeCreateFormModal` (modal) quanto por `NotaFiscalForm` (página `/fiscal/novo` e `/fiscal/:id/editar`). A página agora usa `useFiscalNotaForm` (hook canônico de orquestração) que cobre header + itens + impostos + parcelas + cartão, via o mesmo pipeline `upsertNotaFiscalComItens` do `Fiscal.tsx`.
-10. ✅ `useQrScanner` extraído (`pages/fiscal/hooks/useQrScanner.ts`).
+### Sprint 8.7 — Tipagem e qualidade (🟢)
+- 8.7.1 Gerar tipos das `vw_workbook_*` e remover `(supabase as any)` em fetchWorkbookData.
+- 8.7.2 Server-side search nos selects de cliente/fornecedor (`useRelatoriosFiltrosData`).
+- 8.7.3 Memoizar `dataAvailability` em ApresentacaoGerencial.
+- 8.7.4 Testes adicionais: substring DRE, limite PDF, modo fechado vazio.
 
-Resultado: `Fiscal.tsx` 1500→1461 linhas; `fiscal.service.ts` 442→48 (facade);
-`FiscalChaveScannerDialog.tsx` 612→365.
+### Sprint 8.8 — Polimento (🟢)
+- Favoritos por categoria, replicar Budget do mês anterior, indicador de progresso por slide, telemetria de geração.
 
-### Sprint 7.3 — Performance e UX (P2)
+---
 
-11. ⏳ Parcial: filtro mês de emissão empurrado server-side via `dateRange` em `useSupabaseCrud` (reduz payload e respeita o limite de 1k linhas no escopo do mês). Paginação real (page/pageSize + KPIs por RPC) fica para sprint dedicada.
-12. ✅ Persistir prefs do grid via `useDataTablePrefs` (já cabeada pelo `DataTable` via `moduleKey={tipoConfig.moduleKey}`).
-13. ✅ Índice `(empresa_id, status, data_emissao desc)` + `(status_sefaz, data_emissao desc)` em `notas_fiscais`.
-14. ✅ Map<id|codigo_interno|sku, produto> em `useNFeXmlImport` (substitui `find` O(n×m)).
-15. ✅ Mobile: `ItemsGrid` já entrega card-list em `<md` (md:hidden), `NotaFiscalDrawer` agora usa `<Accordion>` na aba "Mais" (4 grupos), e `FiscalChaveScannerDialog` já oferece tab `upload` como fallback do scanner.
-
-### Sprint 7.4 — Edge / SEFAZ hardening (P2)
-
-16. ✅ Removido modo `assinar-e-enviar` (cert do client) do `sefaz-proxy` — retorna 410 Gone; cliente sempre usa Vault.
-17. ✅ Circuit breaker cStat=656 no cron (chave `distdfe_circuit_break_until_<amb>` em `app_configuracoes`, 65 min).
-18. ✅ `proxySecretFp` suprimido em produção (mantido em dev via `ENVIRONMENT=development`).
-19. ✅ Tabela `fiscal_telemetria` criada (RLS admin-only) e gravada por `process-distdfe-cron` por execução e por CNPJ.
-20. ⏭️ `cloud_status` check no cron — pulado (não há acesso direto ao management API a partir da edge function; o circuit breaker e o gate `CRON_SECRET` cobrem o cenário prático de bloqueio).
-
-### Sprint 7.5 — Faturamento (futuro)
-
-21. ✅ Wizard `/faturamento/emitir` ativado (rota deixou de ser EmBreve, aponta para `EmitirNFeWizard`).
-22. ✅ Cadastros fiscais ativados em `/faturamento/cadastros` (`FaturamentoCadastros`).
-23. ✅ Rotas `/faturamento/backlog` e `/faturamento/documentos` plugadas (`BacklogFaturamento`, `ConsultaDocumentos`).
-
-### Critérios de aceite globais
-
-- Nenhuma RPC fiscal sem `SET search_path = public` e `SECURITY DEFINER` declarados.
-- Todos os triggers `trg_nf_*` continuam ativos após migrações.
-- Testes de integração `fluxo-fiscal.test.ts` passam + 3 novos cenários (confirmar com SEFAZ rejeitada, cancelar SEFAZ aciona estorno, cron 401 sem secret).
-- `Fiscal.tsx` < 800 linhas; `fiscal.service.ts` < 200 linhas por arquivo.
+## Critérios de aceite globais
+- Zero heurísticas de substring para status/tipo (grep `.toLowerCase().includes(` nos loaders zera).
+- PDF nunca exporta sem confirmação quando >limit; XLSX avisa quando >10k.
+- Mesmo período + mesma fonte → DRE bate em Relatórios, Workbook e Apresentação (teste e2e).
+- Mobile (375 px) sem overflow horizontal nas 4 telas; gráfico sem warnings 0×0 no console.
+- Mutations de Financeiro/Comercial/Compras/Estoque invalidam queries de relatório.
+- Relatorios.tsx ≤ 400 linhas após refactor.
