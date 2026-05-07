@@ -34,6 +34,7 @@ export interface DistDFeResponse {
   ambiente?: "1" | "2";
   cStat?: string;
   xMotivo?: string;
+  mensagemCstat?: string | null;
   ultNSU?: string;
   maxNSU?: string;
   docs?: DistDFeDoc[];
@@ -146,5 +147,117 @@ export async function sincronizarDistDFe(
     maxNSU: data.maxNSU,
     cStat: data.cStat,
     xMotivo: data.xMotivo,
+  };
+}
+
+/**
+ * Consulta direta de uma NF-e por chave de acesso via DistDFe `consChNFe`.
+ *
+ * Estratégia em 2 níveis (mem://features/fiscal-consulta-por-chave):
+ *   1. Cache local: `nfe_distribuicao.xml_nfe WHERE chave_acesso = ?`
+ *      (alimentado pelo cron e por consultas anteriores).
+ *   2. SEFAZ: edge `sefaz-distdfe` action `consultar-chave`.
+ *
+ * Após sucesso na SEFAZ, faz upsert em `nfe_distribuicao(chave_acesso,
+ * xml_nfe)` para cachear a próxima consulta.
+ */
+export async function consultarNFePorChave(params: {
+  chave: string;
+  ambiente?: "1" | "2";
+}): Promise<{
+  sucesso: boolean;
+  origem: "cache" | "sefaz";
+  xml?: string;
+  cStat?: string;
+  xMotivo?: string;
+  mensagemCstat?: string | null;
+  erro?: string;
+}> {
+  const chave = (params.chave || "").replace(/\D/g, "");
+  const ambiente: "1" | "2" = params.ambiente === "2" ? "2" : "1";
+  if (chave.length !== 44) {
+    return { sucesso: false, origem: "sefaz", erro: "Chave de acesso inválida (exige 44 dígitos)." };
+  }
+
+  // 1) Cache local — `xml_nfe` quando preenchido pelo cron ou consulta prévia.
+  try {
+    const { data: cache } = await supabase
+      .from("nfe_distribuicao")
+      .select("xml_nfe")
+      .eq("chave_acesso", chave)
+      .maybeSingle();
+    const xmlCache = (cache as { xml_nfe?: string } | null)?.xml_nfe;
+    if (xmlCache && xmlCache.includes("<")) {
+      return { sucesso: true, origem: "cache", xml: xmlCache };
+    }
+  } catch { /* noop — segue para SEFAZ */ }
+
+  // 2) SEFAZ via edge function.
+  const { data, error } = await supabase.functions.invoke<DistDFeResponse>(
+    "sefaz-distdfe",
+    { body: { action: "consultar-chave", ambiente, chNFe: chave } },
+  );
+  if (error) return { sucesso: false, origem: "sefaz", erro: error.message };
+  if (!data?.sucesso) {
+    return {
+      sucesso: false,
+      origem: "sefaz",
+      cStat: data?.cStat,
+      xMotivo: data?.xMotivo,
+      mensagemCstat: data?.mensagemCstat ?? null,
+      erro: data?.erro ?? data?.xMotivo ?? "Falha na consulta DistDFe.",
+    };
+  }
+
+  // Procura o doc com a chave e schema procNFe (XML completo). cStat 138 +
+  // documentos = sucesso da chamada (pode vir 1 procNFe). 137 = não encontrado.
+  const docs = (data.docs ?? []).filter((d) => d.chave === chave && d.xml);
+  const doc = docs.find((d) => /procNFe|nfeProc/.test(d.schema)) ?? docs[0];
+  const xml = doc?.xml;
+
+  if (!xml) {
+    return {
+      sucesso: false,
+      origem: "sefaz",
+      cStat: data.cStat,
+      xMotivo: data.xMotivo,
+      mensagemCstat: data.mensagemCstat ?? null,
+      erro:
+        data.cStat === "137" || data.cStat === "138"
+          ? `${data.xMotivo ?? "Documento não encontrado"} — ${data.cStat === "138"
+              ? "a chave existe mas a NF-e não é destinada ao CNPJ deste certificado A1. Solicite o XML ao emissor."
+              : "verifique se a chave está correta."}`
+          : data.xMotivo ?? "Resposta sem XML.",
+    };
+  }
+
+  // Cacheia em `nfe_distribuicao` para próximas consultas.
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("nfe_distribuicao").upsert(
+      {
+        chave_acesso: chave,
+        xml_nfe: xml,
+        nsu: doc?.nsu ?? "0",
+        cnpj_emitente: doc?.resumo?.cnpjEmitente ?? null,
+        nome_emitente: doc?.resumo?.nomeEmitente ?? null,
+        numero: doc?.resumo?.numero ?? null,
+        serie: doc?.resumo?.serie ?? null,
+        data_emissao: doc?.resumo?.dataEmissao ?? null,
+        valor_total: doc?.resumo?.valorTotal ?? null,
+        status_manifestacao: "sem_manifestacao",
+        usuario_id: user?.id ?? null,
+      },
+      { onConflict: "chave_acesso", ignoreDuplicates: false },
+    );
+  } catch { /* cache best-effort */ }
+
+  return {
+    sucesso: true,
+    origem: "sefaz",
+    xml,
+    cStat: data.cStat,
+    xMotivo: data.xMotivo,
+    mensagemCstat: data.mensagemCstat ?? null,
   };
 }
