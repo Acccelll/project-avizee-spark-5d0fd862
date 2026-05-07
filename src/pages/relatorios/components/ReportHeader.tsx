@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Calendar, MoreVertical } from "lucide-react";
+import { ChevronLeft, Calendar, MoreVertical, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
@@ -33,6 +33,8 @@ export interface ReportHeaderProps {
   /** Total de registros visíveis. */
   recordCount?: number;
   periodAxisLabel?: string;
+  /** Timestamp (ms) da última atualização dos dados — fonte: react-query `dataUpdatedAt`. */
+  updatedAt?: number;
   /** Callback para o botão Voltar. */
   onBack: () => void;
   /** Ações secundárias (refresh, salvar/carregar). Renderizadas à direita. */
@@ -47,10 +49,13 @@ export function ReportHeader({
   periodLabel,
   recordCount,
   periodAxisLabel,
+  updatedAt,
   onBack,
   actions,
 }: ReportHeaderProps) {
   const isMobile = useIsMobile();
+
+  const updatedLabel = formatRelative(updatedAt);
 
   if (isMobile) {
     return (
@@ -98,6 +103,11 @@ export function ReportHeader({
               {recordCount != null && (
                 <span className="ml-1 flex-shrink-0">· {recordCount} reg</span>
               )}
+              {updatedLabel && (
+                <span className="ml-1 flex-shrink-0 inline-flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {updatedLabel}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -137,6 +147,11 @@ export function ReportHeader({
               <span className="ml-1 text-muted-foreground">· {recordCount} registros</span>
             )}
             {periodAxisLabel ? <span className="ml-1 text-muted-foreground">· eixo: {periodAxisLabel}</span> : null}
+            {updatedLabel ? (
+              <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
+                <Clock className="h-3 w-3" /> atualizado {updatedLabel}
+              </span>
+            ) : null}
           </Badge>
         )}
       </div>
@@ -153,4 +168,16 @@ export function ReportHeader({
       </div>
     </div>
   );
+}
+
+function formatRelative(ts?: number): string | null {
+  if (!ts) return null;
+  const diff = Date.now() - ts;
+  if (diff < 0 || diff < 30_000) return 'agora';
+  const min = Math.floor(diff / 60_000);
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  return `há ${d}d`;
 }

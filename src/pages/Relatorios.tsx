@@ -28,6 +28,7 @@ import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
 import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { useRelatorioUrlState } from '@/pages/relatorios/hooks/useRelatorioUrlState';
+import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
 import { useRelatorioDensity } from '@/pages/relatorios/hooks/useRelatorioDensity';
 import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport';
 import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
@@ -73,7 +74,14 @@ export default function Relatorios() {
     updateParams,
   } = useRelatorioUrlState();
 
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  // 8.6.3 — `hiddenColumns` persistido por `tipo` via useDataTablePrefs (cross-device).
+  const moduleKey = tipo ? `relatorios-${tipo}` : undefined;
+  const { hiddenKeys, setHiddenKeys } = useDataTablePrefs(moduleKey, []);
+  const hiddenColumns = hiddenKeys;
+  const setHiddenColumns = (next: string[] | ((prev: string[]) => string[])) => {
+    const value = typeof next === 'function' ? (next as (p: string[]) => string[])(hiddenKeys) : next;
+    void setHiddenKeys(value);
+  };
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveNameOpen, setSaveNameOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -102,7 +110,7 @@ export default function Relatorios() {
     };
   }, [tipo, dataInicio, dataFim, filtrosState]);
 
-  const { data: resultado, isLoading, isError, refetch } = useRelatorio(tipo, filtros);
+  const { data: resultado, isLoading, isError, refetch, dataUpdatedAt } = useRelatorio(tipo, filtros);
 
   const reportMeta = resultado?.meta;
   const isQtyReport = reportMeta?.valueNature === 'quantidade' || resultado?._isQuantityReport === true;
@@ -233,7 +241,7 @@ export default function Relatorios() {
   }, [hasActions, getRowActions, navigateAction]);
 
   const handleSelectTipo = (next: TipoRelatorio) => {
-    setHiddenColumns([]);
+    // 8.6.3 — Não limpar `hiddenColumns`: cada `tipo` tem suas próprias preferências persistidas.
     setSearchParams({ tipo: next });
   };
 
@@ -268,7 +276,6 @@ export default function Relatorios() {
 
   const handleCarregarFavorito = (params: string) => {
     setSearchParams(new URLSearchParams(params));
-    setHiddenColumns([]);
     toast.success('Favorito aplicado aos filtros atuais.');
   };
 
@@ -317,7 +324,6 @@ export default function Relatorios() {
   const handleClearAllFilters = () => {
     // Mantém o tipo de relatório, limpa o restante.
     setSearchParams({ tipo });
-    setHiddenColumns([]);
   };
 
   const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
@@ -403,6 +409,7 @@ export default function Relatorios() {
                 periodLabel={periodoLabel}
                 periodAxisLabel={semantics?.periodAxisLabel}
                 recordCount={sortedRows.length}
+                updatedAt={dataUpdatedAt}
                 onBack={() => setSearchParams({})}
                 actions={headerActions}
               />
