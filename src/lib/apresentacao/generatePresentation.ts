@@ -1,6 +1,6 @@
 import pptxgen from 'pptxgenjs';
 import JSZip from 'jszip';
-import { APRESENTACAO_SLIDES_MAP } from './slideDefinitions';
+import { APRESENTACAO_SLIDES_MAP, type SlideDataSchema } from './slideDefinitions';
 import { buildAutomaticComment } from './commentRules';
 import type { ApresentacaoDataBundle, SlideCodigo, SlideData } from '@/types/apresentacao';
 import { pickEditedComment } from './utils';
@@ -48,14 +48,24 @@ function flatPairs(dados: Record<string, unknown>): Array<{ key: string; value: 
     .map(([key, value]) => ({ key, value }));
 }
 
-function findArrayRows(dados: Record<string, unknown>): Array<Record<string, unknown>> {
+function findArrayRows(dados: Record<string, unknown>, schema?: SlideDataSchema): Array<Record<string, unknown>> {
+  if (schema?.arrayKey) {
+    const v = dados[schema.arrayKey];
+    if (Array.isArray(v) && v.length && typeof v[0] === 'object') return v as Array<Record<string, unknown>>;
+    return [];
+  }
   for (const value of Object.values(dados)) {
     if (Array.isArray(value) && value.length && typeof value[0] === 'object') return value as Array<Record<string, unknown>>;
   }
   return [];
 }
 
-function numericPairs(dados: Record<string, unknown>): Array<{ key: string; value: number }> {
+function numericPairs(dados: Record<string, unknown>, schema?: SlideDataSchema): Array<{ key: string; value: number }> {
+  if (schema?.cardKeys?.length) {
+    return schema.cardKeys
+      .map((k) => ({ key: k, value: typeof dados[k] === 'number' ? (dados[k] as number) : Number(dados[k] ?? NaN) }))
+      .filter((p) => Number.isFinite(p.value));
+  }
   return flatPairs(dados).filter((p) => typeof p.value === 'number') as Array<{ key: string; value: number }>;
 }
 
@@ -133,8 +143,11 @@ function renderClosing(slide: pptxgen.Slide, def: SlideData, comment: string, me
   slide.addText(metaLine, { x: 0.6, y: 6.7, w: 12.2, h: 0.35, fontSize: 10, color: T.muted, fontFace: FONT });
 }
 
-function renderCards(slide: pptxgen.Slide, dados: Record<string, unknown>) {
-  const pairs = flatPairs(dados).slice(0, 4);
+function renderCards(slide: pptxgen.Slide, dados: Record<string, unknown>, schema?: SlideDataSchema) {
+  const pairs = (schema?.cardKeys?.length
+    ? schema.cardKeys.map((k) => ({ key: k, value: dados[k] })).filter((p) => p.value != null)
+    : flatPairs(dados)
+  ).slice(0, 4);
   if (!pairs.length) { addUnavailable(slide, 'Sem indicadores para exibição.'); return; }
   const cardW = 4.1, cardH = 1.35;
   pairs.forEach((p, idx) => {
@@ -147,9 +160,9 @@ function renderCards(slide: pptxgen.Slide, dados: Record<string, unknown>) {
   });
 }
 
-function renderTable(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+function renderTable(slide: pptxgen.Slide, dados: Record<string, unknown>, schema?: SlideDataSchema) {
   const c = defaultSlideLayout.chart;
-  const rows = findArrayRows(dados);
+  const rows = findArrayRows(dados, schema);
   if (rows.length) {
     const cols = Object.keys(rows[0]).slice(0, 4);
     const header = cols.map((k) => ({ text: prettyLabel(k), options: { bold: true, color: T.white, fill: { color: T.primary }, fontFace: FONT, fontSize: 11 } }));
@@ -169,45 +182,54 @@ function renderTable(slide: pptxgen.Slide, dados: Record<string, unknown>) {
   slide.addTable(tbl, { x: c.x, y: c.y, w: c.w, colW: [c.w * 0.6, c.w * 0.4], border: { type: 'solid', color: 'E5E7EB', pt: 0.5 } });
 }
 
-function renderColumnOrLine(slide: pptxgen.Slide, dados: Record<string, unknown>, kind: 'coluna' | 'linha') {
+function renderColumnOrLine(slide: pptxgen.Slide, dados: Record<string, unknown>, kind: 'coluna' | 'linha', schema?: SlideDataSchema) {
   const c = defaultSlideLayout.chart;
-  const arrayRows = findArrayRows(dados);
-  let labels: string[] = []; let values: number[] = []; let serieName = 'Valor';
+  const arrayRows = findArrayRows(dados, schema);
+  let labels: string[] = []; let series: Array<{ name: string; labels: string[]; values: number[] }> = []; let serieName = 'Valor';
   if (arrayRows.length) {
     const sample = arrayRows[0];
-    const labelKey = Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'label';
-    const valKey = Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
+    const labelKey = schema?.labelField ?? Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'label';
     labels = arrayRows.slice(0, 12).map((r) => String(r[labelKey] ?? ''));
-    values = arrayRows.slice(0, 12).map((r) => Number(r[valKey] ?? 0));
-    serieName = prettyLabel(valKey);
+    if (schema?.valueFields?.length) {
+      series = schema.valueFields.map((vk) => ({
+        name: prettyLabel(vk),
+        labels,
+        values: arrayRows.slice(0, 12).map((r) => Number(r[vk] ?? 0)),
+      }));
+    } else {
+      const valKey = schema?.valueField ?? Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
+      serieName = prettyLabel(valKey);
+      series = [{ name: serieName, labels, values: arrayRows.slice(0, 12).map((r) => Number(r[valKey] ?? 0)) }];
+    }
   } else {
-    const nums = numericPairs(dados).slice(0, 12);
+    const nums = numericPairs(dados, schema).slice(0, 12);
     if (!nums.length) { addUnavailable(slide, 'Sem série numérica para visualização.'); return; }
     labels = nums.map((n) => prettyLabel(n.key));
-    values = nums.map((n) => n.value);
+    series = [{ name: serieName, labels, values: nums.map((n) => n.value) }];
   }
   const type = kind === 'coluna' ? 'bar' : 'line';
-  slide.addChart(type as never, [{ name: serieName, labels, values }], {
+  slide.addChart(type as never, series, {
     x: c.x, y: c.y, w: c.w, h: c.h,
     barDir: kind === 'coluna' ? 'col' : undefined,
     chartColors: [T.primary, T.secondary, T.accent],
-    showLegend: false, showValue: false, showCatAxisTitle: false,
+    showLegend: series.length > 1, legendPos: 'b', legendFontSize: 9, legendFontFace: FONT,
+    showValue: false, showCatAxisTitle: false,
     catAxisLabelFontSize: 9, valAxisLabelFontSize: 9, catAxisLabelFontFace: FONT, valAxisLabelFontFace: FONT,
   });
 }
 
-function renderHorizontalBar(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+function renderHorizontalBar(slide: pptxgen.Slide, dados: Record<string, unknown>, schema?: SlideDataSchema) {
   const c = defaultSlideLayout.chart;
-  const rows = findArrayRows(dados);
+  const rows = findArrayRows(dados, schema);
   let labels: string[]; let values: number[];
   if (rows.length) {
     const sample = rows[0];
-    const labelKey = Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'nome';
-    const valKey = Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
+    const labelKey = schema?.labelField ?? Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'nome';
+    const valKey = schema?.valueField ?? Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
     labels = rows.slice(0, 8).map((r) => String(r[labelKey] ?? r.estado ?? r.nome ?? ''));
     values = rows.slice(0, 8).map((r) => Number(r[valKey] ?? 0));
   } else {
-    const nums = numericPairs(dados).slice(0, 8);
+    const nums = numericPairs(dados, schema).slice(0, 8);
     if (!nums.length) { addUnavailable(slide, 'Sem ranking disponível.'); return; }
     labels = nums.map((n) => prettyLabel(n.key));
     values = nums.map((n) => n.value);
@@ -221,18 +243,18 @@ function renderHorizontalBar(slide: pptxgen.Slide, dados: Record<string, unknown
   });
 }
 
-function renderDonut(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+function renderDonut(slide: pptxgen.Slide, dados: Record<string, unknown>, schema?: SlideDataSchema) {
   const c = defaultSlideLayout.chart;
-  const rows = findArrayRows(dados);
+  const rows = findArrayRows(dados, schema);
   let labels: string[]; let values: number[];
   if (rows.length) {
     const sample = rows[0];
-    const labelKey = Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'nome';
-    const valKey = Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
+    const labelKey = schema?.labelField ?? Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'nome';
+    const valKey = schema?.valueField ?? Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
     labels = rows.slice(0, 6).map((r) => String(r[labelKey] ?? ''));
     values = rows.slice(0, 6).map((r) => Number(r[valKey] ?? 0));
   } else {
-    const nums = numericPairs(dados).slice(0, 6);
+    const nums = numericPairs(dados, schema).slice(0, 6);
     if (!nums.length) { addUnavailable(slide, 'Sem composição para visualização.'); return; }
     labels = nums.map((n) => prettyLabel(n.key));
     values = nums.map((n) => Math.abs(n.value));
@@ -245,11 +267,11 @@ function renderDonut(slide: pptxgen.Slide, dados: Record<string, unknown>) {
   });
 }
 
-function renderStackedOrWaterfall(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+function renderStackedOrWaterfall(slide: pptxgen.Slide, dados: Record<string, unknown>, schema?: SlideDataSchema) {
   const c = defaultSlideLayout.chart;
-  const rows = findArrayRows(dados);
+  const rows = findArrayRows(dados, schema);
   if (!rows.length) {
-    const nums = numericPairs(dados);
+    const nums = numericPairs(dados, schema);
     if (!nums.length) { addUnavailable(slide, 'Sem dados para o gráfico empilhado.'); return; }
     slide.addChart('bar' as never, [{ name: 'Impacto', labels: nums.map((n) => prettyLabel(n.key)), values: nums.map((n) => n.value) }], {
       x: c.x, y: c.y, w: c.w, h: c.h,
@@ -260,8 +282,10 @@ function renderStackedOrWaterfall(slide: pptxgen.Slide, dados: Record<string, un
     return;
   }
   const sample = rows[0];
-  const labelKey = Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'label';
-  const valueKeys = Object.keys(sample).filter((k) => typeof sample[k] === 'number');
+  const labelKey = schema?.labelField ?? Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'label';
+  const valueKeys = schema?.valueFields?.length
+    ? schema.valueFields
+    : (schema?.valueField ? [schema.valueField] : Object.keys(sample).filter((k) => typeof sample[k] === 'number'));
   const labels = rows.map((r) => String(r[labelKey] ?? ''));
   const series = valueKeys.map((vk) => ({ name: prettyLabel(vk), labels, values: rows.map((r) => Number(r[vk] ?? 0)) }));
   slide.addChart('bar' as never, series, {
@@ -279,16 +303,17 @@ function renderSlideBody(slide: pptxgen.Slide, slideData: SlideData) {
     addUnavailable(slide, String(slideData.dados.motivo ?? 'não automatizado no modo fechado'));
     return;
   }
+  const schema = def?.dataSchema;
   switch (def?.chartType) {
-    case 'cards': renderCards(slide, slideData.dados); return;
-    case 'tabela': renderTable(slide, slideData.dados); return;
-    case 'barra_horizontal': renderHorizontalBar(slide, slideData.dados); return;
-    case 'donut': renderDonut(slide, slideData.dados); return;
+    case 'cards': renderCards(slide, slideData.dados, schema); return;
+    case 'tabela': renderTable(slide, slideData.dados, schema); return;
+    case 'barra_horizontal': renderHorizontalBar(slide, slideData.dados, schema); return;
+    case 'donut': renderDonut(slide, slideData.dados, schema); return;
     case 'stacked':
-    case 'waterfall': renderStackedOrWaterfall(slide, slideData.dados); return;
-    case 'linha': renderColumnOrLine(slide, slideData.dados, 'linha'); return;
-    case 'coluna': renderColumnOrLine(slide, slideData.dados, 'coluna'); return;
-    default: renderTable(slide, slideData.dados);
+    case 'waterfall': renderStackedOrWaterfall(slide, slideData.dados, schema); return;
+    case 'linha': renderColumnOrLine(slide, slideData.dados, 'linha', schema); return;
+    case 'coluna': renderColumnOrLine(slide, slideData.dados, 'coluna', schema); return;
+    default: renderTable(slide, slideData.dados, schema);
   }
 }
 
