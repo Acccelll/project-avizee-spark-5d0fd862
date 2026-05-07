@@ -280,6 +280,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                         <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Valor</th>
                         <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Forma</th>
                         <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Obs</th>
+                        <th className="text-right px-3 py-2 font-semibold text-muted-foreground sr-only">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
