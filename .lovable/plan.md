@@ -1,5 +1,11 @@
 ## Plano — Onda 7: Hardening do Módulo Fiscal e Faturamento
 
+### Status (parcial)
+- ✅ **1.3** Limpado `fiscalInternalStatusMap` (5 valores canônicos). `canEditFiscal`/`isFiscalReadOnly`/`isFiscalStructurallyLocked` agora aceitam `(status, statusSefaz)`. `NotaFiscalEditModal` ajustado para passar ambos os eixos. tsc verde.
+- ✅ **1.1** `BuscarPorChaveDialog` migrado para `consultarNFePorChave` (cache local → `sefaz-distdfe` action `consultar-chave`). `consultadanfe-proxy` agora é fallback opcional sob `VITE_FEATURE_FALLBACK_CONSULTADANFE`. Cache em `nfe_distribuicao` é gravado após sucesso na SEFAZ.
+- ⏳ **1.2** sefaz-proxy `requireFiscalRole` — pendente.
+- ⏳ **2.x / 3.x** — pendentes.
+
 Aplicação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03), que tocam segurança (proxy SEFAZ), conformidade fiscal (via oficial DistDFe) e contrato canônico de status. Em seguida, consolidação UX/Faturamento e proteção contra abuso/duplicidade. Por fim, médios e mobile.
 
 ---
