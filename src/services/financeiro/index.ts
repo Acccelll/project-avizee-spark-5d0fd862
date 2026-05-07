@@ -17,6 +17,8 @@ export {
 } from "./baixas";
 export type { BaixaItemOverride, BaixaLoteParams } from "./baixas";
 
+export { fetchBaixasAtivasDoLancamento, type BaixaAtiva } from "./baixas";
+
 export { processarEstorno } from "./estornos";
 export { cancelarLancamento } from "./cancelamentos";
 export { createLancamento, type LancamentoInsert } from "./lancamentos";
