@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { getEntregaStatusCfg } from "@/pages/logistica/logisticaStatus";
 import { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
+import { trackAndPersistEventos } from "@/services/logistica/remessas.service";
 
 /* ────────────────────────────────────────────────
    Types
@@ -95,6 +96,7 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
   const [eventos, setEventos] = useState<RemessaEvento[]>([]);
   const [loading, setLoading] = useState(false);
   const [trackingLoading, setTrackingLoading] = useState(false);
+  const [isMockTracking, setIsMockTracking] = useState(false);
 
   useEffect(() => {
     if (!open || !entrega) return;
@@ -283,27 +285,29 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
     const codigo = entrega.codigo_rastreio.trim().toUpperCase().replace(/\s+/g, "");
     if (!codigo) { toast.error("Código de rastreio inválido"); return; }
     setTrackingLoading(true);
+    setIsMockTracking(false);
     try {
-      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || "").replace(/\/$/, "");
-      const url = `${supabaseUrl}/functions/v1/correios-api?action=rastrear&codigo=${encodeURIComponent(codigo)}`;
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token || "";
-      const res = await fetch(url, {
-        headers: {
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      const tracking = await res.json() as { error?: string; warning?: string };
-      if (!res.ok || tracking.error) throw new Error(tracking.error || `Erro (${res.status})`);
-      toast.success(tracking.warning === "fallback_mock" ? "Dados simulados — Correios não configurado." : "Rastreio consultado com sucesso.");
-      // Refresh events
-      const { data: evs } = await supabase
-        .from("remessa_eventos")
-        .select("id,descricao,local,data_hora")
-        .eq("remessa_id", remessa.id)
-        .order("data_hora", { ascending: false });
-      setEventos((evs as RemessaEvento[]) || []);
+      const { novos, isMock, eventos: evs } = await trackAndPersistEventos(codigo, remessa.id);
+      setIsMockTracking(isMock);
+      if (isMock) {
+        toast.warning("Dados simulados — credenciais dos Correios não configuradas.");
+        setEventos(
+          evs.map((e, i) => ({
+            id: `mock-${remessa.id}-${i}`,
+            descricao: e.descricao,
+            local: e.local,
+            data_hora: e.data_hora,
+          })),
+        );
+      } else {
+        toast.success(`${novos} novo(s) evento(s).`);
+        const { data: refreshed } = await supabase
+          .from("remessa_eventos")
+          .select("id,descricao,local,data_hora")
+          .eq("remessa_id", remessa.id)
+          .order("data_hora", { ascending: false });
+        setEventos((refreshed as RemessaEvento[]) || []);
+      }
     } catch (err: unknown) {
       notifyError(err);
     } finally {
