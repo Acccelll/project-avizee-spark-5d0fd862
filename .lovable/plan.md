@@ -139,8 +139,8 @@ Resultado: `Fiscal.tsx` 1500→1461 linhas; `fiscal.service.ts` 442→48 (facade
 ### Sprint 7.4 — Edge / SEFAZ hardening (P2)
 
 16. Remover modo `assinar-e-enviar` (cert do client) do `sefaz-proxy`.
-17. Circuit breaker cStat=656 no cron (parar 1h, registrar em `app_configuracoes`).
-18. Remover `proxySecretFp` dos logs em produção.
+17. ✅ Circuit breaker cStat=656 no cron (chave `distdfe_circuit_break_until_<amb>` em `app_configuracoes`, 65 min).
+18. ✅ `proxySecretFp` suprimido em produção (mantido em dev via `ENVIRONMENT=development`).
 19. Telemetria: tabela `fiscal_telemetria` (action, sucesso, latência, cStat) gravada por todas edges.
 20. `cloud_status` check no início do cron.
 
