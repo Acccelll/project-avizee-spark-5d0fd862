@@ -1,9 +1,19 @@
 /**
  * Estorno de baixas financeiras.
  *
+ * GRANULARIDADE — leia antes de escolher o caminho:
+ *
+ *  - `processarEstorno(lancamentoId)` (este arquivo)
+ *      → estorna **todas as baixas ativas** de um lançamento (lote).
+ *      → entrada: tela de drawer, botão principal "Estornar".
+ *
+ *  - `estornarBaixaFinanceira({ baixaId })` (`baixaRpc.ts`)
+ *      → estorna **uma baixa específica** por ID (unitário).
+ *      → entrada: histórico de baixas com botão por linha.
+ *
  * Estratégia em duas camadas:
- *  1) Tenta RPC consolidada `financeiro_processar_estorno` (transacional).
- *  2) Fallback: estorna logicamente cada baixa ativa via `estornar_baixa_financeira`.
+ *  1) Tenta RPC consolidada `financeiro_processar_estorno` (transacional, lote).
+ *  2) Fallback: itera baixas ativas e chama `estornar_baixa_financeira` por baixa.
  *     O trigger `trg_sync_financeiro_saldo` recalcula valor_pago/saldo/status.
  *
  * Extraído de `src/services/financeiro.service.ts` (Fase 5 — limpeza estrutural).
