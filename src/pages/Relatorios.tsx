@@ -24,6 +24,7 @@ import { ActiveFiltersBar } from '@/pages/relatorios/components/ActiveFiltersBar
 import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFooter';
 import { PreviewDocument } from '@/pages/relatorios/components/PreviewDocument';
 import { RelatorioCatalogo } from '@/pages/relatorios/components/RelatorioCatalogo';
+import { RelatorioKpiGrid } from '@/pages/relatorios/components/RelatorioKpiGrid';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import {
   useRelatoriosFiltrosData,
@@ -424,39 +425,15 @@ export default function Relatorios() {
                 actions={headerActions}
               />
 
-              {/* KPIs */}
-              {hasLocalFiltersApplied && (
-                <div className="rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
-                  <span className="font-medium">Atenção:</span>
-                  <span className="text-muted-foreground">
-                    Os KPIs abaixo refletem o universo total ({rows.length} registros) retornado do banco.
-                    A tabela aplica filtros locais e mostra {sortedRows.length} de {rows.length} registros.
-                  </span>
-                </div>
-              )}
-              {isLikelyTruncated && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
-                  <span className="font-medium text-destructive">Resultado pode estar truncado:</span>
-                  <span className="text-muted-foreground">
-                    O relatório atingiu exatamente {rows.length} registros (limite default da consulta). Refine o período ou os filtros para garantir que todos os dados sejam considerados.
-                  </span>
-                </div>
-              )}
-              {/* KPIs — 2x2 em mobile, denso */}
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-                {kpiCards.map((kpi) => (
-                  <SummaryCard
-                    key={kpi.title}
-                    title={kpi.title}
-                    value={kpi.value}
-                    icon={kpi.icon}
-                    variationType="neutral"
-                    variation={hasLocalFiltersApplied ? `${kpi.variation || ''} (universo total)`.trim() : kpi.variation}
-                    variant={kpi.variant}
-                    density={compactDensity ? 'compact' : 'default'}
-                  />
-                ))}
-              </div>
+              {/* KPIs + banners de truncamento/divergência */}
+              <RelatorioKpiGrid
+                cards={kpiCards}
+                compactDensity={compactDensity}
+                hasLocalFiltersApplied={hasLocalFiltersApplied}
+                rowsCount={rows.length}
+                visibleCount={sortedRows.length}
+                isLikelyTruncated={isLikelyTruncated}
+              />
 
               {/* ── Filtros + ações (desktop expandido) ── */}
               <Card className="hidden md:block">
