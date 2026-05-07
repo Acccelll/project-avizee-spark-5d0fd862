@@ -7,7 +7,7 @@ export interface RelatorioKpiCard {
   value: string;
   icon: LucideIcon;
   variation?: string;
-  variant?: 'default' | 'success' | 'warning' | 'destructive' | 'info';
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
 }
 
 interface Props {
