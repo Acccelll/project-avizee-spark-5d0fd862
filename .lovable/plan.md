@@ -2,6 +2,17 @@
 
 Continuação do trabalho da Onda 5. Mantém preservação arquitetural: sem troca de stack, sem refator amplo de `useSupabaseCrud`, mudanças incrementais.
 
+## Status de execução
+
+- ✅ **BK-01/BK-02** `vw_estoque_posicao` reescrita com `LATERAL JOIN` + filtro `tipo IN (reserva, liberacao_reserva)` no agregado de reservado.
+- ✅ **A-04/BK-05** `vw_recebimentos_consolidado` agora expõe `responsavel_id` e `responsavel_nome` (último usuário do recebimento). Hooks `useEntregas`/`useRecebimentos` consomem o novo campo.
+- ✅ **SH-01/SH-02** Singleton `useLogisticaRealtime` (novo hook) montado uma vez em `Logistica.tsx`, escutando `remessas`, `remessa_eventos`, `recebimentos_compra`, `estoque_movimentos`.
+- ✅ **MB-03** `EstoqueAjusteSheet`: card de preview vira `sticky top-0` em mobile, com cor variant por sinal do novo saldo.
+- ✅ **MB-04** `EtiquetaSimplesPreviewDialog`: download via `a[download]` no desktop e `window.open` em iOS Safari (que ignora `download` em `blob:`).
+- ⏸ **MB-05** `LogisticaRastreioSection` já não tem scroll aninhado (sem `max-h`/`overflow-auto` no template atual).
+- ⏸ **A-02/M-05** Paginação server-side de `remessas` e `estoque_movimentos` — deferida (depende de refator do `useSupabaseCrud`).
+- ⏸ **A-07/M-01/D-02** Unificação de hooks paralelos, decomposição de `Estoque.tsx` e remoção de `@ts-nocheck` — pendentes (não há mais `@ts-nocheck` em `services/`, mas há em outros pontos do app).
+
 ## Escopo
 
 ### Bloco 1 — Paginação server-side e consultas pesadas
