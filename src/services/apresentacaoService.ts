@@ -126,6 +126,37 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
   const hash = hashPayload({ ...params, slides: active });
   const nowIso = new Date().toISOString();
 
+  // 8.4.2 — Cache: se existe geração concluída com mesmo hash nas últimas 24h,
+  // baixar e reutilizar o artefato em vez de regenerar.
+  try {
+    const desde = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: cached } = await (supabase as any)
+      .from('apresentacao_geracoes')
+      .select('id, arquivo_path, status, is_final, created_at')
+      .eq('hash_geracao', hash)
+      .eq('status', 'concluido')
+      .not('arquivo_path', 'is', null)
+      .gte('created_at', desde)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (cached?.arquivo_path && cached.is_final) {
+      const { data: blobData } = await supabase.storage.from('dbavizee').download(cached.arquivo_path);
+      if (blobData) {
+        return {
+          geracaoId: cached.id as string,
+          blob: blobData as Blob,
+          arquivoPath: cached.arquivo_path as string,
+          aguardandoAprovacao: false,
+          fromCache: true,
+        };
+      }
+    }
+  } catch {
+    /* cache miss não bloqueia geração */
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: geracao, error: geracaoError } = await (supabase as any)
     .from('apresentacao_geracoes')

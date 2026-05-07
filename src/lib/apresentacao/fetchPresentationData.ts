@@ -387,7 +387,9 @@ export async function fetchPresentationData(
   competenciaFinal: string,
   modoGeracao: ApresentacaoModoGeracao,
   requestedSlides?: SlideCodigo[],
+  signal?: AbortSignal,
 ): Promise<ApresentacaoDataBundle> {
+  signal?.throwIfAborted?.();
   const iniYM = competenciaInicial.slice(0, 7);
   const fimYM = competenciaFinal.slice(0, 7);
   const slidesList = requestedSlides?.length ? requestedSlides : ALL_SLIDES;
@@ -395,6 +397,7 @@ export async function fetchPresentationData(
   const slides = modoGeracao === 'fechado'
     ? await fetchClosedSnapshotData(iniYM, fimYM, slidesList)
     : await buildDynamicSlides(iniYM, fimYM, slidesList);
+  signal?.throwIfAborted?.();
 
   const missingCritical: SlideCodigo[] = [];
   for (const codigo of slidesList) {

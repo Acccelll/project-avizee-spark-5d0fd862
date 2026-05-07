@@ -36,11 +36,17 @@ export async function fetchWorkbookData(
   competenciaInicial: string,
   competenciaFinal: string,
   modoGeracao: WorkbookModoGeracao,
+  signal?: AbortSignal,
 ): Promise<WorkbookRawData> {
+  signal?.throwIfAborted?.();
   if (modoGeracao === 'fechado') {
-    return fetchClosedModeData(competenciaInicial, competenciaFinal);
+    const r = await fetchClosedModeData(competenciaInicial, competenciaFinal);
+    signal?.throwIfAborted?.();
+    return r;
   }
-  return fetchDynamicModeData(competenciaInicial, competenciaFinal);
+  const r = await fetchDynamicModeData(competenciaInicial, competenciaFinal);
+  signal?.throwIfAborted?.();
+  return r;
 }
 
 async function fetchDynamicModeData(compIni: string, compFim: string): Promise<WorkbookRawData> {
