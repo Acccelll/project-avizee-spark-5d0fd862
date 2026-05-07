@@ -74,7 +74,14 @@ export default function Relatorios() {
     updateParams,
   } = useRelatorioUrlState();
 
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  // 8.6.3 — `hiddenColumns` persistido por `tipo` via useDataTablePrefs (cross-device).
+  const moduleKey = tipo ? `relatorios-${tipo}` : undefined;
+  const { hiddenKeys, setHiddenKeys } = useDataTablePrefs(moduleKey, []);
+  const hiddenColumns = hiddenKeys;
+  const setHiddenColumns = (next: string[] | ((prev: string[]) => string[])) => {
+    const value = typeof next === 'function' ? (next as (p: string[]) => string[])(hiddenKeys) : next;
+    void setHiddenKeys(value);
+  };
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveNameOpen, setSaveNameOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
