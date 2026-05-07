@@ -88,18 +88,18 @@ Ajuste manual ──► ajustar_estoque_manual (RPC) → audit log
 ## 10. Plano de Execução
 
 ### Bloco 1 — Críticos (1 sessão)
-1. **DB migration** — `remessas.empresa_id` (default `current_empresa_id()`), backfill, NOT NULL; reescrever policies `remessas_*` para tenant + role; idem `remessa_eventos`. (CR-01)
-2. **DB migration** — Policies `recebimentos_compra*.SELECT` tenant-aware. (CR-05)
-3. **DB migration** — Policies UPDATE/DELETE em `remessa_etiquetas`. (CR-04)
-4. **Patch FE** — `Logistica.updateEntregaStatus` → `useTransicionarRemessa`. (CR-02 / FE-01)
-5. **Patch FE** — `Estoque.handleSubmit`: bloquear saída quando `quantidade > saldo` ou exigir `ConfirmDialog` com mensagem destacando saldo negativo resultante. (CR-03)
+1. ✅ Migration aplicada — `empresa_id` em remessas/eventos/recebimentos + RLS tenant-aware + trigger `fn_remessa_protege_status_critico` + check qty>0.
+2. ✅ `recebimentos_compra*` SELECT por empresa.
+3. ✅ `remessa_etiquetas` policies já existiam (UPDATE/DELETE/INSERT por role+tenant).
+4. ✅ `updateEntregaStatus` agora usa `useTransicionarRemessa`.
+5. ✅ `Estoque.handleSubmit` confirma saldo negativo via `window.confirm`.
 
 ### Bloco 2 — Altos (1 sessão)
-6. `EntregaDrawer.handleRastrear` → `trackAndPersistEventos`. (AL-01 / FE-02)
-7. Badge `Simulado` por evento mock em `LogisticaRastreioSection`, `EntregaDrawer.tabTransporte` e timeline da Remessa. (AL-02 / FE-03)
-8. Tornar `motivo` obrigatório (>=10) em ajustes críticos no form de Estoque, alinhado à RPC. (AL-03)
-9. Reaproveitar `RegistrarRecebimentoDialog` no footer do `RecebimentoDrawer` (sem navegar). (AL-04)
-10. `handleBulkRastrear`: 1 toast inicial, progresso e `Promise.allSettled` (concorrência 4). (AL-05)
+6. ✅ EntregaDrawer canônico via `trackAndPersistEventos`.
+7. ✅ Badge "Dados simulados" em EntregaDrawer; mock id único em LogisticaRastreioSection.
+8. ✅ `motivo >=10` obrigatório em ajustes.
+9. ✅ RecebimentoDrawer aceita `onRegistrarRecebimento` — Logistica monta dialog inline.
+10. ✅ Bulk rastrear paralelo (4) com toast único de progresso.
 
 ### Bloco 3 — Melhorias (curtas)
 11. `EtiquetaCorreiosCard.handleCancelar` → `useConfirmDialog`. (MB-03)
