@@ -46,6 +46,9 @@ export interface UseFiscalFiltersOptions {
   /** IDs de notas cujo vencimento financeiro intersecta o mês selecionado.
    * Quando `vencimentoMes` está setado, este set é aplicado. */
   vencimentoNotaIds?: Set<string> | null;
+  /** Quando informado, `emissaoMes` é controlado externamente (Fiscal.tsx
+   *  precisa ler o valor antes de montar a query server-side). */
+  emissaoMesControlled?: { value: string; onChange: (v: string) => void };
 }
 
 /**
@@ -56,7 +59,7 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
   data: T[],
   options: UseFiscalFiltersOptions = {},
 ) {
-  const { tipoFromUrl = null, statusFromUrl = [], defaultEmissaoMes = null, vencimentoNotaIds = null } = options;
+  const { tipoFromUrl = null, statusFromUrl = [], defaultEmissaoMes = null, vencimentoNotaIds = null, emissaoMesControlled } = options;
 
   const [consultaSearch, setConsultaSearch] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
@@ -64,7 +67,9 @@ export function useFiscalFilters<T extends NotaFiscalFilterInput>(
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
-  const [emissaoMes, setEmissaoMes] = useState<string>(defaultEmissaoMes ?? "");
+  const [emissaoMesInternal, setEmissaoMesInternal] = useState<string>(defaultEmissaoMes ?? "");
+  const emissaoMes = emissaoMesControlled ? emissaoMesControlled.value : emissaoMesInternal;
+  const setEmissaoMes = emissaoMesControlled ? emissaoMesControlled.onChange : setEmissaoMesInternal;
   const [vencimentoMes, setVencimentoMes] = useState<string>("");
 
   const filteredData = useMemo(() => {

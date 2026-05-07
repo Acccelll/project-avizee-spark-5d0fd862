@@ -130,7 +130,7 @@ Resultado: `Fiscal.tsx` 1500→1461 linhas; `fiscal.service.ts` 442→48 (facade
 
 ### Sprint 7.3 — Performance e UX (P2)
 
-11. Server-side pagination em `Fiscal` (refactor `useSupabaseCrud` ou `useTableCount`).
+11. ⏳ Parcial: filtro mês de emissão empurrado server-side via `dateRange` em `useSupabaseCrud` (reduz payload e respeita o limite de 1k linhas no escopo do mês). Paginação real (page/pageSize + KPIs por RPC) fica para sprint dedicada.
 12. ✅ Persistir prefs do grid via `useDataTablePrefs` (já cabeada pelo `DataTable` via `moduleKey={tipoConfig.moduleKey}`).
 13. ✅ Índice `(empresa_id, status, data_emissao desc)` + `(status_sefaz, data_emissao desc)` em `notas_fiscais`.
 14. ✅ Map<id|codigo_interno|sku, produto> em `useNFeXmlImport` (substitui `find` O(n×m)).
