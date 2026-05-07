@@ -25,6 +25,7 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     tem_consolidacao_real: boolean | null;
     tem_divergencia: boolean | null;
     total_recebimentos: number | null;
+    responsavel_nome?: string | null;
   };
 
   return ((data as Row[]) ?? []).map((r) => ({
@@ -38,7 +39,7 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     pendencia: Number(r.pendencia ?? 0),
     status_logistico: normalizeRecebimentoStatus(r.status_logistico),
     nf_vinculada: r.nf_vinculada,
-    responsavel: "—",
+    responsavel: r.responsavel_nome ?? "—",
     recebimento_real: Boolean(r.tem_consolidacao_real),
     observacao_recebimento: null,
     total_recebimentos: Number(r.total_recebimentos ?? 0),
