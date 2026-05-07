@@ -2,15 +2,11 @@ import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Ban, CheckCircle2, Clock3, FileDown, FileEdit, HelpCircle, ShieldCheck, XCircle } from "lucide-react";
 
 export type FiscalInternalStatus =
-  | "pendente"
   | "rascunho"
+  | "pendente"
   | "confirmada"
-  | "autorizada"
   | "importada"
-  | "rejeitada"
-  | "cancelada"
-  | "cancelada_sefaz"
-  | "inutilizada";
+  | "cancelada";
 
 export type FiscalSefazStatus =
   | "nao_enviada"
@@ -63,41 +59,17 @@ export const fiscalInternalStatusMap: Record<string, FiscalStatusVisual> = {
     icon: CheckCircle2,
     description: "Confirmação operacional concluída. Estoque e financeiro já impactados.",
   },
-  autorizada: {
-    label: "Autorizada",
-    classes: "bg-success/10 text-success border-success/20",
-    icon: ShieldCheck,
-    description: "Nota autorizada e vigente fiscalmente.",
-  },
   importada: {
     label: "Importada",
     classes: "bg-info/10 text-info border-info/20",
     icon: FileDown,
     description: "Nota importada de fonte externa.",
   },
-  rejeitada: {
-    label: "Rejeitada",
-    classes: "bg-destructive/10 text-destructive border-destructive/20",
-    icon: XCircle,
-    description: "Rejeição fiscal. Requer correção para novo processamento.",
-  },
   cancelada: {
     label: "Cancelada",
     classes: "bg-destructive/10 text-destructive border-destructive/20",
     icon: Ban,
     description: "Documento cancelado no ERP.",
-  },
-  cancelada_sefaz: {
-    label: "Cancelada SEFAZ",
-    classes: "bg-destructive/10 text-destructive border-destructive/20",
-    icon: Ban,
-    description: "Cancelamento homologado na SEFAZ.",
-  },
-  inutilizada: {
-    label: "Inutilizada",
-    classes: "bg-muted text-muted-foreground border-border",
-    icon: AlertTriangle,
-    description: "Faixa/numeração inutilizada junto à SEFAZ.",
   },
 };
 
@@ -159,15 +131,11 @@ export const fiscalSefazStatusMap: Record<string, FiscalStatusVisual> = {
 };
 
 export const fiscalInternalStatusOptions = [
-  "pendente",
   "rascunho",
+  "pendente",
   "confirmada",
-  "autorizada",
   "importada",
-  "rejeitada",
   "cancelada",
-  "cancelada_sefaz",
-  "inutilizada",
 ] as const;
 
 export const fiscalSefazStatusOptions = [
@@ -196,16 +164,22 @@ export function canConfirmFiscal(status?: string | null) {
   return status === "pendente" || status === "rascunho";
 }
 
-export function canEditFiscal(status?: string | null) {
-  return !["cancelada", "cancelada_sefaz", "inutilizada"].includes(status || "");
+export function canEditFiscal(status?: string | null, statusSefaz?: string | null) {
+  if (status === "cancelada") return false;
+  if (statusSefaz && ["cancelada_sefaz", "inutilizada", "denegada"].includes(statusSefaz)) return false;
+  return true;
 }
 
-export function isFiscalReadOnly(status?: string | null) {
-  return ["cancelada", "cancelada_sefaz", "inutilizada"].includes(status || "");
+export function isFiscalReadOnly(status?: string | null, statusSefaz?: string | null) {
+  if (status === "cancelada") return true;
+  if (statusSefaz && ["cancelada_sefaz", "inutilizada", "denegada"].includes(statusSefaz)) return true;
+  return false;
 }
 
-export function isFiscalStructurallyLocked(status?: string | null) {
-  return ["confirmada", "autorizada", "importada"].includes(status || "");
+export function isFiscalStructurallyLocked(status?: string | null, statusSefaz?: string | null) {
+  if (status === "confirmada" || status === "importada") return true;
+  if (statusSefaz === "autorizada" || statusSefaz === "em_processamento") return true;
+  return false;
 }
 
 export function canEstornarFiscal(status?: string | null) {

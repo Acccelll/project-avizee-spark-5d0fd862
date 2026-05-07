@@ -106,12 +106,12 @@ const modeloLabels: Record<string, string> = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getStatusRules(status: string) {
+function getStatusRules(status: string, statusSefaz?: string | null) {
   return {
     // Fully locked: no changes at all
-    isFullyLocked: isFiscalReadOnly(status),
+    isFullyLocked: isFiscalReadOnly(status, statusSefaz),
     // Structurally locked: only observações can be changed
-    isStructurallyLocked: isFiscalStructurallyLocked(status),
+    isStructurallyLocked: isFiscalStructurallyLocked(status, statusSefaz),
     // Rejeitada: editable again (SEFAZ rejected, needs correction)
     canConfirmar: canConfirmFiscal(status),
   };
@@ -188,7 +188,8 @@ export function NotaFiscalEditModal({
   totalImpostos,
   totalNF,
 }: NotaFiscalEditModalProps) {
-  const rules = getStatusRules(selected.status);
+  const statusSefaz = (selected as { status_sefaz?: string }).status_sefaz ?? null;
+  const rules = getStatusRules(selected.status, statusSefaz);
   const modelo =
     modeloLabels[selected.modelo_documento || "55"] ||
     selected.modelo_documento;
@@ -284,16 +285,16 @@ export function NotaFiscalEditModal({
             <Lock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
             <div>
               <p className="text-xs font-semibold text-destructive">
-                {selected.status === "cancelada_sefaz"
+                {statusSefaz === "cancelada_sefaz"
                   ? "Nota cancelada junto à SEFAZ — somente leitura"
-                  : selected.status === "inutilizada"
+                  : statusSefaz === "inutilizada"
                   ? "Numeração inutilizada — somente leitura"
                   : "Nota fiscal cancelada — somente leitura"}
               </p>
               <p className="text-xs text-destructive/70 mt-0.5">
-                {selected.status === "cancelada_sefaz"
+                {statusSefaz === "cancelada_sefaz"
                   ? "Cancelamento registrado na SEFAZ. Nenhuma alteração pode ser realizada."
-                  : selected.status === "inutilizada"
+                  : statusSefaz === "inutilizada"
                   ? "Número inutilizado junto à receita. Não pode ser reaproveitado."
                   : "Esta nota foi cancelada. Nenhuma alteração pode ser realizada."}
               </p>
@@ -305,7 +306,7 @@ export function NotaFiscalEditModal({
             <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
             <div>
               <p className="text-xs font-semibold text-warning">
-                {selected.status === "autorizada"
+                {statusSefaz === "autorizada"
                   ? "Nota autorizada pela SEFAZ — edição restrita"
                   : "Nota fiscal confirmada — edição restrita"}
               </p>
@@ -317,7 +318,7 @@ export function NotaFiscalEditModal({
             </div>
           </div>
         )}
-        {selected.status === "rejeitada" && (
+        {statusSefaz === "rejeitada" && (
           <div className="rounded-lg border bg-destructive/5 border-destructive/20 p-3 flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
             <div>
