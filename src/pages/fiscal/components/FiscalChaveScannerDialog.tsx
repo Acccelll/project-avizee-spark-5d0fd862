@@ -4,16 +4,8 @@
  * Lê a chave de acesso de uma NF-e (CODE-128 do DANFE) ou NFC-e (QR Code)
  * por três caminhos: digitar/colar, câmera ao vivo e upload de imagem.
  *
- * Princípio: este componente NÃO consulta SEFAZ nem importa XML. Apenas
- * obtém e valida a chave. Após detecção bem-sucedida, exibe um resumo e
- * delega para os fluxos canônicos:
- *   - "Consultar situação" → callback `onConsultarSituacao(chave)` que deve
- *     usar NFeConsultaProtocolo4 (sem assinar `infNFe`).
- *   - "Buscar XML via DistDFe" → callback `onBuscarXml(chave)` que abre o
- *     `BuscarPorChaveDialog` (NFeDistribuicaoDFe / consChNFe).
- *
- * Lib de leitura: `@zxing/browser` (BrowserMultiFormatReader) — cobre
- * CODE-128 e QR-Code em uma única lib, sem WASM, MIT.
+ * Toda a lógica de câmera/decodificação foi extraída para `useQrScanner`.
+ * Este componente apenas orquestra UI e delega callbacks finais.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -31,11 +23,6 @@ import {
   Download,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  BrowserMultiFormatReader,
-  type IScannerControls,
-} from "@zxing/browser";
-import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,22 +40,16 @@ import {
   lerChaveDeEntrada,
   type ChaveAcessoExtracao,
 } from "@/services/fiscal/chaveAcesso.parser";
+import { useQrScanner } from "@/pages/fiscal/hooks/useQrScanner";
 
 interface FiscalChaveScannerDialogProps {
   open: boolean;
   onClose: () => void;
-  /** Chamado quando o usuário clica "Consultar situação" — NFeConsultaProtocolo4. */
   onConsultarSituacao?: (chave: string) => void;
-  /** Chamado quando o usuário clica "Buscar XML via DistDFe". */
   onBuscarXml?: (chave: string) => void;
 }
 
 type Tab = "digitar" | "camera" | "upload";
-
-type CameraDeviceOption = {
-  deviceId: string;
-  label: string;
-};
 
 export function FiscalChaveScannerDialog({
   open,
@@ -80,98 +61,9 @@ export function FiscalChaveScannerDialog({
   const [textoBruto, setTextoBruto] = useState("");
   const [resultado, setResultado] = useState<ChaveAcessoExtracao | null>(null);
   const [erroLeitura, setErroLeitura] = useState<string | null>(null);
-  const [processando, setProcessando] = useState(false);
-
-  // Câmera
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const fotoInputRef = useRef<HTMLInputElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const controlsRef = useRef<IScannerControls | null>(null);
-  const [cameraAtiva, setCameraAtiva] = useState(false);
-  const [iniciandoCamera, setIniciandoCamera] = useState(false);
-  const [camerasDisponiveis, setCamerasDisponiveis] = useState<CameraDeviceOption[]>([]);
-  const [cameraSelecionadaId, setCameraSelecionadaId] = useState<string>("");
-  const [capturandoFoto, setCapturandoFoto] = useState(false);
 
-  const criarHints = () => {
-    const hints = new Map<DecodeHintType, unknown>();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.CODE_128,
-      BarcodeFormat.QR_CODE,
-      BarcodeFormat.ITF,
-      BarcodeFormat.DATA_MATRIX,
-    ]);
-    hints.set(DecodeHintType.TRY_HARDER, true);
-    return hints;
-  };
-
-  const montarVideoConstraints = (deviceId?: string): MediaTrackConstraints => ({
-    ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } }),
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
-  });
-
-  // Reset ao fechar
-  useEffect(() => {
-    if (!open) {
-      pararCamera();
-      setTextoBruto("");
-      setResultado(null);
-      setErroLeitura(null);
-      setTab("digitar");
-    }
-  }, [open]);
-
-  const pararCamera = ({ preservarCarregando = false }: { preservarCarregando?: boolean } = {}) => {
-    try {
-      controlsRef.current?.stop();
-    } catch {
-      /* ignora */
-    }
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    controlsRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
-    setCameraAtiva(false);
-    if (!preservarCarregando) setIniciandoCamera(false);
-  };
-
-  const normalizarLabelCamera = (device: MediaDeviceInfo, index: number) => {
-    const bruto = device.label?.trim();
-    if (bruto) return bruto;
-    return `Câmera ${index + 1}`;
-  };
-
-  const escolherCameraPadrao = (devices: CameraDeviceOption[]) => {
-    if (!devices.length) return "";
-    const traseira = devices.find((device) => /back|rear|environment|traseira/i.test(device.label));
-    return traseira?.deviceId ?? devices[0].deviceId;
-  };
-
-  const carregarCameras = async () => {
-    if (!navigator.mediaDevices?.enumerateDevices) {
-      setCamerasDisponiveis([]);
-      return [] as CameraDeviceOption[];
-    }
-
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const cameras = devices
-      .filter((device) => device.kind === "videoinput")
-      .map((device, index) => ({
-        deviceId: device.deviceId,
-        label: normalizarLabelCamera(device, index),
-      }));
-
-    setCamerasDisponiveis(cameras);
-    setCameraSelecionadaId((atual) => {
-      if (atual && cameras.some((camera) => camera.deviceId === atual)) return atual;
-      return escolherCameraPadrao(cameras);
-    });
-
-    return cameras;
-  };
-
-  const aplicarConteudo = (conteudo: string) => {
+  const aplicarConteudo = (conteudo: string, sucessoToast?: string) => {
     const lido = lerChaveDeEntrada(conteudo);
     if (!lido) {
       setResultado(null);
@@ -182,194 +74,53 @@ export function FiscalChaveScannerDialog({
     }
     setResultado(lido);
     setErroLeitura(null);
+    if (sucessoToast) toast.success(sucessoToast);
     return true;
   };
 
-  // ── Câmera ────────────────────────────────────────────────────
-  const iniciarCamera = async (deviceIdPreferido?: string) => {
-    setErroLeitura(null);
-    setResultado(null);
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setErroLeitura("Este navegador não suporta acesso à câmera.");
-      return;
+  const scanner = useQrScanner({
+    onDetect: (texto) => aplicarConteudo(texto, "Chave detectada."),
+    onError: (m) => setErroLeitura(m),
+  });
+
+  const {
+    videoRef,
+    cameraAtiva,
+    iniciandoCamera,
+    capturandoFoto,
+    processandoArquivo,
+    camerasDisponiveis,
+    cameraSelecionadaId,
+    iniciarCamera,
+    selecionarCamera,
+    pararCamera,
+    tirarFoto,
+    decodificarArquivo,
+    carregarCameras,
+    reset,
+  } = scanner;
+
+  // Reset ao fechar
+  useEffect(() => {
+    if (!open) {
+      reset();
+      setTextoBruto("");
+      setResultado(null);
+      setErroLeitura(null);
+      setTab("digitar");
     }
-    const reader = new BrowserMultiFormatReader(criarHints(), {
-      delayBetweenScanAttempts: 80,
-      delayBetweenScanSuccess: 400,
-    });
-    setIniciandoCamera(true);
-    pararCamera({ preservarCarregando: true });
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: montarVideoConstraints(deviceIdPreferido || cameraSelecionadaId || undefined),
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      if (!videoRef.current) {
-        stream.getTracks().forEach((t) => t.stop());
-        setIniciandoCamera(false);
-        return;
-      }
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play().catch(() => undefined);
+  }, [open, reset]);
 
-      const carregarCamerasPromise = carregarCameras();
-      const controls = await reader.decodeFromStream(
-        stream,
-        videoRef.current,
-        (result, _err, ctrl) => {
-          if (result) {
-            const texto = result.getText();
-            const ok = aplicarConteudo(texto);
-            if (ok) {
-              ctrl.stop();
-              setCameraAtiva(false);
-              toast.success("Chave detectada.");
-            }
-          }
-        },
-      );
-      controlsRef.current = controls;
-      setCameraAtiva(true);
-
-      const cameras = await carregarCamerasPromise;
-      const cameraAtualId = stream.getVideoTracks()[0]?.getSettings?.().deviceId;
-      if (cameraAtualId && cameras.some((camera) => camera.deviceId === cameraAtualId)) {
-        setCameraSelecionadaId(cameraAtualId);
-      } else if (!cameraSelecionadaId && cameras.length) {
-        setCameraSelecionadaId(escolherCameraPadrao(cameras));
-      }
-    } catch (e) {
-      const err = e as Error;
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        setErroLeitura(
-          "Permissão de câmera negada. Habilite o acesso nas configurações do navegador e tente novamente.",
-        );
-      } else if (err.name === "NotFoundError" || err.name === "OverconstrainedError") {
-        if (deviceIdPreferido || cameraSelecionadaId) {
-          setCameraSelecionadaId("");
-          setErroLeitura("Não foi possível abrir essa câmera. Tente outra opção ou use Tirar foto.");
-        } else {
-          setErroLeitura("Nenhuma câmera disponível neste dispositivo.");
-        }
-      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
-        // iOS Safari: outra aba/app está usando a câmera, ou hardware busy.
-        setErroLeitura("Câmera ocupada por outro app. Feche outras abas/apps que usam a câmera e tente novamente.");
-      } else if (err.name === "SecurityError") {
-        setErroLeitura("Acesso à câmera bloqueado. Abra esta página em HTTPS e permita o acesso.");
-      } else {
-        setErroLeitura(`Falha ao iniciar câmera: ${err.message}`);
-      }
-    } finally {
-      setIniciandoCamera(false);
-    }
-  };
-
-  const handleIniciarCamera = () => {
-    void iniciarCamera();
-  };
-
-  const handleSelecionarCamera = (deviceId: string) => {
-    setCameraSelecionadaId(deviceId);
-    if (cameraAtiva || iniciandoCamera) {
-      void iniciarCamera(deviceId);
-    }
-  };
-
-  const abrirCapturaNativa = () => {
-    fotoInputRef.current?.click();
-  };
-
-  // Para câmera quando trocar de tab
+  // Para câmera ao trocar de tab
   useEffect(() => {
     if (tab !== "camera") pararCamera();
-  }, [tab]);
+  }, [tab, pararCamera]);
 
   useEffect(() => {
     if (!open || tab !== "camera") return;
     void carregarCameras();
-  }, [open, tab]);
+  }, [open, tab, carregarCameras]);
 
-  // ── Upload ────────────────────────────────────────────────────
-  // ── Tirar foto a partir do vídeo ─────────────────────────────
-  const tirarFoto = async () => {
-    setErroLeitura(null);
-    setResultado(null);
-    const video = videoRef.current;
-    if (!video || !cameraAtiva) {
-      setErroLeitura("Inicie a câmera antes de tirar foto.");
-      return;
-    }
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    if (!w || !h) {
-      setErroLeitura("Câmera ainda não está pronta. Aguarde alguns instantes.");
-      return;
-    }
-    setCapturandoFoto(true);
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("canvas indisponível");
-      ctx.drawImage(video, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL("image/png");
-
-      const reader = new BrowserMultiFormatReader(criarHints());
-      const result = await reader.decodeFromImageUrl(dataUrl);
-      const ok = aplicarConteudo(result.getText());
-      if (ok) {
-        pararCamera();
-        toast.success("Chave detectada na foto.");
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setErroLeitura(
-        `Não foi possível ler o código na foto (${msg}). ` +
-          `Aproxime mais, mantenha a câmera paralela ao código e tente novamente.`,
-      );
-    } finally {
-      setCapturandoFoto(false);
-    }
-  };
-
-  const handleArquivo = async (file: File) => {
-    setErroLeitura(null);
-    setResultado(null);
-    if (file.type === "application/pdf") {
-      setErroLeitura(
-        "PDF ainda não suportado diretamente. Envie um print/foto do DANFE (PNG/JPG) ou cole a chave manualmente.",
-      );
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      setErroLeitura("Envie um arquivo de imagem (PNG, JPG, WEBP).");
-      return;
-    }
-    setProcessando(true);
-    try {
-      const url = URL.createObjectURL(file);
-      try {
-        const reader = new BrowserMultiFormatReader(criarHints());
-        const result = await reader.decodeFromImageUrl(url);
-        const ok = aplicarConteudo(result.getText());
-        if (ok) toast.success("Chave detectada na imagem.");
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setErroLeitura(
-        `Não foi possível detectar código de barras/QR Code na imagem (${msg}). ` +
-          `Tente uma foto mais nítida e bem iluminada do DANFE.`,
-      );
-    } finally {
-      setProcessando(false);
-    }
-  };
-
-  // ── Digitar/Colar ─────────────────────────────────────────────
   const handleAplicarTexto = () => {
     if (!textoBruto.trim()) {
       setErroLeitura("Cole a chave, URL do QR Code ou conteúdo lido.");
@@ -390,6 +141,8 @@ export function FiscalChaveScannerDialog({
     const { chave, tipo, info } = resultado;
     return { chave, tipo, info };
   }, [resultado]);
+
+  const abrirCapturaNativa = () => fotoInputRef.current?.click();
 
   return (
     <FormModal
@@ -460,7 +213,7 @@ export function FiscalChaveScannerDialog({
                 <Label htmlFor="camera-select" className="text-sm">
                   Câmera
                 </Label>
-                <Select value={cameraSelecionadaId} onValueChange={handleSelecionarCamera}>
+                <Select value={cameraSelecionadaId} onValueChange={selecionarCamera}>
                   <SelectTrigger id="camera-select">
                     <SelectValue placeholder="Selecione uma câmera" />
                   </SelectTrigger>
@@ -496,7 +249,7 @@ export function FiscalChaveScannerDialog({
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) void handleArquivo(f);
+                if (f) void decodificarArquivo(f);
                 e.currentTarget.value = "";
               }}
             />
@@ -504,7 +257,7 @@ export function FiscalChaveScannerDialog({
               <Button
                 variant="secondary"
                 onClick={cameraAtiva ? tirarFoto : abrirCapturaNativa}
-                disabled={capturandoFoto || processando}
+                disabled={capturandoFoto || processandoArquivo}
                 className="gap-2"
                 title={
                   cameraAtiva
@@ -512,7 +265,7 @@ export function FiscalChaveScannerDialog({
                     : "Abre a câmera do aparelho para tirar uma foto e tentar ler o código."
                 }
               >
-                {capturandoFoto || processando ? (
+                {capturandoFoto || processandoArquivo ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" /> Analisando…
                   </>
@@ -528,7 +281,7 @@ export function FiscalChaveScannerDialog({
                   <X className="h-4 w-4" /> Parar câmera
                 </Button>
               ) : (
-                <Button onClick={handleIniciarCamera} disabled={iniciandoCamera} className="gap-2">
+                <Button onClick={() => void iniciarCamera()} disabled={iniciandoCamera} className="gap-2">
                   {iniciandoCamera ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" /> Iniciando…
@@ -557,13 +310,13 @@ export function FiscalChaveScannerDialog({
               id="img-upload"
               type="file"
               accept="image/*"
-              disabled={processando}
+              disabled={processandoArquivo}
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) void handleArquivo(f);
+                if (f) void decodificarArquivo(f);
               }}
             />
-            {processando && (
+            {processandoArquivo && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analisando imagem…
               </p>
