@@ -185,7 +185,11 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${anonKey}`,
+          // Chamada interna sistema-para-sistema: usa SERVICE_ROLE para ser
+          // reconhecida pela edge sefaz-distdfe como invocação privilegiada
+          // (bypass do check de permissão de usuário). O secret nunca sai
+          // do runtime das edge functions.
+          "Authorization": `Bearer ${serviceRoleKey}`,
           "apikey": anonKey,
         },
         body: JSON.stringify({
