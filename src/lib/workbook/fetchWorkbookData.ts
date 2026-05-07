@@ -251,8 +251,7 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
   const fimYM = compFim.slice(0, 7);
 
   // Validate that fechamentos exist for the period
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: fechamentos } = await (supabase as any)
+  const { data: fechamentos } = await sb
     .from('fechamentos_mensais')
     .select('id, competencia, status')
     .gte('competencia', iniYM)
