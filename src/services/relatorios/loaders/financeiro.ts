@@ -256,89 +256,35 @@ export async function loadAging(filtros: FiltroRelatorio): Promise<RelatorioResu
 }
 
 export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  // ── Demonstrativo Gerencial Simplificado ─────────────────────────────────
-  // Suporta dois regimes (`filtros.dreModo`):
-  //  - 'caixa' (default): usa data_pagamento + status pago/parcial; valor = valor_pago.
-  //  - 'competencia': usa data_emissao; considera todos os lançamentos ativos do período;
-  //    valor = `valor` integral (independente de pagamento).
-  // Deduções = ICMS/PIS/COFINS/IPI sobre NFs de saída no período (data_emissao).
-  // CMV = pagar vinculado a NF de entrada / pedido de compra / origem_tabela.
-
+  // 8.1.4 — Cálculo canônico via RPC `get_dre_periodo`. Substitui a tripla
+  // implementação paralela (loader + view workbook + apresentação).
   const modo = filtros.dreModo ?? 'caixa';
-  const dateField = modo === 'caixa' ? 'data_pagamento' : 'data_emissao';
-
-  let receitaQuery = supabase
-    .from("financeiro_lancamentos")
-    .select("valor, valor_pago, status")
-    .eq("ativo", true)
-    .eq("tipo", "receber");
-  if (modo === 'caixa') receitaQuery = receitaQuery.in("status", ["pago", "parcial"]);
-  receitaQuery = withDateRange(receitaQuery, dateField, filtros);
-
-  let pagosQuery = supabase
-    .from("financeiro_lancamentos")
-    .select("valor, valor_pago, status, descricao, nota_fiscal_id, pedido_compra_id, origem_tabela")
-    .eq("ativo", true)
-    .eq("tipo", "pagar");
-  if (modo === 'caixa') pagosQuery = pagosQuery.in("status", ["pago", "parcial"]);
-  pagosQuery = withDateRange(pagosQuery, dateField, filtros);
-
-  let nfSaidaQuery = supabase
-    .from("notas_fiscais")
-    .select("icms_valor, pis_valor, cofins_valor, ipi_valor")
-    .eq("ativo", true)
-    .eq("tipo", "saida");
-  nfSaidaQuery = withDateRange(nfSaidaQuery, "data_emissao", filtros);
-
-  const [{ data: receitas }, { data: pagos }, { data: nfSaida }] = await Promise.all([
-    receitaQuery, pagosQuery, nfSaidaQuery,
-  ]);
-
-  if (!receitas && !pagos && !nfSaida) throw new Error("Erro ao carregar dados do DRE");
-
-  const amount = (r: Record<string, unknown>) => {
-    if (modo === 'competencia') return Number(r.valor || 0);
-    const status = (r.status as string | null) ?? '';
-    if (status === 'parcial' && r.valor_pago != null) return Number(r.valor_pago);
-    return Number(r.valor || 0);
+  // Tipagem inline: a RPC ainda não consta em Database['public']['Functions'].
+  type DrePeriodoRow = { ordem: number; linha: string; tipo: string; valor: number | string };
+  const sb = supabase as unknown as {
+    rpc: (
+      fn: 'get_dre_periodo',
+      args: { p_modo: string; p_data_inicio: string | null; p_data_fim: string | null },
+    ) => Promise<{ data: DrePeriodoRow[] | null; error: { message: string } | null }>;
   };
 
-  const receitaBruta = (receitas || []).reduce((s: number, r: Record<string, unknown>) => s + amount(r), 0);
+  const { data, error } = await sb.rpc('get_dre_periodo', {
+    p_modo: modo,
+    p_data_inicio: filtros.dataInicio ?? null,
+    p_data_fim: filtros.dataFim ?? null,
+  });
+  if (error) throw error;
 
-  const deducoes = (nfSaida || []).reduce((s: number, nf: Record<string, unknown>) => {
-    return s + Number(nf.icms_valor || 0) + Number(nf.pis_valor || 0) + Number(nf.cofins_valor || 0) + Number(nf.ipi_valor || 0);
-  }, 0);
+  const ordered = (data ?? []).slice().sort((a, b) => a.ordem - b.ordem);
+  const rows = ordered.map((r) => ({ linha: r.linha, tipo: r.tipo, valor: Number(r.valor || 0) }));
 
-  const receitaLiquida = receitaBruta - deducoes;
-
-  // CMV: classificação estruturada (sem heurística de substring na descrição).
-  // Considera CMV todo pagamento vinculado a NF de entrada, pedido de compra
-  // ou cuja origem seja explicitamente notas_fiscais / pedidos_compra.
-  const isCmv = (p: Record<string, unknown>): boolean => {
-    if (p.nota_fiscal_id) return true;
-    if (p.pedido_compra_id) return true;
-    const origem = ((p.origem_tabela as string | null) ?? '').toLowerCase();
-    return origem === 'notas_fiscais' || origem === 'pedidos_compra';
-  };
-
-  const cmv = (pagos || []).filter(isCmv)
-    .reduce((s: number, p: Record<string, unknown>) => s + amount(p), 0);
-
-  const despesasOp = (pagos || []).filter((p: Record<string, unknown>) => !isCmv(p))
-    .reduce((s: number, p: Record<string, unknown>) => s + amount(p), 0);
-
-  const lucroBruto = receitaLiquida - cmv;
-  const resultado = lucroBruto - despesasOp;
-
-  const rows = [
-    { linha: "Receita Bruta", valor: receitaBruta, tipo: "header" },
-    { linha: "(–) Deduções s/ Receita", valor: deducoes, tipo: "deducao" },
-    { linha: "= Receita Líquida", valor: receitaLiquida, tipo: "subtotal" },
-    { linha: "(–) CMV / CPV", valor: cmv, tipo: "deducao" },
-    { linha: "= Lucro Bruto", valor: lucroBruto, tipo: "subtotal" },
-    { linha: "(–) Despesas Operacionais", valor: despesasOp, tipo: "deducao" },
-    { linha: "= Resultado do Exercício", valor: resultado, tipo: "resultado" },
-  ];
+  const get = (label: string) => Number(ordered.find((r) => r.linha === label)?.valor ?? 0);
+  const receitaBruta   = get('Receita Bruta');
+  const deducoes       = get('(–) Deduções s/ Receita');
+  const receitaLiquida = get('= Receita Líquida');
+  const cmv            = get('(–) CMV / CPV');
+  const despesasOp     = get('(–) Despesas Operacionais');
+  const resultado      = get('= Resultado do Exercício');
 
   return {
     title: "DRE — Demonstrativo de Resultado",
