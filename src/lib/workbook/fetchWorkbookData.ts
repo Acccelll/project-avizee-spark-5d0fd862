@@ -7,6 +7,16 @@ import { supabase } from '@/integrations/supabase/client';
 import type { WorkbookModoGeracao } from '@/types/workbook';
 import { fetchFolhaPagamentoRange, fetchEmpresaConfigBrand } from '@/services/workbook';
 
+/**
+ * As views `vw_workbook_*` ainda não estão refletidas em
+ * `Database['public']['Views']`. Em vez de espalhar `(supabase as any)` em
+ * cada chamada, encapsulamos o cast em um único helper tipado que devolve o
+ * builder do supabase-js. Os rows continuam sendo normalizados via
+ * `Record<string, unknown>` nos mapeadores abaixo, mantendo runtime safety.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as unknown as { from: (name: string) => any };
+
 export interface WorkbookRawData {
   receita: Array<{ competencia: string; total_receita: number; total_recebido: number; quantidade: number }>;
   despesa: Array<{ competencia: string; total_despesa: number; total_pago: number; quantidade: number }>;
