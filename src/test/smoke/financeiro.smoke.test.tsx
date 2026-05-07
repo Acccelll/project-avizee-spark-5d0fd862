@@ -63,13 +63,22 @@ vi.mock("@/components/AdvancedFilterBar", () => ({
 }));
 
 vi.mock("@/components/DataTable", () => ({
-  DataTable: ({ columns, data }: { columns: Column<Lancamento>[]; data: Lancamento[] }) => (
+  DataTable: ({
+    columns,
+    data,
+    rowExtraActions,
+  }: {
+    columns: Column<Lancamento>[];
+    data: Lancamento[];
+    rowExtraActions?: (row: Lancamento) => React.ReactNode;
+  }) => (
     <div>
       <div>Rows: {data.length}</div>
       {data.map((row) => (
         <div key={row.id}>
           <span>{row.descricao}</span>
           {columns.find((c) => c.key === "acoes_rapidas")?.render(row)}
+          {rowExtraActions?.(row)}
         </div>
       ))}
     </div>
