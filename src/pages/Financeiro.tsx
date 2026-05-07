@@ -255,7 +255,7 @@ const Financeiro = () => {
     estornoProcessing,
     estornoMotivo,
     setEstornoMotivo,
-  } = useFinanceiroActions({ filteredData: data, getLancamentoStatus, create, update, fetchData });
+  } = useFinanceiroActions({ data: data, getLancamentoStatus, create, update, fetchData });
 
   // KPIs server-side via RPC `kpis_financeiro` — fonte única, sem fallback local.
   const { data: kpisRpc } = useFinanceiroKpisRpc({
@@ -416,7 +416,7 @@ const Financeiro = () => {
             setFormaPagamentoFilters([]);
             setCartaoFilters([]);
           }}
-          count={filteredData.length}
+          count={data.length}
           extra={selectedIds.length > 0 ? (
             <Button size="sm" variant="default" className="gap-2" onClick={() => {
               if (selectedIds.length === 0) {
@@ -441,13 +441,13 @@ const Financeiro = () => {
         </div>
 
         {viewMode === "calendario" ? (
-          <FinanceiroCalendar data={filteredData} onBaixaSuccess={invalidateAfterBaixa} />
+          <FinanceiroCalendar data={data} onBaixaSuccess={invalidateAfterBaixa} />
         ) : (
           <PullToRefresh onRefresh={fetchData}>
             <div data-help-id="financeiro.tabela">
             <DataTable
               columns={columns}
-              data={filteredData}
+              data={data}
               loading={loading}
               moduleKey="financeiro-lancamentos"
               showColumnToggle={true}
