@@ -1,28 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import { ModulePage } from '@/components/ModulePage';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { DataTable } from '@/components/DataTable';
 import { PreviewModal } from '@/components/ui/PreviewModal';
-import { RelatorioChart } from '@/pages/relatorios/components/Graficos/RelatorioChart';
 import type { FiltrosRelatorioState } from '@/pages/relatorios/components/Filtros/FiltrosRelatorio';
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
 import { ReportHeader } from '@/pages/relatorios/components/ReportHeader';
 import { ExportMenu } from '@/pages/relatorios/components/ExportMenu';
-import { ActiveFiltersBar } from '@/pages/relatorios/components/ActiveFiltersBar';
-import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFooter';
 import { PreviewDocument } from '@/pages/relatorios/components/PreviewDocument';
 import { RelatorioCatalogo } from '@/pages/relatorios/components/RelatorioCatalogo';
 import { RelatorioKpiGrid } from '@/pages/relatorios/components/RelatorioKpiGrid';
 import { RelatorioFiltrosBar } from '@/pages/relatorios/components/RelatorioFiltrosBar';
 import { RelatorioMobileToolbar } from '@/pages/relatorios/components/RelatorioMobileToolbar';
+import { RelatorioBody } from '@/pages/relatorios/components/RelatorioBody';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import {
   useRelatoriosFiltrosData,
@@ -38,7 +31,7 @@ import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDril
 import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { BookmarkPlus, BookOpen, Hash, Trash2, RefreshCcw, SearchX, ChevronDown } from 'lucide-react';
+import { BookmarkPlus, BookOpen, Hash, Trash2, RefreshCcw } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
