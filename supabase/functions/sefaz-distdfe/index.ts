@@ -115,12 +115,17 @@ async function requireAuth(req: Request) {
   if (!token) throw new Error("Token de autenticação ausente.");
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  // Chamadas internas (process-distdfe-cron) usam SERVICE_ROLE_KEY como
+  // Authorization. Reconhecemos esse caso e tratamos como "sistema".
+  if (token === serviceRoleKey) {
+    return { id: "__service_role__", isService: true } as const;
+  }
   const client = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) throw new Error("Sessão inválida ou expirada.");
-  return data.user;
+  return { id: data.user.id, isService: false as const };
 }
 
 // ── PFX → PEM (cert + chave privada) ─────────────────────────────
@@ -390,7 +395,9 @@ Deno.serve(async (req) => {
       { resource: "faturamento_fiscal", action: "admin_fiscal" },
     ];
     try {
+      if (!user.isService) {
       await requireAnyPermission(user.id, allowed);
+      }
     } catch (permErr: any) {
       const status = permErr?.status === 403 ? 403 : 500;
       log.warn("permission denied", { action, userId: user.id, message: permErr?.message });
