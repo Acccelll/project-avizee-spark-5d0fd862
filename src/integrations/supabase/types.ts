@@ -9438,6 +9438,19 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_retorno_sefaz: {
+        Args: {
+          p_ambiente?: string
+          p_chave_acesso?: string
+          p_motivo?: string
+          p_nf_id: string
+          p_payload_resumido?: Json
+          p_protocolo?: string
+          p_status_sefaz: string
+          p_xml_retorno?: string
+        }
+        Returns: undefined
+      }
       rejeitar_cotacao_compra: {
         Args: { p_id: string; p_motivo: string }
         Returns: Json
