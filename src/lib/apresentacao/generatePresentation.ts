@@ -113,6 +113,12 @@ function renderCover(slide: pptxgen.Slide, def: SlideData, periodo: string, bran
   slide.addText(def.subtitulo || 'Resumo executivo do período', { x: 0.7, y: 3.2, w: 11.5, h: 0.8, fontSize: 18, color: T.muted, fontFace: FONT });
   slide.addText(`Período: ${periodo}`, { x: 0.7, y: 4.3, w: 11.5, h: 0.6, fontSize: 14, bold: true, color: secondaryHex, fontFace: FONT });
 
+  // Carimbo de origem (reconciliação cross-output)
+  slide.addText(
+    `Fonte: vw_workbook_* · Gerado em ${new Date().toLocaleString('pt-BR')}`,
+    { x: 0.7, y: 5.1, w: 11.5, h: 0.4, fontSize: 10, italic: true, color: T.muted, fontFace: FONT },
+  );
+
   // Accent bar at bottom using brand colors
   slide.addShape('rect', { x: 0, y: 6.95, w: 13.33, h: 0.3, fill: { color: secondaryHex }, line: { color: secondaryHex } });
 }

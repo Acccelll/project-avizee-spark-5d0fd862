@@ -123,7 +123,7 @@ export function exportarParaCsv(options: ExportOptions): void {
  * Empty input → emits a `toast.warning` and returns without producing a file.
  */
 export async function exportarParaExcel(options: ExportOptions): Promise<void> {
-  const { titulo, rows, columns } = options;
+  const { titulo, rows, columns, origem } = options;
   if (!rows.length) {
     toast.warning(EMPTY_TOAST_MSG);
     return;
@@ -134,6 +134,7 @@ export async function exportarParaExcel(options: ExportOptions): Promise<void> {
   const sheet = workbook.addWorksheet(titulo.slice(0, 31));
 
   populateSheet(sheet, rows, columns);
+  if (origem) appendOrigemSheet(workbook, origem, titulo);
 
   const buffer = await workbook.xlsx.writeBuffer();
   downloadBlob(
@@ -229,6 +230,31 @@ function downloadBlob(buffer: ArrayBuffer, filename: string, mime: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Adiciona aba "Origem" no workbook com o carimbo do `ExportOptions.origem`.
+ * Mantém uma fonte única de reconciliação entre PDF, XLSX e PPTX.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function appendOrigemSheet(workbook: any, origem: NonNullable<ExportOptions["origem"]>, titulo: string) {
+  const ws = workbook.addWorksheet("Origem");
+  const ts = origem.geradoEm
+    ? new Date(origem.geradoEm).toLocaleString("pt-BR")
+    : new Date().toLocaleString("pt-BR");
+  const linhas: Array<[string, string]> = [
+    ["Relatório", titulo],
+    ["Modo", origem.modo ?? "—"],
+    ["Fonte", origem.fonte ?? "—"],
+    ["Gerado por", origem.geradoPor ?? "—"],
+    ["Gerado em", ts],
+  ];
+  ws.addRow(["Campo", "Valor"]);
+  ws.getRow(1).font = { bold: true };
+  ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8E8E8" } };
+  linhas.forEach((l) => ws.addRow(l));
+  ws.getColumn(1).width = 18;
+  ws.getColumn(2).width = 60;
 }
 
 // ─── PDF ─────────────────────────────────────────────────────────────────────
