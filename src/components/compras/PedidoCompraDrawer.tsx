@@ -205,7 +205,7 @@ export function PedidoCompraDrawer({
           <div className="md:hidden space-y-2">
             {viewItems.map((i) => {
               const produtos = i.produtos;
-              const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+              const qtdRec = recebidoPorItem(i);
               const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
               return (
                 <div key={String(i.id)} className="rounded-lg border bg-card p-3 space-y-2">
@@ -260,7 +260,7 @@ export function PedidoCompraDrawer({
               <tbody>
                 {viewItems.map((i) => {
                   const produtos = i.produtos;
-                  const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+                  const qtdRec = recebidoPorItem(i);
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
                   return (
                     <tr key={String(i.id)} className="border-b last:border-b-0 hover:bg-muted/20">
@@ -349,7 +349,7 @@ export function PedidoCompraDrawer({
         <ViewSection title="Progresso por Item">
           <div className="space-y-3">
             {viewItems.map((i) => {
-              const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+              const qtdRec = recebidoPorItem(i);
               const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
               const pct =
                 Number(i.quantidade) > 0
