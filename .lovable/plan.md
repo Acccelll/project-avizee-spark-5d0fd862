@@ -60,11 +60,11 @@ Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03
 **2.6 — CHECK de motivo no banco (BK-02)**
 - `financeiro_cancelar_lancamento`: `IF length(trim(p_motivo)) < 5 THEN RAISE EXCEPTION ... USING ERRCODE='22023'`.
 
-**2.7 — Tipagem RPC (SH-04)**
+**2.7 — Tipagem RPC (SH-04)** ✅
 - Adicionar entradas em `src/types/rpc.ts` para `registrar_baixa_financeira`, `registrar_baixa_lote_financeira`, `financeiro_processar_estorno`, `financeiro_conciliar_baixa`, `financeiro_cancelar_lancamento`.
 - Substituir `as never`/`as any` por casts tipados via wrapper `rpc<T>()` já usado no projeto.
 
-**2.8 — Invalidação granular (A-06)**
+**2.8 — Invalidação granular (A-06)** ✅
 - Trocar `["financeiro"]` por `["financeiro", "lancamentos"]` + `["financeiro", "kpis"]` em baixas individuais; manter prefixo amplo apenas em lote.
 
 ---
