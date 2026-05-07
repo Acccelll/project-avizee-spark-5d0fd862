@@ -369,7 +369,7 @@ const Estoque = () => {
 
   const movColumns = [
     { key: "produto", label: "Produto", mobilePrimary: true, render: (m: Movimento) => (
-      <div><span className="font-medium">{m.produtos?.nome ?? "—"}</span><br/><span className="text-xs text-muted-foreground font-mono">{m.produtos?.sku}</span></div>
+      <div><span className="font-medium">{m.produtos?.nome ?? "—"}{formatVariacoesSuffix((m.produtos as { variacoes?: unknown } | null | undefined)?.variacoes)}</span><br/><span className="text-xs text-muted-foreground font-mono">{m.produtos?.sku}</span></div>
     )},
     { key: "tipo", label: "Tipo", render: (m: Movimento) => {
       const cfg = getTipoMovConfig(m.tipo);
@@ -400,7 +400,7 @@ const Estoque = () => {
 
   const posColumns = [
     { key: "nome", label: "Produto", mobilePrimary: true, render: (p: ProdutoPosicao) => (
-      <div><span className="font-medium">{p.nome}</span>{p.sku && <><br/><span className="text-xs text-muted-foreground font-mono">{p.sku}</span></>}</div>
+      <div><span className="font-medium">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>{p.sku && <><br/><span className="text-xs text-muted-foreground font-mono">{p.sku}</span></>}</div>
     )},
     { key: "unidade", label: "Unid.", render: (p: ProdutoPosicao) => p.unidade_medida ?? "UN" },
     { key: "estoque_atual", label: "Estoque Atual", render: (p: ProdutoPosicao) => <span className="font-semibold font-mono">{formatNumber(Number(p.estoque_atual ?? 0))}</span> },
