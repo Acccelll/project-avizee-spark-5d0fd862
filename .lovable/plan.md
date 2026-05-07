@@ -1,85 +1,154 @@
-# Onda 6 — Performance, Realtime e Mobile residual (Suprimentos/Estoque/Logística)
 
-Continuação do trabalho da Onda 5. Mantém preservação arquitetural: sem troca de stack, sem refator amplo de `useSupabaseCrud`, mudanças incrementais.
+# Onda 7 — Revisão End-to-End: Fiscal & Faturamento
 
-## Status de execução
+## 1. Resumo da Onda 7
 
-- ✅ **BK-01/BK-02** `vw_estoque_posicao` reescrita com `LATERAL JOIN` + filtro `tipo IN (reserva, liberacao_reserva)` no agregado de reservado.
-- ✅ **A-04/BK-05** `vw_recebimentos_consolidado` agora expõe `responsavel_id` e `responsavel_nome` (último usuário do recebimento). Hooks `useEntregas`/`useRecebimentos` consomem o novo campo.
-- ✅ **SH-01/SH-02** Singleton `useLogisticaRealtime` (novo hook) montado uma vez em `Logistica.tsx`, escutando `remessas`, `remessa_eventos`, `recebimentos_compra`, `estoque_movimentos`.
-- ✅ **MB-03** `EstoqueAjusteSheet`: card de preview vira `sticky top-0` em mobile, com cor variant por sinal do novo saldo.
-- ✅ **MB-04** `EtiquetaSimplesPreviewDialog`: download via `a[download]` no desktop e `window.open` em iOS Safari (que ignora `download` em `blob:`).
-- ⏸ **MB-05** `LogisticaRastreioSection` já não tem scroll aninhado (sem `max-h`/`overflow-auto` no template atual).
-- ⏸ **A-02/M-05** Paginação server-side de `remessas` e `estoque_movimentos` — deferida (depende de refator do `useSupabaseCrud`).
-- ⏸ **A-07/M-01/D-02** Unificação de hooks paralelos, decomposição de `Estoque.tsx` e remoção de `@ts-nocheck` — pendentes (não há mais `@ts-nocheck` em `services/`, mas há em outros pontos do app).
+A Onda 7 cobre todo o domínio fiscal do AviZee: emissão e recebimento de NF-e, ciclo de vida (rascunho → confirmada → autorizada/cancelada), eventos SEFAZ (CC-e, cancelamento, inutilização, manifestação), DistDFe, importação/tradução de XML, certificado A1 (Storage privado + Vault), edge functions (`sefaz-proxy`, `sefaz-distdfe`, `process-distdfe-cron`, `consultadanfe-proxy`) e o esqueleto do módulo Faturamento (em breve, atalho para Pedidos).
 
-## Escopo
+Estado atual:
+- `Fiscal.tsx` ainda é god component (~1.500 linhas após extração de `NfeCreateFormModal`).
+- `FiscalDetail` foi descontinuada (D-2) → redirect para `/fiscal?nf=:id`.
+- Lifecycle confirmar/estornar/devolver migrado para RPCs atômicas (idempotentes via guards `NOT EXISTS`).
+- DistDFe roda via Cron + edge `sefaz-distdfe` (mTLS direto Deno ou Worker opt-in via `SEFAZ_USE_MTLS_PROXY`).
+- Busca por chave hoje usa `consultadanfe-proxy` (oficial), `BuscarPorChaveDialog` está ATIVO.
+- Faturamento existe como atalho/EmptyState; sub-rotas `/faturamento/cadastros` e `/faturamento/emitir` são `EmBreve`.
 
-### Bloco 1 — Paginação server-side e consultas pesadas
+## 2. Fluxos fiscais mapeados
 
-**A-02 · Remessas paginadas no servidor**
-- `src/pages/logistica/hooks/useRemessas.ts`: trocar `fetch` único por `useSupabaseCrud` com `pagination: "server"` (padrão já aplicado em Pedidos/NF). Manter ordenação e filtros existentes.
-- `src/pages/Logistica.tsx` (aba Remessas): conectar `pageIndex`/`pageSize` ao `DataTableV2`.
+```text
+EMISSÃO (saída)
+  /fiscal → "Nova NF" → NfeCreateFormModal → upsertNotaFiscalComItens (RPC salvar_nota_fiscal)
+    → Confirmar NF (RPC confirmar_nota_fiscal) → estoque_movimentos + financeiro_lancamentos (idempotente)
+    → SefazAcoesPanel → autorizar (sefaz-proxy assinar-e-enviar-vault)
+    → registrar_retorno_sefaz (status_sefaz=autorizada, protocolo, xml)
+    → eventos: CC-e / Cancelar SEFAZ / Inutilizar
 
-**M-05 · Movimentações de estoque paginadas**
-- `src/pages/estoque/hooks/useEstoqueMovimentacoes.ts`: variante paginada (mantém versão por produto não-paginada para o drawer de produto).
-- `EstoqueMovimentacoesTab` recebe paginação server-side.
+RECEBIMENTO (entrada)
+  Cron process-distdfe-cron → sefaz-distdfe consultar-nsu (mTLS A1)
+    → docZip (procNFe/resNFe) → nfe_distribuicao (XML preservado)
+    → Manifestação Destinatário (drawer)
+    → Importação XML (manual upload OU "puxar do DistDFe") → useNFeXmlImport
+       → parser → match fornecedor (CNPJ) + produtos (SKU) → TraducaoXmlDrawer
+       → upsertNotaFiscalComItens (origem=importacao_xml) → Confirmar (entrada → contas a pagar + entrada de estoque)
 
-**BK-01/BK-02 · `vw_estoque_posicao` performática**
-- Migration: reescrever a view substituindo subqueries correlacionadas por `LEFT JOIN LATERAL` agregados; garantir uso de `idx_estoque_movimentos_produto_id_created_at`.
-- Validar com `EXPLAIN ANALYZE` antes/depois (registrar no PR).
+DEVOLUÇÃO
+  NotaFiscalDrawer → Devolução → DevolucaoDialog → RPC gerar_devolucao_nota_fiscal
+    → cria NF tipo oposto vinculada → confirmar gera movimento contrário
 
-### Bloco 2 — Realtime e cache cross-módulo
+CONSULTA POR CHAVE / SCANNER
+  BuscarPorChaveDialog → consultadanfe-proxy (API pública)
+  FiscalChaveScannerDialog → câmera/QR → mesmo fluxo
+```
 
-**SH-01/SH-02 · Singleton de canal Realtime para Logística**
-- `src/hooks/useLogisticaRealtime.ts` (novo): único canal Supabase escutando `remessas`, `recebimentos_logistica`, `estoque_movimentos` — emite invalidate único por evento (`["remessas"]`, `["entregas"]`, `["estoque-posicao"]`).
-- Substituir hooks `useComprasRealtime`/duplicados que assinem as mesmas tabelas no contexto de Logística.
+## 3. Problemas críticos (P0)
 
-**A-04/BK-05 · Responsável em `vw_recebimentos_consolidado`**
-- Migration: adicionar JOIN com `profiles` para expor `responsavel_nome` na view.
-- `src/types/logistica.ts`: campo `responsavel` deixa de ser placeholder.
-- Regen automática de tipos do Supabase.
+1. **Busca por chave não está desativada** apesar do enunciado da revisão sugerir o contrário. `BuscarPorChaveDialog` segue chamando `consultadanfe-proxy` (terceiro). Decisão necessária: manter como oficial (memória já diz isso) ou colocar feature flag até validar custo/SLA.
+2. **`confirmar_nota_fiscal` não valida `status_sefaz`** — uma NF de saída pode ser "confirmada" (gerando estoque/financeiro) antes da autorização SEFAZ; se rejeitada depois, estoque/financeiro já foram tocados. Há guarda em estorno mas não no fluxo direto.
+3. **`confirmar_nota_fiscal` insere `financeiro_lancamentos` sem `cliente_id`/`fornecedor_id` checados pelo `tipo`** — entrada com `cliente_id` preenchido pode gerar conta a receber espúria. Falta `CASE` por `v_tipo_fin`.
+4. **`process-distdfe-cron` roda com `verify_jwt = false`** sem evidência de header secret/HMAC. Risco de invocação anônima.
+5. **`upsertNotaFiscalComItens` permite editar NF já confirmada/autorizada** se RPC `salvar_nota_fiscal` não bloquear (precisa confirmar trigger `trg_nf_protege_edicao`).
 
-### Bloco 3 — Mobile residual
+## 4. Problemas altos (P1)
 
-**MB-03 · Preview de saldo futuro destacado em mobile**
-- `EstoqueAjusteSheet`: card de preview em `sticky top-0` no breakpoint `<md`, com cor variant por sinal (`success`/`warning`/`destructive`).
+6. **`Fiscal.tsx` continua god component (1.500 linhas)** — falta extrair `FiscalDanfeViewer` e `FiscalDevolucaoFlow` (decisão D-3 já aprovada).
+7. **`useFiscalKpis` + grid usam queries separadas** — sem paginação server-side, duplica round-trip e ignora limite de 1.000 linhas Supabase.
+8. **`status` ERP e `status_sefaz` confundidos em filtros** — `useFiscalFilters` mantém ambos mas o badge mobile só mostra um eixo no card primário; risco de operação errada.
+9. **Estorno não notifica módulos downstream** — `useEstornarNotaFiscal` invalida `notas_fiscais/estoque/financeiro` mas não `comercial` (devolução/OV) nem `compras` (vínculo pedido).
+10. **`registrar_retorno_sefaz` aceita `xml_retorno` direto do client** — risco de payload inflar tabela; falta validação de tamanho/whitelist de tags.
+11. **`sefaz-distdfe` lê `empresa_config` sem `empresa_id`** — single-tenant ainda hard-coded; quebra se Onda multi-tenant avançar.
 
-**MB-04 · Preview A4 de etiquetas mobile-friendly**
-- `EtiquetaSimplesPreviewDialog`: em mobile, renderizar lista vertical de etiquetas (uma por viewport) + botão "Abrir PDF" para iOS Safari (substitui `blob:` por download direto via `a[download]`).
+## 5. Melhorias médias/baixas (P2/P3)
 
-**MB-05 · Timeline Correios sem scroll aninhado em mobile**
-- `LogisticaRastreioSection`: remover `max-h` + `overflow-auto` no breakpoint `<md`; deixar a timeline expandir e o scroll ser do drawer/página.
+- Centralizar `STATUS_VARIANT_MAP` para `status_sefaz` (alguns chips usam cores hard-coded).
+- DistDFeHistorico não tem PeriodFilter canônico (`/contrato-de-periodos`).
+- `FiscalChaveScannerDialog` (611 linhas) merece extrair lógica de câmera para hook `useQrScanner`.
+- `NotaFiscalForm.tsx` (página `/fiscal/novo`) e `NfeCreateFormModal` divergem em validações Zod vs handlers manuais — unificar via `NFeForm` + `nfeSchema`.
+- Faturamento: rota `/faturamento/emitir` está EmBreve mas Comercial já gera NF a partir de Pedido — alinhar discoverability (link explícito).
+- `consultadanfe-proxy` sem rate-limit por usuário.
+- `CartaCorrecaoDrawer`/`InutilizacaoDrawer` não compartilham componente base de evento SEFAZ.
 
-### Bloco 4 — Limpeza de tipagem e UX residual
+## 6. Problemas mobile
 
-- **A-07** unificar `useEntregas`/`useRemessas` que duplicam fetch da mesma tabela em `Logistica.tsx`.
-- **M-01** `Estoque.tsx`: extrair seções (filtros, KPIs, tabela) em subcomponentes para reduzir tamanho do arquivo.
-- **D-02** Remover `@ts-nocheck` remanescentes em `correios.service.ts` e `etiquetasSimples.service.ts`.
+- Banner "Pendentes" mobile não respeita memória `produto/contrato-de-status` (cor `warning/10` pode colidir com tema dark).
+- `NotaFiscalDrawer` mobile tem 3 tabs mas `Mais` não usa accordion — viola padrão `produto/configuracoes-mobile` (≥4 grupos).
+- `NfeCreateFormModal` em mobile renderiza grid de itens sem o "card-list" — ItemsGrid horizontal estoura viewport <768px.
+- Scanner QR não trata permissão negada com fallback de upload de imagem.
 
-## Fora de escopo
+## 7. Problemas desktop
 
-- Refator do `useSupabaseCrud` em si (continua na agenda).
-- Mudança visual de Logística (já padronizada na Onda 4).
-- Multi-tenant em recebimentos (depende da Onda 1 de tenancy).
+- Drawer de NF tem header com badge ERP+SEFAZ mas não exibe `protocolo` truncado clicável (copiar).
+- Grid sem `useDataTablePrefs` → colunas não persistem.
+- `FiscalDashboard` recharts sem `aria-busy` durante refetch.
 
-## Detalhes técnicos
+## 8. Edge Functions / SEFAZ
 
-### Migrations
-1. `..._vw_estoque_posicao_otimizada.sql` — `CREATE OR REPLACE VIEW` com `LATERAL` + `SECURITY INVOKER`.
-2. `..._vw_recebimentos_consolidado_responsavel.sql` — adicionar `responsavel_nome`/`responsavel_id` via JOIN com `profiles`.
+- `sefaz-proxy` aceita `assinar-e-enviar` com cert vindo do client (modo legado). Manter apenas `*-vault` (D-?).
+- `sefaz-distdfe`: log `proxySecretFp` expõe primeiros/últimos 4 chars do secret — ok p/ debug, mas remover em prod.
+- Falta circuit breaker quando AN devolve cStat=656 (consumo indevido / bloqueio 1h) — atualmente loga mas o cron pode reentrar.
+- `process-distdfe-cron` não verifica `cloud_status` antes de invocar.
+- `consultadanfe-proxy` não logga `request_id` correlacionável.
+- Nenhuma das funções fiscais publica métricas (sucesso/falha) em `app_configuracoes` ou tabela de telemetria.
 
-### Realtime
-- Canal único `logistica:global` com `postgres_changes` em 3 tabelas; cleanup no `useEffect`. Sem subscrições por linha.
+## 9. Banco / RPC
 
-### Validação pós-deploy
-1. Lista de remessas com 5k+ linhas: tempo de primeira pintura < 800ms (paginação 50/página).
-2. `vw_estoque_posicao` em base com 50k movimentações: < 300ms.
-3. Receber compra em outra aba → grid de Estoque atualiza sozinho via Realtime (sem F5).
-4. iOS Safari: preview A4 abre PDF sem tela em branco.
-5. `tsc --noEmit` sem `@ts-nocheck` nos serviços listados.
+- `confirmar_nota_fiscal`: faltam guards já citados (status_sefaz, tipo×parceiro).
+- `gerar_devolucao_nota_fiscal`: não retorna lista de itens devolvidos parciais (só id).
+- `cancelar_nota_fiscal_sefaz` não dispara estorno automático (memória diz que cancelar interno estorna; SEFAZ deveria também).
+- Trigger `trg_nf_status_transicao` precisa whitelist explícita; não verificada agora.
+- Faltam constraints `chk_` em `notas_fiscais.status_sefaz` e `tipo` (memória diz que é doutrina).
+- Falta índice composto `(empresa_id, status, data_emissao desc)` — KPI/dashboard varrem tabela.
 
-## Riscos
-- Mudança de view com dados em uso: rodar `CREATE OR REPLACE` (sem DROP) para preservar grants.
-- Realtime singleton: garantir cleanup correto para não vazar canal entre navegações.
-- Paginação server-side: validar export CSV/Excel — trocar para query "fetch all" sob demanda no botão de export.
+## 10. Frontend / services / hooks
+
+- `useNotaFiscalLifecycle` invalida queries por string literal — usar `INVALIDATION_KEYS.fiscal.*`.
+- `useNFeXmlImport` faz match O(n×m) de produtos — substituir por Map.
+- `fiscal.service.ts` (442 linhas) mistura RPCs, lookups e empresa_config — quebrar em `nf-lifecycle.service`, `nf-eventos.service`, `nf-lookups.service`, `empresa-config.service`.
+- `useSefazAcoes` (312 linhas) faz dupla chamada RPC para numeração — extrair para `nfeNumbering.service` (sequence atômica).
+- `NotaFiscalForm.tsx` página vs `NfeCreateFormModal` modal: duas fontes de verdade do schema. Unificar.
+
+## 11. Plano de Execução
+
+### Sprint 7.1 — Segurança e idempotência (P0)
+
+1. Migração: adicionar guards em `confirmar_nota_fiscal` (`status_sefaz NOT IN ('rejeitada','denegada','cancelada_sefaz')` para saída antes de tocar estoque/financeiro; `CASE` por `tipo` no INSERT financeiro com `cliente_id`/`fornecedor_id` corretos).
+2. Migração: `cancelar_nota_fiscal_sefaz` chama estorno automático (mesma lógica de `estornar_nota_fiscal`).
+3. Edge `process-distdfe-cron`: exigir header `X-Cron-Secret` (Vault `CRON_SECRET`); rejeitar 401 caso ausente.
+4. Decidir busca-por-chave: confirmar `consultadanfe` como oficial (já registrado) e adicionar feature flag `VITE_FEATURE_BUSCA_CHAVE` para kill-switch.
+5. Validar `salvar_nota_fiscal` bloqueia edição quando `status='confirmada'`.
+
+### Sprint 7.2 — Decomposição Fiscal (P1)
+
+6. Extrair `FiscalDanfeViewer` (wrapper de `DanfeViewer` + handlers de print/email) de `Fiscal.tsx`.
+7. Extrair `FiscalDevolucaoFlow` (estado do `DevolucaoDialog` + RPC).
+8. Quebrar `fiscal.service.ts` em 4 arquivos por responsabilidade.
+9. Unificar emissão: `NotaFiscalForm.tsx` (página) e `NfeCreateFormModal` consumem `NFeForm` + `nfeSchema`. Modal vira fina camada de mount.
+10. Hook `useQrScanner` extraído de `FiscalChaveScannerDialog`.
+
+### Sprint 7.3 — Performance e UX (P2)
+
+11. Server-side pagination em `Fiscal` (refactor `useSupabaseCrud` ou `useTableCount`).
+12. Persistir prefs do grid via `useDataTablePrefs`.
+13. Índice `(empresa_id, status, data_emissao desc)` em `notas_fiscais`.
+14. Map<sku, produto> em `useNFeXmlImport`.
+15. Mobile: card-list de itens no `NfeCreateFormModal`, accordion em `Mais` do drawer, fallback de upload no scanner QR.
+
+### Sprint 7.4 — Edge / SEFAZ hardening (P2)
+
+16. Remover modo `assinar-e-enviar` (cert do client) do `sefaz-proxy`.
+17. Circuit breaker cStat=656 no cron (parar 1h, registrar em `app_configuracoes`).
+18. Remover `proxySecretFp` dos logs em produção.
+19. Telemetria: tabela `fiscal_telemetria` (action, sucesso, latência, cStat) gravada por todas edges.
+20. `cloud_status` check no início do cron.
+
+### Sprint 7.5 — Faturamento (futuro)
+
+21. Wizard `/faturamento/emitir`: select OV → preview NF → confirmar (já consome `salvar_nota_fiscal`).
+22. Cadastros fiscais: CFOP/CST/Naturezas em `/faturamento/cadastros`.
+23. Documentar diferença Faturamento vs Notas de Saída na UI (banner de origem).
+
+### Critérios de aceite globais
+
+- Nenhuma RPC fiscal sem `SET search_path = public` e `SECURITY DEFINER` declarados.
+- Todos os triggers `trg_nf_*` continuam ativos após migrações.
+- Testes de integração `fluxo-fiscal.test.ts` passam + 3 novos cenários (confirmar com SEFAZ rejeitada, cancelar SEFAZ aciona estorno, cron 401 sem secret).
+- `Fiscal.tsx` < 800 linhas; `fiscal.service.ts` < 200 linhas por arquivo.
