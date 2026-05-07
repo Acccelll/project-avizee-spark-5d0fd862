@@ -890,6 +890,7 @@ const Fiscal = () => {
     tipoFromUrl: tipoParam,
     statusFromUrl,
     vencimentoNotaIds,
+    emissaoMesControlled: { value: emissaoMesState, onChange: setEmissaoMesState },
   });
 
   // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
