@@ -1,23 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Recebimento } from "@/types/logistica";
 
-export interface Recebimento {
-  id: string;
-  numero_compra: string;
-  fornecedor: string;
-  previsao_entrega: string | null;
-  data_recebimento: string | null;
-  quantidade_pedida: number;
-  quantidade_recebida: number;
-  pendencia: number;
-  status_logistico: string;
-  nf_vinculada: string | null;
-  responsavel: string;
-  recebimento_real: boolean;
-  observacao_recebimento: string | null;
-  total_recebimentos: number;
-  tem_divergencia: boolean;
-}
+export type { Recebimento };
 
 async function fetchRecebimentos(): Promise<Recebimento[]> {
   const { data, error } = await (supabase as any)
