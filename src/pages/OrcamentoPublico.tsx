@@ -4,6 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CheckCircle, XCircle, Loader2, Mail, Phone, Globe, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type {
   OrcamentoPublicView,
@@ -92,6 +101,8 @@ export default function OrcamentoPublico() {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionDone, setActionDone] = useState<"aprovado" | "rejeitado" | null>(null);
+  const [dialogAcao, setDialogAcao] = useState<"aprovado" | "rejeitado" | null>(null);
+  const [comentario, setComentario] = useState("");
 
   useEffect(() => {
     if (!token) {
@@ -252,23 +263,37 @@ export default function OrcamentoPublico() {
   const cidadeLinha = `${[empresa?.bairro, empresa?.cidade].filter(Boolean).join(" · ")}${empresa?.uf ? `/${empresa.uf}` : ""}`;
   const cepLinha = empresa?.cep ? `CEP: ${empresa.cep}` : "";
 
-  const handleAction = async (acao: "aprovado" | "rejeitado") => {
+  const handleAction = async (acao: "aprovado" | "rejeitado", comentarioInput?: string) => {
     if (!data || !token || actionLoading) return;
     // C-03: somente orçamentos enviados (status pendente) podem ser respondidos.
     if (data.status !== "pendente") {
       toast.error("Este orçamento não está mais disponível para resposta.");
       return;
     }
+    const comentarioFinal = (comentarioInput ?? "").trim();
+    if (acao === "rejeitado" && comentarioFinal.length < 3) {
+      toast.error("Descreva o que você gostaria de ajustar (mín. 3 caracteres).");
+      return;
+    }
     setActionLoading(true);
     const { error: rpcErr } = await supabase.rpc("acao_cliente_orcamento" as never, {
       p_token: token,
       p_acao: acao,
+      p_comentario: comentarioFinal || null,
     } as never);
     if (rpcErr) {
       toast.error("Erro ao registrar sua resposta. Tente novamente.");
+      setActionLoading(false);
+      return;
     } else {
       setActionDone(acao);
       setData((prev) => (prev ? { ...prev, status: acao } : prev));
+      setDialogAcao(null);
+      setComentario("");
+      // Dispara notificação ao time (best-effort, não bloqueia UX).
+      supabase.functions
+        .invoke("notify-orcamento-resposta", { body: { token, acao } })
+        .catch(() => {});
     }
     setActionLoading(false);
   };
@@ -456,7 +481,7 @@ export default function OrcamentoPublico() {
               {data.frete_tipo && (
                 <div><div style={{ color: "#7a6a48", fontSize: 11.5 }}>Frete</div><strong>{data.frete_tipo}</strong></div>
               )}
-              {data.modalidade && (
+              {data.modalidade && data.modalidade !== data.frete_tipo && (
                 <div><div style={{ color: "#7a6a48", fontSize: 11.5 }}>Modalidade</div><strong>{data.modalidade}</strong></div>
               )}
               {data.servico_frete && (
@@ -508,10 +533,10 @@ export default function OrcamentoPublico() {
                 className="gap-2"
                 style={{ background: "#16a34a", color: "#fff", minWidth: 220, minHeight: 44 }}
                 disabled={actionLoading}
-                onClick={() => handleAction("aprovado")}
+                onClick={() => { setComentario(""); setDialogAcao("aprovado"); }}
               >
                 <CheckCircle className="h-5 w-5" />
-                {actionLoading ? "Aguarde..." : "Aceitar este orçamento"}
+                Aceitar este orçamento
               </Button>
               <Button
                 size="lg"
@@ -519,10 +544,10 @@ export default function OrcamentoPublico() {
                 className="gap-2"
                 style={{ borderColor: WINE, color: WINE, minWidth: 220, minHeight: 44 }}
                 disabled={actionLoading}
-                onClick={() => handleAction("rejeitado")}
+                onClick={() => { setComentario(""); setDialogAcao("rejeitado"); }}
               >
                 <XCircle className="h-5 w-5" />
-                {actionLoading ? "Aguarde..." : "Solicitar revisão"}
+                Solicitar revisão
               </Button>
             </div>
           </section>
@@ -558,6 +583,47 @@ export default function OrcamentoPublico() {
           <div>Documento gerado eletronicamente. Este orçamento é informativo e não tem valor fiscal.</div>
         </footer>
       </div>
+
+      <Dialog open={dialogAcao !== null} onOpenChange={(open) => { if (!open && !actionLoading) { setDialogAcao(null); setComentario(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialogAcao === "aprovado" ? "Confirmar aceite do orçamento" : "Solicitar revisão"}
+            </DialogTitle>
+            <DialogDescription>
+              {dialogAcao === "aprovado"
+                ? "Confirme o aceite. Você pode adicionar uma observação opcional para nossa equipe."
+                : "Conte o que precisa ser ajustado para que possamos enviar uma nova versão."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Comentário {dialogAcao === "rejeitado" ? <span className="text-destructive">*</span> : <span className="text-muted-foreground">(opcional)</span>}
+            </label>
+            <Textarea
+              value={comentario}
+              onChange={(e) => setComentario(e.target.value)}
+              placeholder={dialogAcao === "rejeitado" ? "Ex.: prazo de entrega, ajuste de quantidade, condição de pagamento..." : "Mensagem opcional para nossa equipe"}
+              rows={4}
+              maxLength={1000}
+              autoFocus
+            />
+            <div className="text-xs text-muted-foreground text-right">{comentario.length}/1000</div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={actionLoading} onClick={() => { setDialogAcao(null); setComentario(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={actionLoading || (dialogAcao === "rejeitado" && comentario.trim().length < 3)}
+              style={dialogAcao === "aprovado" ? { background: "#16a34a", color: "#fff" } : { background: WINE, color: "#fff" }}
+              onClick={() => dialogAcao && handleAction(dialogAcao, comentario)}
+            >
+              {actionLoading ? "Enviando..." : dialogAcao === "aprovado" ? "Confirmar aceite" : "Enviar solicitação"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

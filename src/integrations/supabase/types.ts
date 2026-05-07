@@ -4820,6 +4820,8 @@ export type Database = {
           altura_cm: number | null
           ativo: boolean
           cliente_id: string | null
+          cliente_resposta_comentario: string | null
+          cliente_resposta_em: string | null
           cliente_snapshot: Json | null
           comprimento_cm: number | null
           created_at: string
@@ -4864,6 +4866,8 @@ export type Database = {
           altura_cm?: number | null
           ativo?: boolean
           cliente_id?: string | null
+          cliente_resposta_comentario?: string | null
+          cliente_resposta_em?: string | null
           cliente_snapshot?: Json | null
           comprimento_cm?: number | null
           created_at?: string
@@ -4908,6 +4912,8 @@ export type Database = {
           altura_cm?: number | null
           ativo?: boolean
           cliente_id?: string | null
+          cliente_resposta_comentario?: string | null
+          cliente_resposta_em?: string | null
           cliente_snapshot?: Json | null
           comprimento_cm?: number | null
           created_at?: string
@@ -8980,10 +8986,12 @@ export type Database = {
         Args: { p_name: string; p_secret: string }
         Returns: string
       }
-      acao_cliente_orcamento: {
-        Args: { p_acao: string; p_token: string }
-        Returns: Json
-      }
+      acao_cliente_orcamento:
+        | { Args: { p_acao: string; p_token: string }; Returns: Json }
+        | {
+            Args: { p_acao: string; p_comentario?: string; p_token: string }
+            Returns: Json
+          }
       ajustar_estoque_manual:
         | {
             Args: {

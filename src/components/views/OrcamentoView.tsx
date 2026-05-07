@@ -415,6 +415,16 @@ export function OrcamentoView({ id }: Props) {
               <span>Este orçamento foi rejeitado. Edite-o para reenviar.</span>
             </div>
           )}
+          {(selected as { cliente_resposta_comentario?: string | null; cliente_resposta_em?: string | null }).cliente_resposta_comentario && (
+            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs space-y-1">
+              <div className="font-semibold text-warning uppercase tracking-wide text-[10px]">
+                Resposta do cliente {(selected as { cliente_resposta_em?: string | null }).cliente_resposta_em ? `· ${formatDate((selected as { cliente_resposta_em?: string }).cliente_resposta_em!)}` : ""}
+              </div>
+              <div className="whitespace-pre-wrap text-foreground">
+                «{(selected as { cliente_resposta_comentario?: string }).cliente_resposta_comentario}»
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Número</span>
