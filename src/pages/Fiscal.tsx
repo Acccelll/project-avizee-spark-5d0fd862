@@ -23,8 +23,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useCan } from "@/hooks/useCan";
-import { DanfeViewer } from "@/components/DanfeViewer";
-import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import {
   registrarEventoFiscal,
@@ -33,7 +31,6 @@ import {
   listContasContabeisLancaveis,
   getPedidoCompraResumo,
   listNotaFiscalItensCompletos,
-  getEmpresaConfigPrincipal,
   upsertNotaFiscalComItens,
 } from "@/services/fiscal.service";
 import {
@@ -48,6 +45,8 @@ import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
+import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
+import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -152,8 +151,6 @@ interface NfItemFiscalData {
   cst_ipi?: string | null; desconto?: number | null; codigo_produto?: string | null;
 }
 
-interface DevolucaoItem extends NfItemRow { qtd_devolver: number; nome: string; }
-
 const Fiscal = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -185,8 +182,8 @@ const Fiscal = () => {
   const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
   const [buscarChaveInicial, setBuscarChaveInicial] = useState<string | undefined>(undefined);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [danfeOpen, setDanfeOpen] = useState(false);
-  const [danfeData, setDanfeData] = useState<Record<string, unknown> | null>(null);
+  const danfeViewerRef = useRef<FiscalDanfeViewerHandle>(null);
+  const devolucaoFlowRef = useRef<FiscalDevolucaoFlowHandle>(null);
   const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
   // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
@@ -217,11 +214,6 @@ const Fiscal = () => {
     email?: string;
     telefone?: string;
   }>({});
-  // Devolução
-  const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
-  const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
-  const [devolucaoItens, setDevolucaoItens] = useState<DevolucaoItem[]>([]);
-
   const valorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
   // Total da NF: ICMS, PIS e COFINS são impostos "por dentro" (já embutidos no
   // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST e IPI acrescem
@@ -380,24 +372,7 @@ const Fiscal = () => {
     setDrawerOpen(true);
   };
 
-  const openDanfe = async (n: NotaFiscal) => {
-    const [itens, empresa] = await Promise.all([
-      listNotaFiscalItensCompletos(n.id).catch(() => []),
-      getEmpresaConfigPrincipal().catch(() => null),
-    ]);
-    setDanfeData({
-      numero: n.numero, serie: n.serie, chave_acesso: n.chave_acesso,
-      data_emissao: n.data_emissao, tipo: n.tipo, status: n.status,
-      emitente: n.tipo === "saida" && empresa ? { nome: empresa.razao_social, cnpj: empresa.cnpj, endereco: empresa.logradouro, cidade: empresa.cidade, uf: empresa.uf } : (n.fornecedores ? { nome: n.fornecedores.nome_razao_social, cnpj: n.fornecedores.cpf_cnpj } : undefined),
-      destinatario: n.tipo === "saida" && n.clientes ? { nome: n.clientes.nome_razao_social } : (empresa ? { nome: empresa.razao_social, cnpj: empresa.cnpj } : undefined),
-      itens: (itens as unknown as NfItemRow[]).map((i) => ({ descricao: i.produtos?.nome || "", quantidade: i.quantidade, valor_unitario: i.valor_unitario, cfop: i.cfop, cst: i.cst, icms_valor: i.icms_valor, ipi_valor: i.ipi_valor, pis_valor: i.pis_valor, cofins_valor: i.cofins_valor })),
-      valor_total: n.valor_total, frete_valor: n.frete_valor, icms_valor: n.icms_valor,
-      ipi_valor: n.ipi_valor, pis_valor: n.pis_valor, cofins_valor: n.cofins_valor,
-      desconto_valor: n.desconto_valor, outras_despesas: n.outras_despesas,
-      observacoes: n.observacoes, forma_pagamento: n.forma_pagamento, condicao_pagamento: n.condicao_pagamento,
-    });
-    setDanfeOpen(true);
-  };
+  const openDanfe = (n: NotaFiscal) => danfeViewerRef.current?.open(n);
 
   const handleConfirmar = async (nf: NotaFiscal) => {
     if (!canConfirmFiscal(nf.status)) {
@@ -842,12 +817,7 @@ const Fiscal = () => {
     setSaving(false);
   };
 
-  const openDevolucao = async (nf: NotaFiscal) => {
-    const itens = await listNotaFiscalItensCompletos(nf.id).catch(() => []);
-    setDevolucaoNF(nf);
-    setDevolucaoItens((itens as unknown as NfItemRow[]).map((i) => ({ ...i, qtd_devolver: 0, nome: i.produtos?.nome || "—" })));
-    setDevolucaoModalOpen(true);
-  };
+  const openDevolucao = (nf: NotaFiscal) => devolucaoFlowRef.current?.open(nf);
 
   const handleInativar = async (nfId: string) => {
     const nf = data.find((item) => item.id === nfId);
@@ -1373,17 +1343,8 @@ const Fiscal = () => {
         onRefresh={fetchData}
       />
 
-      {/* Devolução Dialog */}
-      <DevolucaoDialog
-        open={devolucaoModalOpen}
-        onOpenChange={setDevolucaoModalOpen}
-        devolucaoNF={devolucaoNF}
-        devolucaoItens={devolucaoItens}
-        setDevolucaoItens={setDevolucaoItens as unknown as (itens: unknown[]) => void}
-        onSuccess={fetchData}
-      />
-
-      <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData as never} />
+      <FiscalDevolucaoFlow ref={devolucaoFlowRef} onSuccess={fetchData} />
+      <FiscalDanfeViewer ref={danfeViewerRef} />
 
       {/* Busca de NF-e por chave de acesso (44 dígitos) — DistDFe local + sync SEFAZ */}
       <BuscarPorChaveDialog

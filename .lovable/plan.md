@@ -116,13 +116,17 @@ CONSULTA POR CHAVE / SCANNER
 4. Decidir busca-por-chave: confirmar `consultadanfe` como oficial (já registrado) e adicionar feature flag `VITE_FEATURE_BUSCA_CHAVE` para kill-switch.
 5. Validar `salvar_nota_fiscal` bloqueia edição quando `status='confirmada'`.
 
-### Sprint 7.2 — Decomposição Fiscal (P1)
+### Sprint 7.2 — Decomposição Fiscal (P1) ✅ executado (parcial)
 
-6. Extrair `FiscalDanfeViewer` (wrapper de `DanfeViewer` + handlers de print/email) de `Fiscal.tsx`.
-7. Extrair `FiscalDevolucaoFlow` (estado do `DevolucaoDialog` + RPC).
-8. Quebrar `fiscal.service.ts` em 4 arquivos por responsabilidade.
-9. Unificar emissão: `NotaFiscalForm.tsx` (página) e `NfeCreateFormModal` consumem `NFeForm` + `nfeSchema`. Modal vira fina camada de mount.
-10. Hook `useQrScanner` extraído de `FiscalChaveScannerDialog`.
+6. ✅ `FiscalDanfeViewer` extraído (`pages/fiscal/components/FiscalDanfeViewer.tsx`).
+7. ✅ `FiscalDevolucaoFlow` extraído (`pages/fiscal/components/FiscalDevolucaoFlow.tsx`).
+8. ✅ `fiscal.service.ts` virou facade re-exportando 5 submódulos em `services/fiscal/`:
+    `eventos`, `lifecycle`, `sefaz`, `lookups`, `empresaConfig`.
+9. ⏭️ Unificação `NFeForm` (página + modal) — adiada para Sprint 7.2.b.
+10. ✅ `useQrScanner` extraído (`pages/fiscal/hooks/useQrScanner.ts`).
+
+Resultado: `Fiscal.tsx` 1500→1461 linhas; `fiscal.service.ts` 442→48 (facade);
+`FiscalChaveScannerDialog.tsx` 612→365.
 
 ### Sprint 7.3 — Performance e UX (P2)
 
