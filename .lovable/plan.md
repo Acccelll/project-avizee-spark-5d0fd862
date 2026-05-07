@@ -1,174 +1,116 @@
-# Onda 4 — Auditoria do módulo Compras (ERP AviZee)
 
-Revisão end-to-end de Cotações de Compra, Pedidos de Compra, Recebimento, RPCs (`gerar_pedido_compra`, `receber_compra`, `estornar_recebimento_compra`, `cancelar_pedido_compra`, `aprovar_pedido`) e integrações com Estoque / Financeiro / Fiscal / Fornecedores.
+# Onda 5 — Estoque & Logística — Revisão End-to-End
 
-## 1. Resumo da Onda 4
+## 1. Resumo
 
-A arquitetura está madura: status canônicos (`docs/compras-modelo.md`), triggers de transição (`trg_cotacao_compra_transicao`, `trg_pedido_compra_transicao`), RPCs `SECURITY DEFINER` com `search_path=public`, índice `ux_pedidos_compra_cotacao_id` garantindo idempotência cotação→pedido, `pg_advisory_xact_lock` em recebimento e estorno, validação server-side de saldo pendente, e wrappers canônicos de UI (DataTable/StatusBadge/ViewDrawerV2/DrawerStickyFooter, mobile com cards verticais e bottom-sheets).
+A Onda 5 cobre Estoque (`Estoque.tsx` + 3 hooks + `vw_estoque_posicao`), Logística (`Logistica.tsx` com 3 abas — Entregas/Recebimentos/Remessas — `EntregaDrawer`, `RecebimentoDrawer`, `RemessaForm`, `LogisticaRastreioSection`), Recebimento de Compra (RPC `registrar_recebimento_compra` + dialog `RegistrarRecebimentoDialog`) e Etiquetas Correios (`prepostagem.service` + bucket `etiquetas-correios`). A arquitetura está madura — RPCs canônicas, views consolidadas, separação de domínios documentada em `docs/logistica-modelo.md`. Os problemas se concentram em: **RLS frouxa em `remessas` (qual=true)**, **transição de remessa via UPDATE direto bypassando RPCs com efeito de estoque**, **rastreio de Entrega que não persiste eventos reais**, **saldo negativo sem bloqueio explícito**, e **políticas/coluna `empresa_id` ausentes em `remessas`**.
 
-Ainda assim, 14 itens precisam ser endereçados — destaco **3 críticos** que podem causar perda silenciosa de itens, duplicidade de número de cotação ou bypass de limite de aprovação.
-
-## 2. Fluxo mapeado ponta a ponta
+## 2. Fluxos mapeados
 
 ```text
-[Cotação]                       [Pedido de Compra]               [Recebimento / NF Entrada]
-rascunho                        rascunho                          —
-  │ enviar_aprovacao             │ solicitar_aprovacao_pedido       │ receber_compra
-  ▼                              │  (auto-aprovar até limite)       │  (advisory_lock + saldo)
-aberta → em_analise              ▼                                  ▼
-  │ aprovar/rejeitar             aguardando_aprovacao              compras + compras_itens
-  ▼                              │ aprovar_pedido (admin)           + estoque_movimentos (entrada)
-aguardando_aprovacao             ▼                                  + UPDATE pedidos_compra_itens
-  │ aprovar                      aprovado                            .quantidade_recebida
-  ▼                              │ marcar_enviado                    │
-aprovada                         ▼                                   ▼
-  │ gerar_pedido_compra ────────►enviado_ao_fornecedor             pedido: parcialmente_recebido
-  ▼   (idempotente)              │                                   ↔ recebido (terminal)
-convertida (terminal)            aguardando_recebimento              │ estornar_recebimento_compra
-                                 │                                   ▼
-rejeitada / cancelada (terminais)│ cancelar_pedido_compra           compra cancelada + estoque -qtd
-                                 │  (bloqueia se NF ativa OU         + UPDATE quantidade_recebida
-                                 │   quantidade_recebida > 0)
-                                 ▼
-                                 cancelado
-                                                                     [NF Entrada — Fiscal]
-                                                                     /fiscal?tipo=entrada
-                                                                     &pedido_compra_id=…
-                                                                     gera financeiro_lancamentos
-                                                                     ao confirmar a NF
+Pedido de Venda ──► Remessa(entrega) ──► Correios/Transportadora
+                          │
+                          ├─► expedir_remessa     → estoque_movimentos (saída)
+                          ├─► marcar_em_transito  → vw_entregas_consolidadas
+                          ├─► marcar_entregue     → trigger sync OV
+                          └─► cancelar_remessa    → estorna estoque
+
+Pedido de Compra ──► (Logística: aguardando_envio/em_transito visão derivada)
+                          │
+                          └─► registrar_recebimento_compra (RPC)
+                                ├─► recebimentos_compra(_itens)
+                                ├─► estoque_movimentos (entrada)
+                                ├─► pedidos_compra_itens.quantidade_recebida
+                                └─► pedidos_compra.status (parcial/recebido)
+
+NF entrada confirmada ──► financeiro_lancamentos (contas a pagar)
+Ajuste manual ──► ajustar_estoque_manual (RPC) → audit log
 ```
 
-Cross-módulo:
-- **Estoque**: `receber_compra` insere `estoque_movimentos.entrada`; trigger `trg_estoque_movimentos_sync` mantém `produtos.estoque_atual`. Estorno gera `saida` simétrica.
-- **Financeiro**: contas a pagar **não** são criadas no recebimento — só ao confirmar a NF de entrada vinculada (banner de aviso já presente em `RegistrarRecebimentoDialog`). Drawer expõe `viewFinanceiro` por `listFinanceiroPorPedido`.
-- **Fiscal**: após recebimento OK, `darEntrada` redireciona para `/fiscal?tipo=entrada&pedido_compra_id=…&fornecedor_id=…` (UUID, não número), pré-vinculando a NF.
-- **Fornecedores**: `RelationalLink type="fornecedor"` no Drawer; lista de propostas e header de fornecedor; `pedidos_compra.fornecedor_id` gravado por `gerar_pedido_compra` a partir das propostas selecionadas.
-- **Logística**: `LogisticaRastreioSection pedidoCompraId` na aba Recebimento.
+## 3. Críticos (CR)
 
-## 3. Problemas críticos
+- **CR-01 — RLS de `remessas` aberta (qual=true)**. Policies SELECT/UPDATE/DELETE com `using (true)` permitem qualquer authenticated mutar remessa de outra empresa. Tabela também **não tem coluna `empresa_id`** (vazamento multi-tenant). 
+- **CR-02 — Transição de status da Entrega via UPDATE direto**. `updateEntregaStatus` (Logistica.tsx ~378) chama `updateStatusTransporte` (UPDATE puro), permitindo carimbar `entregue`/`cancelado` sem disparar `marcar_remessa_entregue`/`cancelar_remessa` → **sem baixa de estoque**. Deve usar `useTransicionarRemessa`.
+- **CR-03 — Saldo negativo sem bloqueio**. `Estoque.handleSubmit` tem comentário "Will leave negative — still allow" mas **não confirma explicitamente** com o usuário; a saída segue direto para `executeMovimentacao`.
+- **CR-04 — `remessa_etiquetas` sem políticas UPDATE/DELETE**. `gerarEtiqueta` faz `update` direto na tabela; sem policy explícita o caminho falhará silenciosamente para non-admins. Verificar e adicionar policies (`tenant + role logistica`).
+- **CR-05 — `recebimentos_compra*.SELECT qual=true`**. Vazamento cross-tenant em produção multi-empresa.
 
-**CC-01 — `gerar_pedido_compra` perde itens silenciosamente em multi-fornecedor.**
-A RPC pega `SELECT DISTINCT fornecedor_id … LIMIT 1` e cria UM pedido com TODAS as propostas selecionadas, não importa o fornecedor. Se a UI for burlada (ex.: chamada direta via console), o pedido sai com fornecedor X e itens de Y/Z embutidos. O front (`useCotacoesCompra.gerarPedido`) bloqueia, mas o servidor é a fonte da verdade.
-**Correção:** dentro da RPC, validar `COUNT(DISTINCT fornecedor_id) = 1` nas propostas selecionadas e abortar com `RAISE EXCEPTION` se houver mais de um.
+## 4. Altos (AL)
 
-**CC-02 — `CotacaoCompraForm` permite editar `numero` livremente.**
-O hook `openCreate` puxa o número via `proximo_numero_cotacao_compra` (sequence), mas o form de rota deixa o `Input` editável (`updateForm({ numero: e.target.value })`). Usuário pode reescrever para um número que colide com outra cotação ou com a próxima emissão do sequence.
-**Correção:** `disabled` no input de número (igual ao `FormModal` de Cotações), ou bloquear via UNIQUE constraint em `cotacoes_compra.numero` (só o disabled já resolve o caso comum).
+- **AL-01 — Rastreio em `EntregaDrawer.handleRastrear` não persiste eventos**. Faz fetch direto na edge function `?action=rastrear` e tenta listar `remessa_eventos` em seguida, mas a edge function não grava. Resultado: timeline real nunca aparece. Substituir por `trackAndPersistEventos`.
+- **AL-02 — Mock vs real não diferenciado visualmente**. `LogisticaRastreioSection` exibe banner mas eventos mock entram na lista com mesmo estilo. `EntregaDrawer` ignora `isMock`. Adicionar badge `Simulado` por evento e `Indisponível` quando edge function falha.
+- **AL-03 — Justificativa de ajuste opcional**. Fallback `"Ajuste sem justificativa registrada"` (33 chars) burla `motivo_estruturado >= 10`. Tornar obrigatório no form para `tipo=ajuste|perda_avaria|inventario`.
+- **AL-04 — Recebimento drawer força sair para `/compras`**. Footer navega para `/compras?recebimento=`, mas `RegistrarRecebimentoDialog` já existe e é montado em `Logistica.tsx`. Acionar inline (passar callback/abrir dialog do drawer).
+- **AL-05 — Bulk rastrear sequencial com toast por iteração**. `handleBulkRastrear` (Logistica.tsx ~479) dispara `toast.info("Consultando rastreio…")` em loop dentro de `handleRastrear`. Trocar por toast único + progresso; usar `Promise.allSettled` paralelo limitado.
+- **AL-06 — `EntregaDrawer.useEffect` carrega itens da OV mesmo quando consumidor não abre aba "Carga"**. OK por agora, mas falta cleanup quando drawer fecha em sequência rápida (race possível); o `cancelled` cobre, mas validar.
 
-**CC-03 — `gerar_pedido_compra` cria pedido já em `'aprovado'`, ignorando limite de aprovação.**
-A RPC define `status = 'aprovado'` no INSERT, pulando `aguardando_aprovacao`. Já existe `solicitar_aprovacao_pedido` que aplica limite (`v_limite`) — qualquer pedido criado por outro caminho passa por esse gate, mas o gerado a partir de cotação não. Quebra a doutrina de aprovação por valor.
-**Correção:** ao final da RPC, chamar `PERFORM solicitar_aprovacao_pedido(v_pedido_id)` em vez de gravar `'aprovado'` direto, ou inserir como `'rascunho'` e deixar o usuário clicar em "Solicitar aprovação".
+## 5. Médios / Baixos (MB)
 
-## 4. Problemas altos
+- **MB-01** — `Movimento` interface duplicada em `Estoque.tsx` (deveria importar de `services/estoque.service`).
+- **MB-02** — Mobile do grid Recebimentos exibe colunas truncadas: `quantidade_pedida/recebida/pendencia` quebram em telas estreitas. Refatorar para card mobile (`mobilePrimary` + `mobileMeta`).
+- **MB-03** — Etiqueta Correios usa `confirm()` nativo do browser (`EtiquetaCorreiosCard.handleCancelar`). Trocar por `useConfirmDialog`.
+- **MB-04** — `tipoOptions` no Estoque mostra opções (`transferencia`, `reserva`, `liberacao_reserva`, `estorno`) que **não são selecionáveis no form** (apenas filtro). OK, mas o form não permite registrar `perda_avaria`/`inventario`, embora a RPC os aceite.
+- **MB-05** — `RecebimentoDrawer` mostra "Responsável" com `responsavel.slice(0,8) + …` truncando UUID; deveria omitir ou resolver via `profiles.display_name`.
+- **MB-06** — `LogisticaRastreioSection` cria eventos mock com `id: "mock-${i}"` — colide com possíveis ids de DB; usar prefixo único.
+- **MB-07** — `useEntregas` busca todas as remessas ativas (`select id, ordem_venda_id, codigo_rastreio`) sem paginação — cresce ilimitado.
+- **MB-08** — Documentar a **diferença entre Recebimento Logístico (visão derivada) e Recebimento de Compra (operação real)** em help inline (já existe doc, falta tooltip nas abas).
 
-**CA-01 — `gerarPedido` usa `window.confirm` para confirmação destrutiva.**
-`useCotacoesCompra.gerarPedido` ainda usa `window.confirm()` em vez do `ConfirmDialog`/`useConfirmDestructive` canônicos. Quebra padrão de UX e não é estilizável/testável.
+## 6. Mobile
 
-**CA-02 — Recebimento via grid é "tudo ou nada", drawer é granular.**
-`PedidoCompraTable.onReceive` chama `usePedidosCompra.darEntrada`, que recebe todo o saldo pendente sem diálogo. No Drawer, o botão "Registrar Recebimento" abre `RegistrarRecebimentoDialog` (granular). Inconsistência operacional — usuário pode receber acidentalmente tudo pela grid.
-**Correção:** trocar `onReceive` da grid para abrir o mesmo `RegistrarRecebimentoDialog` (ou pelo menos um `ConfirmDialog` com aviso "vai receber X itens, R$ Y").
+- Estoque (Movimentações) e Logística (Recebimentos) ainda renderizam tabelas horizontais em < 640px sem fallback de cards.
+- `Logistica` aba **Remessas** tem 7 colunas — em mobile só uma é "primary"; ações `Rastrear/Etiqueta` ficam fora do viewport. Necessário collapse de ações no menu de contexto.
+- `RegistrarRecebimentoDialog` já foi adaptado em Onda 4. Verificar `EntregaDrawer.tabTransporte` (timeline) — há overflow horizontal no `flex gap-3` em telas estreitas.
 
-**CA-03 — Cotação vencida não bloqueia aprovação nem geração de pedido.**
-`CotacaoCompraTable` mostra badge de validade vermelho se `data_validade < hoje`, mas nem `aprovar_cotacao_compra` nem `gerar_pedido_compra` validam `data_validade`. Cotações expiradas continuam conversíveis em pedido com preços defasados.
-**Correção:** adicionar checagem `IF v_cotacao.data_validade IS NOT NULL AND v_cotacao.data_validade < CURRENT_DATE THEN RAISE EXCEPTION` em `gerar_pedido_compra` (e/ou em `aprovar_cotacao_compra`), com mensagem explícita.
+## 7. Desktop
 
-**CA-04 — `cotacaoCanApprove` libera `aberta`/`em_analise` (pula `aguardando_aprovacao`).**
-`comprasStatus.cotacaoCanApprove` retorna true para `aberta | em_analise | aguardando_aprovacao`. O Drawer expõe "Aprovar" direto a partir de `aberta`. Isso pode estar OK por design (admin atalho), mas conflita com a doutrina "envia → aprova". Confirmar regra com produto e, se intencional, documentar; se não, restringir a `aguardando_aprovacao`.
+- `Logistica.tsx` tem 1063 linhas (god-component). Decompor em sub-páginas/hooks por aba (`useEntregasGrid`, `useRemessasGrid`, `useRecebimentosGrid`).
+- `EntregaDrawer.tsx` tem 558 linhas; extrair `EntregaTimeline`, `EntregaItens`, `EntregaOcorrencias`.
 
-**CA-05 — `estornar_recebimento_compra` lê `produtos.estoque_atual` sem `FOR UPDATE`.**
-A RPC seleciona `saldo_anterior` direto de `produtos.estoque_atual` sem trancar a linha. Em concorrência (recebimento + estorno simultâneos do mesmo produto), o `saldo_anterior` registrado em `estoque_movimentos` pode ficar incoerente. Trigger `trg_estoque_movimentos_sync` corrige `estoque_atual`, mas o histórico fica torto.
-**Correção:** `SELECT estoque_atual … FOR UPDATE` ou usar advisory lock por `produto_id`.
+## 8. Banco / RPC / View
 
-## 5. Melhorias médias
+- **DB-01 (CR-01)** — Adicionar `empresa_id` em `remessas` + backfill + tornar policies tenant-aware (`empresa_id = current_empresa_id()` + role gate `logistica`/`admin`). Idem `remessa_eventos`.
+- **DB-02 (CR-04)** — Policies UPDATE/DELETE em `remessa_etiquetas` (admin/logistica + tenant).
+- **DB-03 (CR-05)** — Restringir SELECT de `recebimentos_compra*` a `(empresa_id = current_empresa_id() OR admin)`.
+- **DB-04** — Confirmar que `vw_entregas_consolidadas`, `vw_recebimentos_consolidado` e `vw_estoque_posicao` foram criadas com `WITH (security_invoker=on)` (ver memória `security/security-definer-views`).
+- **DB-05** — Constraint `chk_estoque_movimentos_quantidade > 0` (defesa em profundidade — RPC já valida).
+- **DB-06** — Index em `remessa_eventos(remessa_id, data_hora desc)` para timeline (verificar se já existe).
+- **DB-07** — Trigger ou RPC para impedir `remessas` direto-update saindo de `pendente` para `entregue` sem passar pelas RPCs (CR-02 reforçado no banco).
 
-**CM-01 — Drawer de Pedido não expõe transição `enviado_ao_fornecedor → aguardando_recebimento`.**
-Só há `marcar_enviado` (aprovado→enviado_ao_fornecedor). Para "começar a aguardar", o usuário precisa receber direto. Adicionar ação opcional ou simplesmente alinhar o badge para tratar `enviado_ao_fornecedor` como "aguardando recebimento".
+## 9. Frontend / Services / Hooks
 
-**CM-02 — Coluna "Recebimento" da grid mostra `aguardando` para `aprovado`.**
-Pedido `aprovado` (sem envio) já aparece como "Aguardando" recebimento. Confuso — separar em "Aprovado / aguardando envio" e "Aguardando recebimento" usando `pedidoRecebimentoLabel` que já existe.
+- **FE-01 (CR-02)** — `Logistica.updateEntregaStatus` deve usar `useTransicionarRemessa`; remover `updateStatusTransporte` do caminho padrão.
+- **FE-02 (AL-01)** — `EntregaDrawer.handleRastrear` deve consumir `trackAndPersistEventos` (mesma fonte da `LogisticaRastreioSection`/`Logistica`). Eliminar fetch manual.
+- **FE-03 (AL-02)** — Adicionar prop `isMock` ao componente de timeline (event list) e badge `Simulado` por evento mock.
+- **FE-04** — Centralizar shape `Entrega`/`Recebimento` (hoje duplicada entre `useEntregas.ts`, `EntregaDrawer.tsx` e `RecebimentoDrawer.tsx`). Mover para `src/types/logistica.ts`.
+- **FE-05** — `useRecebimentos` e `useEntregas`: adicionar `empresa_id` filter explícito quando RLS for endurecida (defesa).
+- **FE-06** — `gerarEtiqueta`: substituir hack `(supabase.functions.invoke ... as never)` por chamada `fetch` única (já existe `callAction`); descartar bloco morto `criarRes`.
 
-**CM-03 — `viewEstoque` no Drawer usa `produto_id` para somar quantidade recebida, mas `pedidos_compra_itens.quantidade_recebida` é a fonte canônica.**
-Pode divergir se o produto aparecer em mais de um item do mesmo pedido (caso raro mas possível). Trocar `estoquePorProduto` por `i.quantidade_recebida` direto (já vem no select de `listPedidoCompraItens`).
+## 10. Plano de Execução
 
-**CM-04 — Sem mini-timeline de auditoria no Drawer de Cotação/Pedido.**
-Reutilizar o `AuditTimelineMini` criado na Onda 3 (M-04 do Comercial) em ambos os Drawers — `auditoria_logs` já recebe `gerar_pedido_compra`, `receber_compra`, `cancelar_pedido_compra` e os triggers `trg_audit_*`.
+### Bloco 1 — Críticos (1 sessão)
+1. ✅ Migration aplicada — `empresa_id` em remessas/eventos/recebimentos + RLS tenant-aware + trigger `fn_remessa_protege_status_critico` + check qty>0.
+2. ✅ `recebimentos_compra*` SELECT por empresa.
+3. ✅ `remessa_etiquetas` policies já existiam (UPDATE/DELETE/INSERT por role+tenant).
+4. ✅ `updateEntregaStatus` agora usa `useTransicionarRemessa`.
+5. ✅ `Estoque.handleSubmit` confirma saldo negativo via `window.confirm`.
 
-**CM-05 — `pedidoStatusLabelMap` duplica `aguardando_aprovacao` e `rejeitado`.**
-Em `comprasStatus.ts`, são adicionados manualmente `aguardando_aprovacao: "Aguardando Aprovação"` e `rejeitado: "Rejeitado"` para preencher buracos do `statusSchema`. Mover para o schema central.
+### Bloco 2 — Altos (1 sessão)
+6. ✅ EntregaDrawer canônico via `trackAndPersistEventos`.
+7. ✅ Badge "Dados simulados" em EntregaDrawer; mock id único em LogisticaRastreioSection.
+8. ✅ `motivo >=10` obrigatório em ajustes.
+9. ✅ RecebimentoDrawer aceita `onRegistrarRecebimento` — Logistica monta dialog inline.
+10. ✅ Bulk rastrear paralelo (4) com toast único de progresso.
 
-**CM-06 — `drawerStats.allItemsHaveSelected` permite gerar pedido sem checar `preco_unitario > 0`.**
-A RPC já valida (`COALESCE(p.preco_unitario,0) > 0`), mas o front deveria espelhar para evitar viagem ao banco. Atualmente `allItemsHaveSelected` checa só `selecionado`.
+### Bloco 3 — Melhorias (curtas)
+11. `EtiquetaCorreiosCard.handleCancelar` → `useConfirmDialog`. (MB-03)
+12. Cards mobile para Movimentações e Recebimentos. (MB-02)
+13. Tooltip explicativo "Visão consolidada" nas abas de Logística. (MB-08)
+14. Index `remessa_eventos(remessa_id, data_hora desc)` se não existir. (DB-06)
 
-## 6. Problemas mobile
+### Bloco 4 — Dívida técnica (deferível)
+15. Decompor `Logistica.tsx` por aba e `EntregaDrawer.tsx` em subcomponentes.
+16. Centralizar tipos `Entrega/Recebimento` em `src/types/logistica.ts`.
+17. Resolver `responsavel` real via `profiles`.
+18. Adicionar `perda_avaria`/`inventario` no form de Estoque (com gates de role).
 
-**MB-01 — `RegistrarRecebimentoDialog` mantém a `<table>` de itens em mobile.**
-Apesar do estilo bottom-sheet, a tabela `Produto/Pedido/Recebido/Pendente/Receber` faz scroll horizontal incômodo. Replicar o padrão de cards verticais já usado no `ItemsGrid` (`md:hidden`).
-
-**MB-02 — `PedidoCompraDrawer` aba Itens: tabela com 7 colunas em mobile.**
-Mesmo escondendo "Código" em `sm:`, sobram 6 colunas. Refatorar para cards verticais por item em `md:hidden` (mostrar Produto, Qtd, Vlr unit, Total, Recebido, Pendente em pares grid 2x3).
-
-**MB-03 — Botões `Editar`/`Excluir` no header do Drawer de Pedido usam `size="sm"` (32px).**
-Abaixo do mínimo touch (44px). Aplicar `max-sm:h-11 max-sm:w-full` ou agrupar em menu kebab no mobile.
-
-## 7. Problemas desktop
-
-**DT-01 — Drawer de Pedido tem 5 abas (Resumo/Itens/Recebimento/Condições/Vínculos).**
-Em telas <1280px o tab-bar quebra. "Condições" duplica dados de "Resumo". Fundir Condições no Resumo (já lista valor total e fornecedor) ou colapsar Vínculos→Resumo.
-
-**DT-02 — Filtros de Cotações não têm chip "Vencidas".**
-`CotacaoCompraFilters` filtra status, fornecedor, datas, mas não há atalho "vencidas hoje" / "vence em 7d", apesar de a coluna Validade já calcular isso.
-
-## 8. Problemas banco / RPC
-
-**DB-01 — `cotacoes_compra.numero` sem UNIQUE constraint.**
-`proximo_numero_cotacao_compra()` é atômico via sequence, mas nada impede UPDATE manual ou import legado de criar dois números iguais. Adicionar `UNIQUE(numero)` (e idem para `pedidos_compra.numero`).
-
-**DB-02 — `recebimentos_compra` / `recebimentos_compra_itens` têm policy `FOR ALL TRUE` (`auth_full_recebimentos`).**
-Permissivo demais, mesmo que o caminho real seja via RPC `SECURITY DEFINER`. Restringir SELECT por empresa/role e revogar INSERT/UPDATE/DELETE direto (forçar caminho RPC).
-
-**DB-03 — `gerar_pedido_compra` não copia `data_entrega_prevista` da cotação para o pedido.**
-Pedido nasce sem prazo. Combinar com `data_validade` da cotação ou parametrizar.
-
-**DB-04 — Falta `UNIQUE (cotacao_compra_id, item_id, fornecedor_id)` em `cotacoes_compra_propostas`.**
-Hoje a UI bloqueia duplicata, mas nada no banco. Risco de propostas redundantes em concorrência.
-
-## 9. Problemas frontend / services / hooks
-
-**FE-01 — `useCotacoesCompra.handleApprove` assume status local sem ler retorno da RPC.**
-`setSelected({ ...selected, status: "aprovada" })` antes de `fetchData()`. Se a RPC fizer transição condicional (ex.: `solicitar_aprovacao_pedido` que pode auto-aprovar), o status local fica errado. Usar o retorno da RPC.
-
-**FE-02 — `usePedidosCompra.darEntrada` faz `setDrawerOpen(false)` antes do `navigate("/fiscal")`.**
-Se o usuário cancelar o redirecionamento o drawer está fechado e perdeu contexto. Reordenar: invalidar → toast → navegar (drawer fecha por desmontagem natural).
-
-**FE-03 — `useCotacaoPropostas.handleSelectProposal` não desmarca propostas concorrentes do mesmo item no estado local.**
-Confia no `reload()` para refletir. Em rede lenta o usuário vê duas propostas marcadas brevemente. Optimistic update local.
-
-**FE-04 — `PedidoCompraTable` ainda usa `mobileStatusKey="status"` com label do banco.**
-OK para a maioria, mas `parcialmente_recebido` aparece sem o "Recebimento Parcial" do `pedidoStatusLabelMap`. Passar `getMobileStatusLabel` ou ajustar o `statusSchema`.
-
-**FE-05 — `CotacaoCompraDrawer` tem 463 linhas e mistura header + 4 abas + footer + 2 dialogs.**
-Está no limite. Extrair os dois `ConfirmDialog` (reject/cancel) para um sub-componente `CotacaoCompraDialogs`.
-
-## Próximos passos sugeridos
-
-Ordem recomendada (mais valor / menor risco):
-1. **CC-01, CC-02, CC-03** (RPC + form) — 1 migração + 1 patch front. Bloqueiam falhas reais de fluxo.
-2. **CA-01 + CA-02 + CA-03** — UX/segurança operacional: ConfirmDialog em gerarPedido, diálogo granular no botão receber da grid, validação de validade.
-3. **DB-01, DB-04** — UNIQUE constraints (idempotência defensiva).
-4. **CM-04** — reaproveitar `AuditTimelineMini` (alto valor, baixo custo).
-5. **MB-01 + MB-02** — mobile dos blocos de itens (alto impacto perceptual).
-
-Após aprovação do plano implemento na ordem acima, começando pelos críticos (1 migração + 2 patches) e abrindo PR consolidado por bloco.
-
-## Status final da Onda 4 (atualizado)
-
-Implementados nesta sessão (continuação):
-- **DB-02**: removidas policies `auth_full_recebimentos*`; SELECT só para `authenticated`, escrita exclusiva via RPCs `SECURITY DEFINER`.
-- **CM-02**: coluna "Recebimento" agora distingue "Aguardando envio" (aprovado) de "Aguardando recebimento" (enviado/aguardando).
-- **CM-03**: drawer de pedido usa `pedidos_compra_itens.quantidade_recebida` (fonte canônica) em vez de agregação por `produto_id` em `estoque_movimentos`.
-- **CM-05**: removidas chaves duplicadas em `pedidoStatusLabelMap` (já existem em `statusPedidoCompra`).
-- **FE-02**: `darEntrada` não fecha o drawer manualmente — deixa a navegação para `/fiscal` desmontá-lo.
-- **FE-03**: `handleSelectProposal` aplica optimistic update e faz rollback em caso de erro.
-
-Deferidos (baixo valor / requer decisão de produto):
-- CA-04 (doutrina de cotacaoCanApprove), CM-01 (transição enviado→aguardando), CM-06 (espelhar validação de preço no front), DT-01/DT-02 (re-layout desktop), FE-01 (handleApprove via retorno da RPC), FE-04 (mobile status label override), FE-05 (decompor `CotacaoCompraDrawer`), DB-03 (data_entrega_prevista já vem da cotação na RPC).
+Após aprovação implemento na ordem acima, com PR consolidado por bloco e migrações testadas via `supabase--linter` ao final do Bloco 1.

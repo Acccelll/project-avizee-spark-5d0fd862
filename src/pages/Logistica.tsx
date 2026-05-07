@@ -376,14 +376,15 @@ export default function Logistica() {
       return;
     }
     try {
-      await updateStatusTransporte(remessaIds[0], status);
+      await transicionarRemessa.mutateAsync({
+        remessaId: remessaIds[0],
+        novoStatus: status as RemessaTransition,
+      });
     } catch (err) {
       notifyError(err);
+    } finally {
       setUpdatingEntregaId(null);
-      return;
     }
-    toast.success("Status atualizado");
-    setUpdatingEntregaId(null);
   };
 
   /**
@@ -482,12 +483,25 @@ export default function Logistica() {
     );
     if (rastreiaveis.length === 0) { toast.info("Nenhuma remessa com rastreio pendente"); return; }
     setBulkTracking(true);
-    let updated = 0;
-    for (const r of rastreiaveis) {
-      try { await handleRastrear(r); updated++; } catch { /* skip */ }
+    const toastId = toast.loading(`Atualizando rastreios (0/${rastreiaveis.length})…`);
+    let done = 0, ok = 0;
+    const limit = 4;
+    const queue = [...rastreiaveis];
+    async function worker() {
+      while (queue.length) {
+        const r = queue.shift()!;
+        try {
+          await trackAndPersistEventos(r.codigo_rastreio!, r.id);
+          ok++;
+        } catch { /* skip */ }
+        done++;
+        toast.loading(`Atualizando rastreios (${done}/${rastreiaveis.length})…`, { id: toastId });
+      }
     }
+    await Promise.all(Array.from({ length: Math.min(limit, rastreiaveis.length) }, worker));
     setBulkTracking(false);
-    toast.success(`${updated} remessa(s) atualizada(s)`);
+    toast.success(`${ok} remessa(s) atualizada(s)`, { id: toastId });
+    queryClient.invalidateQueries({ queryKey: ["remessas"] });
   };
 
   const transportadoraOptions: MultiSelectOption[] = transportadorasList.map((t) => ({ label: t, value: t }));
@@ -907,7 +921,12 @@ export default function Logistica() {
       <EntregaDrawer open={!!selectedEntrega} onClose={() => setSelectedEntrega(null)} entrega={selectedEntrega} />
 
       {/* Recebimento Drawer */}
-      <RecebimentoDrawer open={!!selectedRecebimento} onClose={() => setSelectedRecebimento(null)} recebimento={selectedRecebimento} />
+      <RecebimentoDrawer
+        open={!!selectedRecebimento}
+        onClose={() => setSelectedRecebimento(null)}
+        recebimento={selectedRecebimento}
+        onRegistrarRecebimento={(r) => setRecebimentoDialogPedido(r)}
+      />
 
       {/* Diálogo oficial de registro de recebimento (Compras) */}
       <RegistrarRecebimentoDialog

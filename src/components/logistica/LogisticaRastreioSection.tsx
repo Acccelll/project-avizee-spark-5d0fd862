@@ -69,12 +69,13 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
         setMockWarning(remessa.id);
         // Show mock events inline without persisting
         const mockEvs: RemessaEvento[] = evs.map((e, i) => ({
-          id: `mock-${i}`,
+          id: `mock-${remessa.id}-${i}`,
           remessa_id: remessa.id,
           descricao: e.descricao,
           local: e.local,
           data_hora: e.data_hora,
           created_at: new Date().toISOString(),
+          empresa_id: "",
         }));
         setEventos((prev) => ({ ...prev, [remessa.id]: mockEvs }));
         toast.warning("Dados simulados — credenciais dos Correios não configuradas.");

@@ -6230,6 +6230,7 @@ export type Database = {
           compra_id: string | null
           created_at: string
           data_recebimento: string
+          empresa_id: string
           id: string
           motivo_divergencia: string | null
           nota_fiscal_id: string | null
@@ -6246,6 +6247,7 @@ export type Database = {
           compra_id?: string | null
           created_at?: string
           data_recebimento?: string
+          empresa_id?: string
           id?: string
           motivo_divergencia?: string | null
           nota_fiscal_id?: string | null
@@ -6262,6 +6264,7 @@ export type Database = {
           compra_id?: string | null
           created_at?: string
           data_recebimento?: string
+          empresa_id?: string
           id?: string
           motivo_divergencia?: string | null
           nota_fiscal_id?: string | null
@@ -6336,6 +6339,7 @@ export type Database = {
       recebimentos_compra_itens: {
         Row: {
           created_at: string
+          empresa_id: string
           id: string
           motivo_divergencia: string | null
           pedido_compra_item_id: string
@@ -6347,6 +6351,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          empresa_id: string
           id?: string
           motivo_divergencia?: string | null
           pedido_compra_item_id: string
@@ -6358,6 +6363,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          empresa_id?: string
           id?: string
           motivo_divergencia?: string | null
           pedido_compra_item_id?: string
@@ -6517,6 +6523,7 @@ export type Database = {
           created_at: string
           data_hora: string
           descricao: string
+          empresa_id: string
           id: string
           local: string | null
           remessa_id: string
@@ -6525,6 +6532,7 @@ export type Database = {
           created_at?: string
           data_hora?: string
           descricao: string
+          empresa_id: string
           id?: string
           local?: string | null
           remessa_id: string
@@ -6533,6 +6541,7 @@ export type Database = {
           created_at?: string
           data_hora?: string
           descricao?: string
+          empresa_id?: string
           id?: string
           local?: string | null
           remessa_id?: string
@@ -6639,6 +6648,7 @@ export type Database = {
           data_entrega_real: string | null
           data_expedicao: string | null
           data_postagem: string | null
+          empresa_id: string
           id: string
           motivo_cancelamento: string | null
           nota_fiscal_id: string | null
@@ -6663,6 +6673,7 @@ export type Database = {
           data_entrega_real?: string | null
           data_expedicao?: string | null
           data_postagem?: string | null
+          empresa_id?: string
           id?: string
           motivo_cancelamento?: string | null
           nota_fiscal_id?: string | null
@@ -6687,6 +6698,7 @@ export type Database = {
           data_entrega_real?: string | null
           data_expedicao?: string | null
           data_postagem?: string | null
+          empresa_id?: string
           id?: string
           motivo_cancelamento?: string | null
           nota_fiscal_id?: string | null
@@ -9320,10 +9332,12 @@ export type Database = {
         Args: { p_remessa_id: string }
         Returns: undefined
       }
-      marcar_remessa_entregue: {
-        Args: { p_data_entrega?: string; p_remessa_id: string }
-        Returns: undefined
-      }
+      marcar_remessa_entregue:
+        | { Args: { p_remessa_id: string }; Returns: undefined }
+        | {
+            Args: { p_data_entrega?: string; p_remessa_id: string }
+            Returns: undefined
+          }
       merge_lote_conciliacao: { Args: { p_lote_id: string }; Returns: Json }
       move_to_dlq: {
         Args: {

@@ -16,6 +16,7 @@ interface RecebimentoDrawerProps {
   open: boolean;
   onClose: () => void;
   recebimento: Recebimento | null;
+  onRegistrarRecebimento?: (recebimento: Recebimento) => void;
 }
 
 // NOTE: This drawer shows a read-only logistic view of a purchase order.
@@ -30,7 +31,7 @@ function isAtrasado(recebimento: Recebimento) {
   return new Date(recebimento.previsao_entrega + "T00:00:00") < new Date();
 }
 
-export function RecebimentoDrawer({ open, onClose, recebimento: r }: RecebimentoDrawerProps) {
+export function RecebimentoDrawer({ open, onClose, recebimento: r, onRegistrarRecebimento }: RecebimentoDrawerProps) {
   const navigate = useNavigate();
   if (!r) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
 
@@ -259,8 +260,13 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
                 size="lg"
                 className="h-11 min-w-[180px] gap-2"
                 onClick={() => {
-                  onClose();
-                  navigate(`/compras?recebimento=${r.id}`);
+                  if (onRegistrarRecebimento) {
+                    onRegistrarRecebimento(r);
+                    onClose();
+                  } else {
+                    onClose();
+                    navigate(`/compras?recebimento=${r.id}`);
+                  }
                 }}
               >
                 <ClipboardCheck className="h-4 w-4" />
