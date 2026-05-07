@@ -285,16 +285,16 @@ export function NotaFiscalEditModal({
             <Lock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
             <div>
               <p className="text-xs font-semibold text-destructive">
-                {selected.status === "cancelada_sefaz"
+                {statusSefaz === "cancelada_sefaz"
                   ? "Nota cancelada junto à SEFAZ — somente leitura"
-                  : selected.status === "inutilizada"
+                  : statusSefaz === "inutilizada"
                   ? "Numeração inutilizada — somente leitura"
                   : "Nota fiscal cancelada — somente leitura"}
               </p>
               <p className="text-xs text-destructive/70 mt-0.5">
-                {selected.status === "cancelada_sefaz"
+                {statusSefaz === "cancelada_sefaz"
                   ? "Cancelamento registrado na SEFAZ. Nenhuma alteração pode ser realizada."
-                  : selected.status === "inutilizada"
+                  : statusSefaz === "inutilizada"
                   ? "Número inutilizado junto à receita. Não pode ser reaproveitado."
                   : "Esta nota foi cancelada. Nenhuma alteração pode ser realizada."}
               </p>
