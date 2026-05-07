@@ -2750,6 +2750,83 @@ export type Database = {
           },
         ]
       }
+      financeiro_extrato_importacoes: {
+        Row: {
+          arquivo_hash: string | null
+          baixa_id: string | null
+          conta_bancaria_id: string
+          created_at: string
+          data: string
+          descricao: string | null
+          empresa_id: string
+          fitid: string
+          id: string
+          importado_por: string | null
+          status: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          arquivo_hash?: string | null
+          baixa_id?: string | null
+          conta_bancaria_id: string
+          created_at?: string
+          data: string
+          descricao?: string | null
+          empresa_id: string
+          fitid: string
+          id?: string
+          importado_por?: string | null
+          status?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          arquivo_hash?: string | null
+          baixa_id?: string | null
+          conta_bancaria_id?: string
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          empresa_id?: string
+          fitid?: string
+          id?: string
+          importado_por?: string | null
+          status?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_extrato_importacoes_baixa_id_fkey"
+            columns: ["baixa_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_baixas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_extrato_importacoes_baixa_id_fkey"
+            columns: ["baixa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_conciliacao_eventos_financeiros"
+            referencedColumns: ["baixa_id"]
+          },
+          {
+            foreignKeyName: "financeiro_extrato_importacoes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_extrato_importacoes_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financeiro_lancamentos: {
         Row: {
           ativo: boolean
