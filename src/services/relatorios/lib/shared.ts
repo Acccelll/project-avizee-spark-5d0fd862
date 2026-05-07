@@ -53,10 +53,6 @@ export interface RelatorioResultado<T = Record<string, unknown>> {
    * should prefer `meta` over the legacy boolean flags.
    */
   meta?: ReportMeta;
-  /** @deprecated use `meta.valueNature === 'quantidade'` */
-  _isQuantityReport?: boolean;
-  /** @deprecated use `meta.kind === 'dre'` */
-  _isDreReport?: boolean;
 }
 
 /**
