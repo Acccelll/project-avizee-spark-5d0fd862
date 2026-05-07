@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, RefreshCcw, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
-import { WorkbookGeracaoDialog } from '@/components/financeiro/WorkbookGeracaoDialog';
+// D-02: dialog carregado sob demanda (ExcelJS é puxado só quando o usuário gera).
+const WorkbookGeracaoDialog = lazy(() =>
+  import('@/components/financeiro/WorkbookGeracaoDialog').then((m) => ({
+    default: m.WorkbookGeracaoDialog,
+  })),
+);
 import { WorkbookHistoricoTable } from '@/components/financeiro/WorkbookHistoricoTable';
 import { useCan } from '@/hooks/useCan';
 import {
@@ -143,14 +148,16 @@ export default function WorkbookGerencial() {
         />
       </ModulePage>
 
-      {canGerar && (
-        <WorkbookGeracaoDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          templates={templates}
-          onGerar={async (p) => { await gerarMutation.mutateAsync(p); }}
-          isGenerating={gerarMutation.isPending}
-        />
+      {canGerar && dialogOpen && (
+        <Suspense fallback={null}>
+          <WorkbookGeracaoDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            templates={templates}
+            onGerar={async (p) => { await gerarMutation.mutateAsync(p); }}
+            isGenerating={gerarMutation.isPending}
+          />
+        </Suspense>
       )}
     </>
   );

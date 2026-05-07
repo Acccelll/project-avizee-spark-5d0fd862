@@ -82,6 +82,14 @@ export function calcularJurosDiarios(
   taxaDiaria: number,
   dias: number,
 ): number {
+  // M-06: alerta não bloqueante quando a taxa diária ultrapassa o teto
+  // legalmente seguro (≈1% ao mês ⇒ 0,034%/dia). Mantemos o cálculo, mas
+  // sinalizamos no console para que a UI/auditoria capture o caso.
+  if (taxaDiaria > 0.034 && typeof console !== "undefined") {
+    console.warn(
+      `[financeiro] taxa diária de ${taxaDiaria}% excede o teto seguro de 0.034%/dia (~1%/mês).`,
+    );
+  }
   return Math.round(valor * (taxaDiaria / 100) * dias * 100) / 100;
 }
 

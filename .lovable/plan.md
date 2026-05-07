@@ -45,7 +45,7 @@ Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03
 - `FinanceiroDrawer`: separar `canCancelar` (status → `cancelado`) de `canExcluirFisico` (`isAdmin && origem_tipo='manual' && sem baixas ativas`).
 - Renderizar dois botões distintos com ícones e textos diferentes; confirm dialog específico.
 
-**2.3 — Documentar caminhos de estorno (A-04 / SH-01)**
+**2.3 — Documentar caminhos de estorno (A-04 / SH-01)** ✅
 - JSDoc claro em `estornarBaixaFinanceira` (unitário) e `processarEstorno` (lote).
 - `FinanceiroDrawer`: histórico de baixas com botão "Estornar esta baixa" (unitário) + botão principal "Estornar todas" (lote).
 
@@ -74,11 +74,13 @@ Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03
 - **M-02**: alinhar algoritmo de score client-side com pg_trgm (usar tokens iguais) ou desabilitar fallback quando RPC disponível.
 - **M-03**: optimistic update em `budget.service` (`onMutate` no React Query).
 - **M-04**: `FinanceiroCalendar` recebe `contaBancariaId` filtrada como prop.
-- **M-06**: warning visual (não bloqueante) em `calcularJurosDiarios` quando taxa > 0,034%/dia.
+- **M-06** ✅: warning não bloqueante em `calcularJurosDiarios` quando taxa > 0,034%/dia.
 - **MB-01**: `BaixaLoteModal` com `mobileCard` para itens.
-- **MB-02**: `BaixaParcialDialog` campos com `min-h-[44px]` e labels `text-sm`.
+- **MB-02** ✅: `BaixaParcialDialog` `SelectTrigger` com `h-11` (Inputs já estavam 44px).
 - **MB-03**: `FinanceiroCalendar` mobile = lista por dia (drawer expandível) em vez de grid.
-- **B-01/B-02/D-01/D-02**: comentário `@deprecated`, padronizar touch target, lazy import `WorkbookGeracaoDialog`, RPC para auditoria de duplicidades.
+- **B-01** ✅: `COMMENT … DEPRECATED` em `marcar_lancamentos_vencidos()`.
+- **B-02 / D-01**: padronizar touch target restantes; RPC de auditoria de duplicidades.
+- **D-02** ✅: lazy import de `WorkbookGeracaoDialog` em `WorkbookGerencial.tsx`.
 - Atualizar `docs/financeiro-modelo-estrutural.md` com extrato persistido e advisory locks.
 
 ---
