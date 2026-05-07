@@ -100,7 +100,7 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 
 ### Sprint 8.3 — Cache e invalidação cross-módulo (🟡)
 - 8.3.1 ✅ Helper `invalidateRelatoriosByDomain(qc, ...domains)` criado em `src/pages/relatorios/hooks/invalidateRelatorios.ts`. Próximo passo: cableamento nas mutations dos módulos.
-- 8.3.2 Selo "Atualizado há X · Atualizar" exposto em `ReportHeader`.
+- 8.3.2 ✅ `ReportHeader` agora exibe `atualizado há Xmin/h/d` (relativo a `dataUpdatedAt` do react-query) tanto desktop quanto mobile.
 - 8.3.3 ✅ Detect `rows.length === 1000` e warning "Resultado pode estar truncado" no workspace de Relatórios.
 
 ### Sprint 8.4 — Workbook & Apresentação robustos (🟡)
@@ -120,12 +120,12 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 ### Sprint 8.6 — Refactor Relatorios.tsx (🟢)
 - 8.6.1 Quebrar em `RelatorioWorkspace`, `RelatorioFiltrosBar`, `RelatorioBody`, `RelatorioKpiGrid`.
 - 8.6.2 Eliminar flags `_isQuantityReport/_isDreReport`; usar discriminated union em `meta`.
-- 8.6.3 Persistir `hiddenColumns` por `tipo` em `useDataTablePrefs` existente.
+- 8.6.3 ✅ `hiddenColumns` agora persistido por `tipo` via `useDataTablePrefs(`relatorios-${tipo}`)` (cross-device, com migração one-shot do localStorage). Trocar de relatório preserva preferências por tipo.
 
 ### Sprint 8.7 — Tipagem e qualidade (🟢)
 - 8.7.1 Gerar tipos das `vw_workbook_*` e remover `(supabase as any)` em fetchWorkbookData.
 - 8.7.2 Server-side search nos selects de cliente/fornecedor (`useRelatoriosFiltrosData`).
-- 8.7.3 Memoizar `dataAvailability` em ApresentacaoGerencial.
+- 8.7.3 ✅ `dataAvailability` envelopado em `useMemo` (recomputa só quando `comentarios` muda).
 - 8.7.4 Testes adicionais: substring DRE, limite PDF, modo fechado vazio.
 
 ### Sprint 8.8 — Polimento (🟢)
