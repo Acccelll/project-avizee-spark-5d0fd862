@@ -112,9 +112,9 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 
 ### Sprint 8.5 — Mobile UX (🟢)
 - 8.5.1 ✅ `PeriodoFilter` agora expõe presets canônicos `Hoje · 7d · 15d · 30d · Mês · 90d · Ano` com chips compactos e wrap responsivo.
-- 8.5.2 Botão "Exportar" dentro do sheet mobile de filtros.
+- 8.5.2 ✅ `ExportMenu` exposto na barra mobile (entre Filtros e Atualizar) — usuário não precisa mais rolar até a tabela para exportar.
 - 8.5.3 ✅ `RelatorioChart` com `min-h-[224px]`, `min-w-[1px]` e `ResponsiveContainer minHeight=200` (elimina warnings width(0)/height(0)).
-- 8.5.4 Workbook/Apresentação dialog: stack vertical até md.
+- 8.5.4 ✅ Dialogs do Workbook e da Apresentação ganham `max-w-[95vw] sm:max-w-...` (cabem em smartphones <375 px) e mantêm scroll interno.
 - 8.5.5 DataTable mobile defaultOpen quando ≤15 rows.
 
 ### Sprint 8.6 — Refactor Relatorios.tsx (🟢)
