@@ -136,7 +136,7 @@ export function CotacaoCompraDrawer({
                   size="lg"
                   className="w-full h-12 gap-2 shadow-md"
                   disabled={gerarPending}
-                  onClick={() => runGerar(onGerarPedido)}
+                  onClick={() => setGerarOpen(true)}
                 >
                   <ShoppingCart className="h-4 w-4" /> Gerar Pedido de Compra
                   <ChevronRight className="h-4 w-4 ml-auto" />
@@ -392,7 +392,7 @@ export function CotacaoCompraDrawer({
                   </Button>
                 )}
                 {cotacaoCanGeneratePedido(selected.status) && (
-                  <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={gerarPending} onClick={() => runGerar(() => onGerarPedido())}>
+                  <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={gerarPending} onClick={() => setGerarOpen(true)}>
                     <ClipboardList className="h-4 w-4" /> Gerar Pedido de Compra
                   </Button>
                 )}
