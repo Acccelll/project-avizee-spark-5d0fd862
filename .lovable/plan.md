@@ -86,7 +86,7 @@ Arquitetura geral é sólida e em linha com a doutrina do projeto (statusKind ca
 Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.lovable/plan.md`. Risco classificado: 🟢 baixo · 🟡 médio · 🔴 alto.
 
 ### Sprint 8.1 — Confiabilidade dos números (🔴)
-- 8.1.1 DRE cash basis vs competência: documentar e oferecer toggle no filtro (`competencia | caixa`). Loader recalcula deduções do método escolhido.
+- 8.1.1 ✅ DRE cash basis vs competência: filtro "Regime" (caixa/competência) persistido na URL (`drmo`); loader `loadDre` alterna entre `data_pagamento`+status pago/parcial e `data_emissao`+`valor` integral; subtítulo do relatório indica o regime ativo.
 - 8.1.2 ✅ Substituir heurística "compra" no CMV por classificação estruturada (`nota_fiscal_id` / `pedido_compra_id` / `origem_tabela`).
 - 8.1.3 ✅ Carimbo de origem (modo, fonte, data de geração) no cabeçalho do PDF, aba "Origem" do XLSX e capa do PPTX.
 - 8.1.4 View canônica `vw_dre_periodo` consumida por Relatórios + Workbook + Apresentação (eliminar 3 cálculos paralelos).
