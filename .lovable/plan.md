@@ -1,102 +1,116 @@
-## Plano — Onda 6: Hardening do Módulo Financeiro
+## Plano — Onda 7: Hardening do Módulo Fiscal e Faturamento
 
-Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03 + BK-04) que travam uso real em produção. Médios/baixos agrupados em fase final.
+Aplicação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03), que tocam segurança (proxy SEFAZ), conformidade fiscal (via oficial DistDFe) e contrato canônico de status. Em seguida, consolidação UX/Faturamento e proteção contra abuso/duplicidade. Por fim, médios e mobile.
 
 ---
 
-### Fase 1 — Críticos (impacto imediato em produção)
+### Fase 1 — Críticos
 
-**1.1 — `useRegistrarBaixa` invalida saldos de conta e fluxo de caixa (C-03)** ✅
-- Adicionar `["contas_bancarias"]` e `["fluxo-caixa"]` em todos os `onSuccess` de `useBaixaFinanceira.ts` (registrar, estornar, gerar parcelas, gerar folha).
-- Replicar nos `processarBaixaLote` e `processarEstorno` quando chamados fora do hook.
+**1.1 — `BuscarPorChaveDialog` migra para `sefaz-distdfe consultar-chave` (C-01 / SH-02)**
+- Substituir `supabase.functions.invoke("consultadanfe-proxy", …)` por `invoke("sefaz-distdfe", { action: "consultar-chave", chNFe, ambiente })`.
+- Estratégia 2 níveis (já documentada em `mem/features/fiscal-consulta-por-chave.md`):
+  1) checar `nfe_distribuicao.xml_nfe WHERE chave_acesso = ?` (cache local + cron);
+  2) fallback para `sefaz-distdfe`.
+- Tratar `cStat` 137/138 com mensagem clara ("XML existe mas não é destinado ao CNPJ do A1 — solicite ao emissor").
+- Manter `consultadanfe-proxy` apenas como fallback opcional sob `VITE_FEATURE_FALLBACK_CONSULTADANFE` (default `false`).
+- Atualizar `mem/features/fiscal-busca-por-chave-flag.md` resolvendo o conflito com `fiscal-consulta-por-chave.md` (uma única narrativa: "DistDFe é oficial; consultadanfe é fallback opcional").
 
-**1.2 — Constraint UNIQUE em conciliação (BK-04)** ✅
-- Migration: `CREATE UNIQUE INDEX uq_baixa_conta_extrato_ref ON financeiro_baixas (conta_bancaria_id, conciliacao_extrato_referencia) WHERE conciliacao_extrato_referencia IS NOT NULL;`
-- RPC `financeiro_conciliar_baixa`: validar antes do UPDATE que a referência ainda não foi usada noutra baixa ativa; mensagem clara.
+**1.2 — `sefaz-proxy` autoriza por permissão fiscal (C-02 / EF-01)**
+- Adicionar helper `requireFiscalRole(req)` que, depois de `requireAuth`, consulta `user_permissions` (RLS via `service_role`) e exige `faturamento_fiscal:emitir` OU role `admin`/`fiscal_emissor`.
+- Aplicar em todas as actions sensíveis: `assinar-e-enviar-vault`, `enviar-sem-assinatura-vault`, `parse-certificado`, `manifesto-ciencia`.
+- `health` segue com `requireAuth` mas omite `hasPfxPassword` para não-admins (M-01).
+- Replicar o mesmo helper em `sefaz-distdfe` para `consultar-chave` e `consultar-nsu` (exigir `faturamento_fiscal:visualizar` no mínimo).
+- Mensagens 403 padronizadas ("Sem permissão para operações fiscais").
 
-**1.3 — Persistência do extrato OFX (C-02)** ✅
-- Nova tabela `financeiro_extrato_importacoes` (`conta_bancaria_id`, `fitid`, `data`, `valor`, `descricao`, `competencia`, `status` ∈ {pendente, conciliado, ignorado}, `baixa_id` opcional, `arquivo_hash`, `importado_por`).
-- `UNIQUE (conta_bancaria_id, fitid)` para idempotência de re-import.
-- RLS por `empresa_id` (trigger `set_empresa_id_default`).
-- `useConciliacaoBancaria.importarExtrato`:
-  - calcular `fitid` final (FITID original ou hash sha256 de `data+valor+descricao` quando ausente — corrige M-05);
-  - `upsert` com `onConflict: "conta_bancaria_id,fitid"` e `ignoreDuplicates: true`;
-  - re-buscar transações do banco em vez de manter em estado local.
-- Pares confirmados também persistem (status `pendente` → `conciliado` ao salvar).
-- Reload da página: `useQuery(["conciliacao-extrato", contaId, periodo])` recupera tudo.
-
-**1.4 — Paginação server-side em `Financeiro.tsx` (C-01)** ✅
-- Substituir `useSupabaseCrud` por `useQuery(["financeiro_lancamentos", filtros, page])` com `range()` server-side.
-- Mover filtros (`tipo`, `status` exceto `vencido`, `contaBancariaId`, `formasPagamento`, `monthRange`) para `.eq/.in/.gte/.lte` no Supabase.
-- Filtro `vencido` mapeado para `status='aberto' AND data_vencimento < hoje`.
-- KPIs passam a usar exclusivamente `useFinanceiroKpisRpc` (resolve SH-02; remover `useFinanceiroKpis` legado ou marcar `@deprecated`).
-- Filtros restantes (A-02) ficam server-side por consequência.
-- Lookups de cliente/fornecedor (M-01): `select id,nome_razao_social` com cache longo.
-- Implementação: nova RPC `listar_financeiro_lancamentos_ids` (filtros + busca cross-table) + hook `useFinanceiroLancamentosPaged` que reidrata via `IN(ids)` preservando o select relacional.
+**1.3 — Limpar `fiscalInternalStatusMap` — separar ERP × SEFAZ (C-03)**
+- `FiscalInternalStatus` reduzido a 5 valores canônicos: `rascunho · pendente · confirmada · importada · cancelada`.
+- Remover `autorizada · rejeitada · cancelada_sefaz · inutilizada` do `fiscalInternalStatusMap`/`fiscalInternalStatusOptions` (continuam apenas em `fiscalSefazStatusMap`/`fiscalSefazStatusOptions`).
+- Ajustar `canEditFiscal`/`isFiscalReadOnly`/`isFiscalStructurallyLocked` para deixar de ler status SEFAZ e passarem a receber, quando necessário, ambos os eixos (`status` e `statusSefaz`).
+- Auditar consumidores (`Fiscal.tsx` filtros, `NotaFiscalDrawer`, `NotaFiscalEditModal`, `NotaFiscalView`, `NotaFiscalForm`, `useFiscalFilters`) — todos já usam `getFiscalSefazStatus` para o eixo SEFAZ; só precisam parar de propagar valores SEFAZ ao mapa interno.
+- Atualizar testes de `fiscalStatus` se houver.
 
 ---
 
 ### Fase 2 — Altos
 
-**2.1 — Remover fallback de UPDATE direto em `processarBaixaLote` (A-03)** ✅
-- Quando RPC retorna `erros`, apenas reportar (`toast.warning` já existe). Sem UPDATE manual.
-- Não tentar reprocessar item-a-item silenciosamente — opcionalmente disparar `registrarBaixaFinanceira` por item se desejado, mas com confirmação.
+**2.1 — Paginação server-side em `Fiscal.tsx` (A-01 / SH-03)**
+- Mesmo padrão da Onda 6 (Financeiro 1.4): nova RPC `listar_notas_fiscais_ids` com filtros server-side (período de emissão, `tipo`, `tipo_operacao`, `status`, `status_sefaz`, `modelo`, `serie`, `cliente_id`, `fornecedor_id`, `busca` cross-table por número/chave/razão social) + `total_count`.
+- Hook novo `useNotasFiscaisPaged` reidrata via `IN (ids)` preservando `select` relacional (clientes, fornecedores, ordens_venda).
+- KPIs do header passam por RPC dedicada `kpis_fiscal` (alinhada à `vw_fiscal_kpis`, M-04).
+- Remover/normalizar `useFiscalFilters` para passar a operar sobre filtros canônicos enviados ao server.
 
-**2.2 — Guard admin-only para exclusão física (A-01)** ✅ (gate no RPC; UI expõe apenas Cancelar)
-- `FinanceiroDrawer`: separar `canCancelar` (status → `cancelado`) de `canExcluirFisico` (`isAdmin && origem_tipo='manual' && sem baixas ativas`).
-- Renderizar dois botões distintos com ícones e textos diferentes; confirm dialog específico.
+**2.2 — `/faturamento` deixa de ser "Em breve" (A-02)**
+- Substituir `FaturamentoIndex` por hub real listando 4 cards: **Emitir NF-e** (`/faturamento/emitir`), **Backlog** (`/faturamento/backlog`), **Cadastros fiscais** (`/faturamento/cadastros`), **Consulta de documentos** (`/faturamento/documentos`).
+- Cada card com permissão (`PermissionGate resource="faturamento_fiscal" action=…`) e descrição curta.
+- `lib/navigation.ts`: remover `disabled: true`/`badge: 'Em breve'` de `/faturamento`; adicionar sub-itens no menu lateral (Emitir, Backlog, Documentos, Cadastros).
+- Atualizar `mem/features/faturamento-fiscal` se existir.
 
-**2.3 — Documentar caminhos de estorno (A-04 / SH-01)** ✅
-- JSDoc claro em `estornarBaixaFinanceira` (unitário) e `processarEstorno` (lote).
-- `FinanceiroDrawer`: histórico de baixas com botão "Estornar esta baixa" (unitário) + botão principal "Estornar todas" (lote).
+**2.3 — `verificarDuplicidadeChave` retorna contexto rico (A-03)**
+- Trocar boolean por `Promise<{ id, numero, serie, status, status_sefaz } | null>`.
+- Atualizar callers (BuscarPorChaveDialog, useNFeXmlImport, EmitirNFeWizard) para mostrar mensagem precisa: "Já existe NF #1234/1, status: Cancelada SEFAZ".
+- Filtrar opcionalmente por `status NOT IN ('cancelada', 'cancelada_sefaz', 'inutilizada')` quando o caller quiser apenas duplicidade ativa.
 
-**2.4 — `sugerirConciliacao` excluir títulos sem `data_baixa` (A-05)** ✅
-- `calcularScoreConciliacao`: se `titulo.status === 'aberto'`, retornar score 0.
-- Apenas `pago/parcial` entram no matching.
+**2.4 — Mems consolidadas (A-04)**
+- Reescrever `mem/features/fiscal-busca-por-chave-flag.md` para apontar `sefaz-distdfe` como via oficial; consultadanfe como fallback condicional.
+- Adicionar nota em `mem/features/fiscal-consulta-por-chave.md` referenciando o flag.
+- Garantir que ambas referenciem o mesmo hook (`useNFeXmlImport`) e os mesmos cStat tratados.
 
-**2.5 — Advisory lock em RPCs de baixa (BK-01)** ✅
-- `registrar_baixa_financeira`: `PERFORM pg_advisory_xact_lock(hashtext(p_lancamento_id::text));` no início.
-- Idem em `estornar_baixa_financeira` e (por item) em `registrar_baixa_lote_financeira`.
+**2.5 — Throttle DistDFe server-side (EF-02)**
+- Nova tabela `sefaz_consulta_log` (cnpj, ts, action) + RPC `sefaz_consulta_pode_disparar(p_cnpj text, p_action text, p_janela int default 3600, p_max int default 18)` com janela deslizante.
+- `sefaz-distdfe` chama a RPC antes de qualquer `consultar-chave`; se exceder, devolve 429 `{erro: 'Throttle local: aguarde para evitar bloqueio cStat 656'}`.
+- Frontend mantém `localStorage` apenas como UX (feedback antecipado), mas a verdade é server-side.
 
-**2.6 — CHECK de motivo no banco (BK-02)** ✅
-- `financeiro_cancelar_lancamento`: `IF length(trim(p_motivo)) < 5 THEN RAISE EXCEPTION ... USING ERRCODE='22023'`.
+**2.6 — `useNFeXmlImport` checa `nfe_distribuicao` antes de aplicar (A-07)**
+- Antes de `aplicarImportacaoXml`, query `nfe_distribuicao.maybeSingle()` por `chave_acesso`.
+- Se já existe e `ciencia_realizada=true`, mostrar `toast.info` com data e CTA "Abrir caminho automático" (não bloqueia, apenas avisa).
+- Se já existe NF efetivamente criada (via `verificarDuplicidadeChave` rica), bloquear com mensagem específica.
 
-**2.7 — Tipagem RPC (SH-04)** ✅
-- Adicionar entradas em `src/types/rpc.ts` para `registrar_baixa_financeira`, `registrar_baixa_lote_financeira`, `financeiro_processar_estorno`, `financeiro_conciliar_baixa`, `financeiro_cancelar_lancamento`.
-- Substituir `as never`/`as any` por casts tipados via wrapper `rpc<T>()` já usado no projeto.
+**2.7 — `useSefazAcoes` ganha mutual exclusion (SH-01)**
+- Trocar `pending` boolean único por `useActionLock` por ação (`transmitir`, `cancelar`, `inutilizar`, `manifestar`, `cartaCorrecao`).
+- Garante que dois cliques rápidos não disparam duas RPCs concorrentes na mesma NF.
 
-**2.8 — Invalidação granular (A-06)** ✅
-- Trocar `["financeiro"]` por `["financeiro", "lancamentos"]` + `["financeiro", "kpis"]` em baixas individuais; manter prefixo amplo apenas em lote.
+**2.8 — Auditorias dedicadas (A-05 / A-06 / MB-01 / MB-02)**
+- Criar issues separadas (no plan, marcadas como tarefas posteriores) para:
+  - revisão de `process-distdfe-cron` (idempotência por NSU, throttle global, isolamento por empresa);
+  - revisão de `EmitirNFeWizard` (validação cross-step, persistência rascunho, CFOP automático, `<pag>`);
+  - QA mobile de `NotaFiscalDrawer` e `EmitirNFeWizard`.
+- Estas auditorias **não** são executadas nesta onda — apenas registradas como dívida técnica.
 
 ---
 
 ### Fase 3 — Médios / Mobile / Banco
 
-- **M-02**: alinhar algoritmo de score client-side com pg_trgm (usar tokens iguais) ou desabilitar fallback quando RPC disponível.
-- **M-03**: optimistic update em `budget.service` (`onMutate` no React Query).
-- **M-04**: `FinanceiroCalendar` recebe `contaBancariaId` filtrada como prop.
-- **M-06** ✅: warning não bloqueante em `calcularJurosDiarios` quando taxa > 0,034%/dia.
-- **MB-01**: `BaixaLoteModal` com `mobileCard` para itens.
-- **MB-02** ✅: `BaixaParcialDialog` `SelectTrigger` com `h-11` (Inputs já estavam 44px).
-- **MB-03**: `FinanceiroCalendar` mobile = lista por dia (drawer expandível) em vez de grid.
-- **B-01** ✅: `COMMENT … DEPRECATED` em `marcar_lancamentos_vencidos()`.
-- **B-02 / D-01**: padronizar touch target restantes; RPC de auditoria de duplicidades.
-- **D-02** ✅: lazy import de `WorkbookGeracaoDialog` em `WorkbookGerencial.tsx`.
-- Atualizar `docs/financeiro-modelo-estrutural.md` com extrato persistido e advisory locks.
+- **M-01**: `health` esconde `hasPfxPassword` para não-admins. ✓ (implementado junto a 1.2).
+- **M-02**: `lerConfigFiscalEmpresa` falha explicitamente se `crt`/`ambiente` não configurados (em vez de fallback Simples + Homologação).
+- **M-03**: `InutilizacaoDrawer` valida client-side `motivo.length >= 15` antes de chamar a RPC.
+- **M-04**: medir custo de `vw_fiscal_kpis` (EXPLAIN ANALYZE em volume real); se for caro, materializar via RPC `kpis_fiscal` consumida em 2.1.
+- **M-05**: mover `CertificadoValidadeAlert` para `AppLayout` global, gated por `useCan('faturamento_fiscal:editar') || isAdmin`. Banner some quando o admin já viu (cooldown via `useUserPreference`).
+- **EF-03**: auditar `log.info` em `sefaz-proxy`/`sefaz-distdfe` para garantir que XMLs assinados, senhas e `certificado_base64` nunca são serializados; introduzir helper `sanitizeForLog`.
+- **EF-04**: documentar em `docs/fiscal-modelo-estrutural.md` a ausência de fila de retry e abrir backlog para implementar `nfe_emissao_pendente` com backoff (não nesta onda).
+- **BK-01/02/03**: auditoria das RPCs `confirmar_nota_fiscal`, `gerar_devolucao_nota_fiscal`, `cancelar_nota_fiscal_sefaz` (advisory lock real, soma de devoluções acumuladas, fluxo estorno→edição). Pequenos ajustes via migration se necessário.
+- **D-01**: marcar `NotaFiscalEditModal` como `@deprecated` e direcionar todas as edições para `NotaFiscalForm` (`/fiscal/:id/editar`) — remoção do modal em onda futura.
+- **D-02**: refatorar `ConfiguracaoFiscal` em 4 abas (Empresa · Certificado · DistDFe · SEFAZ) usando o padrão canônico de tabs.
+- **MB-03**: ajustar touch targets do `FiscalChaveScannerDialog` (botões ≥ 44 px sobrepostos à câmera) e `BuscarPorChaveDialog` (ações principais com `min-h-11`).
+- **MB-04**: registrar fluxo mobile do `TraducaoXmlDrawer` em `mem/produto/fiscal-mobile.md`.
 
 ---
 
 ### Detalhes Técnicos
 
-**Migrations** (uma por fase, evita lock prolongado):
-1. `20260508_financeiro_unique_extrato_ref.sql` — UNIQUE conciliação + extrato_importacoes + advisory locks + CHECK motivo.
-2. `20260508_financeiro_extrato_persistencia.sql` — tabela e RLS.
+**Migrations** (independentes; podem entrar em ondas separadas):
+1. `*_fiscal_listar_ids_kpis.sql` — RPCs `listar_notas_fiscais_ids` + `kpis_fiscal`.
+2. `*_sefaz_consulta_log.sql` — tabela `sefaz_consulta_log` + RPC `sefaz_consulta_pode_disparar`.
+3. `*_fiscal_status_constraints.sql` — opcionalmente endurecer `chk_` para evitar gravação de status SEFAZ no campo ERP (defesa em profundidade do C-03).
 
-**Código**:
-- ~12 arquivos editados, ~3 novos hooks/services para extrato.
-- Verificar: `vitest run financeiro` + `tsc --noEmit` após cada fase.
-- Atualizar `mem://features/conciliacao-bancaria` com nova arquitetura.
+**Edge Functions** alteradas:
+- `sefaz-proxy`: novo `requireFiscalRole`, `health` filtrado.
+- `sefaz-distdfe`: `requireFiscalRole`, chamada à RPC de throttle.
+- `consultadanfe-proxy`: inalterada (segue funcionando como fallback opcional).
 
-**Ordem de execução sugerida**: 1.1 → 1.2 → 1.3 → 2.1/2.2/2.4/2.5/2.6/2.7/2.8 (em paralelo lógico) → 1.4 (maior, isolado) → Fase 3.
+**Frontend** alterado: `BuscarPorChaveDialog`, `FaturamentoIndex` (reescrito), `lib/navigation.ts`, `lib/fiscalStatus.ts`, `services/fiscal/sefaz.service.ts`, `useNFeXmlImport`, `useSefazAcoes`, `Fiscal.tsx`, `useFiscalFilters`, `CertificadoValidadeAlert`, `InutilizacaoDrawer`, `ConfiguracaoFiscal`, `NotaFiscalEditModal` (deprecation comment), `FiscalChaveScannerDialog`/`BuscarPorChaveDialog` (touch).
 
-Posso iniciar pela Fase 1 (críticos) ou seguir outra ordem se preferir.
+**Verificação por fase**: `vitest run fiscal && tsc --noEmit`. Para 1.2/2.5, smoke test contra `sefaz-proxy`/`sefaz-distdfe` com tokens de papéis distintos (admin × leitura-only).
+
+**Ordem sugerida**: 1.1 → 1.2 → 1.3 → 2.3/2.4/2.6/2.7 (em paralelo lógico, baixo risco) → 2.2 (UX) → 2.5 (migration + edge) → 2.1 (maior, isolado) → Fase 3.
+
+Posso começar pela Fase 1 ou priorizar outro bloco se preferir.
