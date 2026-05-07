@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DataTable } from '@/components/DataTable';
 import { PreviewModal } from '@/components/ui/PreviewModal';
 import { RelatorioChart } from '@/pages/relatorios/components/Graficos/RelatorioChart';
+import type { FiltrosRelatorioState } from '@/pages/relatorios/components/Filtros/FiltrosRelatorio';
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
 import { ReportHeader } from '@/pages/relatorios/components/ReportHeader';
 import { ExportMenu } from '@/pages/relatorios/components/ExportMenu';
