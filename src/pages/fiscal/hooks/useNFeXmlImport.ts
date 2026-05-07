@@ -145,12 +145,20 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
 
       const norm = (s: string | null | undefined) => (s || "").trim().toUpperCase();
 
+      // Index produtos por id, codigo_interno e sku para evitar varreduras
+      // O(n×m) por linha do XML.
+      const produtosById = new Map<string, typeof produtos[number]>();
+      const produtosByCodigo = new Map<string, typeof produtos[number]>();
+      produtos.forEach((p) => {
+        produtosById.set(p.id, p);
+        if (p.codigo_interno) produtosByCodigo.set(p.codigo_interno, p);
+        if (p.sku) produtosByCodigo.set(p.sku, p);
+      });
+
       const traducao: TraducaoLinha[] = nfe.itens.map((nfeItem, idx) => {
         const dp = deParaByCodigo.get(nfeItem.codigo);
-        const matchedById = dp ? produtos.find((p) => p.id === dp.produto_id) : undefined;
-        const matchedByCodigo = !matchedById
-          ? produtos.find((p) => p.codigo_interno === nfeItem.codigo || p.sku === nfeItem.codigo)
-          : undefined;
+        const matchedById = dp ? produtosById.get(dp.produto_id) : undefined;
+        const matchedByCodigo = !matchedById ? produtosByCodigo.get(nfeItem.codigo) : undefined;
         const matched = matchedById || matchedByCodigo;
         const unidadeInterna = matched?.unidade_medida ?? null;
         const xmlUni = norm(nfeItem.unidade);
@@ -198,7 +206,7 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
         const nfeItem = nfe.itens[i];
         const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
         const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
-        const matched = produtos.find((p) => p.id === t.produtoId);
+        const matched = t.produtoId ? produtosById.get(t.produtoId) : undefined;
         return {
           produto_id: t.produtoId,
           codigo: nfeItem.codigo,
