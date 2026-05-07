@@ -1,32 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Entrega, EntregaFilters } from "@/types/logistica";
 
-export interface Entrega {
-  id: string;
-  numero_pedido: string;
-  cliente: string;
-  cidade_uf: string;
-  transportadora: string;
-  volumes: number;
-  peso_total: number;
-  previsao_envio: string | null;
-  previsao_entrega: string | null;
-  data_expedicao: string | null;
-  data_entrega: string | null;
-  status_logistico: string;
-  responsavel: string;
-  codigo_rastreio: string | null;
-  remessas_count: number;
-  remessa_ids: string[];
-  exibicao_remessas: "nenhuma" | "unica" | "multipla";
-  status_fonte: "sem_remessa" | "remessa_unica" | "ultima_remessa";
-}
-
-export interface EntregaFilters {
-  search?: string;
-  status?: string[];
-  transportadora?: string[];
-}
+export type { Entrega, EntregaFilters };
 
 async function fetchEntregas(): Promise<Entrega[]> {
   const [vRes, remessasRes] = await Promise.all([

@@ -109,9 +109,9 @@ Ajuste manual ──► ajustar_estoque_manual (RPC) → audit log
 15. ✅ Index `remessa_eventos(remessa_id, data_hora DESC)` criado. (DB-06)
 
 ### Bloco 4 — Dívida técnica (deferível)
-15. Decompor `Logistica.tsx` por aba e `EntregaDrawer.tsx` em subcomponentes.
-16. Centralizar tipos `Entrega/Recebimento` em `src/types/logistica.ts`.
-17. Resolver `responsavel` real via `profiles`.
-18. Adicionar `perda_avaria`/`inventario` no form de Estoque (com gates de role).
+15. Decompor `Logistica.tsx` por aba e `EntregaDrawer.tsx` em subcomponentes. (deferido — exige refactor amplo)
+16. ✅ Centralizar tipos `Entrega/Recebimento` em `src/types/logistica.ts` (FE-04). Hooks reexportam dos tipos canônicos.
+17. ✅ `responsavel` removido do drawer de Recebimento (MB-05). Resolução via `profiles` deferida até a view popular o campo.
+18. Adicionar `perda_avaria`/`inventario` no form de Estoque (deferido — RPC aceita, mas exige expandir o tipo `TipoAjusteEstoque` no service).
 
-Após aprovação implemento na ordem acima, com PR consolidado por bloco e migrações testadas via `supabase--linter` ao final do Bloco 1.
+Bloco 4 fechado parcialmente; itens 15 e 18 ficam como dívida técnica documentada (sem impacto de segurança ou correção operacional).
