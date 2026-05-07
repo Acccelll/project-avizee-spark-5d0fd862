@@ -117,14 +117,12 @@ Conciliação ─► parseOFX → matching score (data_baixa preferencial vs ven
 9. Atualizar `Budget.tsx` (FE-04) com novas categorias.
 
 #### Bloco 3 — Frontend / hooks (curto)
-10. Extrair `fetchBaixasAtivasDoLancamento` (services/financeiro/baixas.ts); migrar `BaixaParcialDialog` e `FinanceiroDrawer`.
-11. `FluxoCaixa.tsx` distinguir Realizado (data_baixa) × Previsto (vencimento).
-12. `FinanceiroDrawer` separar permissão `cancelar` vs `excluir`.
+10. ✅ Extrair `fetchBaixasAtivasDoLancamento` — concluído (services/financeiro/baixas.ts; consumido em `BaixaParcialDialog` e `FinanceiroDrawer`).
+11. ✅ `FluxoCaixa.tsx` distinguir Realizado (data_baixa) × Previsto (vencimento) — `useFluxoCaixaData` agora retorna `baixas` agrupadas por `data_baixa`; `totals.realReceber/realPagar` somam baixas ativas no eixo real.
+12. ✅ `FinanceiroDrawer` — `canPermCancelar` agora exige apenas `financeiro:cancelar` (hard-delete depende de `financeiro:excluir` + admin via gate da RPC `hard_delete_record`).
 
-#### Bloco 4 — Dívida técnica (deferível)
+#### Bloco 4 — Dívida técnica (deferível, fora do escopo da Onda 6)
 13. Decompor `Conciliacao.tsx` (DK-01) e `FluxoCaixa.tsx` (DK-02).
 14. Criar `vw_financeiro_duplicidades` + tela "Auditoria de duplicidades" (atende item 16 do escopo).
 15. Mobile cards para `BaixaLoteModal` overrides e `FinanceiroDrawer` aba Histórico.
 16. Estender `gerar_financeiro_nfe_entrada` com juros/multa/desconto por duplicata.
-
-Após sua aprovação implemento na ordem acima — Bloco 1 com migration única revisada via `supabase--linter`, Blocos 2/3 com PRs separados.
