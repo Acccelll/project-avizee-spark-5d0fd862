@@ -147,6 +147,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   );
 
   return (
+    <>
     <ViewDrawerV2
       open={open}
       onClose={onClose}
@@ -455,5 +456,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
         )},
       ]}
     />
+      {estornoDialog}
+    </>
   );
 }
