@@ -1,70 +1,74 @@
-# Onda 5 — Suprimentos, Estoque e Logística
+# Onda 6 — Performance, Realtime e Mobile residual (Suprimentos/Estoque/Logística)
 
-Plano focado em **integridade de dados** e **segurança**. Não inclui refatorações amplas (paginação server-side, singleton realtime, regen de tipos massivo) — esses ficam para onda dedicada para preservar arquitetura.
+Continuação do trabalho da Onda 5. Mantém preservação arquitetural: sem troca de stack, sem refator amplo de `useSupabaseCrud`, mudanças incrementais.
 
 ## Escopo
 
-### Bloco 1 — Críticos (integridade + segurança)
+### Bloco 1 — Paginação server-side e consultas pesadas
 
-**C-01 · `transicionarRemessa` deixa de silenciar erros com side-effect**
-- `src/services/logistica/remessas.service.ts`: remover fallback cego para `update` direto.
-- Política nova:
-  - Transições com side-effect (`em_transito`, `entregue`, `cancelado`): se RPC falhar, **propagar erro** (sem fallback). Garante que estoque/financeiro nunca divirjam silenciosamente.
-  - Transições puramente logísticas (`coletado`, `postado`, `ocorrencia`, `pendente`, `devolvido`): `update` direto continua válido (sem RPC associada).
-- Mensagem de erro do RPC é exibida ao usuário via `notifyError` no hook existente.
+**A-02 · Remessas paginadas no servidor**
+- `src/pages/logistica/hooks/useRemessas.ts`: trocar `fetch` único por `useSupabaseCrud` com `pagination: "server"` (padrão já aplicado em Pedidos/NF). Manter ordenação e filtros existentes.
+- `src/pages/Logistica.tsx` (aba Remessas): conectar `pageIndex`/`pageSize` ao `DataTableV2`.
 
-**C-04 · `correios-api` action `rastrear` exigir auth**
-- `supabase/functions/correios-api/index.ts`: adicionar `requireUserWithRole(req)` no início do branch `rastrear` (mesma helper já usada em `prepostagem_*`).
-- Sem mudança em `verify_jwt` (validação em código, padrão do projeto).
+**M-05 · Movimentações de estoque paginadas**
+- `src/pages/estoque/hooks/useEstoqueMovimentacoes.ts`: variante paginada (mantém versão por produto não-paginada para o drawer de produto).
+- `EstoqueMovimentacoesTab` recebe paginação server-side.
 
-**C-03 + A-06 · Eliminar bypass `registrarMovimentacao`**
-- `src/services/estoque.service.ts`: marcar `registrarMovimentacao` como `@deprecated` e reimplementar internamente delegando para `ajustar_estoque_manual` (RPC) — mapeando `tipo`/`quantidade` corretamente. Mantém assinatura para não quebrar callers.
-- `src/pages/estoque/hooks/useEstoqueMutations.ts`: corrigir queryKeys invalidadas → `["estoque-posicao"]`, `["estoque-movimentacoes"]`, `["produtos"]`.
-- Resultado: nenhum INSERT direto em `estoque_movimentos` a partir do frontend; `produtos.estoque_atual` sempre consistente.
+**BK-01/BK-02 · `vw_estoque_posicao` performática**
+- Migration: reescrever a view substituindo subqueries correlacionadas por `LEFT JOIN LATERAL` agregados; garantir uso de `idx_estoque_movimentos_produto_id_created_at`.
+- Validar com `EXPLAIN ANALYZE` antes/depois (registrar no PR).
 
-**C-02 · Garantir `saldo_atual` corrido em `estoque_movimentos`**
-- Migration: criar trigger `trg_estoque_movimentos_saldo_corrido` (BEFORE INSERT) que calcula `NEW.saldo_atual` somando o delta (`+quantidade` para `entrada`, `-quantidade` para `saida`/`perda_avaria`, valor absoluto para `ajuste/inventario`) sobre o último `saldo_atual` do mesmo `produto_id`. `SECURITY DEFINER`, `SET search_path = public`.
-- Lock por produto (`pg_advisory_xact_lock(hashtext(produto_id::text))`) para serializar concorrentes.
-- Backfill: `UPDATE estoque_movimentos` recomputando `saldo_atual` em ordem cronológica por produto (CTE com `SUM() OVER (PARTITION BY produto_id ORDER BY created_at)`).
-- Idempotente: trigger só age quando `NEW.saldo_atual IS NULL` ou marcador, mantendo compatibilidade com RPCs que já calculam.
+### Bloco 2 — Realtime e cache cross-módulo
 
-### Bloco 2 — Altos de invalidação/normalização (baixo risco)
+**SH-01/SH-02 · Singleton de canal Realtime para Logística**
+- `src/hooks/useLogisticaRealtime.ts` (novo): único canal Supabase escutando `remessas`, `recebimentos_logistica`, `estoque_movimentos` — emite invalidate único por evento (`["remessas"]`, `["entregas"]`, `["estoque-posicao"]`).
+- Substituir hooks `useComprasRealtime`/duplicados que assinem as mesmas tabelas no contexto de Logística.
 
-- **A-03** `recebimentos.service.ts` `useRegistrarRecebimento.onSuccess`: invalidar `["estoque-posicao"]`, `["estoque-movimentacoes"]`, `["pedidos-compra"]`.
-- **A-05** `useRecebimentos`: aplicar `normalizeRecebimentoStatus(r.status_logistico)` no map.
-- **A-01** `EstoqueAjusteSheet`: bloquear submit (`disabled`) quando `tipo='saida' && novoSaldoPreview < 0`; CTA muda para "Saldo insuficiente".
+**A-04/BK-05 · Responsável em `vw_recebimentos_consolidado`**
+- Migration: adicionar JOIN com `profiles` para expor `responsavel_nome` na view.
+- `src/types/logistica.ts`: campo `responsavel` deixa de ser placeholder.
+- Regen automática de tipos do Supabase.
 
-### Bloco 3 — Mobile crítico operacional
+### Bloco 3 — Mobile residual
 
-- **MB-02** `RegistrarRecebimentoDialog`: substituir `hidden md:block` da tabela de itens por layout responsivo — em mobile renderiza cards verticais (um por item) com input de quantidade recebida, mantendo edição em campo. Tabela densa permanece no desktop.
+**MB-03 · Preview de saldo futuro destacado em mobile**
+- `EstoqueAjusteSheet`: card de preview em `sticky top-0` no breakpoint `<md`, com cor variant por sinal (`success`/`warning`/`destructive`).
 
-## Fora de escopo (registrado para próxima onda)
+**MB-04 · Preview A4 de etiquetas mobile-friendly**
+- `EtiquetaSimplesPreviewDialog`: em mobile, renderizar lista vertical de etiquetas (uma por viewport) + botão "Abrir PDF" para iOS Safari (substitui `blob:` por download direto via `a[download]`).
 
-- A-02 / M-05: paginação server-side de `remessas` e `estoque_movimentos` (refator significativo, exige troca de `useSupabaseCrud`).
-- A-04 / BK-05: campo `responsavel` em `vw_recebimentos_consolidado` (alteração de view + JOIN + regen tipos).
-- A-07 / SH-01 / SH-02: unificação de hooks paralelos e singleton realtime.
-- BK-01 / BK-02 / BK-03 / BK-04 / M-02 / M-03: otimizações de view e tipagem.
-- M-01, M-04, MB-01, MB-03, MB-04, MB-05, D-01, D-02: melhorias de UX/perf não bloqueantes.
+**MB-05 · Timeline Correios sem scroll aninhado em mobile**
+- `LogisticaRastreioSection`: remover `max-h` + `overflow-auto` no breakpoint `<md`; deixar a timeline expandir e o scroll ser do drawer/página.
+
+### Bloco 4 — Limpeza de tipagem e UX residual
+
+- **A-07** unificar `useEntregas`/`useRemessas` que duplicam fetch da mesma tabela em `Logistica.tsx`.
+- **M-01** `Estoque.tsx`: extrair seções (filtros, KPIs, tabela) em subcomponentes para reduzir tamanho do arquivo.
+- **D-02** Remover `@ts-nocheck` remanescentes em `correios.service.ts` e `etiquetasSimples.service.ts`.
+
+## Fora de escopo
+
+- Refator do `useSupabaseCrud` em si (continua na agenda).
+- Mudança visual de Logística (já padronizada na Onda 4).
+- Multi-tenant em recebimentos (depende da Onda 1 de tenancy).
 
 ## Detalhes técnicos
 
 ### Migrations
-1. `..._estoque_saldo_corrido_trigger.sql`:
-   - Função `fn_estoque_calcula_saldo_corrido()`.
-   - Trigger BEFORE INSERT em `estoque_movimentos`.
-   - Backfill via CTE.
-   - `chk_estoque_saldo_atual_not_null` (NOT VALID inicialmente, validar após backfill).
+1. `..._vw_estoque_posicao_otimizada.sql` — `CREATE OR REPLACE VIEW` com `LATERAL` + `SECURITY INVOKER`.
+2. `..._vw_recebimentos_consolidado_responsavel.sql` — adicionar `responsavel_nome`/`responsavel_id` via JOIN com `profiles`.
 
-### Edge function
-- Deploy `correios-api` com `requireUserWithRole(req)` no `rastrear`. Confirmar que o frontend chama com `Authorization: Bearer <jwt>` (já é o padrão de `supabase.functions.invoke`).
+### Realtime
+- Canal único `logistica:global` com `postgres_changes` em 3 tabelas; cleanup no `useEffect`. Sem subscrições por linha.
 
-### Validação após deploy
-1. Ajustar saldo manual via `useEstoqueMutations` legado → conferir que `produtos.estoque_atual` e `vw_estoque_posicao` batem.
-2. Forçar erro em `expedir_remessa` (estoque insuficiente) → confirmar que UI mostra erro e remessa **não** muda de status.
-3. Chamar `correios-api?action=rastrear` sem JWT → esperar 401.
-4. Registrar recebimento parcial → grid de Estoque atualiza sem refresh manual.
-5. Tentar saída maior que saldo no `EstoqueAjusteSheet` → botão fica "Saldo insuficiente" desabilitado.
+### Validação pós-deploy
+1. Lista de remessas com 5k+ linhas: tempo de primeira pintura < 800ms (paginação 50/página).
+2. `vw_estoque_posicao` em base com 50k movimentações: < 300ms.
+3. Receber compra em outra aba → grid de Estoque atualiza sozinho via Realtime (sem F5).
+4. iOS Safari: preview A4 abre PDF sem tela em branco.
+5. `tsc --noEmit` sem `@ts-nocheck` nos serviços listados.
 
 ## Riscos
-- Trigger de saldo corrido + backfill: executar em janela de baixa atividade; backfill em transação única para consistência.
-- Remoção do fallback em `transicionarRemessa`: operadores agora veem erros que antes eram silenciosos. **Esse é o objetivo** — mas convém comunicar ao time.
+- Mudança de view com dados em uso: rodar `CREATE OR REPLACE` (sem DROP) para preservar grants.
+- Realtime singleton: garantir cleanup correto para não vazar canal entre navegações.
+- Paginação server-side: validar export CSV/Excel — trocar para query "fetch all" sob demanda no botão de export.
