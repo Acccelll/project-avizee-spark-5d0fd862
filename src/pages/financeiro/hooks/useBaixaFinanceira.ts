@@ -22,7 +22,8 @@ export function useRegistrarBaixa() {
   return useMutation({
     mutationFn: (params: RegistrarBaixaParams) => registrarBaixaFinanceira(params),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["financeiro"] });
+      qc.invalidateQueries({ queryKey: ["financeiro", "lancamentos"] });
+      qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
       qc.invalidateQueries({ queryKey: ["contas_bancarias"] });
       qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -43,7 +44,8 @@ export function useEstornarBaixa() {
   return useMutation({
     mutationFn: (input: { baixaId: string; motivo?: string }) => estornarBaixaFinanceira(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["financeiro"] });
+      qc.invalidateQueries({ queryKey: ["financeiro", "lancamentos"] });
+      qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
       qc.invalidateQueries({ queryKey: ["contas_bancarias"] });
       qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });

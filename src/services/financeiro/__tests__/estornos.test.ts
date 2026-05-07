@@ -50,7 +50,7 @@ describe("processarEstorno", () => {
     expect(ok).toBe(true);
     expect(rpcMock).toHaveBeenCalledWith(
       "financeiro_processar_estorno",
-      expect.objectContaining({ p_lancamento_id: "lanc-1", p_motivo_estorno: "motivo válido" }),
+      expect.objectContaining({ p_lancamento_id: "lanc-1", p_motivo: "motivo válido" }),
     );
     expect(fromMock).not.toHaveBeenCalled();
     expect(toastSuccess).toHaveBeenCalledOnce();

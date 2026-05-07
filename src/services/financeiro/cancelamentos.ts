@@ -7,10 +7,10 @@
  *
  * Extraído de `src/services/financeiro.service.ts` (Fase 5 — limpeza estrutural).
  */
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
+import { financeiroCancelarLancamentoRpc } from "@/types/rpc";
 
 export async function cancelarLancamento(
   lancamentoId: string,
@@ -21,12 +21,10 @@ export async function cancelarLancamento(
       toast.error("Informe um motivo para o cancelamento (mínimo 5 caracteres).");
       return false;
     }
-    const { error } = await supabase.rpc("financeiro_cancelar_lancamento", {
+    await financeiroCancelarLancamentoRpc({
       p_id: lancamentoId,
       p_motivo: motivo.trim(),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-    if (error) throw error;
+    });
     toast.success("Lançamento cancelado com sucesso.");
     return true;
   } catch (error) {

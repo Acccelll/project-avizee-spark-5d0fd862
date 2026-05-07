@@ -61,6 +61,34 @@ export const sugerirConciliacaoBancaria = (
   args: RpcArgs<"sugerir_conciliacao_bancaria">,
 ) => invokeRpc("sugerir_conciliacao_bancaria", args);
 
+export const registrarBaixaFinanceiraRpc = (
+  args: RpcArgs<"registrar_baixa_financeira">,
+) => invokeRpc("registrar_baixa_financeira", args);
+
+export const registrarBaixaLoteFinanceiraRpc = (
+  args: RpcArgs<"registrar_baixa_lote_financeira">,
+) => invokeRpc("registrar_baixa_lote_financeira", args);
+
+export const estornarBaixaFinanceiraRpc = (
+  args: RpcArgs<"estornar_baixa_financeira">,
+) => invokeRpc("estornar_baixa_financeira", args);
+
+export const financeiroProcessarEstornoRpc = (
+  args: RpcArgs<"financeiro_processar_estorno">,
+) => invokeRpc("financeiro_processar_estorno", args);
+
+export const financeiroConciliarBaixaRpc = (
+  args: RpcArgs<"financeiro_conciliar_baixa">,
+) => invokeRpc("financeiro_conciliar_baixa", args);
+
+export const financeiroConciliarLoteRpc = (
+  args: RpcArgs<"financeiro_conciliar_lote">,
+) => invokeRpc("financeiro_conciliar_lote", args);
+
+export const financeiroCancelarLancamentoRpc = (
+  args: RpcArgs<"financeiro_cancelar_lancamento">,
+) => invokeRpc("financeiro_cancelar_lancamento", args);
+
 // ── Ciclo de pedidos de compra ─────────────────────────────────────────────
 
 export const aprovarPedido = (args: RpcArgs<"aprovar_pedido">) =>

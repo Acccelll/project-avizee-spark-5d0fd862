@@ -22,27 +22,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
+import {
+  financeiroProcessarEstornoRpc,
+  estornarBaixaFinanceiraRpc,
+} from "@/types/rpc";
 
 async function processarEstornoRpc(
   lancamentoId: string,
   motivoEstorno?: string,
 ): Promise<boolean | null> {
-  const { error } = await supabase.rpc("financeiro_processar_estorno", {
-    p_lancamento_id: lancamentoId,
-    p_motivo_estorno: motivoEstorno ?? null,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
-
-  if (!error) return true;
-
-  if (
-    String(error.message || "").toLowerCase().includes("function financeiro_processar_estorno") ||
-    error.code === "PGRST202"
-  ) {
-    return null;
+  try {
+    await financeiroProcessarEstornoRpc({
+      p_lancamento_id: lancamentoId,
+      p_motivo: motivoEstorno ?? undefined,
+    });
+    return true;
+  } catch (err) {
+    const e = err as { message?: string; code?: string };
+    if (
+      String(e.message || "").toLowerCase().includes("function financeiro_processar_estorno") ||
+      e.code === "PGRST202"
+    ) {
+      return null;
+    }
+    throw err;
   }
-
-  throw error;
 }
 
 export async function processarEstorno(
@@ -68,12 +72,10 @@ export async function processarEstorno(
     }
 
     for (const b of baixas) {
-      const { error: estError } = await supabase.rpc("estornar_baixa_financeira", {
+      await estornarBaixaFinanceiraRpc({
         p_baixa_id: b.id,
         p_motivo: motivoEstorno || "Estorno via interface",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
-      if (estError) throw estError;
+      });
     }
 
     toast.success("Estorno realizado com sucesso!");

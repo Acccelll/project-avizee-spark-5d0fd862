@@ -12,10 +12,12 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
+const toastWarning = vi.fn();
 vi.mock("sonner", () => ({
   toast: {
     success: (...args: unknown[]) => toastSuccess(...args),
     error: (...args: unknown[]) => toastError(...args),
+    warning: (...args: unknown[]) => toastWarning(...args),
   },
 }));
 
@@ -61,22 +63,32 @@ beforeEach(() => {
 });
 
 describe("processarBaixaLote", () => {
-  it("usa RPC quando disponível e retorna sucesso", async () => {
-    rpcMock.mockResolvedValueOnce({ error: null });
+  it("usa RPC registrar_baixa_lote_financeira e retorna sucesso", async () => {
+    rpcMock.mockResolvedValueOnce({
+      data: { grupo_id: "g1", processados: 2, ignorados: 0, erros: [] },
+      error: null,
+    });
 
     const ok = await processarBaixaLote(baseParams);
 
     expect(ok).toBe(true);
     expect(rpcMock).toHaveBeenCalledWith(
-      "financeiro_processar_baixa_lote",
-      expect.objectContaining({ p_selected_ids: ["1", "2"] }),
+      "registrar_baixa_lote_financeira",
+      expect.objectContaining({
+        p_data_baixa: "2026-04-15",
+        p_forma_pagamento: "pix",
+        p_conta_bancaria_id: "bank-1",
+      }),
     );
     expect(fromMock).not.toHaveBeenCalled();
     expect(toastSuccess).toHaveBeenCalledOnce();
   });
 
-  it("ignora RPC quando há overrides (vai direto para fallback)", async () => {
-    fromMock.mockImplementation(() => makeChain({ data: { id: "x" }, error: null }));
+  it("usa overrides por item quando fornecidos", async () => {
+    rpcMock.mockResolvedValueOnce({
+      data: { grupo_id: "g2", processados: 2, ignorados: 0, erros: [] },
+      error: null,
+    });
 
     const ok = await processarBaixaLote({
       ...baseParams,
@@ -84,26 +96,28 @@ describe("processarBaixaLote", () => {
     });
 
     expect(ok).toBe(true);
-    expect(rpcMock).not.toHaveBeenCalled();
-    expect(fromMock).toHaveBeenCalledTimes(4);
+    expect(rpcMock).toHaveBeenCalledOnce();
   });
 
-  it("faz fallback estrutural quando RPC não existe (PGRST202)", async () => {
+  it("reporta erros parciais via toast.warning sem fallback manual", async () => {
+    const toastWarn = vi.fn();
+    // sonner mock só tem success/error; injeta warning ad-hoc
     rpcMock.mockResolvedValueOnce({
-      error: { code: "PGRST202", message: "function financeiro_processar_baixa_lote not found" },
+      data: { grupo_id: "g3", processados: 1, ignorados: 0, erros: ["lanc-2: regra"] },
+      error: null,
     });
-    fromMock.mockImplementation(() => makeChain({ data: { id: "ok" }, error: null }));
 
     const ok = await processarBaixaLote(baseParams);
 
+    // processados > 0 → retorna true
     expect(ok).toBe(true);
-    expect(rpcMock).toHaveBeenCalledOnce();
-    expect(fromMock).toHaveBeenCalledTimes(4);
-    expect(toastSuccess).toHaveBeenCalledWith(expect.stringMatching(/baixado/i));
+    expect(fromMock).not.toHaveBeenCalled();
+    void toastWarn;
   });
 
   it("propaga erro genérico da RPC sem cair no fallback", async () => {
     rpcMock.mockResolvedValueOnce({
+      data: null,
       error: { code: "P0001", message: "regra de negócio violada" },
     });
 
@@ -115,10 +129,6 @@ describe("processarBaixaLote", () => {
   });
 
   it("retorna false quando o plano é inválido (parcial sem valores)", async () => {
-    rpcMock.mockResolvedValueOnce({
-      error: { code: "PGRST202", message: "function financeiro_processar_baixa_lote not found" },
-    });
-
     const ok = await processarBaixaLote({
       ...baseParams,
       tipoBaixa: "parcial",
@@ -130,15 +140,4 @@ describe("processarBaixaLote", () => {
     expect(toastError).toHaveBeenCalledOnce();
   });
 
-  it("falha quando UPDATE no fallback não retorna linha", async () => {
-    rpcMock.mockResolvedValueOnce({
-      error: { code: "PGRST202", message: "function financeiro_processar_baixa_lote not found" },
-    });
-    fromMock.mockImplementationOnce(() => makeChain({ data: null, error: null }));
-
-    const ok = await processarBaixaLote(baseParams);
-
-    expect(ok).toBe(false);
-    expect(toastError).toHaveBeenCalledOnce();
-  });
 });

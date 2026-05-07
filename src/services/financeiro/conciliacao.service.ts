@@ -7,6 +7,11 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import type { TransacaoExtrato } from "./ofxParser.service";
+import {
+  registrarBaixaFinanceiraRpc,
+  financeiroConciliarBaixaRpc,
+  financeiroConciliarLoteRpc,
+} from "@/types/rpc";
 
 /** Representa um título/lançamento financeiro para fins de conciliação. */
 export interface TituloParaConciliacao {
@@ -217,7 +222,7 @@ export async function conciliarTransacao(
   let baixaId: string | null = null;
 
   if (saldoAtual > 0.009) {
-    const { data, error } = await supabase.rpc("registrar_baixa_financeira", {
+    baixaId = await registrarBaixaFinanceiraRpc({
       p_lancamento_id: tituloId,
       p_valor_pago: saldoAtual,
       p_data_baixa: transacaoExtrato.data,
@@ -225,9 +230,6 @@ export async function conciliarTransacao(
       p_conta_bancaria_id: contaId,
       p_observacoes: `Baixa gerada por conciliação automática (${transacaoExtrato.id})`,
     });
-
-    if (error) throw new Error(error.message);
-    baixaId = (data as string | null) ?? null;
   }
 
   if (!baixaId) {
@@ -272,18 +274,11 @@ export async function conciliarTransacao(
     }
   }
 
-  // RPC `financeiro_conciliar_baixa` ainda não consta nos types gerados.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- limitação do tipo Supabase (regenerar types)
-  const { error: concError } = await (supabase.rpc as any)(
-    "financeiro_conciliar_baixa",
-    {
-      p_baixa_id: baixaId,
-      p_status: "conciliado",
-      p_extrato_referencia: transacaoExtrato.id,
-    },
-  );
-
-  if (concError) throw new Error(concError.message);
+  await financeiroConciliarBaixaRpc({
+    p_baixa_id: baixaId!,
+    p_status: "conciliado",
+    p_extrato_referencia: transacaoExtrato.id,
+  });
 }
 
 /**
@@ -301,13 +296,10 @@ export async function confirmarConciliacao(payload: {
   usuario_id?: string;
 }): Promise<string> {
   // RPC transacional: cabeçalho + pares em uma única transação.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC ainda não tipada
-  const { data, error } = await (supabase.rpc as any)("financeiro_conciliar_lote", {
+  return financeiroConciliarLoteRpc({
     p_conta_bancaria_id: payload.conta_bancaria_id,
     p_data_conciliacao: payload.data_conciliacao,
-    p_pares: payload.pares,
-    p_observacoes: null,
+    p_pares: payload.pares as unknown as import("@/integrations/supabase/types").Json,
+    p_observacoes: undefined,
   });
-  if (error) throw new Error(error.message);
-  return data as string;
 }

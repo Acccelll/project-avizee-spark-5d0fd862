@@ -11,7 +11,8 @@ const makeTitulo = (overrides?: Partial<TituloParaConciliacao>): TituloParaConci
   valor: 1000,
   data_vencimento: "2026-03-10",
   tipo: "pagar",
-  status: "aberto",
+  status: "pago",
+  data_baixa: "2026-03-10",
   ...overrides,
 });
 
