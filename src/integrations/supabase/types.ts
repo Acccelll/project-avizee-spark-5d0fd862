@@ -9281,6 +9281,15 @@ export type Database = {
         Args: { p_cotacao_id: string; p_observacoes?: string }
         Returns: Json
       }
+      get_dre_periodo: {
+        Args: { p_data_fim?: string; p_data_inicio?: string; p_modo?: string }
+        Returns: {
+          linha: string
+          ordem: number
+          tipo: string
+          valor: number
+        }[]
+      }
       get_recebimento_status_efetivo: {
         Args: {
           p_previsao: string

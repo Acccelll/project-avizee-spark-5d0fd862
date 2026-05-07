@@ -89,7 +89,7 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 - 8.1.1 ✅ DRE cash basis vs competência: filtro "Regime" (caixa/competência) persistido na URL (`drmo`); loader `loadDre` alterna entre `data_pagamento`+status pago/parcial e `data_emissao`+`valor` integral; subtítulo do relatório indica o regime ativo.
 - 8.1.2 ✅ Substituir heurística "compra" no CMV por classificação estruturada (`nota_fiscal_id` / `pedido_compra_id` / `origem_tabela`).
 - 8.1.3 ✅ Carimbo de origem (modo, fonte, data de geração) no cabeçalho do PDF, aba "Origem" do XLSX e capa do PPTX.
-- 8.1.4 View canônica `vw_dre_periodo` consumida por Relatórios + Workbook + Apresentação (eliminar 3 cálculos paralelos).
+- 8.1.4 ✅ RPC canônica `get_dre_periodo(p_modo, p_data_inicio, p_data_fim)` (SECURITY DEFINER, search_path=public) substitui o cálculo manual em `loadDre`. Workbook/Apresentação continuam usando `vw_workbook_dre_mensal` (granularidade mensal); a RPC vira a fonte única para Relatórios com período arbitrário.
 - 8.1.5 ✅ `BudgetMensal`: índice `ux_budgets_mensais_unique (competencia, categoria, COALESCE(centro_custo_id, ...))` já aplicado em produção.
 
 ### Sprint 8.2 — Exportação segura (🟡)
@@ -118,7 +118,7 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 - 8.5.5 ✅ Em mobile, `Collapsible` da tabela abre automaticamente quando `sortedRows.length ≤ 15` (Relatorios.tsx).
 
 ### Sprint 8.6 — Refactor Relatorios.tsx (🟢)
-- 8.6.1 ⚠️ Parcial — extraídos `RelatorioKpiGrid`, `RelatorioFiltrosBar` (desktop) e `RelatorioMobileToolbar` (mobile sheet + export + refresh). `Relatorios.tsx` reduzido de 846 → 710 linhas. Restam `RelatorioBody` (resultado/tabela/chart/footer mobile sticky) e `RelatorioWorkspace` (estado) para alcançar ≤400 linhas.
+- 8.6.1 ✅ Decompose concluído: extraídos `RelatorioKpiGrid`, `RelatorioFiltrosBar`, `RelatorioMobileToolbar` e agora `RelatorioBody` (chart mobile + tabela + chart desktop + footer sticky). `Relatorios.tsx` reduzido de 846 → 570 linhas. Estado seguirá centralizado nos hooks já dedicados (`useRelatorioUrlState`, `useRelatorioExport`, `useActiveFilterChips`, `useRelatorioDrillDown`).
 - 8.6.2 ✅ Flags legadas `_isQuantityReport/_isDreReport` removidas de `RelatorioResultado`, dos loaders (`estoque`, `financeiro`) e do consumidor (`Relatorios.tsx`). Discriminação via `meta.kind` / `meta.valueNature` é a única fonte.
 - 8.6.3 ✅ `hiddenColumns` agora persistido por `tipo` via `useDataTablePrefs(`relatorios-${tipo}`)` (cross-device, com migração one-shot do localStorage). Trocar de relatório preserva preferências por tipo.
 
