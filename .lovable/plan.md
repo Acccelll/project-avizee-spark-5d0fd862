@@ -122,7 +122,7 @@ CONSULTA POR CHAVE / SCANNER
 7. ✅ `FiscalDevolucaoFlow` extraído (`pages/fiscal/components/FiscalDevolucaoFlow.tsx`).
 8. ✅ `fiscal.service.ts` virou facade re-exportando 5 submódulos em `services/fiscal/`:
     `eventos`, `lifecycle`, `sefaz`, `lookups`, `empresaConfig`.
-9. ⏭️ Unificação `NFeForm` (página + modal) — adiada para Sprint 7.2.b.
+9. ⏳ Parcial: extraído `NfeFormBody` (markup compartilhado) consumido pelo `NfeCreateFormModal`. Próximo passo: migrar `NotaFiscalForm` (página) para também usar `NfeFormBody`, eliminando o atual `NFeForm` baseado em RHF que não cobre os mesmos campos (ItemsGrid/ParcelasFiscalEditor/cartão).
 10. ✅ `useQrScanner` extraído (`pages/fiscal/hooks/useQrScanner.ts`).
 
 Resultado: `Fiscal.tsx` 1500→1461 linhas; `fiscal.service.ts` 442→48 (facade);
