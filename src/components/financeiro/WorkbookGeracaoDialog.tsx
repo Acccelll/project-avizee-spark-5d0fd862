@@ -51,7 +51,7 @@ export function WorkbookGeracaoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Gerar Workbook Gerencial</DialogTitle>
           <DialogDescription>
