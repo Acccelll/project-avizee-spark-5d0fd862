@@ -157,8 +157,21 @@ const Fiscal = () => {
   const { can } = useCan();
   const canEstornarNF = can("faturamento_fiscal:cancelar") || can("faturamento_fiscal:admin_fiscal");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Filtro mês de emissão é elevado para o componente para que o range
+  // possa ser empurrado server-side via `dateRange` e o LIMIT/OFFSET do
+  // Supabase trabalhe sobre o conjunto já filtrado (Sprint 7.3 #11).
+  const [emissaoMesState, setEmissaoMesState] = useState<string>("");
+  const emissaoDateRange = useMemo(() => {
+    if (!emissaoMesState) return undefined;
+    const start = `${emissaoMesState}-01`;
+    const [y, m] = emissaoMesState.split("-").map(Number);
+    const end = new Date(y, m, 0).toISOString().slice(0, 10);
+    return { column: "data_emissao", from: start, to: end };
+  }, [emissaoMesState]);
   const { data, loading, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
-    table: "notas_fiscais", select: "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)"
+    table: "notas_fiscais",
+    select: "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)",
+    dateRange: emissaoDateRange,
   });
   const fornecedoresCrud = useSupabaseCrud<FornecedorRef>({ table: "fornecedores" });
   const clientesCrud = useSupabaseCrud<ClienteRef>({ table: "clientes" });
