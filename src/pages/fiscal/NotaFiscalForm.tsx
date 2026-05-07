@@ -36,158 +36,47 @@ const STATUS_SEFAZ_TRAVADOS = new Set([
   "denegada",
 ]);
 
-interface NotaFiscalRow {
-  id: string;
-  numero: string | null;
-  serie: string | null;
-  data_emissao: string | null;
-  natureza_operacao: string | null;
-  tipo: string;
-  cliente_id: string | null;
-  fornecedor_id: string | null;
-  forma_pagamento: string | null;
-  condicao_pagamento: string | null;
-  frete_modalidade: string | null;
-  frete_valor: number | null;
-  desconto_valor: number | null;
-  outras_despesas: number | null;
-  observacoes: string | null;
-  status: string | null;
-  status_sefaz: string | null;
-  pedido_compra_id: string | null;
-  valor_total: number | null;
-  data_vencimento: string | null;
-  numero_parcelas: number | null;
-  intervalo_parcelas_dias: number | null;
-  parcelas: unknown;
-  gera_financeiro: boolean | null;
-}
-
-function rowToFormDefaults(row: NotaFiscalRow): Partial<NFeFormData> {
-  return {
-    numero: row.numero ?? "",
-    serie: row.serie ?? "1",
-    dataEmissao: row.data_emissao ?? new Date().toISOString().split("T")[0],
-    naturezaOperacao: row.natureza_operacao ?? "",
-    tipoOperacao: (row.tipo as "entrada" | "saida") ?? "saida",
-    clienteId: row.cliente_id ?? undefined,
-    fornecedorId: row.fornecedor_id ?? undefined,
-    formaPagamento: row.forma_pagamento ?? undefined,
-    condicaoPagamento: row.condicao_pagamento ?? undefined,
-    freteModalidade: (row.frete_modalidade as NFeFormData["freteModalidade"]) ?? "9",
-    freteValor: Number(row.frete_valor || 0),
-    descontoValor: Number(row.desconto_valor || 0),
-    outrasDespesas: Number(row.outras_despesas || 0),
-    observacoes: row.observacoes ?? "",
-    itens: [],
-    geraFinanceiro: row.gera_financeiro ?? true,
-    dataVencimento: row.data_vencimento ?? undefined,
-    numeroParcelas: Number(row.numero_parcelas || 1),
-    intervaloParcelasDias: Number(row.intervalo_parcelas_dias ?? 30),
-    parcelas: Array.isArray(row.parcelas)
-      ? (row.parcelas as Array<{ numero: number; vencimento: string; valor: number }>)
-      : undefined,
-  };
-}
-
 export default function NotaFiscalFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isCreate = !id || id === "novo";
+  const notaId = isCreate ? null : id!;
 
-  const [loading, setLoading] = useState(!isCreate);
-  const [saving, setSaving] = useState(false);
-  const [defaults, setDefaults] = useState<Partial<NFeFormData> | undefined>(
-    undefined,
-  );
+  const fnf = useFiscalNotaForm({
+    notaId,
+    onSaved: (savedId) => {
+      if (isCreate) navigate(`/fiscal/${savedId}/editar`, { replace: true });
+      else navigate("/fiscal");
+    },
+  });
+
   const [statusSefaz, setStatusSefaz] = useState<string | null>(null);
   const [statusErp, setStatusErp] = useState<string | null>(null);
-  const [nfRow, setNfRow] = useState<NotaFiscalRow | null>(null);
+  const [nfRow, setNfRow] = useState<NotaFiscal | null>(null);
 
   useEffect(() => {
     if (isCreate) return;
-    let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("notas_fiscais")
-        .select(
-          "id, numero, serie, data_emissao, natureza_operacao, tipo, cliente_id, fornecedor_id, forma_pagamento, condicao_pagamento, frete_modalidade, frete_valor, desconto_valor, outras_despesas, observacoes, status, status_sefaz, pedido_compra_id, data_vencimento, numero_parcelas, intervalo_parcelas_dias, parcelas, gera_financeiro",
-        )
+        .select("*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social)")
         .eq("id", id!)
         .maybeSingle();
-      if (cancelled) return;
-      if (error || !data) {
-        toast.error("Nota fiscal não encontrada.");
-        navigate("/fiscal");
-        return;
-      }
-      const row = data as unknown as NotaFiscalRow;
-      setDefaults(rowToFormDefaults(row));
-      setStatusSefaz(row.status_sefaz);
-      setStatusErp(row.status);
-      setNfRow(row);
-      setLoading(false);
+      if (!data) return;
+      setNfRow(data as unknown as NotaFiscal);
+      setStatusSefaz((data as { status_sefaz?: string | null }).status_sefaz ?? null);
+      setStatusErp((data as { status?: string | null }).status ?? null);
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [id, isCreate, navigate]);
+  }, [id, isCreate]);
 
   const readOnly =
     !isCreate && !!statusSefaz && STATUS_SEFAZ_TRAVADOS.has(statusSefaz);
 
-  async function handleSubmit(formData: NFeFormData) {
-    setSaving(true);
-    try {
-      // Persistência mínima: campos do header. Itens/parcelas seguem fluxo
-      // existente em src/pages/Fiscal.tsx até a Fase 5 cobrir o pipeline completo.
-      const payload = {
-        numero: formData.numero || null,
-        serie: formData.serie,
-        data_emissao: formData.dataEmissao,
-        natureza_operacao: formData.naturezaOperacao,
-        tipo: formData.tipoOperacao,
-        cliente_id: formData.clienteId || null,
-        fornecedor_id: formData.fornecedorId || null,
-        forma_pagamento: formData.formaPagamento || null,
-        condicao_pagamento: formData.condicaoPagamento || null,
-        frete_modalidade: formData.freteModalidade,
-        frete_valor: formData.freteValor,
-        desconto_valor: formData.descontoValor,
-        outras_despesas: formData.outrasDespesas,
-        observacoes: formData.observacoes || null,
-        gera_financeiro: formData.geraFinanceiro ?? true,
-        data_vencimento: formData.dataVencimento || null,
-        numero_parcelas: formData.numeroParcelas ?? 1,
-        intervalo_parcelas_dias: formData.intervaloParcelasDias ?? 30,
-        parcelas: formData.parcelas && formData.parcelas.length > 0 ? formData.parcelas : null,
-      };
-
-      if (isCreate) {
-        const { data, error } = await supabase
-          .from("notas_fiscais")
-          .insert(payload as never)
-          .select("id")
-          .single();
-        if (error) throw error;
-        toast.success("Nota fiscal criada.");
-        navigate(`/fiscal/${(data as { id: string }).id}/editar`, {
-          replace: true,
-        });
-      } else {
-        const { error } = await supabase
-          .from("notas_fiscais")
-          .update(payload as never)
-          .eq("id", id!);
-        if (error) throw error;
-        toast.success("Nota fiscal atualizada.");
-      }
-    } catch (err) {
-      notifyError(err);
-    } finally {
-      setSaving(false);
-    }
-  }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (readOnly) return;
+    void fnf.submit();
+  };
 
   return (
     <div className="container mx-auto max-w-5xl space-y-4 py-6">
@@ -203,7 +92,7 @@ export default function NotaFiscalFormPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              {isCreate ? "Nova Nota Fiscal" : `NF-e ${defaults?.numero ?? ""}`}
+              {isCreate ? "Nova Nota Fiscal" : `NF-e ${fnf.form.numero ?? ""}`}
             </h1>
             <p className="text-sm text-muted-foreground">
               {isCreate
@@ -246,7 +135,7 @@ export default function NotaFiscalFormPage() {
                 Ações SEFAZ
               </p>
               <SefazAcoesPanel
-                nf={nfRow as unknown as NotaFiscal}
+                nf={nfRow}
                 buildNFeData={buildNFeDataFromDb}
                 buildDanfeData={buildDanfeDataFromDb}
               />
@@ -258,7 +147,7 @@ export default function NotaFiscalFormPage() {
                   <PedidoCompraLinker
                     notaFiscalId={nfRow.id}
                     fornecedorId={nfRow.fornecedor_id}
-                    pedidoCompraIdAtual={nfRow.pedido_compra_id}
+                    pedidoCompraIdAtual={(nfRow as { pedido_compra_id?: string | null }).pedido_compra_id ?? null}
                     disabled={readOnly}
                     nfValorTotal={nfRow.valor_total}
                     nfDataEmissao={nfRow.data_emissao}
@@ -267,18 +156,56 @@ export default function NotaFiscalFormPage() {
               )}
             </div>
           )}
-          {loading ? (
+          {fnf.loading ? (
             <div className="space-y-3">
               <Skeleton className="h-8 w-1/3" />
               <Skeleton className="h-32 w-full" />
               <Skeleton className="h-32 w-full" />
             </div>
           ) : (
-            <NFeForm
-              defaultValues={defaults}
-              disabled={readOnly || saving}
-              onSubmit={handleSubmit}
-            />
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <fieldset disabled={readOnly} className="space-y-5 disabled:opacity-70">
+                <NfeFormBody
+                  form={fnf.form as unknown as Record<string, string | number | boolean>}
+                  setForm={(next) => fnf.setForm(next as never)}
+                  items={fnf.items}
+                  setItems={fnf.setItems}
+                  itemContaContabil={fnf.itemContaContabil}
+                  setItemContaContabil={fnf.setItemContaContabil}
+                  parcelas={fnf.parcelas}
+                  setParcelas={fnf.setParcelas}
+                  primeiroVencimento={fnf.primeiroVencimento}
+                  setPrimeiroVencimento={fnf.setPrimeiroVencimento}
+                  intervaloDias={fnf.intervaloDias}
+                  setIntervaloDias={fnf.setIntervaloDias}
+                  parcelasPlano={fnf.parcelasPlano}
+                  setParcelasPlano={fnf.setParcelasPlano}
+                  fornecedores={fnf.fornecedores}
+                  clientes={fnf.clientes}
+                  produtos={fnf.produtos}
+                  ordensVenda={fnf.ordensVenda}
+                  contasContabeis={fnf.contasContabeis}
+                  cartoes={fnf.cartoes}
+                  valorProdutos={fnf.valorProdutos}
+                  totalImpostos={fnf.totalImpostos}
+                  totalNF={fnf.totalNF}
+                  xmlOriginInfo={null}
+                  traducaoLinhasCount={0}
+                  onAbrirTraducao={() => {}}
+                  onCriarProdutoQuick={() => {}}
+                />
+              </fieldset>
+              {!readOnly && (
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => navigate("/fiscal")}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={fnf.saving}>
+                    {fnf.saving ? "Salvando..." : "Salvar NF-e"}
+                  </Button>
+                </div>
+              )}
+            </form>
           )}
         </CardContent>
       </Card>
