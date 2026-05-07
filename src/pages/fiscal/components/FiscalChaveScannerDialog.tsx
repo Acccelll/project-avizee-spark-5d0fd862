@@ -252,6 +252,11 @@ export function FiscalChaveScannerDialog({
         } else {
           setErroLeitura("Nenhuma câmera disponível neste dispositivo.");
         }
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        // iOS Safari: outra aba/app está usando a câmera, ou hardware busy.
+        setErroLeitura("Câmera ocupada por outro app. Feche outras abas/apps que usam a câmera e tente novamente.");
+      } else if (err.name === "SecurityError") {
+        setErroLeitura("Acesso à câmera bloqueado. Abra esta página em HTTPS e permita o acesso.");
       } else {
         setErroLeitura(`Falha ao iniciar câmera: ${err.message}`);
       }
