@@ -306,7 +306,7 @@ export function NotaFiscalEditModal({
             <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
             <div>
               <p className="text-xs font-semibold text-warning">
-                {selected.status === "autorizada"
+                {statusSefaz === "autorizada"
                   ? "Nota autorizada pela SEFAZ — edição restrita"
                   : "Nota fiscal confirmada — edição restrita"}
               </p>
@@ -318,7 +318,7 @@ export function NotaFiscalEditModal({
             </div>
           </div>
         )}
-        {selected.status === "rejeitada" && (
+        {statusSefaz === "rejeitada" && (
           <div className="rounded-lg border bg-destructive/5 border-destructive/20 p-3 flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
             <div>
