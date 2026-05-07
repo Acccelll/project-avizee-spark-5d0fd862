@@ -27,6 +27,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { notifyError } from "@/utils/errorMessages";
 import {
   canConfirmFiscal,
@@ -925,24 +926,24 @@ export function NotaFiscalDrawer({
                 value: "mais",
                 label: "Mais",
                 content: (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Fiscal</h3>
-                      {tabFiscal}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Arquivos</h3>
-                      {tabArquivos}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Eventos ({eventos.length})</h3>
-                      {tabEventos}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Vínculos</h3>
-                      {tabVinculos}
-                    </div>
-                  </div>
+                  <Accordion type="multiple" defaultValue={["fiscal"]} className="w-full">
+                    <AccordionItem value="fiscal">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Fiscal</AccordionTrigger>
+                      <AccordionContent>{tabFiscal}</AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="arquivos">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Arquivos</AccordionTrigger>
+                      <AccordionContent>{tabArquivos}</AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="eventos">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Eventos ({eventos.length})</AccordionTrigger>
+                      <AccordionContent>{tabEventos}</AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="vinculos">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Vínculos</AccordionTrigger>
+                      <AccordionContent>{tabVinculos}</AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 ),
               },
             ]
