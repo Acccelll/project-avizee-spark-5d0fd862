@@ -8,7 +8,7 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { DrawerActionBar } from "@/components/ui/DrawerActionBar";
 import { DetailEmpty } from "@/components/ui/DetailStates";
-import { Edit, Trash2, CreditCard, RotateCcw, AlertCircle, Receipt } from "lucide-react";
+import { Edit, Trash2, CreditCard, RotateCcw, AlertCircle, Receipt, Undo2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchBaixasAtivasDoLancamento } from "@/services/financeiro";
@@ -17,6 +17,8 @@ import type { Lancamento } from "@/types/domain";
 import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useCan } from "@/hooks/useCan";
+import { useEstornarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
+import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { getOrigemLabel } from "@/lib/financeiro";
 
 interface Baixa {
@@ -86,6 +88,10 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   // Cancelar é operação reversível (status='cancelado'); separada de hard-delete,
   // que exige `financeiro:excluir` + admin via gate da própria RPC.
   const canPermCancelar = can("financeiro:cancelar");
+  const estornarBaixa = useEstornarBaixa();
+  const { confirm: confirmEstorno, dialog: estornoDialog } = useConfirmDestructive({
+    verb: "Estornar",
+  });
 
   // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
   if (!open || !selected) return null;
@@ -283,6 +289,33 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                           <td className="px-3 py-2 text-right font-mono font-semibold text-success">{formatCurrency(Number(b.valor_pago))}</td>
                           <td className="px-3 py-2">{b.forma_pagamento || "—"}</td>
                           <td className="px-3 py-2 text-muted-foreground truncate max-w-[100px]">{b.observacoes || "—"}</td>
+                          <td className="px-3 py-2 text-right">
+                            {canPermBaixar ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs gap-1 text-warning hover:bg-warning/10"
+                                aria-label={`Estornar baixa de ${formatCurrency(Number(b.valor_pago))}`}
+                                onClick={() =>
+                                  confirmEstorno(
+                                    {
+                                      verb: "Estornar",
+                                      entity: `baixa de ${formatCurrency(Number(b.valor_pago))} (${new Date(b.data_baixa).toLocaleDateString("pt-BR")})`,
+                                      sideEffects: [
+                                        "Saldo do título volta a ficar em aberto",
+                                        "Movimento de caixa correspondente é revertido",
+                                      ],
+                                    },
+                                    async (motivo) => {
+                                      await estornarBaixa.mutateAsync({ baixaId: b.id, motivo });
+                                    },
+                                  )
+                                }
+                              >
+                                <Undo2 className="h-3 w-3" /> Estornar
+                              </Button>
+                            ) : null}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
