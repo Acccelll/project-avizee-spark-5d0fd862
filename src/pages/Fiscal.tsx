@@ -23,8 +23,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useCan } from "@/hooks/useCan";
-import { DanfeViewer } from "@/components/DanfeViewer";
-import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import {
   registrarEventoFiscal,
@@ -48,6 +46,8 @@ import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
 import { FiscalToolbarActions } from "@/pages/fiscal/components/FiscalToolbarActions";
+import { FiscalDanfeViewer, type FiscalDanfeViewerHandle } from "@/pages/fiscal/components/FiscalDanfeViewer";
+import { FiscalDevolucaoFlow, type FiscalDevolucaoFlowHandle } from "@/pages/fiscal/components/FiscalDevolucaoFlow";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
