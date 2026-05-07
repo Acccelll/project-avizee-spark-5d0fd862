@@ -474,15 +474,23 @@ Deno.serve(async (req) => {
     const usarProxy = proxyEnabled && !!(proxyUrl && proxySecret);
 
     // Telemetria do gate de transporte (sem expor segredos).
+    // Sprint 7.4 #18 — `proxySecretFp` foi removido para não vazar prefixo/sufixo
+    // do secret em logs persistidos. Mantemos apenas presença/length para debug.
+    const isProd = (Deno.env.get("DENO_DEPLOYMENT_ID") ?? "").length > 0
+      && (Deno.env.get("ENVIRONMENT") ?? "").toLowerCase() !== "development";
     log.info("transporte resolvido", {
       proxyEnabled,
       proxyFlagLen: proxyFlagRaw.length,
       hasProxyUrl: !!proxyUrl,
       hasProxySecret: !!proxySecret,
       proxySecretLen: proxySecret?.length ?? 0,
-      proxySecretFp: proxySecret
-        ? `${proxySecret.slice(0, 4)}...${proxySecret.slice(-4)}`
-        : null,
+      ...(isProd
+        ? {}
+        : {
+            proxySecretFp: proxySecret
+              ? `${proxySecret.slice(0, 4)}...${proxySecret.slice(-4)}`
+              : null,
+          }),
       usarProxy,
       transporte: usarProxy ? "cloudflare-worker" : "deno-mtls",
     });
