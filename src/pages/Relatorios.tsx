@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
