@@ -123,7 +123,7 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Gerar Apresentação Gerencial (V2)</DialogTitle>
           <DialogDescription>Configure período, modo e slides opcionais antes de gerar.</DialogDescription>
