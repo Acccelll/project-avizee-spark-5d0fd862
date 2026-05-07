@@ -475,6 +475,7 @@ export function FiscalChaveScannerDialog({
                 className="h-full w-full object-cover"
                 playsInline
                 muted
+                autoPlay
               />
               {!cameraAtiva && (
                 <div className="absolute inset-0 flex items-center justify-center text-xs text-white/70">
