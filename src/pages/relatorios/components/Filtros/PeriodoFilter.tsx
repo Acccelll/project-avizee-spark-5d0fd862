@@ -26,7 +26,7 @@ export interface PeriodoFilterProps {
   onChange: (value: PeriodoFilterValue) => void;
 }
 
-type QuickPeriod = "hoje" | "7d" | "30d" | "mes";
+type QuickPeriod = "hoje" | "7d" | "15d" | "30d" | "mes" | "90d" | "year";
 
 function fmt(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -36,14 +36,15 @@ function rangeOf(period: QuickPeriod): PeriodoFilterValue {
   const now = new Date();
   const end = fmt(now);
   if (period === "hoje") return { dataInicio: end, dataFim: end };
-  if (period === "7d") {
+  const daysMap: Partial<Record<QuickPeriod, number>> = { '7d': 7, '15d': 15, '30d': 30, '90d': 90 };
+  const days = daysMap[period];
+  if (days != null) {
     const start = new Date(now);
-    start.setDate(now.getDate() - 7);
+    start.setDate(now.getDate() - days);
     return { dataInicio: fmt(start), dataFim: end };
   }
-  if (period === "30d") {
-    const start = new Date(now);
-    start.setDate(now.getDate() - 30);
+  if (period === 'year') {
+    const start = new Date(now.getFullYear(), 0, 1);
     return { dataInicio: fmt(start), dataFim: end };
   }
   // "mes"
@@ -54,7 +55,7 @@ function rangeOf(period: QuickPeriod): PeriodoFilterValue {
 /** Detecta qual preset corresponde ao intervalo atual (ou null). */
 function detectActive(dataInicio: string, dataFim: string): QuickPeriod | null {
   if (!dataInicio || !dataFim) return null;
-  const presets: QuickPeriod[] = ["hoje", "7d", "30d", "mes"];
+  const presets: QuickPeriod[] = ["hoje", "7d", "15d", "30d", "mes", "90d", "year"];
   for (const p of presets) {
     const r = rangeOf(p);
     if (r.dataInicio === dataInicio && r.dataFim === dataFim) return p;
@@ -84,46 +85,33 @@ export function PeriodoFilter({ dataInicio, dataFim, onChange, axisLabel, highli
         <Label className="text-xs text-muted-foreground mr-1">
           Período{axisLabel ? <span className="ml-1 text-muted-foreground/80">por {axisLabel}</span> : null}:
         </Label>
-        <Button
-          size="sm"
-          variant={active === "hoje" ? "default" : "outline"}
-          onClick={() => apply("hoje")}
-          className="h-8"
-        >
-          Hoje
-        </Button>
-        <Button
-          size="sm"
-          variant={active === "7d" ? "default" : "outline"}
-          onClick={() => apply("7d")}
-          className="h-8"
-        >
-          7 dias
-        </Button>
-        <Button
-          size="sm"
-          variant={active === "30d" ? "default" : "outline"}
-          onClick={() => apply("30d")}
-          className="h-8"
-        >
-          30 dias
-        </Button>
-        <Button
-          size="sm"
-          variant={active === "mes" ? "default" : "outline"}
-          onClick={() => apply("mes")}
-          className="h-8"
-        >
-          Mês atual
-        </Button>
+        {([
+          { key: 'hoje', label: 'Hoje' },
+          { key: '7d', label: '7d' },
+          { key: '15d', label: '15d' },
+          { key: '30d', label: '30d' },
+          { key: 'mes', label: 'Mês' },
+          { key: '90d', label: '90d' },
+          { key: 'year', label: 'Ano' },
+        ] as const).map((p) => (
+          <Button
+            key={p.key}
+            size="sm"
+            variant={active === p.key ? 'default' : 'outline'}
+            onClick={() => apply(p.key)}
+            className="h-8 px-2.5"
+          >
+            {p.label}
+          </Button>
+        ))}
         <Button
           size="sm"
           variant={showCustom || (!active && hasCustom) ? "default" : "outline"}
           onClick={() => setShowCustom((v) => !v)}
-          className="h-8 gap-1"
+          className="h-8 px-2.5 gap-1"
           aria-expanded={showCustom}
         >
-          Personalizado
+          Custom
           <ChevronDown
             className={`h-3.5 w-3.5 transition-transform ${showCustom ? "rotate-180" : ""}`}
           />
