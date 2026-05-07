@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import { ModulePage } from '@/components/ModulePage';
-import { SummaryCard } from '@/components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
