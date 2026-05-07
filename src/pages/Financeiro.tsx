@@ -13,6 +13,8 @@ import { MonthFilter } from "@/components/filters/MonthFilter";
 import { financialPeriods } from "@/components/filters/periodTypes";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { notifyError } from "@/utils/errorMessages";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,38 +44,31 @@ import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/l
 import type { Lancamento, Cliente, Fornecedor } from "@/types/domain";
 import { useFinanceiroAuxiliares } from "@/pages/financeiro/hooks/useFinanceiroAuxiliares";
 import { useFinanceiroFiltros } from "@/pages/financeiro/hooks/useFinanceiroFiltros";
-import { useFinanceiroKpis } from "@/pages/financeiro/hooks/useFinanceiroKpis";
 import { useFinanceiroKpisRpc } from "@/pages/financeiro/hooks/useFinanceiroKpisRpc";
 import { useFinanceiroActions } from "@/pages/financeiro/hooks/useFinanceiroActions";
+import { useFinanceiroLancamentosPaged, useResetPageOnFiltersChange } from "@/pages/financeiro/hooks/useFinanceiroLancamentosPaged";
 import { buildFinanceiroColumns } from "@/pages/financeiro/config/financeiroColumns";
 import { FinanceiroLancamentoForm } from "@/pages/financeiro/components/FinanceiroLancamentoForm";
 import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/types";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import { normalizeFormaPagamento } from "@/lib/financeiro";
 
+const PAGE_SIZE = 50;
+
 const Financeiro = () => {
   const { id: paramId } = useParams<{ id?: string }>();
   const queryClient = useQueryClient();
   const autoOpenedRef = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const {
-    data,
-    loading,
-    create,
-    update,
-    remove,
-    fetchData,
-  } = useSupabaseCrud<Lancamento>({
-    table: "financeiro_lancamentos" as const,
-    select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome)), contas_contabeis(descricao, codigo)",
-  });
 
   // Após uma baixa/estorno, o saldo de `contas_bancarias` pode mudar — invalidar caches relacionados.
+  // (Os hooks de baixa/estorno já invalidam ["financeiro","lancamentos"] e ["financeiro","kpis"].)
   const invalidateAfterBaixa = useCallback(() => {
-    fetchData();
+    queryClient.invalidateQueries({ queryKey: ["financeiro", "lancamentos"] });
+    queryClient.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
     queryClient.invalidateQueries({ queryKey: ["contas_bancarias"] });
     queryClient.invalidateQueries({ queryKey: ["ref", "contas_bancarias"] });
-  }, [fetchData, queryClient]);
+  }, [queryClient]);
 
   const clientesCrud = useSupabaseCrud<Cliente>({ table: "clientes" });
   const fornecedoresCrud = useSupabaseCrud<Fornecedor>({ table: "fornecedores" });
@@ -119,15 +114,24 @@ const Financeiro = () => {
 
   const getLancamentoStatus = useCallback((l: Lancamento) => getEffectiveStatus(l.status, l.data_vencimento, hoje), [hoje]);
 
+  // Deep-link `/financeiro/:id` — busca direta o lançamento pelo ID.
   useEffect(() => {
-    if (!paramId || autoOpenedRef.current || loading || data.length === 0) return;
-    const found = data.find((l) => l.id === paramId);
-    if (found) {
-      autoOpenedRef.current = true;
-      setSelected(found);
-      setDrawerOpen(true);
-    }
-  }, [paramId, data, loading]);
+    if (!paramId || autoOpenedRef.current) return;
+    autoOpenedRef.current = true;
+    (async () => {
+      const { data: row, error } = await supabase
+        .from("financeiro_lancamentos")
+        .select(
+          "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome)), contas_contabeis(descricao, codigo)",
+        )
+        .eq("id", paramId)
+        .maybeSingle();
+      if (!error && row) {
+        setSelected(row as Lancamento);
+        setDrawerOpen(true);
+      }
+    })();
+  }, [paramId]);
 
   const {
     selectedIds,
@@ -150,7 +154,6 @@ const Financeiro = () => {
     setPeriod,
     mes,
     setMes,
-    filteredData,
     activeFilters,
     handleRemoveFilter,
     tipoOpts,
@@ -158,28 +161,12 @@ const Financeiro = () => {
     origemOpts,
     formaPagamentoOpts,
     cartaoOpts,
-  } = useFinanceiroFiltros({ data, contasBancarias, cartoes, getLancamentoStatus });
+  } = useFinanceiroFiltros({ data: [], contasBancarias, cartoes, getLancamentoStatus });
 
   const statusOpts = statusToOptions(statusFinanceiroSchema);
 
-  const {
-    saving,
-    handleSubmit,
-    handleExportar,
-    handleEstorno,
-    estornoTarget,
-    setEstornoTarget,
-    estornoProcessing,
-    estornoMotivo,
-    setEstornoMotivo,
-  } = useFinanceiroActions({ filteredData, getLancamentoStatus, create, update, fetchData });
-
-  const kpisLocal = useFinanceiroKpis({ filteredData, getLancamentoStatus, hojeStr });
-
-  // E7.3: KPIs server-side via RPC `kpis_financeiro` para se manter coerentes
-  // mesmo quando a listagem usar paginação. Os filtros aplicados aqui devem
-  // espelhar os mesmos do `useFinanceiroFiltros` (server-friendly apenas).
-  const kpisDateRange = useMemo(() => {
+  // E7.4: Filtros canônicos do servidor (espelhados em RPC de KPIs e listagem).
+  const dateRange = useMemo(() => {
     const monthRange = monthToRange(mes);
     if (monthRange) return { from: monthRange.from, to: monthRange.to };
     if (period === "todos") return { from: null as string | null, to: null as string | null };
@@ -193,9 +180,96 @@ const Financeiro = () => {
     [formaPagamentoFilters],
   );
 
+  const serverFilters = useMemo(
+    () => ({
+      dateFrom: dateRange.from,
+      dateTo: dateRange.to,
+      tipos: tipoFilters,
+      status: period === "vencidos" ? ["vencido"] : statusFilters,
+      bancos: bancoFilters,
+      origens: origemFilters,
+      formas: formasCanonicas,
+      cartoes: cartaoFilters,
+      search: searchTerm,
+    }),
+    [dateRange, tipoFilters, statusFilters, bancoFilters, origemFilters, formasCanonicas, cartaoFilters, searchTerm, period],
+  );
+
+  const [page, setPage] = useState(0);
+  useResetPageOnFiltersChange(serverFilters, setPage);
+
+  const { data, totalCount, loading, refetch: refetchPaged } = useFinanceiroLancamentosPaged(
+    serverFilters,
+    page,
+    PAGE_SIZE,
+  );
+
+  // ── CRUD direto: substitui useSupabaseCrud (que carregava tudo client-side).
+  // Mutations simples — invalidam o queryKey global do módulo para refetch.
+  const fetchData = useCallback(async () => {
+    await refetchPaged();
+  }, [refetchPaged]);
+
+  // Remove campos relacionais (joins) que vêm no tipo de domínio mas não
+  // pertencem à tabela `financeiro_lancamentos` — evita erro do PostgREST.
+  const stripRelations = (payload: Partial<Lancamento>): Record<string, unknown> => {
+    const { clientes: _c, fornecedores: _f, contas_bancarias: _cb, contas_contabeis: _cc, ...rest } =
+      payload as Record<string, unknown> & { clientes?: unknown; fornecedores?: unknown; contas_bancarias?: unknown; contas_contabeis?: unknown };
+    void _c; void _f; void _cb; void _cc;
+    return rest;
+  };
+
+  const create = useCallback(
+    async (payload: Partial<Lancamento>) => {
+      const { data: row, error } = await supabase
+        .from("financeiro_lancamentos")
+        .insert(stripRelations(payload) as never)
+        .select()
+        .single();
+      if (error) {
+        notifyError(error);
+        throw error;
+      }
+      await refetchPaged();
+      return row as Lancamento;
+    },
+    [refetchPaged],
+  );
+
+  const update = useCallback(
+    async (id: string, payload: Partial<Lancamento>) => {
+      const { data: row, error } = await supabase
+        .from("financeiro_lancamentos")
+        .update(stripRelations(payload) as never)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) {
+        notifyError(error);
+        throw error;
+      }
+      await refetchPaged();
+      return row as Lancamento;
+    },
+    [refetchPaged],
+  );
+
+  const {
+    saving,
+    handleSubmit,
+    handleExportar,
+    handleEstorno,
+    estornoTarget,
+    setEstornoTarget,
+    estornoProcessing,
+    estornoMotivo,
+    setEstornoMotivo,
+  } = useFinanceiroActions({ filteredData: data, getLancamentoStatus, create, update, fetchData });
+
+  // KPIs server-side via RPC `kpis_financeiro` — fonte única, sem fallback local.
   const { data: kpisRpc } = useFinanceiroKpisRpc({
-    dateFrom: kpisDateRange.from,
-    dateTo: kpisDateRange.to,
+    dateFrom: dateRange.from,
+    dateTo: dateRange.to,
     tipos: tipoFilters,
     status: period === "vencidos" ? ["vencido"] : statusFilters,
     bancos: bancoFilters,
@@ -207,17 +281,17 @@ const Financeiro = () => {
 
   const kpis = useMemo(
     () => ({
-      aVencer: kpisRpc?.a_vencer ?? kpisLocal.aVencer,
-      venceHoje: kpisRpc?.vence_hoje ?? kpisLocal.venceHoje,
-      vencido: kpisRpc?.vencido ?? kpisLocal.vencido,
-      pagoNoPeriodo: kpisRpc?.pago ?? kpisLocal.pagoNoPeriodo,
-      parcialCount: kpisRpc?.parcial ?? kpisLocal.parcialCount,
-      totalAVencer: kpisRpc?.total_a_vencer ?? kpisLocal.totalAVencer,
-      totalVencido: kpisRpc?.total_vencido ?? kpisLocal.totalVencido,
-      totalPago: kpisRpc?.total_pago ?? kpisLocal.totalPago,
-      totalParcial: kpisRpc?.total_parcial ?? kpisLocal.totalParcial,
+      aVencer: kpisRpc?.a_vencer ?? 0,
+      venceHoje: kpisRpc?.vence_hoje ?? 0,
+      vencido: kpisRpc?.vencido ?? 0,
+      pagoNoPeriodo: kpisRpc?.pago ?? 0,
+      parcialCount: kpisRpc?.parcial ?? 0,
+      totalAVencer: kpisRpc?.total_a_vencer ?? 0,
+      totalVencido: kpisRpc?.total_vencido ?? 0,
+      totalPago: kpisRpc?.total_pago ?? 0,
+      totalParcial: kpisRpc?.total_parcial ?? 0,
     }),
-    [kpisRpc, kpisLocal],
+    [kpisRpc],
   );
 
   const openCreate = () => {
@@ -351,7 +425,7 @@ const Financeiro = () => {
             setFormaPagamentoFilters([]);
             setCartaoFilters([]);
           }}
-          count={filteredData.length}
+          count={data.length}
           extra={selectedIds.length > 0 ? (
             <Button size="sm" variant="default" className="gap-2" onClick={() => {
               if (selectedIds.length === 0) {
@@ -376,13 +450,13 @@ const Financeiro = () => {
         </div>
 
         {viewMode === "calendario" ? (
-          <FinanceiroCalendar data={filteredData} onBaixaSuccess={invalidateAfterBaixa} />
+          <FinanceiroCalendar data={data} onBaixaSuccess={invalidateAfterBaixa} />
         ) : (
           <PullToRefresh onRefresh={fetchData}>
             <div data-help-id="financeiro.tabela">
             <DataTable
               columns={columns}
-              data={filteredData}
+              data={data}
               loading={loading}
               moduleKey="financeiro-lancamentos"
               showColumnToggle={true}

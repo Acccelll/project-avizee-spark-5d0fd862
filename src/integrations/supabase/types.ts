@@ -9444,6 +9444,24 @@ export type Database = {
       }
       ler_secret_vault: { Args: { p_name: string }; Returns: string }
       limpar_dados_migracao: { Args: { p_confirmar?: boolean }; Returns: Json }
+      listar_financeiro_lancamentos_ids: {
+        Args: {
+          p_ascending?: boolean
+          p_bancos?: string[]
+          p_cartoes?: string[]
+          p_date_from?: string
+          p_date_to?: string
+          p_formas?: string[]
+          p_limit?: number
+          p_offset?: number
+          p_order_by?: string
+          p_origens?: string[]
+          p_search?: string
+          p_status?: string[]
+          p_tipos?: string[]
+        }
+        Returns: Json
+      }
       log_self_update_audit: {
         Args: {
           p_alteracao: Json

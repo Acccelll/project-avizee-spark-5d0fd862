@@ -25,13 +25,14 @@ Implementação faseada da auditoria. Foco inicial nos críticos (C-01/C-02/C-03
 - Pares confirmados também persistem (status `pendente` → `conciliado` ao salvar).
 - Reload da página: `useQuery(["conciliacao-extrato", contaId, periodo])` recupera tudo.
 
-**1.4 — Paginação server-side em `Financeiro.tsx` (C-01) [maior esforço — pode ficar para sub-fase 1.4 separada]**
+**1.4 — Paginação server-side em `Financeiro.tsx` (C-01)** ✅
 - Substituir `useSupabaseCrud` por `useQuery(["financeiro_lancamentos", filtros, page])` com `range()` server-side.
 - Mover filtros (`tipo`, `status` exceto `vencido`, `contaBancariaId`, `formasPagamento`, `monthRange`) para `.eq/.in/.gte/.lte` no Supabase.
 - Filtro `vencido` mapeado para `status='aberto' AND data_vencimento < hoje`.
 - KPIs passam a usar exclusivamente `useFinanceiroKpisRpc` (resolve SH-02; remover `useFinanceiroKpis` legado ou marcar `@deprecated`).
 - Filtros restantes (A-02) ficam server-side por consequência.
 - Lookups de cliente/fornecedor (M-01): `select id,nome_razao_social` com cache longo.
+- Implementação: nova RPC `listar_financeiro_lancamentos_ids` (filtros + busca cross-table) + hook `useFinanceiroLancamentosPaged` que reidrata via `IN(ids)` preservando o select relacional.
 
 ---
 
