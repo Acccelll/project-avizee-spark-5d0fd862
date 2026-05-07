@@ -324,14 +324,23 @@ export function EstoqueAjusteSheet({ open, onClose, produtoId, tipoInicial = "aj
               </Button>
             }
             right={
-              <Button
-                type="button"
-                onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
-                disabled={saving || pendingSubmit}
-                className="h-11 min-w-[140px]"
-              >
-                {saving || pendingSubmit ? "Registrando..." : "Registrar"}
-              </Button>
+              (() => {
+                const bloqueioNegativo = form.tipo === "saida" && novoSaldoPreview < 0;
+                return (
+                  <Button
+                    type="button"
+                    onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
+                    disabled={saving || pendingSubmit || bloqueioNegativo}
+                    className="h-11 min-w-[140px]"
+                  >
+                    {bloqueioNegativo
+                      ? "Saldo insuficiente"
+                      : saving || pendingSubmit
+                        ? "Registrando..."
+                        : "Registrar"}
+                  </Button>
+                );
+              })()
             }
           />
         </SheetContent>
