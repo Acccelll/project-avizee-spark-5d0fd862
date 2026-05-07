@@ -135,6 +135,32 @@ Deno.serve(async (req) => {
     erro?: string;
   }> = [];
 
+  // Sprint 7.4 #17 — Circuit breaker para cStat=656 (consumo indevido).
+  // Quando o AN devolve 656, o CNPJ fica bloqueado por ~1h. Persistimos
+  // `distdfe_circuit_break_until` em `app_configuracoes` e abortamos a execução
+  // até o vencimento, evitando reentrar no bloqueio.
+  const CIRCUIT_KEY = `distdfe_circuit_break_until_${ambiente}`;
+  try {
+    const { data: cb } = await admin
+      .from("app_configuracoes")
+      .select("valor")
+      .eq("chave", CIRCUIT_KEY)
+      .maybeSingle();
+    const until = (cb?.valor as { until?: string } | null)?.until;
+    if (until && new Date(until).getTime() > Date.now()) {
+      log.info("circuit breaker ativo — pulando execução", { until, ambiente });
+      return json({
+        sucesso: true,
+        skipped: true,
+        motivo: "circuit_breaker_656",
+        ate: until,
+        ambiente,
+      });
+    }
+  } catch (e) {
+    log.info("falha ao ler circuit breaker (seguindo)", { erro: (e as Error).message });
+  }
+
   // 1) Lista todos os CNPJs cadastrados para o ambiente
   const { data: syncs, error: syncErr } = await admin
     .from("nfe_distdfe_sync")
@@ -240,6 +266,20 @@ Deno.serve(async (req) => {
         cStat: data.cStat,
         xMotivo: data.xMotivo,
       });
+
+      // Se AN devolveu cStat=656, ativa breaker por 65 minutos.
+      if (data.cStat === "656") {
+        const breakUntil = new Date(Date.now() + 65 * 60 * 1000).toISOString();
+        await admin.from("app_configuracoes").upsert(
+          {
+            chave: CIRCUIT_KEY,
+            valor: { until: breakUntil, motivo: data.xMotivo ?? "consumo indevido", cnpj: data.cnpj ?? item.cnpj },
+          },
+          { onConflict: "chave" },
+        );
+        log.info("circuit breaker armado (cStat=656)", { until: breakUntil });
+        break;
+      }
     } catch (e) {
       const err = e as Error;
       log.error("Erro ao sincronizar CNPJ", { cnpj: item.cnpj, erro: err.message });
