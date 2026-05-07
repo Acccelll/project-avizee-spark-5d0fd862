@@ -159,3 +159,16 @@ Ordem recomendada (mais valor / menor risco):
 5. **MB-01 + MB-02** — mobile dos blocos de itens (alto impacto perceptual).
 
 Após aprovação do plano implemento na ordem acima, começando pelos críticos (1 migração + 2 patches) e abrindo PR consolidado por bloco.
+
+## Status final da Onda 4 (atualizado)
+
+Implementados nesta sessão (continuação):
+- **DB-02**: removidas policies `auth_full_recebimentos*`; SELECT só para `authenticated`, escrita exclusiva via RPCs `SECURITY DEFINER`.
+- **CM-02**: coluna "Recebimento" agora distingue "Aguardando envio" (aprovado) de "Aguardando recebimento" (enviado/aguardando).
+- **CM-03**: drawer de pedido usa `pedidos_compra_itens.quantidade_recebida` (fonte canônica) em vez de agregação por `produto_id` em `estoque_movimentos`.
+- **CM-05**: removidas chaves duplicadas em `pedidoStatusLabelMap` (já existem em `statusPedidoCompra`).
+- **FE-02**: `darEntrada` não fecha o drawer manualmente — deixa a navegação para `/fiscal` desmontá-lo.
+- **FE-03**: `handleSelectProposal` aplica optimistic update e faz rollback em caso de erro.
+
+Deferidos (baixo valor / requer decisão de produto):
+- CA-04 (doutrina de cotacaoCanApprove), CM-01 (transição enviado→aguardando), CM-06 (espelhar validação de preço no front), DT-01/DT-02 (re-layout desktop), FE-01 (handleApprove via retorno da RPC), FE-04 (mobile status label override), FE-05 (decompor `CotacaoCompraDrawer`), DB-03 (data_entrega_prevista já vem da cotação na RPC).
