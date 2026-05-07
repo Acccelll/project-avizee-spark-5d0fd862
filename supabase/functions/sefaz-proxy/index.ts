@@ -17,6 +17,7 @@
 import forge from "https://esm.sh/node-forge@1.3.1";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createLogger } from "../_shared/logger.ts";
+import { requireAnyPermission, type PermissionRequirement } from "../_shared/permissions.ts";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 
@@ -68,6 +69,32 @@ async function requireAuth(req: Request) {
   if (error || !data.user) throw new Error("Sessão inválida ou expirada.");
   return data.user;
 }
+
+/**
+ * Mapa de autorização por `action`. Cada entrada lista as permissões que,
+ * se concedidas, autorizam a chamada. Admin global (user_roles=admin) ignora
+ * o mapa. Actions ausentes são bloqueadas por padrão.
+ */
+const ACTION_PERMISSIONS: Record<string, PermissionRequirement[]> = {
+  "health": [
+    { resource: "faturamento_fiscal", action: "visualizar" },
+    { resource: "faturamento_fiscal", action: "admin_fiscal" },
+  ],
+  "parse-certificado": [
+    { resource: "faturamento_fiscal", action: "admin_fiscal" },
+  ],
+  "assinar-e-enviar-vault": [
+    { resource: "faturamento_fiscal", action: "criar" },
+    { resource: "faturamento_fiscal", action: "cancelar" },
+    { resource: "faturamento_fiscal", action: "admin_fiscal" },
+  ],
+  "enviar-sem-assinatura-vault": [
+    { resource: "faturamento_fiscal", action: "visualizar" },
+    { resource: "faturamento_fiscal", action: "criar" },
+    { resource: "faturamento_fiscal", action: "cancelar" },
+    { resource: "faturamento_fiscal", action: "admin_fiscal" },
+  ],
+};
 
 // ── Certificado: Parsing PFX ─────────────────────────────────────
 
@@ -369,7 +396,7 @@ Deno.serve(async (req) => {
 
   const log = createLogger("sefaz-proxy", req);
   try {
-    await requireAuth(req);
+    const user = await requireAuth(req);
 
     const body = await req.json();
     const { action } = body;
@@ -383,6 +410,21 @@ Deno.serve(async (req) => {
         },
         400,
       );
+    }
+
+    const allowed = ACTION_PERMISSIONS[action];
+    if (!allowed) {
+      return json(
+        { error: `action '${action}' inválida.` },
+        400,
+      );
+    }
+    try {
+      await requireAnyPermission(user.id, allowed);
+    } catch (permErr: any) {
+      const status = permErr?.status === 403 ? 403 : 500;
+      log.warn("permission denied", { action, userId: user.id, message: permErr?.message });
+      return json({ error: permErr.message ?? "Permissão negada" }, status);
     }
 
     // ── Health check leve ──────────────────────────────────────────
