@@ -11,8 +11,9 @@ export function useEstoqueMutations() {
   const queryClient = useQueryClient();
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["estoque-produtos"] });
+    queryClient.invalidateQueries({ queryKey: ["estoque-posicao"] });
     queryClient.invalidateQueries({ queryKey: ["estoque-movimentacoes"] });
+    queryClient.invalidateQueries({ queryKey: ["produtos"] });
   };
 
   const registrarMutation = useMutation<void, Error, RegistrarMovimentacaoInput>({

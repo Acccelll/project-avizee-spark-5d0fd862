@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Recebimento } from "@/types/logistica";
+import { normalizeRecebimentoStatus } from "@/pages/logistica/logisticaStatus";
 
 export type { Recebimento };
 
@@ -35,7 +36,7 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     quantidade_pedida: Number(r.quantidade_pedida ?? 0),
     quantidade_recebida: Number(r.quantidade_recebida ?? 0),
     pendencia: Number(r.pendencia ?? 0),
-    status_logistico: r.status_logistico ?? "pedido_emitido",
+    status_logistico: normalizeRecebimentoStatus(r.status_logistico),
     nf_vinculada: r.nf_vinculada,
     responsavel: "—",
     recebimento_real: Boolean(r.tem_consolidacao_real),

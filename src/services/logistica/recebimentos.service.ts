@@ -57,6 +57,9 @@ export function useRegistrarRecebimento() {
       toast.success("Recebimento registrado");
       qc.invalidateQueries({ queryKey: ["recebimentos"] });
       qc.invalidateQueries({ queryKey: ["recebimentos-compra"] });
+      qc.invalidateQueries({ queryKey: ["estoque-posicao"] });
+      qc.invalidateQueries({ queryKey: ["estoque-movimentacoes"] });
+      qc.invalidateQueries({ queryKey: ["pedidos-compra"] });
     },
     onError: (err: Error) => notifyError(err),
   });

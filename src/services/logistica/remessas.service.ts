@@ -237,9 +237,14 @@ export async function cancelarRemessa(input: { id: string; motivo?: string | nul
 }
 
 /**
- * Transição genérica: chama a RPC correspondente quando aplicável; se a RPC recusar
- * (estado incompatível), faz `update` direto em `status_transporte` para preservar
- * a operação puramente logística do usuário.
+ * Transição genérica de status de remessa.
+ *
+ * - Transições com side-effect (em_transito, entregue, cancelado) chamam a RPC
+ *   correspondente (que faz baixa/estorno de estoque atomicamente). Se a RPC
+ *   falhar, o erro é PROPAGADO — não fazemos fallback silencioso de update
+ *   direto, pois isso deixaria o estoque divergente sem sinal ao usuário.
+ * - Transições puramente logísticas (coletado, postado, ocorrencia, pendente,
+ *   devolvido) atualizam `status_transporte` diretamente.
  */
 export async function transicionarRemessa(input: {
   remessaId: string;
@@ -255,13 +260,7 @@ export async function transicionarRemessa(input: {
       fn: string,
       args: Record<string, unknown>,
     ) => Promise<{ error: Error | null }>)(rpcName, params);
-    if (error) {
-      const { error: updErr } = await supabase
-        .from("remessas")
-        .update({ status_transporte: novoStatus })
-        .eq("id", remessaId);
-      if (updErr) throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
     return;
   }
   const { error } = await supabase

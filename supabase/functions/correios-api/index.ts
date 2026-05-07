@@ -307,6 +307,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === "rastrear" && req.method === "GET") {
+      // Onda 5 / C-04: rastreio exige usuário autenticado (qualquer role).
+      await requireAuthenticated(req);
       const codigo = url.searchParams.get("codigo") || "";
       if (!codigo) {
         return new Response(
@@ -455,6 +457,15 @@ async function requireUserWithRole(req: Request): Promise<{ userId: string }> {
   const has = (roles ?? []).some((r: { role: string }) => allowed.has(r.role));
   if (!has) throw new Error("Permissão insuficiente para gerar etiquetas.");
   return { userId };
+}
+
+async function requireAuthenticated(req: Request): Promise<{ userId: string }> {
+  const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) throw new Error("Token de autenticação ausente.");
+  const admin = makeAdminClient();
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data.user) throw new Error("Sessão inválida ou expirada.");
+  return { userId: data.user.id };
 }
 
 function jsonRes(data: unknown, status = 200) {
