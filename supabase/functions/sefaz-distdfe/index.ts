@@ -26,6 +26,7 @@ import forge from "https://esm.sh/node-forge@1.3.1";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { gunzipSync } from "https://esm.sh/fflate@0.8.2";
 import { createLogger } from "../_shared/logger.ts";
+import { requireAnyPermission, type PermissionRequirement } from "../_shared/permissions.ts";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 const corsHeaders = {
@@ -114,12 +115,17 @@ async function requireAuth(req: Request) {
   if (!token) throw new Error("Token de autenticação ausente.");
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  // Chamadas internas (process-distdfe-cron) usam SERVICE_ROLE_KEY como
+  // Authorization. Reconhecemos esse caso e tratamos como "sistema".
+  if (token === serviceRoleKey) {
+    return { id: "__service_role__", isService: true } as const;
+  }
   const client = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) throw new Error("Sessão inválida ou expirada.");
-  return data.user;
+  return { id: data.user.id, isService: false as const };
 }
 
 // ── PFX → PEM (cert + chave privada) ─────────────────────────────
@@ -370,13 +376,32 @@ Deno.serve(async (req) => {
 
   const log = createLogger("sefaz-distdfe", req);
   try {
-    await requireAuth(req);
+    const user = await requireAuth(req);
     const body = await req.json().catch(() => ({}));
     const action: string = body.action ?? "consultar-nsu";
     log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU, chNFe: body.chNFe });
 
     if (action !== "consultar-nsu" && action !== "consultar-chave") {
       return json({ error: `action '${action}' inválida. Use 'consultar-nsu' ou 'consultar-chave'.` }, 400);
+    }
+
+    // Autorização granular: ambas as actions exigem ao menos `visualizar`
+    // do módulo fiscal (admin global ignora). Bloqueia qualquer usuário
+    // logado sem vínculo com o módulo fiscal de disparar consultas SEFAZ.
+    const allowed: PermissionRequirement[] = [
+      { resource: "faturamento_fiscal", action: "visualizar" },
+      { resource: "faturamento_fiscal", action: "criar" },
+      { resource: "faturamento_fiscal", action: "importar_xml" },
+      { resource: "faturamento_fiscal", action: "admin_fiscal" },
+    ];
+    try {
+      if (!user.isService) {
+      await requireAnyPermission(user.id, allowed);
+      }
+    } catch (permErr: any) {
+      const status = permErr?.status === 403 ? 403 : 500;
+      log.warn("permission denied", { action, userId: user.id, message: permErr?.message });
+      return json({ sucesso: false, erro: permErr.message ?? "Permissão negada" }, status);
     }
 
     // Default = produção ("1"). Homologação só quando explicitamente "2".
