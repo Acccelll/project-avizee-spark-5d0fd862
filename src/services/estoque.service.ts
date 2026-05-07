@@ -6,7 +6,7 @@ export type EstoqueMovimentoRow = TableRow<"estoque_movimentos">;
 export type EstoqueMovimentoInsert = TableInsert<"estoque_movimentos">;
 
 export interface EstoqueMovimento extends EstoqueMovimentoRow {
-  produtos?: { nome: string; sku: string | null } | null;
+  produtos?: { nome: string; sku: string | null; variacoes?: unknown } | null;
 }
 
 /** Simplified shape returned by the vw_estoque_posicao view. */
@@ -68,7 +68,7 @@ export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
 export async function fetchMovimentacoes(): Promise<EstoqueMovimento[]> {
   const { data, error } = await supabase
     .from("estoque_movimentos")
-    .select("*, produtos(nome, sku)")
+    .select("*, produtos(nome, sku, variacoes)")
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -80,7 +80,7 @@ export async function fetchMovimentacoesPorProduto(
 ): Promise<EstoqueMovimento[]> {
   const { data, error } = await supabase
     .from("estoque_movimentos")
-    .select("*, produtos(nome, sku)")
+    .select("*, produtos(nome, sku, variacoes)")
     .eq("produto_id", produtoId)
     .order("created_at", { ascending: false });
 
