@@ -102,6 +102,7 @@ const FluxoCaixa = () => {
   const { data: fluxoData, isLoading: loading } = useFluxoCaixaData(dataInicio, dataFim);
   const lancamentos = fluxoData?.lancamentos ?? [];
   const contasBancarias = fluxoData?.contasBancarias ?? [];
+  const baixas = fluxoData?.baixas ?? [];
 
   // Period filter (canonical) — drives dataInicio/dataFim. Defaults to "30d".
   const [periodValue, setPeriodValue] = useState<PeriodValue>(() => {
@@ -170,6 +171,12 @@ const FluxoCaixa = () => {
     return lancamentos.filter(l => l.conta_bancaria_id === filterBanco);
   }, [lancamentos, filterBanco]);
 
+  // Baixas filtradas por banco (eixo Realizado por data_baixa, não por vencimento).
+  const filteredBaixas = useMemo(() => {
+    if (filterBanco === "todos") return baixas;
+    return baixas.filter(b => b.conta_bancaria_id === filterBanco);
+  }, [baixas, filterBanco]);
+
   const grouped = useMemo(() => {
     const groups: Record<string, { prevReceber: number; prevPagar: number; realReceber: number; realPagar: number; items: Lancamento[]; sortKey: string }> = {};
 
@@ -189,41 +196,43 @@ const FluxoCaixa = () => {
       return { display: d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }), sort };
     };
 
+    // Previsto: lançamentos agrupados por data_vencimento.
     filtered.forEach(l => {
       const { display, sort } = getKey(l.data_vencimento);
       if (!groups[display]) groups[display] = { prevReceber: 0, prevPagar: 0, realReceber: 0, realPagar: 0, items: [], sortKey: sort };
       const g = groups[display];
       g.items.push(l);
       const val = Number(l.valor || 0);
-      const realVal = (l.status === "pago" || l.status === "parcial")
-        ? val - Number(l.saldo_restante ?? 0)
-        : 0;
-      if (l.tipo === "receber") {
-        g.prevReceber += val;
-        g.realReceber += realVal;
-      } else {
-        g.prevPagar += val;
-        g.realPagar += realVal;
-      }
+      if (l.tipo === "receber") g.prevReceber += val;
+      else g.prevPagar += val;
+    });
+    // Realizado: baixas ativas agrupadas por data_baixa.
+    filteredBaixas.forEach(b => {
+      const { display, sort } = getKey(b.data_baixa);
+      if (!groups[display]) groups[display] = { prevReceber: 0, prevPagar: 0, realReceber: 0, realPagar: 0, items: [], sortKey: sort };
+      const g = groups[display];
+      if (b.tipo === "receber") g.realReceber += b.valor_pago;
+      else g.realPagar += b.valor_pago;
     });
 
     return Object.entries(groups)
       .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey))
       .map(([key, g]) => [key, g] as [string, typeof g]);
-  }, [filtered, periodicidade]);
+  }, [filtered, filteredBaixas, periodicidade]);
 
   const totals = useMemo(() => {
     let prevReceber = 0, prevPagar = 0, realReceber = 0, realPagar = 0;
     filtered.forEach(l => {
       const val = Number(l.valor || 0);
-      const realVal = (l.status === "pago" || l.status === "parcial")
-        ? val - Number(l.saldo_restante ?? 0)
-        : 0;
-      if (l.tipo === "receber") { prevReceber += val; realReceber += realVal; }
-      else { prevPagar += val; realPagar += realVal; }
+      if (l.tipo === "receber") prevReceber += val;
+      else prevPagar += val;
+    });
+    filteredBaixas.forEach(b => {
+      if (b.tipo === "receber") realReceber += b.valor_pago;
+      else realPagar += b.valor_pago;
     });
     return { prevReceber, prevPagar, realReceber, realPagar, saldoPrevisto: prevReceber - prevPagar, saldoRealizado: realReceber - realPagar };
-  }, [filtered]);
+  }, [filtered, filteredBaixas]);
 
   const chartData = useMemo(() => {
     let saldoAcumPrev = 0;
