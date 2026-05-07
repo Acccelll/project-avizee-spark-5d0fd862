@@ -459,6 +459,15 @@ async function requireUserWithRole(req: Request): Promise<{ userId: string }> {
   return { userId };
 }
 
+async function requireAuthenticated(req: Request): Promise<{ userId: string }> {
+  const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) throw new Error("Token de autenticação ausente.");
+  const admin = makeAdminClient();
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data.user) throw new Error("Sessão inválida ou expirada.");
+  return { userId: data.user.id };
+}
+
 function jsonRes(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
