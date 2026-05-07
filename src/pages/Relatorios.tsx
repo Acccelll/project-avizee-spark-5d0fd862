@@ -234,6 +234,7 @@ export default function Relatorios() {
     handleExportPdf,
     handleExportXlsx,
     PDF_ROW_LIMIT,
+    isLikelyTruncated,
   } = useRelatorioExport({
     tipo,
     resultado,
@@ -403,6 +404,14 @@ export default function Relatorios() {
                   <span className="text-muted-foreground">
                     Os KPIs abaixo refletem o universo total ({rows.length} registros) retornado do banco.
                     A tabela aplica filtros locais e mostra {sortedRows.length} de {rows.length} registros.
+                  </span>
+                </div>
+              )}
+              {isLikelyTruncated && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
+                  <span className="font-medium text-destructive">Resultado pode estar truncado:</span>
+                  <span className="text-muted-foreground">
+                    O relatório atingiu exatamente {rows.length} registros (limite default da consulta). Refine o período ou os filtros para garantir que todos os dados sejam considerados.
                   </span>
                 </div>
               )}

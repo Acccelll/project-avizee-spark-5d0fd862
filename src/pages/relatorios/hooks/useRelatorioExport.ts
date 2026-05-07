@@ -24,6 +24,9 @@ import type {
 } from '@/services/relatorios.service';
 
 const PDF_ROW_LIMIT = 200;
+const XLSX_ROW_LIMIT = 10000;
+const CSV_ROW_LIMIT = 50000;
+const SUPABASE_PAGE_LIMIT = 1000;
 
 interface VisibleColumn {
   key: string;
@@ -57,6 +60,9 @@ export function useRelatorioExport({
     visibleColumns.length === 1 ? 'coluna' : 'colunas'
   }`;
 
+  // Detecta possível truncamento na origem dos dados (limite default 1000 do Supabase).
+  const isLikelyTruncated = sortedRows.length === SUPABASE_PAGE_LIMIT;
+
   const exportColumnDefs = useMemo<ExportColumnDef[] | undefined>(() => {
     if (!tipo) return undefined;
     const cfg = reportConfigs[tipo as TipoRelatorio];
@@ -71,6 +77,12 @@ export function useRelatorioExport({
     if (!sortedRows.length) {
       toast.warning('Nenhum dado visível para exportar.');
       return;
+    }
+    if (sortedRows.length > CSV_ROW_LIMIT) {
+      const ok = window.confirm(
+        `O CSV terá ${sortedRows.length.toLocaleString('pt-BR')} linhas (limite recomendado: ${CSV_ROW_LIMIT.toLocaleString('pt-BR')}).\n\nGerar mesmo assim?`,
+      );
+      if (!ok) return;
     }
     exportarParaCsv({
       titulo: resultado?.title || String(tipo),
@@ -87,10 +99,11 @@ export function useRelatorioExport({
     }
     if (isExporting) return;
     if (sortedRows.length > PDF_ROW_LIMIT) {
-      toast.warning(
-        `PDF limitado a ${PDF_ROW_LIMIT} de ${sortedRows.length} registros. Use Excel para exportação completa.`,
-        { duration: 8000 },
+      const ok = window.confirm(
+        `O PDF é limitado a ${PDF_ROW_LIMIT} linhas e este relatório tem ${sortedRows.length.toLocaleString('pt-BR')} registros.\n\n` +
+          `Apenas as primeiras ${PDF_ROW_LIMIT} serão impressas. Para o relatório completo prefira exportar em Excel.\n\nDeseja continuar com o PDF resumido?`,
       );
+      if (!ok) return;
     }
     const tid = toast.loading('Gerando PDF...', { description: exportScopeDescription });
     setIsExporting(true);
@@ -103,6 +116,11 @@ export function useRelatorioExport({
         dataInicio,
         dataFim,
         resultado,
+        origem: {
+          modo: 'dinâmico',
+          fonte: tipo ? `relatorio:${tipo}` : undefined,
+          geradoEm: new Date().toISOString(),
+        },
       });
       toast.success('PDF gerado com sucesso!', {
         id: tid,
@@ -122,6 +140,13 @@ export function useRelatorioExport({
       return;
     }
     if (isExporting) return;
+    if (sortedRows.length > XLSX_ROW_LIMIT) {
+      const ok = window.confirm(
+        `O Excel terá ${sortedRows.length.toLocaleString('pt-BR')} linhas (limite recomendado: ${XLSX_ROW_LIMIT.toLocaleString('pt-BR')}).\n\n` +
+          `Arquivos muito grandes podem travar o navegador durante a geração. Continuar?`,
+      );
+      if (!ok) return;
+    }
     const tid = toast.loading('Gerando Excel...', { description: exportScopeDescription });
     setIsExporting(true);
     try {
@@ -146,9 +171,12 @@ export function useRelatorioExport({
     isExporting,
     exportColumnDefs,
     exportScopeDescription,
+    isLikelyTruncated,
     handleExportCsv,
     handleExportPdf,
     handleExportXlsx,
     PDF_ROW_LIMIT,
+    XLSX_ROW_LIMIT,
+    CSV_ROW_LIMIT,
   };
 }

@@ -260,7 +260,7 @@ export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResult
   // GERENCIAL approximation — derived from financeiro_lancamentos + notas_fiscais.
   // Receita Bruta = soma de receber pago/parcial (cash basis via valor_pago).
   // Deduções = ICMS/PIS/COFINS/IPI sobre NFs de saída no período.
-  // CMV = pagar com NF vinculada OU descrição contendo "compra".
+  // CMV = pagar vinculado a NF de entrada ou pedido de compra (classificação estruturada).
   // Despesas Op. = demais lançamentos pagar.
   // Resultado = Receita Líquida − CMV − Despesas Operacionais.
 
@@ -274,7 +274,7 @@ export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResult
 
   let pagosQuery = supabase
     .from("financeiro_lancamentos")
-    .select("valor, valor_pago, status, descricao, nota_fiscal_id")
+    .select("valor, valor_pago, status, descricao, nota_fiscal_id, pedido_compra_id, origem_tabela")
     .eq("ativo", true)
     .eq("tipo", "pagar")
     .in("status", ["pago", "parcial"]);
@@ -307,13 +307,21 @@ export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResult
 
   const receitaLiquida = receitaBruta - deducoes;
 
-  const cmv = (pagos || []).filter((p: Record<string, unknown>) =>
-    p.nota_fiscal_id || ((p.descricao as string | null) || "").toLowerCase().includes("compra")
-  ).reduce((s: number, p: Record<string, unknown>) => s + cashAmount(p), 0);
+  // CMV: classificação estruturada (sem heurística de substring na descrição).
+  // Considera CMV todo pagamento vinculado a NF de entrada, pedido de compra
+  // ou cuja origem seja explicitamente notas_fiscais / pedidos_compra.
+  const isCmv = (p: Record<string, unknown>): boolean => {
+    if (p.nota_fiscal_id) return true;
+    if (p.pedido_compra_id) return true;
+    const origem = ((p.origem_tabela as string | null) ?? '').toLowerCase();
+    return origem === 'notas_fiscais' || origem === 'pedidos_compra';
+  };
 
-  const despesasOp = (pagos || []).filter((p: Record<string, unknown>) =>
-    !p.nota_fiscal_id && !((p.descricao as string | null) || "").toLowerCase().includes("compra")
-  ).reduce((s: number, p: Record<string, unknown>) => s + cashAmount(p), 0);
+  const cmv = (pagos || []).filter(isCmv)
+    .reduce((s: number, p: Record<string, unknown>) => s + cashAmount(p), 0);
+
+  const despesasOp = (pagos || []).filter((p: Record<string, unknown>) => !isCmv(p))
+    .reduce((s: number, p: Record<string, unknown>) => s + cashAmount(p), 0);
 
   const lucroBruto = receitaLiquida - cmv;
   const resultado = lucroBruto - despesasOp;

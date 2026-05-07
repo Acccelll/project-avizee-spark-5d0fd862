@@ -87,21 +87,21 @@ Sprints incrementais; cada sprint encerra com build verde e itens marcados em `.
 
 ### Sprint 8.1 — Confiabilidade dos números (🔴)
 - 8.1.1 DRE cash basis vs competência: documentar e oferecer toggle no filtro (`competencia | caixa`). Loader recalcula deduções do método escolhido.
-- 8.1.2 Substituir heurística "compra" no CMV por classificação estruturada (`nota_fiscal_id IS NOT NULL` + tag `tipo_lancamento_dre`).
-- 8.1.3 Carimbo de origem (modo, data de geração, view de fonte) no rodapé do PDF, capa do XLSX, capa da PPTX.
+- 8.1.2 ✅ Substituir heurística "compra" no CMV por classificação estruturada (`nota_fiscal_id` / `pedido_compra_id` / `origem_tabela`).
+- 8.1.3 ✅ (PDF) Carimbo de origem (modo, fonte, data de geração) no cabeçalho do PDF. XLSX/PPTX: pendente.
 - 8.1.4 View canônica `vw_dre_periodo` consumida por Relatórios + Workbook + Apresentação (eliminar 3 cálculos paralelos).
-- 8.1.5 `BudgetMensal`: migration `UNIQUE(competencia, categoria, COALESCE(centro_custo_id, '00000000-...'))`.
+- 8.1.5 ✅ `BudgetMensal`: índice `ux_budgets_mensais_unique (competencia, categoria, COALESCE(centro_custo_id, ...))` já aplicado em produção.
 
 ### Sprint 8.2 — Exportação segura (🟡)
-- 8.2.1 Modal pré-export PDF com `recordCount` real, alerta visual quando >200, opção "exportar Excel".
-- 8.2.2 Limite Excel/CSV configurável (default 10000) + aviso e opção "continuar".
+- 8.2.1 ✅ Confirmação pré-export PDF (`window.confirm`) quando rows > 200 com mensagem orientando o uso de Excel.
+- 8.2.2 ✅ Confirmação pré-export Excel (>10k) e CSV (>50k) com opção "continuar".
 - 8.2.3 Em PDF: layout de página A3 quando colunas >10; fallback para "muitas colunas → use Excel".
 - 8.2.4 Worker para geração de XLSX/PDF (off main thread) — opcional via flag.
 
 ### Sprint 8.3 — Cache e invalidação cross-módulo (🟡)
 - 8.3.1 Helper `invalidateRelatoriosByDomain(domain)` chamado em mutations de Financeiro, Comercial, Compras, Estoque, Fiscal.
 - 8.3.2 Selo "Atualizado há X · Atualizar" exposto em `ReportHeader`.
-- 8.3.3 Detect `rows.length === 1000` e exibir warning "Resultado pode estar truncado".
+- 8.3.3 ✅ Detect `rows.length === 1000` e warning "Resultado pode estar truncado" no workspace de Relatórios.
 
 ### Sprint 8.4 — Workbook & Apresentação robustos (🟡)
 - 8.4.1 Modo fechado: avisos visuais por aba ("snapshot fechado não disponibiliza este corte") em vez de aba vazia.
