@@ -132,14 +132,24 @@ describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
     const emptyResult = { data: [], loading: false, create: vi.fn(), update: vi.fn(), remove: vi.fn(), fetchData: vi.fn() };
 
     mockUseSupabaseCrud.mockImplementation(() => emptyResult);
-    mockUseFinanceiroLancamentosPaged.mockReturnValue({
-      data: rows,
-      totalCount: rows.length,
-      loading: false,
-      refetching: false,
-      refetch: vi.fn(),
-      error: null,
-    });
+    // Após 1.4, busca é server-side: o hook recebe `filters.search` e devolve
+    // apenas as linhas que casam (simulação simples por substring).
+    mockUseFinanceiroLancamentosPaged.mockImplementation(
+      (filters: { search?: string | null }) => {
+        const term = (filters?.search ?? "").trim().toLowerCase();
+        const filtered = term
+          ? rows.filter((r) => r.descricao.toLowerCase().includes(term))
+          : rows;
+        return {
+          data: filtered,
+          totalCount: filtered.length,
+          loading: false,
+          refetching: false,
+          refetch: vi.fn(),
+          error: null,
+        };
+      },
+    );
     mockUseFinanceiroKpisRpc.mockReturnValue({ data: undefined });
   });
 
