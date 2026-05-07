@@ -1,22 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import { ModulePage } from '@/components/ModulePage';
-import { SummaryCard } from '@/components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { DataTable } from '@/components/DataTable';
 import { PreviewModal } from '@/components/ui/PreviewModal';
-import { PeriodoFilter } from '@/pages/relatorios/components/Filtros/PeriodoFilter';
-import { FiltrosRelatorio, type FiltrosRelatorioState } from '@/pages/relatorios/components/Filtros/FiltrosRelatorio';
 import { RelatorioChart } from '@/pages/relatorios/components/Graficos/RelatorioChart';
+import type { FiltrosRelatorioState } from '@/pages/relatorios/components/Filtros/FiltrosRelatorio';
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
 import { ReportHeader } from '@/pages/relatorios/components/ReportHeader';
 import { ExportMenu } from '@/pages/relatorios/components/ExportMenu';
@@ -24,6 +20,9 @@ import { ActiveFiltersBar } from '@/pages/relatorios/components/ActiveFiltersBar
 import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFooter';
 import { PreviewDocument } from '@/pages/relatorios/components/PreviewDocument';
 import { RelatorioCatalogo } from '@/pages/relatorios/components/RelatorioCatalogo';
+import { RelatorioKpiGrid } from '@/pages/relatorios/components/RelatorioKpiGrid';
+import { RelatorioFiltrosBar } from '@/pages/relatorios/components/RelatorioFiltrosBar';
+import { RelatorioMobileToolbar } from '@/pages/relatorios/components/RelatorioMobileToolbar';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import {
   useRelatoriosFiltrosData,
@@ -39,7 +38,7 @@ import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDril
 import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, SearchX, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { BookmarkPlus, BookOpen, Hash, Trash2, RefreshCcw, SearchX, ChevronDown } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
@@ -424,223 +423,88 @@ export default function Relatorios() {
                 actions={headerActions}
               />
 
-              {/* KPIs */}
-              {hasLocalFiltersApplied && (
-                <div className="rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
-                  <span className="font-medium">Atenção:</span>
-                  <span className="text-muted-foreground">
-                    Os KPIs abaixo refletem o universo total ({rows.length} registros) retornado do banco.
-                    A tabela aplica filtros locais e mostra {sortedRows.length} de {rows.length} registros.
-                  </span>
-                </div>
-              )}
-              {isLikelyTruncated && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
-                  <span className="font-medium text-destructive">Resultado pode estar truncado:</span>
-                  <span className="text-muted-foreground">
-                    O relatório atingiu exatamente {rows.length} registros (limite default da consulta). Refine o período ou os filtros para garantir que todos os dados sejam considerados.
-                  </span>
-                </div>
-              )}
-              {/* KPIs — 2x2 em mobile, denso */}
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-                {kpiCards.map((kpi) => (
-                  <SummaryCard
-                    key={kpi.title}
-                    title={kpi.title}
-                    value={kpi.value}
-                    icon={kpi.icon}
-                    variationType="neutral"
-                    variation={hasLocalFiltersApplied ? `${kpi.variation || ''} (universo total)`.trim() : kpi.variation}
-                    variant={kpi.variant}
-                    density={compactDensity ? 'compact' : 'default'}
-                  />
-                ))}
-              </div>
+              {/* KPIs + banners de truncamento/divergência */}
+              <RelatorioKpiGrid
+                cards={kpiCards}
+                compactDensity={compactDensity}
+                hasLocalFiltersApplied={hasLocalFiltersApplied}
+                rowsCount={rows.length}
+                visibleCount={sortedRows.length}
+                isLikelyTruncated={isLikelyTruncated}
+              />
 
               {/* ── Filtros + ações (desktop expandido) ── */}
-              <Card className="hidden md:block">
-                <CardContent className="pt-5 pb-4 space-y-4">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0 space-y-3">
-                      {selectedMeta.filters.showDateRange && (
-                        <PeriodoFilter
-                          dataInicio={dataInicio}
-                          dataFim={dataFim}
-                          axisLabel={selectedMeta.timeAxis?.label ?? reportMeta?.timeAxis?.label}
-                          onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }}
-                        />
-                      )}
-                      <FiltrosRelatorio
-                        filters={selectedMeta.filters}
-                        state={filtrosState}
-                        clientes={clientes}
-                        fornecedores={fornecedores}
-                        grupos={grupos}
-                        semantics={{
-                          statusMeaning: semantics?.statusMeaning,
-                          typeMeaning: semantics?.typeMeaning,
-                          highlightFilters: semantics?.highlightFilters,
-                          listLimitHints: { clientes: limits.clientes, fornecedores: limits.fornecedores },
-                        }}
-                        hideAgrupamento={isDreReport}
-                        onChange={(partial) => setFiltrosState(partial)}
-                      />
-                    </div>
+              <RelatorioFiltrosBar
+                selectedMeta={selectedMeta}
+                reportMeta={reportMeta}
+                semantics={semantics}
+                isDreReport={isDreReport}
+                dataInicio={dataInicio}
+                dataFim={dataFim}
+                setDataInicio={setDataInicio}
+                setDataFim={setDataFim}
+                filtrosState={filtrosState}
+                setFiltrosState={setFiltrosState}
+                clientes={clientes}
+                fornecedores={fornecedores}
+                grupos={grupos}
+                limits={limits}
+                columns={columns}
+                visibleColumnsCount={columns.length - hiddenColumns.length}
+                hiddenColumns={hiddenColumns}
+                setHiddenColumns={setHiddenColumns}
+                compactDensity={compactDensity}
+                setCompactDensity={setCompactDensity}
+                onPreview={() => setPreviewOpen(true)}
+                hasExportableData={hasExportableData}
+                exportMenu={
+                  <ExportMenu
+                    recordCount={sortedRows.length}
+                    columnCount={visibleColumns.length}
+                    disabled={!hasExportableData}
+                    loading={isExporting}
+                    pdfRowLimitHint={PDF_ROW_LIMIT}
+                    onExportPdf={handleExportPdf}
+                    onExportExcel={handleExportXlsx}
+                    onExportCsv={handleExportCsv}
+                  />
+                }
+              />
 
-                    {/* Ações: View / Colunas / Densidade / Exportar */}
-                    <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPreviewOpen(true)}
-                        disabled={!hasExportableData}
-                        className="gap-1.5"
-                        aria-label="Visualizar pré-impressão do relatório"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Visualizar
-                      </Button>
-                      {columns.length > 0 && !isDreReport && (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="gap-1.5" aria-label="Personalizar colunas">
-                              <Columns className="h-3.5 w-3.5" />
-                              Colunas
-                              {hiddenColumns.length > 0 && (
-                                <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">
-                                  {columns.length - hiddenColumns.length}/{columns.length}
-                                </Badge>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent align="end" className="w-64 p-3">
-                            <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Personalizar colunas</p>
-                            <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                              {columns.map((col) => (
-                                <label key={col.key} className="flex items-center gap-2 text-sm cursor-pointer">
-                                  <Checkbox checked={!hiddenColumns.includes(col.key)} onCheckedChange={(checked) => setHiddenColumns((prev) => checked ? prev.filter((k) => k !== col.key) : [...prev, col.key])} />
-                                  {col.label}
-                                </label>
-                              ))}
-                            </div>
-                            {hiddenColumns.length > 0 && <Button variant="ghost" size="sm" className="mt-2 w-full text-xs" onClick={() => setHiddenColumns([])}>Restaurar padrão</Button>}
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                      <Button
-                        variant={compactDensity ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setCompactDensity((v) => !v)}
-                        className="gap-1.5"
-                        aria-label="Alternar densidade compacta"
-                        aria-pressed={compactDensity}
-                      >
-                        <Rows3 className="h-3.5 w-3.5" />
-                        Compacto
-                      </Button>
-                      <ExportMenu
-                        recordCount={sortedRows.length}
-                        columnCount={visibleColumns.length}
-                        disabled={!hasExportableData}
-                        loading={isExporting}
-                        pdfRowLimitHint={PDF_ROW_LIMIT}
-                        onExportPdf={handleExportPdf}
-                        onExportExcel={handleExportXlsx}
-                        onExportCsv={handleExportCsv}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* ── Mobile: barra única "Filtros (n) + Atualizar" ── */}
-              <div className="flex items-center gap-2 md:hidden">
-                <Sheet open={filtersSheetOpen} onOpenChange={setFiltersSheetOpen}>
-                  <SheetTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex-1 min-h-11 gap-2 justify-start"
-                      aria-label="Abrir filtros do relatório"
-                    >
-                      <SlidersHorizontal className="h-4 w-4" />
-                      Filtros
-                      {activeFiltersCount > 0 && (
-                        <Badge variant="secondary" className="ml-auto">
-                          {activeFiltersCount}
-                        </Badge>
-                      )}
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto p-0">
-                    <SheetHeader className="sticky top-0 bg-background border-b px-4 py-3 z-10">
-                      <SheetTitle className="text-base">Filtros do relatório</SheetTitle>
-                    </SheetHeader>
-                    <div className="px-4 py-4 space-y-4">
-                      {selectedMeta.filters.showDateRange && (
-                        <PeriodoFilter
-                          dataInicio={dataInicio}
-                          dataFim={dataFim}
-                          axisLabel={selectedMeta.timeAxis?.label ?? reportMeta?.timeAxis?.label}
-                          onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }}
-                        />
-                      )}
-                      <FiltrosRelatorio
-                        filters={selectedMeta.filters}
-                        state={filtrosState}
-                        clientes={clientes}
-                        fornecedores={fornecedores}
-                        grupos={grupos}
-                        semantics={{
-                          statusMeaning: semantics?.statusMeaning,
-                          typeMeaning: semantics?.typeMeaning,
-                          highlightFilters: semantics?.highlightFilters,
-                          listLimitHints: { clientes: limits.clientes, fornecedores: limits.fornecedores },
-                        }}
-                        hideAgrupamento={isDreReport}
-                        onChange={(partial) => setFiltrosState(partial)}
-                      />
-                    </div>
-                    <div className="sticky bottom-0 bg-background border-t px-4 py-3 flex gap-2">
-                      {activeFiltersCount > 0 && (
-                        <Button
-                          variant="outline"
-                          className="flex-1 min-h-11"
-                          onClick={() => { handleClearAllFilters(); }}
-                        >
-                          Limpar
-                        </Button>
-                      )}
-                      <Button
-                        className="flex-1 min-h-11"
-                        onClick={() => setFiltersSheetOpen(false)}
-                      >
-                        Aplicar
-                      </Button>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-                <ExportMenu
-                  recordCount={hasExportableData ? sortedRows.length : undefined}
-                  columnCount={visibleColumns.length}
-                  disabled={!hasExportableData}
-                  loading={isExporting}
-                  pdfRowLimitHint={PDF_ROW_LIMIT}
-                  onExportPdf={handleExportPdf}
-                  onExportExcel={handleExportXlsx}
-                  onExportCsv={handleExportCsv}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="min-h-11 min-w-11"
-                  onClick={() => refetch()}
-                  disabled={isLoading}
-                  aria-label="Atualizar dados"
-                >
-                  <RefreshCcw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-                </Button>
-              </div>
+              <RelatorioMobileToolbar
+                filtersSheetOpen={filtersSheetOpen}
+                setFiltersSheetOpen={setFiltersSheetOpen}
+                activeFiltersCount={activeFiltersCount}
+                selectedMeta={selectedMeta}
+                reportMeta={reportMeta}
+                semantics={semantics}
+                isDreReport={isDreReport}
+                dataInicio={dataInicio}
+                dataFim={dataFim}
+                setDataInicio={setDataInicio}
+                setDataFim={setDataFim}
+                filtrosState={filtrosState}
+                setFiltrosState={setFiltrosState}
+                clientes={clientes}
+                fornecedores={fornecedores}
+                grupos={grupos}
+                limits={limits}
+                onClearAllFilters={handleClearAllFilters}
+                onRefetch={() => refetch()}
+                isLoading={isLoading}
+                exportMenu={
+                  <ExportMenu
+                    recordCount={hasExportableData ? sortedRows.length : undefined}
+                    columnCount={visibleColumns.length}
+                    disabled={!hasExportableData}
+                    loading={isExporting}
+                    pdfRowLimitHint={PDF_ROW_LIMIT}
+                    onExportPdf={handleExportPdf}
+                    onExportExcel={handleExportXlsx}
+                    onExportCsv={handleExportCsv}
+                  />
+                }
+              />
 
               {/* ── Mobile: Chart primeiro (insight central) ── */}
               <div className="md:hidden">
