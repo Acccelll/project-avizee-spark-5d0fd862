@@ -10,6 +10,7 @@ import { ExportMenu } from '@/pages/relatorios/components/ExportMenu';
 import { Columns, Eye, Rows3 } from 'lucide-react';
 import type { ReportConfig, ReportRuntimeSemantics } from '@/config/relatoriosConfig';
 import type { ReportMeta } from '@/types/relatorios';
+import type { ClienteRef, FornecedorRef, GrupoProdutoRef } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
 
 export interface RelatorioColumnDef {
   key: string;
@@ -27,9 +28,9 @@ interface Props {
   setDataFim: (v: string) => void;
   filtrosState: FiltrosRelatorioState;
   setFiltrosState: (partial: Partial<FiltrosRelatorioState>) => void;
-  clientes: Array<{ id: string; label: string }>;
-  fornecedores: Array<{ id: string; label: string }>;
-  grupos: Array<{ id: string; nome: string }>;
+  clientes: ClienteRef[];
+  fornecedores: FornecedorRef[];
+  grupos: GrupoProdutoRef[];
   limits: { clientes: number; fornecedores: number };
 
   columns: RelatorioColumnDef[];
