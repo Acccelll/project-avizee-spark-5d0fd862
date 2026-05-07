@@ -593,6 +593,16 @@ export default function Relatorios() {
                     </div>
                   </SheetContent>
                 </Sheet>
+                <ExportMenu
+                  recordCount={hasExportableData ? sortedRows.length : undefined}
+                  columnCount={visibleColumns.length}
+                  disabled={!hasExportableData}
+                  loading={isExporting}
+                  pdfRowLimitHint={PDF_ROW_LIMIT}
+                  onExportPdf={handleExportPdf}
+                  onExportExcel={handleExportXlsx}
+                  onExportCsv={handleExportCsv}
+                />
                 <Button
                   variant="outline"
                   size="icon"
