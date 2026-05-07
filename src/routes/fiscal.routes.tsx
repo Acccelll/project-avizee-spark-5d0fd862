@@ -15,6 +15,10 @@ const EmBreve = lazy(() =>
   import("@/components/EmBreve").then((m) => ({ default: m.EmBreve })),
 );
 const FaturamentoIndex = lazy(() => import("@/pages/faturamento/FaturamentoIndex"));
+const EmitirNFeWizard = lazy(() => import("@/pages/faturamento/EmitirNFeWizard"));
+const FaturamentoCadastros = lazy(() => import("@/pages/faturamento/FaturamentoCadastros"));
+const BacklogFaturamento = lazy(() => import("@/pages/faturamento/BacklogFaturamento"));
+const ConsultaDocumentos = lazy(() => import("@/pages/faturamento/ConsultaDocumentos"));
 
 /**
  * Bloco Fiscal — todas as rotas /fiscal/* compartilham o `FiscalShell`,
@@ -36,7 +40,9 @@ export const fiscalRoutes = (
       <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />
     </Route>
     <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FaturamentoIndex /></LazyPage></PermissionRoute>} />
-    <Route path="/faturamento/cadastros" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><EmBreve modulo="Faturamento" descricao="Cadastros do módulo Faturamento estarão disponíveis em breve." /></LazyPage></PermissionRoute>} />
-    <Route path="/faturamento/emitir" element={<PermissionRoute resource="faturamento_fiscal" action="criar"><LazyPage><EmBreve modulo="Faturamento" descricao="Emissão de NF-e pelo wizard estará disponível em breve." /></LazyPage></PermissionRoute>} />
+    <Route path="/faturamento/backlog" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><BacklogFaturamento /></LazyPage></PermissionRoute>} />
+    <Route path="/faturamento/documentos" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><ConsultaDocumentos /></LazyPage></PermissionRoute>} />
+    <Route path="/faturamento/cadastros" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FaturamentoCadastros /></LazyPage></PermissionRoute>} />
+    <Route path="/faturamento/emitir" element={<PermissionRoute resource="faturamento_fiscal" action="criar"><LazyPage><EmitirNFeWizard /></LazyPage></PermissionRoute>} />
   </>
 );
