@@ -4,6 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CheckCircle, XCircle, Loader2, Mail, Phone, Globe, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type {
   OrcamentoPublicView,
@@ -92,6 +101,8 @@ export default function OrcamentoPublico() {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionDone, setActionDone] = useState<"aprovado" | "rejeitado" | null>(null);
+  const [dialogAcao, setDialogAcao] = useState<"aprovado" | "rejeitado" | null>(null);
+  const [comentario, setComentario] = useState("");
 
   useEffect(() => {
     if (!token) {
@@ -252,23 +263,37 @@ export default function OrcamentoPublico() {
   const cidadeLinha = `${[empresa?.bairro, empresa?.cidade].filter(Boolean).join(" · ")}${empresa?.uf ? `/${empresa.uf}` : ""}`;
   const cepLinha = empresa?.cep ? `CEP: ${empresa.cep}` : "";
 
-  const handleAction = async (acao: "aprovado" | "rejeitado") => {
+  const handleAction = async (acao: "aprovado" | "rejeitado", comentarioInput?: string) => {
     if (!data || !token || actionLoading) return;
     // C-03: somente orçamentos enviados (status pendente) podem ser respondidos.
     if (data.status !== "pendente") {
       toast.error("Este orçamento não está mais disponível para resposta.");
       return;
     }
+    const comentarioFinal = (comentarioInput ?? "").trim();
+    if (acao === "rejeitado" && comentarioFinal.length < 3) {
+      toast.error("Descreva o que você gostaria de ajustar (mín. 3 caracteres).");
+      return;
+    }
     setActionLoading(true);
     const { error: rpcErr } = await supabase.rpc("acao_cliente_orcamento" as never, {
       p_token: token,
       p_acao: acao,
+      p_comentario: comentarioFinal || null,
     } as never);
     if (rpcErr) {
       toast.error("Erro ao registrar sua resposta. Tente novamente.");
+      setActionLoading(false);
+      return;
     } else {
       setActionDone(acao);
       setData((prev) => (prev ? { ...prev, status: acao } : prev));
+      setDialogAcao(null);
+      setComentario("");
+      // Dispara notificação ao time (best-effort, não bloqueia UX).
+      supabase.functions
+        .invoke("notify-orcamento-resposta", { body: { token, acao } })
+        .catch(() => {});
     }
     setActionLoading(false);
   };
@@ -508,10 +533,10 @@ export default function OrcamentoPublico() {
                 className="gap-2"
                 style={{ background: "#16a34a", color: "#fff", minWidth: 220, minHeight: 44 }}
                 disabled={actionLoading}
-                onClick={() => handleAction("aprovado")}
+                onClick={() => { setComentario(""); setDialogAcao("aprovado"); }}
               >
                 <CheckCircle className="h-5 w-5" />
-                {actionLoading ? "Aguarde..." : "Aceitar este orçamento"}
+                Aceitar este orçamento
               </Button>
               <Button
                 size="lg"
@@ -519,10 +544,10 @@ export default function OrcamentoPublico() {
                 className="gap-2"
                 style={{ borderColor: WINE, color: WINE, minWidth: 220, minHeight: 44 }}
                 disabled={actionLoading}
-                onClick={() => handleAction("rejeitado")}
+                onClick={() => { setComentario(""); setDialogAcao("rejeitado"); }}
               >
                 <XCircle className="h-5 w-5" />
-                {actionLoading ? "Aguarde..." : "Solicitar revisão"}
+                Solicitar revisão
               </Button>
             </div>
           </section>
