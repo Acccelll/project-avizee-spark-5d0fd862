@@ -349,7 +349,6 @@ export async function loadDre(filtros: FiltroRelatorio): Promise<RelatorioResult
     ],
     totals: { receitaBruta, receitaLiquida, resultado },
     kpis: { receitaBruta, receitaLiquida, resultado },
-    _isDreReport: true,
     meta: {
       kind: 'dre',
       valueNature: 'monetario',

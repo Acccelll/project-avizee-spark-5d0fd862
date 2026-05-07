@@ -104,7 +104,6 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
         chartData: [],
         totals: { totalEntradas: 0, totalSaidas: 0, totalAjustes: 0, saldoAtual: 0 },
         kpis: { totalMovimentos: 0, totalEntradas: 0, totalSaidas: 0, totalAjustes: 0 },
-        _isQuantityReport: true,
         meta: {
           kind: 'list',
           valueNature: 'quantidade',
@@ -164,7 +163,6 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
       totalSaidas: Math.abs(saidas),
       totalAjustes: Math.abs(ajustes),
     },
-    _isQuantityReport: true,
     meta: {
       kind: 'list',
       valueNature: 'quantidade',
@@ -268,7 +266,6 @@ export async function loadEstoqueMinimo(filtros: FiltroRelatorio): Promise<Relat
     chartData: rows.slice(0, 8).map(r => ({ name: r.produto.substring(0, 20), value: r.deficit })),
     totals: { totalItens: rows.length, custoTotal },
     kpis: { itensCriticos, itensZerados, deficitTotal, custoTotal },
-    _isQuantityReport: true,
     meta: { kind: 'list', valueNature: 'misto', drillDownReady: true },
   };
 }
