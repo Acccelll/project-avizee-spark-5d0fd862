@@ -258,7 +258,10 @@ const Estoque = () => {
       const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
       const saldo = Number(produto?.estoque_atual ?? 0);
       if (form.quantidade > saldo) {
-        // Will leave negative — still allow, but confirm explicitly
+        const ok = window.confirm(
+          `A saída deixará o saldo negativo (${formatNumber(saldo - form.quantidade)}). Deseja prosseguir?`,
+        );
+        if (!ok) return;
       }
     }
     setPendingMovForm({ ...form });
