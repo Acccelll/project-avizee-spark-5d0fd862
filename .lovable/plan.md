@@ -100,12 +100,13 @@ Ajuste manual ──► ajustar_estoque_manual (RPC) → audit log
 8. ✅ `motivo >=10` obrigatório em ajustes.
 9. ✅ RecebimentoDrawer aceita `onRegistrarRecebimento` — Logistica monta dialog inline.
 10. ✅ Bulk rastrear paralelo (4) com toast único de progresso.
+11. ⚠️ Justificativa de ajuste **revertida para opcional** por solicitação do usuário (frontend + RPC + trigger). Categoria_ajuste e role gate continuam obrigatórios.
 
 ### Bloco 3 — Melhorias (curtas)
-11. `EtiquetaCorreiosCard.handleCancelar` → `useConfirmDialog`. (MB-03)
-12. Cards mobile para Movimentações e Recebimentos. (MB-02)
-13. Tooltip explicativo "Visão consolidada" nas abas de Logística. (MB-08)
-14. Index `remessa_eventos(remessa_id, data_hora desc)` se não existir. (DB-06)
+12. ✅ `EtiquetaCorreiosCard.handleCancelar` → `useConfirmDialog`. (MB-03)
+13. Cards mobile para Movimentações e Recebimentos. (MB-02) — pendente
+14. Tooltip "Visão consolidada" nas abas de Logística. (MB-08) — banner já existe na aba Entregas; tooltip nas TabsTrigger pendente
+15. ✅ Index `remessa_eventos(remessa_id, data_hora DESC)` criado. (DB-06)
 
 ### Bloco 4 — Dívida técnica (deferível)
 15. Decompor `Logistica.tsx` por aba e `EntregaDrawer.tsx` em subcomponentes.

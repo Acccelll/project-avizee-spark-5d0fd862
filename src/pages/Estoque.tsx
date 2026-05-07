@@ -250,13 +250,7 @@ const Estoque = () => {
     if (pendingSubmit || saving) return;
     if (!form.produto_id) { toast.error("Selecione um produto"); return; }
     if (form.quantidade <= 0) { toast.error("A quantidade deve ser maior que zero"); return; }
-    if (form.tipo === "ajuste") {
-      const motivo = form.motivo?.trim() ?? "";
-      if (motivo.length < 10) {
-        toast.error("Justificativa obrigatória (mínimo 10 caracteres) para ajustes críticos.");
-        return;
-      }
-    }
+    // Justificativa em ajustes é opcional — não bloqueia o submit.
     // Warn about negative balance (allow with explicit confirmation via ConfirmDialog)
     if (form.tipo === "saida") {
       const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
