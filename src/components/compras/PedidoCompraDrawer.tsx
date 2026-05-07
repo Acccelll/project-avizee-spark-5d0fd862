@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
+import { AuditTimelineMini } from "@/components/views/AuditTimelineMini";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Edit,
@@ -581,6 +582,10 @@ export function PedidoCompraDrawer({
             className="py-6"
           />
         )}
+      </ViewSection>
+
+      <ViewSection title="Histórico de auditoria">
+        <AuditTimelineMini tabela="pedidos_compra" registroId={String(selected.id)} />
       </ViewSection>
     </div>
   );

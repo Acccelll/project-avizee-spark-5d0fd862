@@ -29,6 +29,7 @@ import {
 import { CotacaoCompraHeaderSummary } from "./CotacaoCompraHeader";
 import { CotacaoCompraItensTable } from "./CotacaoCompraItensTable";
 import { CotacaoCompraPropostasPanel } from "./CotacaoCompraPropostasPanel";
+import { AuditTimelineMini } from "@/components/views/AuditTimelineMini";
 import { formatDate } from "@/lib/format";
 
 interface DrawerStats {
