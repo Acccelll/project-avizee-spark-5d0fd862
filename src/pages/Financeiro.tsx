@@ -210,11 +210,20 @@ const Financeiro = () => {
     await refetchPaged();
   }, [refetchPaged]);
 
+  // Remove campos relacionais (joins) que vêm no tipo de domínio mas não
+  // pertencem à tabela `financeiro_lancamentos` — evita erro do PostgREST.
+  const stripRelations = (payload: Partial<Lancamento>): Record<string, unknown> => {
+    const { clientes: _c, fornecedores: _f, contas_bancarias: _cb, contas_contabeis: _cc, ...rest } =
+      payload as Record<string, unknown> & { clientes?: unknown; fornecedores?: unknown; contas_bancarias?: unknown; contas_contabeis?: unknown };
+    void _c; void _f; void _cb; void _cc;
+    return rest;
+  };
+
   const create = useCallback(
     async (payload: Partial<Lancamento>) => {
       const { data: row, error } = await supabase
         .from("financeiro_lancamentos")
-        .insert(payload)
+        .insert(stripRelations(payload) as never)
         .select()
         .single();
       if (error) {
@@ -231,7 +240,7 @@ const Financeiro = () => {
     async (id: string, payload: Partial<Lancamento>) => {
       const { data: row, error } = await supabase
         .from("financeiro_lancamentos")
-        .update(payload)
+        .update(stripRelations(payload) as never)
         .eq("id", id)
         .select()
         .single();
