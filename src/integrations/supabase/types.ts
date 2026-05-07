@@ -3009,6 +3009,51 @@ export type Database = {
           },
         ]
       }
+      fiscal_telemetria: {
+        Row: {
+          action: string
+          ambiente: string | null
+          cnpj: string | null
+          created_at: string
+          cstat: string | null
+          detalhes: Json | null
+          erro: string | null
+          funcao: string
+          id: string
+          latencia_ms: number | null
+          sucesso: boolean
+          xmotivo: string | null
+        }
+        Insert: {
+          action: string
+          ambiente?: string | null
+          cnpj?: string | null
+          created_at?: string
+          cstat?: string | null
+          detalhes?: Json | null
+          erro?: string | null
+          funcao: string
+          id?: string
+          latencia_ms?: number | null
+          sucesso: boolean
+          xmotivo?: string | null
+        }
+        Update: {
+          action?: string
+          ambiente?: string | null
+          cnpj?: string | null
+          created_at?: string
+          cstat?: string | null
+          detalhes?: Json | null
+          erro?: string | null
+          funcao?: string
+          id?: string
+          latencia_ms?: number | null
+          sucesso?: boolean
+          xmotivo?: string | null
+        }
+        Relationships: []
+      }
       folha_pagamento: {
         Row: {
           competencia: string
