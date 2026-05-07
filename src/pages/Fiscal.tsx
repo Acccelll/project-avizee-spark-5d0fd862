@@ -152,8 +152,6 @@ interface NfItemFiscalData {
   cst_ipi?: string | null; desconto?: number | null; codigo_produto?: string | null;
 }
 
-interface DevolucaoItem extends NfItemRow { qtd_devolver: number; nome: string; }
-
 const Fiscal = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -185,8 +183,8 @@ const Fiscal = () => {
   const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
   const [buscarChaveInicial, setBuscarChaveInicial] = useState<string | undefined>(undefined);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [danfeOpen, setDanfeOpen] = useState(false);
-  const [danfeData, setDanfeData] = useState<Record<string, unknown> | null>(null);
+  const danfeViewerRef = useRef<FiscalDanfeViewerHandle>(null);
+  const devolucaoFlowRef = useRef<FiscalDevolucaoFlowHandle>(null);
   const [vencimentoNotaIds, setVencimentoNotaIds] = useState<Set<string> | null>(null);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
   // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
@@ -217,11 +215,6 @@ const Fiscal = () => {
     email?: string;
     telefone?: string;
   }>({});
-  // Devolução
-  const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
-  const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
-  const [devolucaoItens, setDevolucaoItens] = useState<DevolucaoItem[]>([]);
-
   const valorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
   // Total da NF: ICMS, PIS e COFINS são impostos "por dentro" (já embutidos no
   // valor do produto) e NÃO devem ser somados. Apenas ICMS-ST e IPI acrescem
