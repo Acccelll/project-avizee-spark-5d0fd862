@@ -133,7 +133,7 @@ Resultado: `Fiscal.tsx` 1500→1461 linhas; `fiscal.service.ts` 442→48 (facade
 11. Server-side pagination em `Fiscal` (refactor `useSupabaseCrud` ou `useTableCount`).
 12. Persistir prefs do grid via `useDataTablePrefs`.
 13. Índice `(empresa_id, status, data_emissao desc)` em `notas_fiscais`.
-14. Map<sku, produto> em `useNFeXmlImport`.
+14. ✅ Map<id|codigo_interno|sku, produto> em `useNFeXmlImport` (substitui `find` O(n×m)).
 15. Mobile: card-list de itens no `NfeCreateFormModal`, accordion em `Mais` do drawer, fallback de upload no scanner QR.
 
 ### Sprint 7.4 — Edge / SEFAZ hardening (P2)
