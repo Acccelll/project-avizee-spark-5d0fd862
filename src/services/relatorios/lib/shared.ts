@@ -38,6 +38,12 @@ export interface FiltroRelatorio {
   fornecedorIds?: string[];
   grupoProdutoIds?: string[];
   tiposFinanceiros?: string[];
+  /**
+   * Regime do DRE: 'caixa' (default) usa data_pagamento e considera
+   * apenas pago/parcial; 'competencia' usa data_emissao e considera
+   * todos os títulos ativos no período.
+   */
+  dreModo?: 'caixa' | 'competencia';
 }
 
 export interface RelatorioResultado<T = Record<string, unknown>> {
