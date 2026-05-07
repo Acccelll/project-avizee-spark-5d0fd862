@@ -39,7 +39,7 @@ export async function enviarParaSefaz(
   xml: string,
   url: string,
   soapAction: string,
-  certificado: SefazCertificado | null,
+  _certificado: SefazCertificado | null,
   options: SefazRequestOptions = {},
 ): Promise<SefazResponse> {
   const tentativas = options.tentativas ?? TENTATIVAS_PADRAO;
@@ -48,21 +48,13 @@ export async function enviarParaSefaz(
 
   for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
     try {
-      const body = certificado
-        ? {
-            action: "assinar-e-enviar",
-            xml,
-            url,
-            soapAction,
-            certificado_base64: certificado.certificado_base64,
-            certificado_senha: certificado.certificado_senha,
-          }
-        : {
-            action: "assinar-e-enviar-vault",
-            xml,
-            url,
-            soapAction,
-          };
+      // Modo legado (cert do client) removido — sempre usamos Vault server-side.
+      const body = {
+        action: "assinar-e-enviar-vault",
+        xml,
+        url,
+        soapAction,
+      };
 
       const { data, error } = await supabase.functions.invoke("sefaz-proxy", { body });
 
