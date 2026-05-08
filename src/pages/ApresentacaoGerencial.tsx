@@ -54,15 +54,17 @@ export default function ApresentacaoGerencial() {
   const selectedGeracao = useMemo<ApresentacaoGeracao | null>(() => geracoes.find((g) => g.id === selectedGeracaoId) ?? null, [geracoes, selectedGeracaoId]);
   const selectedSlides = useMemo<SlideCodigo[]>(() => (selectedGeracao?.slides_json as any)?.ativos ?? [], [selectedGeracao]);
 
-  // 8.4.3 — disponibilidade estruturada via tags_json.tags (inclui 'indisponivel')
-  // com fallback à substring legada para registros antigos.
+  // Onda 9 C-03 — disponibilidade EXCLUSIVAMENTE estrutural via tags_json.tags.
+  // Migration backfill (20260508_…) populou tags=['indisponivel'] em registros
+  // antigos cujo texto continha 'indispon...'. O fallback substring foi removido
+  // para eliminar o risco de falsos positivos/negativos.
   const dataAvailability = useMemo<Record<string, boolean>>(() => {
     const map: Record<string, boolean> = {};
     for (const c of comentarios) {
-      const tags = (c.tags_json && typeof c.tags_json === 'object' ? (c.tags_json as { tags?: unknown }).tags : null);
-      const isUnavailable = Array.isArray(tags)
-        ? tags.includes('indisponivel')
-        : (c.comentario_automatico ?? '').toLowerCase().includes('indispon');
+      const tags = (c.tags_json && typeof c.tags_json === 'object'
+        ? (c.tags_json as { tags?: unknown }).tags
+        : null);
+      const isUnavailable = Array.isArray(tags) && tags.includes('indisponivel');
       map[c.slide_codigo] = !isUnavailable;
     }
     return map;
