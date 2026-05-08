@@ -176,6 +176,9 @@ const Fiscal = () => {
   // delegados à RPC `listar_notas_fiscais_ids`; KPIs continuam via `kpis_fiscal`.
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
+  // O serverFilters real é construído depois que `useFiscalFilters` resolve
+  // os estados controlados; declarado aqui um placeholder para manter o hook
+  // chamado em ordem estável (atualizado abaixo via useEffect).
   const fornecedoresCrud = useSupabaseCrud<FornecedorRef>({ table: "fornecedores" });
   const clientesCrud = useSupabaseCrud<ClienteRef>({ table: "clientes" });
   const produtosCrud = useSupabaseCrud<ProdutoRef>({ table: "produtos" });
