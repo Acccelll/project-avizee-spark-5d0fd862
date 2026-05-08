@@ -115,6 +115,30 @@ const relacaoOptions = [
 const MAX_PAYMENT_DAYS = 365;
 const MAX_OBSERVACOES_LENGTH = 2000;
 
+// Regex para detectar metadados de origem dentro de `observacoes`
+// (gerados por scripts de importação antigos). Mantemos read-only no form
+// para o usuário não apagar acidentalmente.
+const META_RE = /(Importado via faturamento histórico[^\n]*|IBGE:\s*\d+)/g;
+
+function splitObservacoes(raw: string): { meta: string; user: string } {
+  if (!raw) return { meta: "", user: "" };
+  const metas = raw.match(META_RE) || [];
+  const user = raw.replace(META_RE, "").replace(/\n{3,}/g, "\n\n").trim();
+  return { meta: metas.join(" · "), user };
+}
+
+function joinObservacoes(meta: string, user: string): string {
+  if (meta && user) return `${user.trim()}\n\n${meta}`;
+  return (user || meta || "").trim();
+}
+
+function labelDocumento(doc: string): string {
+  const digits = (doc || "").replace(/\D/g, "");
+  if (digits.length === 11) return `CPF: ${cpfMask(doc)}`;
+  if (digits.length === 14) return `CNPJ: ${cnpjMask(doc)}`;
+  return doc || "";
+}
+
 const Clientes = () => {
   const location = useLocation();
   const navigate = useNavigate();
