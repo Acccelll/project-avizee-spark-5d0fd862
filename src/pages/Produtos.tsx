@@ -302,6 +302,15 @@ const Produtos = () => {
     { key: "estoque_atual", mobileCard: true, label: "Estoque", sortable: true, render: (p: Produto) => {
       const situacao = getSituacaoEstoque(p);
       const cfg = situacaoEstoqueConfig[situacao];
+      // "Não controla": evita o "0 CX" enganoso — mostra texto explícito.
+      if (situacao === "nao_controla") {
+        return (
+          <div className="space-y-0.5">
+            <span className="text-xs text-muted-foreground italic">não controlado</span>
+            <StatusBadge status={cfg.statusBadge} label={cfg.label} className="text-[10px] px-1.5 h-4 mt-0.5" />
+          </div>
+        );
+      }
       return (
         <div className="space-y-0.5">
           <span className={`font-mono text-sm font-semibold ${cfg.textClass}`}>
@@ -313,7 +322,7 @@ const Produtos = () => {
           )}
           {/* Mantemos badge apenas para estados acionáveis (zerado, crítico, não controla).
               "atencao" só usa cor no número para reduzir ruído visual. */}
-          {(situacao === "zerado" || situacao === "critico" || situacao === "nao_controla") && (
+          {(situacao === "zerado" || situacao === "critico") && (
             <StatusBadge status={cfg.statusBadge} label={cfg.label} className="text-[10px] px-1.5 h-4 mt-0.5" />
           )}
         </div>
@@ -325,7 +334,7 @@ const Produtos = () => {
     { key: "preco_custo", label: "P. Custo", sortable: true, render: (p: Produto) => (
       <span className="font-mono text-sm text-muted-foreground">{formatCurrency(p.preco_custo || 0)}</span>
     )},
-    { key: "margem", label: "Margem", render: (p: Produto) => {
+    { key: "margem", mobileCard: true, label: "Margem", render: (p: Produto) => {
       const custo = Number(p.preco_custo || 0);
       const venda = Number(p.preco_venda || 0);
       // Estados explícitos para evitar "+R$ 0,00" enganoso.
@@ -366,7 +375,7 @@ const Produtos = () => {
       <StatusBadge status={p.tipo_item || "produto"} />
     )},
     { key: "ativo", mobileCard: true, label: "Status", render: (p: Produto) => (
-      <StatusBadge status={p.ativo !== false ? "ativo" : "inativo"} />
+      <StatusBadge status={p.ativo !== false ? "ativo" : "inativo"} className="text-[10px] px-1.5 h-4" />
     )},
     { key: "eh_composto", label: "Tipo", hidden: true, render: (p: Produto) => (
       <StatusBadge status={p.eh_composto ? "composto" : "simples"} />
@@ -496,6 +505,7 @@ const Produtos = () => {
           />
           <SummaryCard
             title="Abaixo do mínimo"
+            shortTitle="Estoque crítico"
             value={kpis.criticos}
             icon={AlertCircle}
             variant={kpis.criticos > 0 ? "danger" : "default"}
@@ -512,7 +522,7 @@ const Produtos = () => {
               isCriticosActive
                 ? "Filtro ativo · clique para limpar"
                 : kpis.criticos > 0
-                ? "Clique para filtrar"
+                ? "itens no cadastro"
                 : undefined
             }
           />
@@ -523,7 +533,7 @@ const Produtos = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nome, SKU ou código..."
+          searchPlaceholder="Nome, SKU ou código"
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
           onClearAll={() => clearFilters(["tipo", "tipoItem", "estoque", "grupo", "ativo"])}
@@ -551,6 +561,8 @@ const Produtos = () => {
             onDelete={canExcluir ? (p) => remove(p.id) : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="sku"
+            mobileHideIdentifier
+            mobileLabeledDetails
             mobileStatusKey="ativo"
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}

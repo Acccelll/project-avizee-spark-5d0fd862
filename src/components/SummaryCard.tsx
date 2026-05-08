@@ -4,9 +4,12 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface SummaryCardProps {
   title: string;
+  /** Title shorter usado no mobile (evita truncar o título principal). */
+  shortTitle?: string;
   value: string | number;
   subtitle?: string;
   variation?: string;
@@ -49,6 +52,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
   function SummaryCard(
     {
       title,
+      shortTitle,
       value,
       subtitle,
       variation,
@@ -69,6 +73,8 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
     ref,
   ) {
     const isCompact = density === 'compact';
+    const isMobile = useIsMobile();
+    const displayTitle = isMobile && shortTitle ? shortTitle : title;
 
     if (loading) {
       return (
@@ -111,10 +117,10 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className={cn(isCompact ? 'text-xs' : 'text-sm', 'text-muted-foreground font-medium tracking-wide truncate')}>{title}</p>
+            <p className={cn(isCompact ? 'text-xs' : 'text-sm', 'text-muted-foreground font-medium tracking-wide truncate')}>{displayTitle}</p>
             <p
               className={cn(
-                isCompact ? 'text-xl' : 'text-2xl',
+                isCompact ? 'text-lg sm:text-xl' : 'text-2xl',
                 'font-bold mt-1 tracking-tight tabular-nums truncate',
               )}
               title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}
