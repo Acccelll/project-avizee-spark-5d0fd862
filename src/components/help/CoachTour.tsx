@@ -25,10 +25,17 @@ function resolveTarget(target: string): Element | null {
   //    com `dashboard.fiscal` (que é seletor inválido) e cair silenciosamente.
   if (/^[\[#.:*a-z]/i.test(target)) {
     try {
-      return document.querySelector(target);
+      const byCss = document.querySelector(target);
+      if (byCss) return byCss;
     } catch {
       /* noop */
     }
+  }
+  // Em dev, alerta sobre anchors stale (target não-vazio sem match).
+  // Step "fantasma" intencional usa target = '' e não dispara o warn.
+  if (target && import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn('[CoachTour] anchor não encontrado:', target);
   }
   return null;
 }
