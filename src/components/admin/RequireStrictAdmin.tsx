@@ -26,7 +26,7 @@ export function RequireStrictAdmin({ children, resourceLabel }: Props) {
   if (!isAdmin) {
     return (
       <AccessDenied
-        variant="action"
+        variant="feature"
         title="Requer administrador"
         resourceLabel={resourceLabel}
         permissionKey="role:admin"
