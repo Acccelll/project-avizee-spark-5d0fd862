@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -74,6 +74,20 @@ export function WorkbookGeracaoDialog({
           onTemplateChange={setTemplateId}
           onAbasChange={setAbasSelecionadas}
         />
+        {modoGeracao === 'fechado' && (
+          <div className="mt-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning-foreground flex gap-2">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold">Modo fechado — cortes V2 indisponíveis</p>
+              <p>
+                As abas DRE V2, Caixa Evolutivo, Vendas (Vendedor/ABC/Região), Funil, Compras por Fornecedor,
+                Estoque (Giro/Crítico), Logística, Fiscal e Budget não são preservadas em snapshot. O workbook
+                gerará uma aba de aviso (00b_Aviso_Modo_Fechado) listando os cortes suprimidos. Use modo dinâmico
+                se precisar destes cortes.
+              </p>
+            </div>
+          </div>
+        )}
         <DialogFooter>
           {isGenerating && onCancel ? (
             <Button variant="outline" onClick={onCancel}>
