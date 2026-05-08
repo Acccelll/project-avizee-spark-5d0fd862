@@ -308,6 +308,7 @@ const Clientes = () => {
     tipoPessoaTouched.current = false;
     setCepStatus(null);
     setPaisEditavel(false);
+    setActiveTab("dados-gerais");
     setModalOpen(true);
   };
 
@@ -332,6 +333,7 @@ const Clientes = () => {
     tipoPessoaTouched.current = true; // edição: usuário já decidiu o tipo
     setCepStatus(null);
     setPaisEditavel(false);
+    setActiveTab("dados-gerais");
     setModalOpen(true);
   };
 
