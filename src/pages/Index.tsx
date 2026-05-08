@@ -170,10 +170,10 @@ const DashboardContent = () => {
       <div
         aria-live="polite"
         aria-atomic="false"
-        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0"
+        className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
       >
         {kpiCards.map((c) => (
-          <div key={c.id} className="min-w-[78%] snap-start sm:min-w-0">
+          <div key={c.id} className="min-w-0">
             <SummaryCard {...c} density="compact" />
           </div>
         ))}
@@ -190,10 +190,10 @@ const DashboardContent = () => {
         <div
           aria-live="polite"
           aria-atomic="false"
-          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
         >
           {operationalCards.map((c) => (
-            <div key={c.id} className="min-w-[60%] snap-start sm:min-w-0">
+            <div key={c.id} className="min-w-0">
               <SummaryCard {...c} density="compact" />
             </div>
           ))}
