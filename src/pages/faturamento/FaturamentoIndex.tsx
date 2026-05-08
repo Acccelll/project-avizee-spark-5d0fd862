@@ -79,7 +79,7 @@ export default function FaturamentoIndex() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2" data-help-id="faturamento.cards">
         {CARDS.map((card) => {
           const allowed = can(`faturamento_fiscal:${card.action}` as never);
           const Icon = card.icon;

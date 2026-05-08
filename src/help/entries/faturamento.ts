@@ -33,12 +33,12 @@ export const faturamentoHelp: HelpEntry = {
   ],
   tour: [
     {
-      target: 'faturamento.tabs',
+      target: 'faturamento.cards',
       title: 'Áreas do faturamento',
-      body: 'Navegue entre Emitir, Backlog e Cadastros. Cada uma cobre uma etapa do ciclo: emissão, fila de pendentes e configuração fiscal.',
+      body: 'Os 4 cartões cobrem o ciclo: Emitir NF-e, Backlog, Cadastros fiscais e Consulta de documentos. Cards desabilitados indicam falta de permissão.',
     },
     {
-      target: 'faturamento.backlogBtn',
+      target: 'faturamento.cards',
       title: 'Backlog de pedidos',
       body: 'O backlog mostra pedidos aguardando faturamento. Selecione múltiplos para emissão em lote ou abra um para o wizard individual.',
     },
@@ -48,5 +48,5 @@ export const faturamentoHelp: HelpEntry = {
       body: 'O wizard mostra erros antes de transmitir — corrigir aqui não consome numeração de NF-e.',
     },
   ],
-  version: 1,
+  version: 2,
 };

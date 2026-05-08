@@ -411,7 +411,7 @@ export default function MigracaoDados() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6">
+          <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6" data-help-id="migracao.tabs">
             <TabsTrigger value="overview">Tipos de Importação</TabsTrigger>
             <TabsTrigger value="lotes">Lotes de Importação</TabsTrigger>
             <TabsTrigger value="reconciliacao">Conferência & Reconciliação</TabsTrigger>
@@ -419,7 +419,7 @@ export default function MigracaoDados() {
 
           <TabsContent value="overview" className="mt-0 space-y-8">
             {/* Fluxo orientativo */}
-            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground bg-muted/30 rounded-md px-4 py-2 border">
+            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground bg-muted/30 rounded-md px-4 py-2 border" data-help-id="migracao.fluxo">
               <span className="font-semibold text-foreground">Fluxo recomendado:</span>
               {[
                 "Cadastros-base",
