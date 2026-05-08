@@ -107,7 +107,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-primary/70" />
           <h3 className="font-semibold text-sm">Histórico de Comunicações</h3>
@@ -119,7 +119,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
           type="button"
           size="sm"
           variant="default"
-          className="gap-1.5 h-8"
+          className="gap-1.5 h-8 w-full sm:w-auto"
           aria-label="Registrar nova comunicação"
           onClick={() => { setForm({ ...emptyComunicacaoForm }); setDialogOpen(true); }}
         >
