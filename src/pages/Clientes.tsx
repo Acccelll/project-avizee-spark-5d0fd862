@@ -474,13 +474,26 @@ const Clientes = () => {
       chips.push({ key: "ativo", label: "Status", value: [f],
         displayValue: f === "ativo" ? "Ativo" : "Inativo" });
     });
+    const cadastroLabels: Record<string, string> = {
+      incompleto: "Incompletos",
+      sem_contato: "Sem contato",
+      sem_telefone: "Sem telefone",
+      sem_email: "Sem e-mail",
+      sem_prazo: "Sem prazo",
+      sem_grupo: "Sem grupo",
+    };
+    cadastroFilters.forEach(f => {
+      chips.push({ key: "cadastro", label: "Cadastro", value: [f],
+        displayValue: cadastroLabels[f] || f });
+    });
     return chips;
-  }, [tipoFilters, grupoFilters, grupos, ativoFilters]);
+  }, [tipoFilters, grupoFilters, grupos, ativoFilters, cadastroFilters]);
 
   const handleRemoveCliFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters(tipoFilters.filter(v => v !== value));
     if (key === "grupo") setGrupoFilters(grupoFilters.filter(v => v !== value));
     if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
+    if (key === "cadastro") setCadastroFilters(cadastroFilters.filter(v => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [
@@ -494,6 +507,14 @@ const Clientes = () => {
   const ativoOptions: MultiSelectOption[] = [
     { label: "Ativo", value: "ativo" },
     { label: "Inativo", value: "inativo" },
+  ];
+  const cadastroOptions: MultiSelectOption[] = [
+    { label: "Incompletos", value: "incompleto" },
+    { label: "Sem contato", value: "sem_contato" },
+    { label: "Sem telefone", value: "sem_telefone" },
+    { label: "Sem e-mail", value: "sem_email" },
+    { label: "Sem prazo", value: "sem_prazo" },
+    { label: "Sem grupo", value: "sem_grupo" },
   ];
 
   // Em modo paged `data` contém só a página atual — KPIs vêm de count() server-side.
