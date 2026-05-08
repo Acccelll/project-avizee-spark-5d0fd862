@@ -123,6 +123,9 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - [x] **M-03** `ReportHeader` exibe chip "Regime: Caixa/Competência" quando o relatório ativo é DRE (`reportMeta.kind === 'dre'`), tanto desktop quanto mobile.
 - [x] **M-05** `WorkbookGeracaoDialog` mostra banner amarelo quando `modoGeracao === 'fechado'` listando os cortes V2 que serão suprimidos. Reforça o aviso já gravado na aba `00b_Aviso_Modo_Fechado`.
 - [x] **M-06** `ApresentacaoAprovacaoBar` recebe `comentariosCount`; "Aprovar e gerar final" fica `disabled` com tooltip orientativo enquanto não houver comentário associado à geração selecionada.
-- [ ] **A-03** Mover derivações reaproveitáveis (kpiCards/columns) do `Relatorios.tsx` para o service. — backlog 9.5
-- [ ] **MB-05** Progresso de export streaming (workbook/apresentação). — backlog 9.5
-- [ ] D-01 decompor `Relatorios.tsx`. M-07 auditar `apresentacao-cadencia-runner`. DP-03/05 EXPLAIN views + N+1. — backlog 9.5
+
+### 9.5 Refinos — parcial
+- [x] **A-03** `services/relatorios/lib/derivations.ts` extrai `buildKpiCards(resultado, tipo)` (puro, reaproveitável em Workbook/Apresentação) e `deriveMobileTableProps(visibleColumns, statusField)`. `Relatorios.tsx` consome ambos via `useMemo` simples.
+- [x] **MB-05** `useRelatorioExport` emite toast em fases (`Preparando dados...` → `Montando PDF/planilha...` → sucesso/erro), mantendo `id` único por export para evitar empilhamento.
+- [ ] **D-01** decompor `Relatorios.tsx` (próxima onda — após A-03 a página já caiu ~25 linhas).
+- [ ] **M-07** auditar `apresentacao-cadencia-runner`. **DP-03/05** EXPLAIN views + N+1.

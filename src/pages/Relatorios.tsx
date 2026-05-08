@@ -35,6 +35,7 @@ import { BookmarkPlus, BookOpen, Hash, Trash2, RefreshCcw } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
+import { buildKpiCards, deriveMobileTableProps } from '@/services/relatorios/lib/derivations';
 import { type TipoRelatorio } from '@/services/relatorios.service';
 import { formatReportCell } from '@/services/relatorios/lib/formatCell';
 import type { DreRow } from '@/types/relatorios';
@@ -140,17 +141,12 @@ export default function Relatorios() {
     }
   }, [isMobile, isLoading, isError, sortedRows.length, tipo]);
 
-  const kpiCards = useMemo(() => {
-    if (!resultado || !tipo) return [];
-    const cfg = reportConfigs[tipo as TipoRelatorio];
-    if (!cfg) return [];
-    const kpis = resultado.kpis || {};
-    return cfg.kpis.map((def) => {
-      const val = kpis[def.key] ?? resultado.totals?.[def.key];
-      const formatted = val == null ? '-' : def.format === 'currency' ? formatCurrency(val) : def.format === 'percent' ? `${val.toFixed(1)}%` : formatNumber(val);
-      return { title: def.label, value: formatted, icon: Hash, variation: def.variation || '', variant: def.variant };
-    });
-  }, [resultado, tipo]);
+  // 9.5 — A-03: derivações puras movidas para `services/relatorios/lib/derivations`.
+  const kpiData = useMemo(() => buildKpiCards(resultado, tipo as TipoRelatorio | ''), [resultado, tipo]);
+  const kpiCards = useMemo(
+    () => kpiData.map((k) => ({ title: k.title, value: k.value, icon: Hash, variation: k.variation, variant: k.variant })),
+    [kpiData],
+  );
 
   const columns = useMemo(() => {
     if (!sortedRows.length || !tipo) return [];
@@ -198,23 +194,11 @@ export default function Relatorios() {
 
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
 
-  // Props mobile do DataTable derivadas de `semantics`/columns:
-  // - statusKey   → coluna de status/criticidade/faixa/classe (badge)
-  // - identifierKey → 1ª coluna textual não-status (cliente/fornecedor/produto)
-  const mobileTableProps = useMemo(() => {
-    if (!visibleColumns.length) return {};
-    const statusCandidates = ['status', 'criticidade', 'faixa', 'classe', 'tipo'];
-    const statusKey = semantics?.statusField && visibleColumns.some((c) => c.key === semantics.statusField)
-      ? semantics.statusField
-      : visibleColumns.find((c) => statusCandidates.includes(c.key))?.key;
-    const identifierKey = visibleColumns.find(
-      (c) => c.key !== statusKey && !statusCandidates.includes(c.key) && !['valor', 'valorTotal', 'quantidade', 'pedidos', 'posicao'].includes(c.key),
-    )?.key;
-    return {
-      mobileStatusKey: statusKey,
-      mobileIdentifierKey: identifierKey,
-    };
-  }, [visibleColumns, semantics?.statusField]);
+  // 9.5 — A-03: deriva mobile props a partir de helper compartilhado.
+  const mobileTableProps = useMemo(
+    () => deriveMobileTableProps(visibleColumns, semantics?.statusField) as Record<string, unknown>,
+    [visibleColumns, semantics?.statusField],
+  );
 
   // Coluna virtual de ações (drill-down). Só é anexada quando há pelo menos
   // uma ação navegável declarada para o relatório atual.
