@@ -843,10 +843,10 @@ const Clientes = () => {
                     )}
                   </div>
                   <div className="flex gap-1">
+                    <div className="flex-1 min-w-0">
                     <MaskedInput
                       mask="cpf_cnpj"
                       value={form.cpf_cnpj}
-                      className="flex-1"
                       onChange={(v) => {
                         const digits = (v || "").replace(/\D/g, "");
                         const patch: Partial<ClienteFormData> = { cpf_cnpj: v };
@@ -857,6 +857,7 @@ const Clientes = () => {
                         updateForm(patch);
                       }}
                     />
+                    </div>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
