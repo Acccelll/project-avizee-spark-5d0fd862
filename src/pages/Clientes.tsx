@@ -246,6 +246,25 @@ const Clientes = () => {
   const [quickAddFormaPagOpen, setQuickAddFormaPagOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  // Refs/estado de UX do formulário de cliente
+  const tipoPessoaTouched = useRef(false);
+  const [cepStatus, setCepStatus] = useState<"ok" | "fail" | null>(null);
+  const [paisEditavel, setPaisEditavel] = useState(false);
+
+  // Decompõe observações: metadados (Importado/IBGE) ficam read-only
+  const obsParts = useMemo(() => splitObservacoes(form.observacoes || ""), [form.observacoes]);
+
+  // Pendências por aba para os indicadores nas TabsTrigger
+  const tabIssues = useMemo(() => {
+    const docDigits = (form.cpf_cnpj || "").replace(/\D/g, "");
+    const docInvalido = !docDigits || (docDigits.length !== 11 && docDigits.length !== 14);
+    const dadosGerais = !form.tipo_pessoa || !form.nome_razao_social || docInvalido;
+    const contatos = !form.telefone && !form.celular && !form.email;
+    const endereco = !form.cep || !form.logradouro || !form.cidade || !form.uf;
+    const comercial = !form.forma_pagamento_id && (!form.prazo_padrao || form.prazo_padrao <= 0);
+    return { dadosGerais, contatos, endereco, comercial };
+  }, [form]);
+
   useEffect(() => {
     Promise.all([listGruposEconomicosAtivos(), listFormasPagamentoAtivas()])
       .then(([g, fp]) => {
