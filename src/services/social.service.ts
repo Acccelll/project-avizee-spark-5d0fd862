@@ -71,7 +71,19 @@ export async function sincronizarSocial(
       | undefined;
     if (plataforma) {
       const provider = getSocialProvider(plataforma);
-      await provider.syncInsights(payload);
+      try {
+        await provider.syncInsights(payload);
+      } catch (err) {
+        // Propaga mensagem amigável quando o token não está configurado
+        // (edge function social-sync agora retorna 422 TOKEN_NOT_CONFIGURED).
+        const message = (err as Error)?.message ?? '';
+        if (message.includes('TOKEN_NOT_CONFIGURED')) {
+          throw new Error(
+            'Conta não conectada — configure o token em Administração > Social.',
+          );
+        }
+        throw err;
+      }
     }
   }
 
@@ -146,7 +158,7 @@ export async function listarPostsFiltrados(filtros: SocialPostFilters): Promise<
   return (data ?? []) as unknown as SocialPost[];
 }
 
-export async function listarAlertas(_resolvido?: boolean): Promise<SocialAlerta[]> {
+export async function listarAlertas(resolvido?: boolean): Promise<SocialAlerta[]> {
   const today = new Date();
   const ago = new Date(today);
   ago.setDate(today.getDate() - 30);
@@ -155,7 +167,11 @@ export async function listarAlertas(_resolvido?: boolean): Promise<SocialAlerta[
     _data_fim: today.toISOString().slice(0, 10),
   });
   if (error) throw error;
-  return (data ?? []) as unknown as SocialAlerta[];
+  const rows = (data ?? []) as unknown as SocialAlerta[];
+  if (typeof resolvido === 'boolean') {
+    return rows.filter((a) => a.resolvido === resolvido);
+  }
+  return rows;
 }
 
 export interface SocialConsolidadoReportRow {
