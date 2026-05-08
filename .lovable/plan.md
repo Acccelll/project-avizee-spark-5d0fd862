@@ -1,73 +1,97 @@
-## Onda 20 — Grid de Clientes: leitura, saneamento e ações comerciais
+## Onda 21 — Refino mobile do grid de Clientes
 
-Escopo: apenas `src/pages/Clientes.tsx` (camada de apresentação do grid). Sem mudanças de schema, services, RLS ou no formulário de cadastro.
+Foco exclusivo na experiência mobile da listagem `/clientes`. Sem mudanças em backend, RLS, services ou no formulário de cliente.
 
-### Objetivo
-Transformar o grid em ferramenta de **gestão comercial e saneamento cadastral**: documentos/telefones legíveis, contato escaneável, situação cadastral visível, cards acionáveis e filtros úteis.
+### Escopo
 
----
+**Arquivos previstos**
+- `src/pages/Clientes.tsx` (principal)
+- `src/components/MobileQuickAddFAB.tsx` (ajuste de offset para conviver com FAB global "Atalhos")
 
-### 1. Máscaras visuais (alta)
-- Importar `cpfCnpjMask`, `phoneMask` de `@/utils/masks`.
-- Coluna **CPF/CNPJ**: render via `cpfCnpjMask(c.cpf_cnpj)`.
-- Coluna **Contato**: telefone via `phoneMask(c.celular || c.telefone)`.
-- Busca continua usando dígitos puros (já normalizada server-side).
-
-### 2. Coluna "Cliente" mais informativa (alta)
-- Renomear label "Nome / Razão Social" → **"Cliente"**.
-- Linha 1: `nome_razao_social` (font-medium).
-- Linha 2 (se existir): `nome_fantasia` · `cidade/uf` em `text-xs text-muted-foreground` truncado.
-
-### 3. Coluna "Tipo" como badge (baixa)
-- Substituir o texto colorido por `<Badge variant="outline">PJ</Badge>` / `PF` com `Tooltip` ("Pessoa Jurídica" / "Pessoa Física"). Badge em `text-[10px] uppercase tracking-wide`.
-
-### 4. Coluna "Contato" estruturada (alta)
-- Layout em duas linhas com ícones discretos (`Phone` / `Mail` 12px), telefone formatado em `tabular-nums font-medium`, e-mail em `text-muted-foreground truncate max-w-[220px]`.
-- Empty state: `<DetailEmpty>` curto "Sem contato" como link de ação (abre filtro `sem_contato`).
-
-### 5. Coluna "Prazo Pgto." (baixa)
-- Renomear "Prazo" → **"Prazo Pgto."**.
-- Render: `30 dias` / `15 dias` / `Sem prazo` (manter `text-xs`, monospace só nos números).
-
-### 6. Nova coluna "Situação cadastral" (alta)
-- Nova coluna calculada (client-side, baseada nos campos já carregados):
-  - `Completo`: tem documento + (telefone OU celular) + e-mail + `prazo_padrao > 0` + endereço (`cidade` + `uf`).
-  - Caso contrário, `Incompleto` com tooltip listando o que falta (ex.: "Sem contato, sem prazo").
-- Render usando `StatusBadge` semântico (`success` / `warning`).
-
-### 7. Coluna "Grupo Econômico" oculta por padrão (média)
-- `hidden: true` na definição da coluna (continua disponível em "Colunas"). Quando preenchido, o nome do grupo aparece na **linha 2 da coluna Cliente** (sufixo `· Grupo X`).
-
-### 8. Cards superiores acionáveis (média)
-- Trocar o card "Com Grupo Econômico" por **"Cadastros incompletos"** (contagem client-side da página atual + label "na página atual" enquanto não houver RPC; nota técnica abaixo).
-- Adicionar `onClick` em todos os 4 cards aplicando filtro:
-  - Total → limpa filtros.
-  - Ativos → `ativoFilters=["ativo"]`.
-  - Inativos → `ativoFilters=["inativo"]`.
-  - Incompletos → novo filtro client-side `incompleto`.
-- Card ativo recebe `ring-2 ring-primary` e exibe chip removível na `AdvancedFilterBar`.
-
-### 9. Filtros adicionais (média)
-- Adicionar `MultiSelect` "Cadastro" com opções: `Sem contato`, `Sem e-mail`, `Sem telefone`, `Sem prazo`, `Sem grupo`. Avaliados client-side sobre a página atual (consistente com hoje, que já filtra `sem_grupo` client-side).
-- Limite explícito no chip: "filtro aplicado à página atual" via tooltip, para não enganar o usuário (paginação server-side permanece).
-
-### 10. Ações rápidas por linha (média)
-- Substituir uso direto de `onView/onEdit` do `DataTable` por `RowActions` (já existente em `src/components/list/RowActions.tsx`):
-  - **primary**: `Ver` (Eye).
-  - **secondary**: `Editar`, `Novo orçamento` (navega `/orcamentos/novo?clienteId=...`), `Nova venda` (`/pedidos/novo?clienteId=...`).
-  - **destructive**: `Inativar` (mantém `deleteBehavior="soft"`, gated por `canExcluir`).
-- No mobile, manter `MobileCardActions` atual; ações comerciais ganham `ContactInlineActions` já presente.
-
-### 11. Toolbar coesa (baixa)
-- `AdvancedFilterBar` já agrupa busca+filtros+contagem; mover botões "Colunas" e "Exportar" do `DataTable` para o `actions` slot do `AdvancedFilterBar` quando suportado, ou aplicar `gap-2` consistente. Sem mudança estrutural se exigir refator do `DataTable`.
+**Fora de escopo**
+- `AppHeader` (problema 1 do brief): a barra superior é global, compartilhada por todos os módulos. Mexer aqui afeta o app inteiro e fica para uma onda dedicada de "header mobile".
+- Refator do `DataTable` / paginação (problema 9): mantemos a paginação atual; só damos respiro visual no rodapé.
+- `MobileQuickActions` (FAB global "Atalhos"): mantido — apenas reposicionamos o FAB de criação para não colidir.
 
 ---
 
-### Notas técnicas
-- **KPI "Cadastros incompletos" exato** exigiria RPC agregado (ex.: `kpi_clientes_qualidade`) — fora de escopo desta onda. Implementação atual conta sobre a **página carregada** com label honesto. TODO documentado em comentário.
-- **Filtros "sem_*" server-side** também exigiriam expansão do `useSupabaseCrud` para operadores `is.null`/`or` — fora de escopo. Mantemos client-side coerente com o padrão atual de `sem_grupo`.
-- Sem alterações em rotas, permissões (`useCan`), schema, hooks de dados ou no `ClienteForm`. Mudanças puramente de apresentação no arquivo `src/pages/Clientes.tsx`.
-- Reutilizar componentes existentes: `RowActions`, `StatusBadge`, `Badge`, `Tooltip`, `cpfCnpjMask`, `phoneMask`. Nenhum novo arquivo necessário.
+### 1. Cards de resumo (alta) — corrigir truncamento
 
-### Fora de escopo
-- Refactor do `DataTable`, mobile cards, formulário de cadastro/edição, RPCs de KPI, novos índices DB, alterações de rotas e novos endpoints comerciais.
+Hoje no mobile só 2 cards aparecem (Total e Ativos), e o título "Total de Clientes" trunca em telas estreitas.
+
+- Mostrar **os 4 cards no mobile** em grid `2x2` (remover o `hidden md:contents` que oculta Inativos e Incompletos).
+- Usar `shortTitle` do `SummaryCard` para rótulos curtos no mobile:
+  - "Total de Clientes" → short: **"Total"**
+  - "Ativos" → mantém
+  - "Inativos" → mantém
+  - "Incompletos (página)" → short: **"Incompletos"**
+
+### 2. Placeholder da busca (alta) — encurtar no mobile
+
+Atual: `"Buscar por nome, CNPJ, e-mail ou cidade..."` — trunca.
+
+- Trocar por `useIsMobile()` e usar:
+  - mobile: `"Buscar cliente..."`
+  - desktop: texto atual completo.
+
+### 3. Card de cliente (alta) — mais contexto comercial
+
+Hoje o card mobile mostra: nome (+ subline), CNPJ formatado, contato, status pill. Falta tipo (PF/PJ) e prazo.
+
+- Marcar a coluna `tipo_pessoa` como `mobileCard: true` para que o badge PF/PJ apareça no card.
+- Marcar a coluna `prazo_padrao` como `mobileCard: true` (renderiza "30 dias" / "Sem prazo").
+- Ativar `mobileLabeledDetails` no `DataTable` para que os detalhes apareçam como pares `label: valor` legíveis (Tipo, Prazo Pgto., Contato), em vez de inline cinza.
+- Status (`ativo`) já é renderizado como `statusBadge` no canto — mantém.
+
+Resultado por card:
+```
+GRANJA FARIA S.A.                 [Ativo] ⋮
+RECRIA · UBERABA/MG · GRUPO X
+
+CNPJ  35.236.156/0001-50
+
+Tipo:    PJ
+Prazo:   28 dias
+Contato: 📞 (35) 3363-9301
+         ✉ nfe@granjafaria.com.br
+
+[ 📞  💬  ✉  ]                       [ Ver ]
+```
+
+Para cadastro incompleto, o "Sem contato" clicável já existe e vira filtro.
+
+### 4. FAB "Novo cliente" x FAB global "Atalhos" (alta) — empilhar sem colidir
+
+Hoje ambos ficam fixos à direita: `MobileQuickAddFAB` em `bottom: 5.25rem` e `MobileQuickActions` ("Atalhos") em `bottom: ~5.8rem` — visualmente sobrepostos.
+
+- Aumentar o `bottomOffset` default do `MobileQuickAddFAB` para ficar **acima** do FAB de Atalhos (ex.: `9.25rem` com `safe-area-inset-bottom`), mantendo a prop sobreponível.
+- Reduzir levemente o tamanho/sombra do FAB para dar respiro (manter touch target ≥ 44px). 
+
+Não removemos o FAB de Atalhos (global); só evitamos a colisão nesta tela e em todas as outras que usam `MobileQuickAddFAB`.
+
+### 5. Respiro no rodapé (média)
+
+- Adicionar padding-bottom extra ao container da lista no mobile (ex.: `pb-32 md:pb-0`) para que o último card não fique embaixo do FAB + paginação + bottom nav.
+
+### 6. Microcopy (baixa)
+
+- Chip do filtro "Cadastro" com texto curto já está bom; manter.
+- Subline do card já concatena `fantasia · cidade/uf · grupo` — mantém.
+
+---
+
+### Detalhes técnicos
+
+- `SummaryCard` já suporta `shortTitle` via `useIsMobile()` internamente; basta passar a prop.
+- `DataTable` já expõe `mobileIdentifierKey`, `mobileStatusKey`, `mobileInlineActions`, `mobileLabeledDetails`. Adicionar `mobileLabeledDetails` em `Clientes.tsx`.
+- Não introduzir novos componentes; reaproveitar `Badge`, `Tooltip`, `StatusBadge`, `MobileCardList`.
+- Sem alterações em `useSupabaseCrud`, RPCs, RLS ou tipos de domínio.
+
+### Critérios de aceite
+
+- Em viewport ≤ 414px: 4 cards de resumo visíveis em 2x2 sem truncar título.
+- Placeholder de busca não trunca.
+- Cada card de cliente exibe: nome, subline, documento mascarado, tipo (PF/PJ), prazo, contato (ou "Sem contato"), status pill.
+- FAB "Novo cliente" e FAB "Atalhos" não se sobrepõem; ambos clicáveis.
+- Último card da lista tem respiro visível antes da paginação + bottom nav.
+- Nenhuma regressão no desktop (cards permanecem em 4 colunas, placeholder completo, layout de tabela inalterado).
