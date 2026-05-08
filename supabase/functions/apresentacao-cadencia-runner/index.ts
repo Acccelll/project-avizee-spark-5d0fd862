@@ -27,10 +27,11 @@ const corsHeaders = {
 };
 
 function competenciaAlvo(): { inicial: string; final: string; label: string } {
-  const now = new Date();
-  const ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-  const y = ref.getUTCFullYear();
-  const m = String(ref.getUTCMonth() + 1).padStart(2, "0");
+  // Mês anterior em horário do Brasil (mesma fonte usada para `today`).
+  const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const ref = new Date(nowBrt.getFullYear(), nowBrt.getMonth() - 1, 1);
+  const y = ref.getFullYear();
+  const m = String(ref.getMonth() + 1).padStart(2, "0");
   return { inicial: `${y}-${m}`, final: `${y}-${m}`, label: `${m}/${y}` };
 }
 
@@ -40,6 +41,28 @@ Deno.serve(async (req) => {
   }
 
   const log = createLogger("apresentacao-cadencia-runner", req);
+
+  // 9.5 — M-07: gate via CRON_SECRET (mesmo padrão de process-nfe-retry-cron
+  // e process-distdfe-cron). Sem secret configurado a função fica aberta —
+  // logamos warn para sinalizar a necessidade de provisionamento.
+  const expectedSecret = Deno.env.get("CRON_SECRET")?.trim();
+  if (expectedSecret) {
+    const url = new URL(req.url);
+    const provided =
+      req.headers.get("x-cron-secret")?.trim() ||
+      url.searchParams.get("cron_secret")?.trim() ||
+      "";
+    if (provided !== expectedSecret) {
+      log.warn("invalid cron secret");
+      return new Response(
+        JSON.stringify({ ok: false, error: "Unauthorized" }),
+        { status: 401, headers: corsHeaders },
+      );
+    }
+  } else {
+    log.warn("CRON_SECRET ausente — função aberta. Configure o secret no projeto.");
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -51,7 +74,11 @@ Deno.serve(async (req) => {
     try { body = await req.json(); } catch { /* sem body */ }
   }
 
-  const today = new Date().getUTCDate();
+  // 9.5 — M-07: usa fuso America/Sao_Paulo para alinhar `dia_do_mes` com o
+  // calendário brasileiro (evita disparo no dia 31 às 22h BRT que já é dia 1
+  // em UTC, ou perda de execução no dia 1 entre 00–03h BRT).
+  const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const today = nowBrt.getDate();
   const competencia = competenciaAlvo();
   const appUrl = Deno.env.get("APP_URL") ?? "";
 

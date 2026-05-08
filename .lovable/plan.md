@@ -128,4 +128,5 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - [x] **A-03** `services/relatorios/lib/derivations.ts` extrai `buildKpiCards(resultado, tipo)` (puro, reaproveitável em Workbook/Apresentação) e `deriveMobileTableProps(visibleColumns, statusField)`. `Relatorios.tsx` consome ambos via `useMemo` simples.
 - [x] **MB-05** `useRelatorioExport` emite toast em fases (`Preparando dados...` → `Montando PDF/planilha...` → sucesso/erro), mantendo `id` único por export para evitar empilhamento.
 - [ ] **D-01** decompor `Relatorios.tsx` (próxima onda — após A-03 a página já caiu ~25 linhas).
-- [ ] **M-07** auditar `apresentacao-cadencia-runner`. **DP-03/05** EXPLAIN views + N+1.
+- [x] **M-07** `apresentacao-cadencia-runner` agora exige `CRON_SECRET` (header `x-cron-secret` ou query `cron_secret`), seguindo o mesmo padrão de `process-nfe-retry-cron`/`process-distdfe-cron`. `today` e `competenciaAlvo()` migrados para `America/Sao_Paulo` para evitar disparo duplicado/perdido na virada UTC.
+- [ ] **DP-03/05** EXPLAIN views + N+1. — backlog 9.6
