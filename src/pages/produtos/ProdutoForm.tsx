@@ -494,7 +494,7 @@ export default function ProdutoForm({
                     {formErrors.nome && <p className="text-xs text-destructive">{formErrors.nome}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label className="flex items-center gap-1">SKU <span className="text-muted-foreground font-normal text-xs">(referência externa)</span></Label>
+                    <Label className="flex items-center gap-1">SKU comercial <span className="text-muted-foreground font-normal text-xs">(código de venda)</span></Label>
                     <div className="flex gap-1.5">
                       <Input
                         value={form.sku}
@@ -506,7 +506,7 @@ export default function ProdutoForm({
                         })()}
                       />
                       <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                        title="Gerar próximo SKU pela sigla do grupo" aria-label="Gerar próximo SKU"
+                        title="Gerar SKU automaticamente pela sigla do grupo" aria-label="Gerar SKU automaticamente"
                         disabled={!form.grupo_id || !grupos.find(g => g.id === form.grupo_id)?.sigla}
                         onClick={async () => {
                           try {
@@ -527,7 +527,7 @@ export default function ProdutoForm({
                   <div className="space-y-2">
                     <Label className="flex items-center gap-1">
                       Código Interno (ERP)
-                      <span className="text-muted-foreground font-normal text-xs">(gerado automaticamente — PRD/INS)</span>
+                      <span className="text-muted-foreground font-normal text-xs">(sequencial — gerado automaticamente)</span>
                     </Label>
                     <Input value={form.codigo_interno} readOnly disabled
                       className="font-mono bg-muted/40"
