@@ -1125,6 +1125,64 @@ export function DataTable<T extends Record<string, any>>({
 }
 
 // ── Virtualized or plain tbody ──────────────────────────────────────────────
+
+function SortableHeaderCell({
+  colKey,
+  label,
+  sortable,
+  onSort,
+  sortIcon,
+}: {
+  colKey: string;
+  label: string;
+  sortable: boolean;
+  onSort: () => void;
+  sortIcon: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: colKey });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'group px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground select-none',
+        sortable && 'hover:text-foreground transition-colors',
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-label={`Reordenar coluna ${label}`}
+          className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity touch-none -ml-1"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <span
+          className={cn(sortable && 'cursor-pointer flex items-center gap-1.5')}
+          onClick={sortable ? onSort : undefined}
+        >
+          {label}
+          {sortIcon}
+        </span>
+      </div>
+    </th>
+  );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function VirtualizedOrPlainTbody<T extends Record<string, any>>({
   data,
