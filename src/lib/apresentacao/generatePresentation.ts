@@ -7,6 +7,7 @@ import { pickEditedComment } from './utils';
 import { apresentacaoTheme } from './theme';
 import { defaultSlideLayout } from './layouts';
 import { formatMoneyCompact, formatPercentOne } from './numberFormat';
+import { resolveFieldFormat } from './formatRegistry';
 
 const T = apresentacaoTheme.colors;
 const FONT = apresentacaoTheme.typography.fontFamily;
@@ -31,10 +32,12 @@ function prettyLabel(key: string): string {
 
 function formatValue(value: unknown, key = ''): string {
   if (typeof value === 'number') {
-    if (key.includes('pct') || key.includes('percent')) return formatPercentOne(value);
-    if (key.includes('valor') || key.includes('receita') || key.includes('despesa') || key.includes('saldo') || key.includes('caixa')) {
-      return `R$ ${formatMoneyCompact(value)}`;
-    }
+    // Onda 9 C-04 — formatação por registry canônico, não por substring de key.
+    const fmt = resolveFieldFormat(key);
+    if (fmt === 'percentual') return formatPercentOne(value);
+    if (fmt === 'moeda') return `R$ ${formatMoneyCompact(value)}`;
+    if (fmt === 'inteiro') return String(Math.round(value));
+    // Fallback seguro: número simples (NUNCA moeda) para chaves desconhecidas.
     return String(Math.round(value * 100) / 100);
   }
   if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
