@@ -433,6 +433,14 @@ const Produtos = () => {
           />
         </div>
       </PullToRefresh>
+
+      <ProdutoFormModal
+        open={formOpen}
+        mode={formMode}
+        produtoId={formProdutoId}
+        onClose={closeForm}
+        onSaved={handleSaved}
+      />
     </ModulePage>
   );
 };
