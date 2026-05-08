@@ -1171,7 +1171,7 @@ const Fiscal = () => {
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
           onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); setEmissaoMes(""); setVencimentoMes(""); }}
-          count={filteredData.length}
+          count={totalCount}
         >
           {!tipoParam && <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />}
           <MultiSelect options={modeloOptions} selected={modeloFilters} onChange={setModeloFilters} placeholder="Modelos" className="w-[180px]" />
@@ -1211,8 +1211,9 @@ const Fiscal = () => {
         <div data-help-id="fiscal.tabela">
         <DataTable
           columns={columns}
-          data={filteredData}
+          data={data}
           loading={loading}
+          serverPagination={{ page, setPage, totalCount, pageSize: PAGE_SIZE }}
           moduleKey={tipoConfig.moduleKey}
           showColumnToggle={true}
           onView={openView}
