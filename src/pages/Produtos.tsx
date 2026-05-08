@@ -496,6 +496,7 @@ const Produtos = () => {
           />
           <SummaryCard
             title="Abaixo do mínimo"
+            shortTitle="Estoque crítico"
             value={kpis.criticos}
             icon={AlertCircle}
             variant={kpis.criticos > 0 ? "danger" : "default"}
@@ -512,7 +513,7 @@ const Produtos = () => {
               isCriticosActive
                 ? "Filtro ativo · clique para limpar"
                 : kpis.criticos > 0
-                ? "Clique para filtrar"
+                ? "itens no cadastro"
                 : undefined
             }
           />
