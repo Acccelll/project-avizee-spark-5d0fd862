@@ -19,20 +19,21 @@ import {
   type FiltroRelatorio,
   type RelatorioResultado,
 } from "@/services/relatorios/lib/shared";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
 export async function loadVendas(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("ordens_venda")
-    .select("id, cliente_id, numero, data_emissao, valor_total, status, status_faturamento, clientes(nome_razao_social)")
-    .eq("ativo", true)
-    .order("data_emissao", { ascending: false });
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("ordens_venda")
+      .select("id, cliente_id, numero, data_emissao, valor_total, status, status_faturamento, clientes(nome_razao_social)")
+      .eq("ativo", true)
+      .order("data_emissao", { ascending: false });
+    q = withDateRange(q, "data_emissao", filtros);
+    if (filtros.clienteIds?.length) q = q.in('cliente_id', filtros.clienteIds);
+    return q;
+  });
 
-  query = withDateRange(query, "data_emissao", filtros);
-  if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const rows = (data || []).map((item: Record<string, unknown>) => {
+  const rows = data.map((item: Record<string, unknown>) => {
     const status = (item.status as string | null) ?? '-';
     const fatRaw = ((item as Record<string, unknown>).faturamento_status || item.status_faturamento || '-') as string;
     const stMeta = resolveStatus(ordemVendaStatusMap, status);
@@ -78,29 +79,29 @@ export async function loadVendas(filtros: FiltroRelatorio): Promise<RelatorioRes
 }
 
 export async function loadFaturamento(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("notas_fiscais")
-    .select(`
-      id, cliente_id, ordem_venda_id, numero, serie, data_emissao, valor_total, modelo_documento,
-      frete_valor, icms_valor, ipi_valor, pis_valor, cofins_valor,
-      icms_st_valor, desconto_valor, outras_despesas,
-      forma_pagamento, status,
-      clientes(nome_razao_social),
-      ordens_venda(numero)
-    `)
-    .eq("ativo", true)
-    .eq("tipo", "saida")
-    .eq("status", "confirmada")
-    .order("data_emissao", { ascending: false });
-
-  query = withDateRange(query, "data_emissao", filtros);
-  if (filtros.clienteIds) query = query.in('cliente_id', filtros.clienteIds);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("notas_fiscais")
+      .select(`
+        id, cliente_id, ordem_venda_id, numero, serie, data_emissao, valor_total, modelo_documento,
+        frete_valor, icms_valor, ipi_valor, pis_valor, cofins_valor,
+        icms_st_valor, desconto_valor, outras_despesas,
+        forma_pagamento, status,
+        clientes(nome_razao_social),
+        ordens_venda(numero)
+      `)
+      .eq("ativo", true)
+      .eq("tipo", "saida")
+      .eq("status", "confirmada")
+      .order("data_emissao", { ascending: false });
+    q = withDateRange(q, "data_emissao", filtros);
+    if (filtros.clienteIds) q = q.in('cliente_id', filtros.clienteIds);
+    return q;
+  });
 
   const modeloLabels: Record<string, string> = { '55': 'NF-e', '65': 'NFC-e', '57': 'CT-e', 'nfse': 'NFS-e' };
 
-  const rows = (data || []).map((nf) => {
+  const rows = data.map((nf: Record<string, unknown>) => {
     const totalImpostos = Number(nf.icms_valor || 0) + Number(nf.ipi_valor || 0) +
       Number(nf.pis_valor || 0) + Number(nf.cofins_valor || 0) + Number(nf.icms_st_valor || 0);
     const valorTotal = Number(nf.valor_total || 0);
@@ -108,12 +109,12 @@ export async function loadFaturamento(filtros: FiltroRelatorio): Promise<Relator
     const ov = nf.ordens_venda as { numero: string } | null;
 
     return {
-      notaFiscalId: (nf as Record<string, unknown>).id as string,
-      clienteId: ((nf as Record<string, unknown>).cliente_id as string | null) ?? undefined,
-      ordemVendaId: ((nf as Record<string, unknown>).ordem_venda_id as string | null) ?? undefined,
-      data: nf.data_emissao,
+      notaFiscalId: nf.id as string,
+      clienteId: (nf.cliente_id as string | null) ?? undefined,
+      ordemVendaId: (nf.ordem_venda_id as string | null) ?? undefined,
+      data: nf.data_emissao as string | null,
       nf: `${nf.numero}/${nf.serie || '1'}`,
-      modelo: modeloLabels[nf.modelo_documento || '55'] || nf.modelo_documento || 'NF-e',
+      modelo: modeloLabels[(nf.modelo_documento as string) || '55'] || (nf.modelo_documento as string) || 'NF-e',
       cliente: cliente?.nome_razao_social || '—',
       ov: ov?.numero || '—',
       frete: Number(nf.frete_valor || 0),
@@ -157,21 +158,23 @@ export async function loadFaturamento(filtros: FiltroRelatorio): Promise<Relator
 }
 
 export async function loadVendasCliente(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("ordens_venda")
-    .select("cliente_id, valor_total, clientes(nome_razao_social, cpf_cnpj)")
-    .eq("ativo", true);
-  query = withDateRange(query, "data_emissao", filtros);
-  if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("ordens_venda")
+      .select("cliente_id, valor_total, clientes(nome_razao_social, cpf_cnpj)")
+      .eq("ativo", true)
+      .order("data_emissao", { ascending: false });
+    q = withDateRange(q, "data_emissao", filtros);
+    if (filtros.clienteIds?.length) q = q.in('cliente_id', filtros.clienteIds);
+    return q;
+  });
 
   const map = new Map<string, { clienteId: string | null; cliente: string; cnpj: string; total: number; qtd: number }>();
-  for (const ov of data || []) {
+  for (const ov of data as Record<string, unknown>[]) {
     const c = ov.clientes as { nome_razao_social: string; cpf_cnpj: string | null } | null;
     const nome = c?.nome_razao_social || "Sem cliente";
-    const key = ((ov as Record<string, unknown>).cliente_id as string | null) || nome;
-    const existing = map.get(key) || { clienteId: ((ov as Record<string, unknown>).cliente_id as string | null), cliente: nome, cnpj: c?.cpf_cnpj || "-", total: 0, qtd: 0 };
+    const key = (ov.cliente_id as string | null) || nome;
+    const existing = map.get(key) || { clienteId: (ov.cliente_id as string | null), cliente: nome, cnpj: c?.cpf_cnpj || "-", total: 0, qtd: 0 };
     existing.total += Number(ov.valor_total || 0);
     existing.qtd += 1;
     map.set(key, existing);
@@ -206,35 +209,37 @@ export async function loadVendasCliente(filtros: FiltroRelatorio): Promise<Relat
 }
 
 export async function loadCurvaAbc(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let nfQuery = supabase
-    .from("notas_fiscais_itens")
-    .select(`
-      produto_id,
-      quantidade,
-      valor_unitario,
-      produtos(nome, codigo_interno),
-      notas_fiscais!inner(ativo, tipo, status, data_emissao)
-    `)
-    .eq("notas_fiscais.ativo", true)
-    .eq("notas_fiscais.tipo", "saida")
-    .eq("notas_fiscais.status", "confirmada");
-
-  nfQuery = withDateRange(nfQuery, "notas_fiscais.data_emissao", filtros);
-  if (filtros.clienteIds?.length) nfQuery = nfQuery.in('notas_fiscais.cliente_id', filtros.clienteIds);
-
-  const { data, error } = await nfQuery;
-  if (error) throw error;
+  // C-01/DP-04: paginação universal — curva ABC client-side só é correta
+  // quando o dataset completo é considerado.
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("notas_fiscais_itens")
+      .select(`
+        produto_id,
+        quantidade,
+        valor_unitario,
+        produtos(nome, codigo_interno),
+        notas_fiscais!inner(ativo, tipo, status, data_emissao)
+      `)
+      .eq("notas_fiscais.ativo", true)
+      .eq("notas_fiscais.tipo", "saida")
+      .eq("notas_fiscais.status", "confirmada")
+      .order("produto_id", { ascending: true });
+    q = withDateRange(q, "notas_fiscais.data_emissao", filtros);
+    if (filtros.clienteIds?.length) q = q.in('notas_fiscais.cliente_id', filtros.clienteIds);
+    return q;
+  });
 
   const prodMap = new Map<string, { produto: string; codigo: string; total: number }>();
-  for (const item of data || []) {
+  for (const item of data as Record<string, unknown>[]) {
     const key = item.produto_id || "sem-produto";
     const prod = item.produtos as { nome?: string; codigo_interno?: string } | null;
     const nome = prod?.nome || "Produto removido";
     const codigo = prod?.codigo_interno || "-";
-    const existing = prodMap.get(key) || { produto: nome, codigo, total: 0 };
+    const existing = prodMap.get(key as string) || { produto: nome, codigo, total: 0 };
     const itemTotal = Number(item.quantidade || 0) * Number(item.valor_unitario || 0);
     existing.total += itemTotal;
-    prodMap.set(key, existing);
+    prodMap.set(key as string, existing);
   }
 
   const sorted = Array.from(prodMap.values()).sort((a, b) => b.total - a.total);
