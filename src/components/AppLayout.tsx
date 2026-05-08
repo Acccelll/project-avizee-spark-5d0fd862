@@ -5,7 +5,6 @@ import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './navigation/AppHeader';
 import { MobileBottomNav } from './navigation/MobileBottomNav';
 import { MobileMenu } from './navigation/MobileMenu';
-import { MobileQuickActions } from './navigation/MobileQuickActions';
 import { RelationalDrawerStack } from './views/RelationalDrawerStack';
 import { SkipLink } from './SkipLink';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -117,7 +116,6 @@ export function AppLayout() {
         onOpenChange={setMobileMenuOpen}
         onOpenSearch={() => setSearchOpen(true)}
       />
-      <MobileQuickActions />
       <MobileBottomNav onOpenMenu={() => setMobileMenuOpen(true)} />
       <RelationalDrawerStack />
 
