@@ -1,13 +1,14 @@
 /**
- * Página dedicada para criar/editar Produto.
- * Rotas:
- *  - /produtos/novo
- *  - /produtos/:id/editar
+ * Formulário de Produto — pode ser renderizado de 2 formas:
+ *  - Página dedicada (rota /produtos/novo ou /produtos/:id/editar) — modo legado
+ *    preservado para compatibilidade com deep-links.
+ *  - Embedded (dentro de `ProdutoFormModal`) — quando o usuário abre o modal a
+ *    partir da listagem `/produtos`. Padrão canônico Onda 11+ (alinhado com
+ *    Clientes/Fornecedores).
  *
- * Substitui o FormModal antigo de Produtos.tsx (C-01/MB-01/D-01 do laudo).
- * Mantém integralmente as 5 abas (Dados Gerais, Estoque, Fiscal, Compras,
- * Observações), composição, fornecedores e dialogs auxiliares
- * (Nova Unidade de Medida, Editar Sigla do Grupo).
+ * As 5 abas (Dados Gerais, Estoque, Fiscal, Compras, Observações), composição,
+ * fornecedores e dialogs auxiliares (Nova UM, Editar Sigla) permanecem
+ * idênticos nos dois modos.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -87,18 +88,47 @@ const emptyProduto: ProdutoFormData = {
   grupo_id: "", tipo_item: "produto", variacoes_texto: "", ativo: true,
 };
 
-export default function ProdutoForm() {
+export interface ProdutoFormProps {
+  /** Quando true, renderiza sem PageShell (para embutir em modal/drawer). */
+  embedded?: boolean;
+  /** Modo explícito quando embedded. Default: derivado de embeddedId. */
+  embeddedMode?: "create" | "edit";
+  /** ID do produto a editar quando embedded. */
+  embeddedId?: string;
+  /** Callback após salvar com sucesso (embedded). Recebe o id criado/atualizado. */
+  onSaved?: (produtoId: string) => void;
+  /** Callback para fechar (embedded). */
+  onCancel?: () => void;
+  /** Reportar mudanças de dirty state ao container (embedded). */
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
+export default function ProdutoForm({
+  embedded = false,
+  embeddedMode,
+  embeddedId,
+  onSaved,
+  onCancel,
+  onDirtyChange,
+}: ProdutoFormProps = {}) {
   const navigate = useNavigate();
-  const { id } = useParams<{ id?: string }>();
+  const params = useParams<{ id?: string }>();
+  const id = embedded ? embeddedId : params.id;
   const queryClient = useQueryClient();
-  const mode: "create" | "edit" = id ? "edit" : "create";
+  const mode: "create" | "edit" = embedded
+    ? (embeddedMode ?? (embeddedId ? "edit" : "create"))
+    : (id ? "edit" : "create");
   const { pushView } = useRelationalNavigation();
 
   const [loading, setLoading] = useState(mode === "edit");
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const { form, setForm, updateForm, reset: resetForm, markPristine, isDirty } = useEditDirtyForm<ProdutoFormData>(emptyProduto);
   const { saving, submit } = useSubmitLock();
-  useBeforeUnloadGuard(isDirty);
+  useBeforeUnloadGuard(isDirty && !embedded);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
@@ -244,7 +274,8 @@ export default function ProdutoForm() {
       });
       if (!ok) return;
     }
-    navigate("/produtos");
+    if (embedded) onCancel?.();
+    else navigate("/produtos");
   };
 
   const saveAndNewRef = useRef(false);
@@ -334,10 +365,19 @@ export default function ProdutoForm() {
 
         if (saveAndNewRef.current && mode === "create") {
           saveAndNewRef.current = false;
-          // Navega para nova página de criação (resetar estado).
-          navigate("/produtos/novo", { replace: true });
+          if (embedded) {
+            // Reseta o form para nova criação dentro do mesmo modal.
+            resetForm(emptyProduto);
+            setEditingProduct(null);
+            setEditComposicao([]);
+            setEditFornecedores([]);
+            setMargemOverride(30);
+          } else {
+            navigate("/produtos/novo", { replace: true });
+          }
         } else {
-          navigate("/produtos");
+          if (embedded) onSaved?.(produtoId);
+          else navigate("/produtos");
         }
       } catch (err) {
         notifyError(err);
@@ -384,12 +424,7 @@ export default function ProdutoForm() {
 
   const titleText = mode === "create" ? "Novo Produto" : "Editar Produto";
 
-  return (
-    <>
-      <PageShell
-        backTo={handleBack}
-        maxWidth="5xl"
-        title={
+  const headerTitle = (
           <span className="flex items-center gap-2">
             <span>{titleText}</span>
             {mode === "edit" && editingProduct && (
@@ -398,16 +433,16 @@ export default function ProdutoForm() {
               </span>
             )}
           </span>
-        }
-        subtitle={
-          mode === "edit" && editingProduct
+  );
+  const headerSubtitle =
+    mode === "edit" && editingProduct
             ? <>Atualizado em {editingProduct.updated_at ? formatDate(editingProduct.updated_at) : "—"}</>
-            : "Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar."
-        }
-        badge={mode === "edit" && editingProduct ? (
-          <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} />
-        ) : undefined}
-        actions={
+      : "Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar.";
+  const headerBadge =
+    mode === "edit" && editingProduct ? (
+      <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} />
+    ) : undefined;
+  const headerActions = (
           <div className="flex items-center gap-2">
             {mode === "edit" && editingProduct && (
               <>
@@ -435,9 +470,10 @@ export default function ProdutoForm() {
               {saving ? "Salvando..." : "Salvar"}
             </Button>
           </div>
-        }
-      >
-        <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
+  );
+
+  const formBody = (
+    <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
               <TabsTrigger value="dados-gerais" className="gap-1.5"><Package className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
@@ -842,8 +878,11 @@ export default function ProdutoForm() {
               </div>
             </TabsContent>
           </Tabs>
-        </form>
-      </PageShell>
+    </form>
+  );
+
+  const auxDialogs = (
+    <>
 
       {/* Dialog: Nova Unidade */}
       <Dialog open={novaUnidadeDialogOpen} onOpenChange={(v) => { if (!v) setNovaUnidadeDialogOpen(false); }}>
@@ -922,6 +961,43 @@ export default function ProdutoForm() {
       </Dialog>
 
       {confirmActionDialog}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        <div className="shrink-0 border-b bg-background/95 px-1 pb-3 mb-3 flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              {headerTitle}
+              {headerBadge}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{headerSubtitle}</p>
+          </div>
+          <div className="shrink-0">{headerActions}</div>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {formBody}
+        </div>
+        {auxDialogs}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <PageShell
+        backTo={handleBack}
+        maxWidth="5xl"
+        title={headerTitle}
+        subtitle={headerSubtitle}
+        badge={headerBadge}
+        actions={headerActions}
+      >
+        {formBody}
+      </PageShell>
+      {auxDialogs}
     </>
   );
 }
