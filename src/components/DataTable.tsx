@@ -298,8 +298,10 @@ export function DataTable<T extends Record<string, any>>({
   const {
     hiddenKeys: hiddenKeysArr,
     viewMode,
+    columnOrder,
     setHiddenKeys: persistHiddenKeys,
     setViewMode: persistViewMode,
+    setColumnOrder: persistColumnOrder,
   } = useDataTablePrefs(moduleKey, initialHiddenKeys);
   const hiddenKeys = useMemo(() => new Set(hiddenKeysArr), [hiddenKeysArr]);
   const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
@@ -346,9 +348,41 @@ export function DataTable<T extends Record<string, any>>({
     localStorage.setItem(getStorageKey(moduleKey, 'saved-filters'), JSON.stringify(savedFilters));
   }, [savedFilters, moduleKey]);
 
-  const visibleColumns = columns.filter((c) => !hiddenKeys.has(c.key));
+  // Aplica columnOrder persistido. Colunas não listadas (novas adições ao
+  // schema) caem no fim na ordem original de `columns`.
+  const orderedColumns = useMemo(() => {
+    if (!columnOrder || columnOrder.length === 0) return columns;
+    const byKey = new Map(columns.map((c) => [c.key, c]));
+    const seen = new Set<string>();
+    const ordered: typeof columns = [];
+    for (const k of columnOrder) {
+      const c = byKey.get(k);
+      if (c) { ordered.push(c); seen.add(k); }
+    }
+    for (const c of columns) {
+      if (!seen.has(c.key)) ordered.push(c);
+    }
+    return ordered;
+  }, [columns, columnOrder]);
+  const visibleColumns = orderedColumns.filter((c) => !hiddenKeys.has(c.key));
   const primaryColumn = visibleColumns[0] || { key: 'id', label: 'ID' };
   const secondaryColumns = visibleColumns.slice(1);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const canReorder = !!moduleKey;
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const currentOrder = orderedColumns.map((c) => c.key);
+    const oldIndex = currentOrder.indexOf(String(active.id));
+    const newIndex = currentOrder.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(currentOrder, oldIndex, newIndex);
+    void persistColumnOrder(next);
+  };
 
   // Dev-only: avisa quando uma DataTable provavelmente tem coluna de status
   // (ex.: `ativo`, `status`, `situacao`) mas o consumidor não passou
