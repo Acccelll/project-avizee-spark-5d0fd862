@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Navigate, Route } from "react-router-dom";
+import { Navigate, Route, useParams } from "react-router-dom";
 import { PermissionRoute } from "@/components/PermissionRoute";
 import { LazyPage } from "./LazyPage";
 
@@ -11,6 +11,11 @@ const Transportadoras = lazy(() => import("@/pages/Transportadoras"));
 const FormasPagamento = lazy(() => import("@/pages/FormasPagamento"));
 const Funcionarios = lazy(() => import("@/pages/Funcionarios"));
 const Socios = lazy(() => import("@/pages/Socios"));
+
+function RedirectToProdutoEdit() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/produtos?editId=${id ?? ""}`} replace />;
+}
 
 /**
  * Cadastros básicos — entidades reutilizadas pelos demais módulos
