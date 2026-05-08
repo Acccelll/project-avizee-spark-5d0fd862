@@ -112,7 +112,7 @@ export default function Relatorios() {
     };
   }, [tipo, dataInicio, dataFim, filtrosState]);
 
-  const { data: resultado, isLoading, isError, refetch, dataUpdatedAt } = useRelatorio(tipo, filtros);
+  const { data: resultado, isLoading, isError, isFetching, refetch, dataUpdatedAt } = useRelatorio(tipo, filtros);
 
   const reportMeta = resultado?.meta;
   const isQtyReport = reportMeta?.valueNature === 'quantidade';
@@ -412,6 +412,8 @@ export default function Relatorios() {
                 periodAxisLabel={semantics?.periodAxisLabel}
                 recordCount={sortedRows.length}
                 updatedAt={dataUpdatedAt}
+                isRefreshing={isFetching && !isLoading}
+                dreRegime={isDreReport ? filtrosState.dreModo : undefined}
                 onBack={() => setSearchParams({})}
                 actions={headerActions}
               />

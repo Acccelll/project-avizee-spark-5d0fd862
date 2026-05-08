@@ -20,7 +20,38 @@ import {
   type RelatorioResultado,
 } from "@/services/relatorios.service";
 
-export const RELATORIO_STALE_TIME = 10 * 60 * 1000; // 10 minutes
+export const RELATORIO_STALE_TIME = 10 * 60 * 1000; // default — 10 minutes
+
+/**
+ * Onda 9.4 (M-01) — staleTime por tipo de relatório.
+ * Operacionais (estoque ao vivo, fluxo de caixa, vendas do dia) precisam de
+ * dados frescos; cadastros e visões agregadas mensais podem ser cacheadas
+ * por mais tempo.
+ */
+const STALE_TIME_BY_TIPO: Partial<Record<TipoRelatorio, number>> = {
+  // Curto — dados muito voláteis
+  estoque: 2 * 60 * 1000,
+  movimentos_estoque: 2 * 60 * 1000,
+  fluxo_caixa: 2 * 60 * 1000,
+  vendas: 5 * 60 * 1000,
+  faturamento: 5 * 60 * 1000,
+  compras: 5 * 60 * 1000,
+  aging: 5 * 60 * 1000,
+  divergencias: 5 * 60 * 1000,
+  // Longo — agregações mensais e cadastros
+  dre: 15 * 60 * 1000,
+  curva_abc: 15 * 60 * 1000,
+  margem_produtos: 15 * 60 * 1000,
+  cadastro_produtos: 30 * 60 * 1000,
+  cadastro_clientes: 30 * 60 * 1000,
+  cadastro_fornecedores: 30 * 60 * 1000,
+  cadastro_transportadoras: 30 * 60 * 1000,
+};
+
+export function staleTimeFor(tipo: TipoRelatorio | ""): number {
+  if (!tipo) return RELATORIO_STALE_TIME;
+  return STALE_TIME_BY_TIPO[tipo] ?? RELATORIO_STALE_TIME;
+}
 
 export function useRelatorio<TSelected = RelatorioResultado>(
   tipo: TipoRelatorio | "",
@@ -31,7 +62,7 @@ export function useRelatorio<TSelected = RelatorioResultado>(
   return useQuery<RelatorioResultado, Error, TSelected>({
     queryKey: ["relatorio", tipo, filtros],
     queryFn: () => carregarRelatorio(tipo as TipoRelatorio, filtros),
-    staleTime: RELATORIO_STALE_TIME,
+    staleTime: staleTimeFor(tipo),
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
     retry: 1,

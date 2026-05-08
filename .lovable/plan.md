@@ -117,4 +117,12 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - [ ] **MB-05** Progresso de export (streaming). — backlog 9.4
 
 ### 9.4 Refatorações — pendente
-- [ ] D-01 decompor `Relatorios.tsx`. M-07 auditar `apresentacao-cadencia-runner`. DP-03/05 EXPLAIN views + N+1.
+### 9.4 Hardening fino — parcial
+- [x] **M-01** `useRelatorio` ganha `staleTimeFor(tipo)` — operacionais (estoque/fluxo/vendas) 2–5 min; agregados/cadastros 15–30 min. Default 10 min preservado.
+- [x] **M-02** `ReportHeader` exibe badge "atualizando" (RefreshCcw spin) quando `isFetching && !isLoading` — sinaliza refetch em background sem mexer no skeleton.
+- [x] **M-03** `ReportHeader` exibe chip "Regime: Caixa/Competência" quando o relatório ativo é DRE (`reportMeta.kind === 'dre'`), tanto desktop quanto mobile.
+- [x] **M-05** `WorkbookGeracaoDialog` mostra banner amarelo quando `modoGeracao === 'fechado'` listando os cortes V2 que serão suprimidos. Reforça o aviso já gravado na aba `00b_Aviso_Modo_Fechado`.
+- [x] **M-06** `ApresentacaoAprovacaoBar` recebe `comentariosCount`; "Aprovar e gerar final" fica `disabled` com tooltip orientativo enquanto não houver comentário associado à geração selecionada.
+- [ ] **A-03** Mover derivações reaproveitáveis (kpiCards/columns) do `Relatorios.tsx` para o service. — backlog 9.5
+- [ ] **MB-05** Progresso de export streaming (workbook/apresentação). — backlog 9.5
+- [ ] D-01 decompor `Relatorios.tsx`. M-07 auditar `apresentacao-cadencia-runner`. DP-03/05 EXPLAIN views + N+1. — backlog 9.5
