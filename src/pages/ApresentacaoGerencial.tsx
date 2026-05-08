@@ -177,6 +177,7 @@ export default function ApresentacaoGerencial() {
           <ApresentacaoAprovacaoBar
             geracao={selectedGeracao}
             canAprovar={canAprovar}
+            comentariosCount={comentarios.length}
             onEnviarRevisao={async () => {
               if (!selectedGeracaoId) return;
               await atualizarStatusEditorial(selectedGeracaoId, 'revisao');
