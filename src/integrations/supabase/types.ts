@@ -9484,6 +9484,25 @@ export type Database = {
         }
         Returns: Json
       }
+      listar_notas_fiscais_ids: {
+        Args: {
+          p_ascending?: boolean
+          p_clientes?: string[]
+          p_date_from?: string
+          p_date_to?: string
+          p_fornecedores?: string[]
+          p_limit?: number
+          p_modelos?: string[]
+          p_offset?: number
+          p_order_by?: string
+          p_origens?: string[]
+          p_search?: string
+          p_status?: string[]
+          p_status_sefaz?: string[]
+          p_tipos?: string[]
+        }
+        Returns: Json
+      }
       log_self_update_audit: {
         Args: {
           p_alteracao: Json
