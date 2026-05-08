@@ -171,4 +171,23 @@ export async function buildCapa(
     cell.value = { text: l[1], hyperlink: `#'${l[0]}'!A1` };
     cell.font = { color: { argb: 'FF1F4E79' }, underline: true };
   });
+
+  // Onda 9.2 (A-01) — nota visual quando algum top-N atingiu o cap.
+  const caps = data.capsApplied;
+  if (caps) {
+    const reached = [
+      caps.vendasClienteAbc.reached ? `Curva ABC de Clientes (top ${caps.vendasClienteAbc.cap})` : null,
+      caps.estoqueGiro.reached ? `Estoque · Giro (top ${caps.estoqueGiro.cap})` : null,
+      caps.estoqueCritico.reached ? `Estoque Crítico (top ${caps.estoqueCritico.cap})` : null,
+    ].filter(Boolean) as string[];
+    if (reached.length) {
+      const noteRow = indexRow + links.length + 3;
+      ws.mergeCells(`A${noteRow}:F${noteRow}`);
+      const note = ws.getCell(`A${noteRow}`);
+      note.value = `⚠ Listagens com truncamento por top-N: ${reached.join(' · ')}. Aumente o cap para ver mais linhas.`;
+      note.font = { italic: true, size: 9, color: { argb: COLORS.MUTED } };
+      note.alignment = { wrapText: true, vertical: 'middle' };
+      ws.getRow(noteRow).height = 24;
+    }
+  }
 }
