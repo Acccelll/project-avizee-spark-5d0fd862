@@ -56,7 +56,11 @@ export function RelatorioCatalogo({ onSelect }: RelatorioCatalogoProps) {
       .filter((g) => activeCategory === 'all' || g.category === activeCategory)
       .map((g) => ({
         ...g,
-        items: g.items.filter((r) => matches(r.title) || matches(r.description)),
+        // Onda 9.3 (M-04) — busca também casa título da categoria, então
+        // procurar "comercial" lista todos os relatórios de Comercial.
+        items: matches(g.title)
+          ? g.items
+          : g.items.filter((r) => matches(r.title) || matches(r.description)),
       }))
       .filter((g) => g.items.length > 0);
   }, [groupedReports, activeCategory, normalizedSearch]);
