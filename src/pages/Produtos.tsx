@@ -443,17 +443,79 @@ const Produtos = () => {
       addButtonHelpId="produtos.novoBtn"
       summaryCards={
         <>
-          <SummaryCard title="Total de Itens" value={kpis.total} icon={Package} variant="info" />
-          <SummaryCard title="Produtos" value={kpis.produtos} icon={Package} variant="default"
-            onClick={kpis.produtos > 0 ? () => setTipoItemFilters(["produto"]) : undefined}
-            subtitle={kpis.produtos > 0 ? "Clique para filtrar" : undefined} />
-          <SummaryCard title="Insumos" value={kpis.insumos} icon={Archive} variant="default"
-            onClick={kpis.insumos > 0 ? () => setTipoItemFilters(["insumo"]) : undefined}
-            subtitle={kpis.insumos > 0 ? "Clique para filtrar" : undefined} />
-          <SummaryCard title="Abaixo do Mínimo (página)" value={kpis.criticos} icon={AlertCircle}
+          <SummaryCard
+            title="Total de Itens"
+            value={kpis.total}
+            icon={Package}
+            variant="info"
+            density="compact"
+          />
+          <SummaryCard
+            title="Produtos"
+            value={kpis.produtos}
+            icon={Package}
+            variant="default"
+            density="compact"
+            active={isProdutosActive}
+            onClick={
+              isProdutosActive
+                ? () => setTipoItemFilters([])
+                : kpis.produtos > 0
+                ? () => setTipoItemFilters(["produto"])
+                : undefined
+            }
+            subtitle={
+              isProdutosActive
+                ? "Filtro ativo · clique para limpar"
+                : kpis.produtos > 0
+                ? "Clique para filtrar"
+                : undefined
+            }
+          />
+          <SummaryCard
+            title="Insumos"
+            value={kpis.insumos}
+            icon={Archive}
+            variant="default"
+            density="compact"
+            active={isInsumosActive}
+            onClick={
+              isInsumosActive
+                ? () => setTipoItemFilters([])
+                : kpis.insumos > 0
+                ? () => setTipoItemFilters(["insumo"])
+                : undefined
+            }
+            subtitle={
+              isInsumosActive
+                ? "Filtro ativo · clique para limpar"
+                : kpis.insumos > 0
+                ? "Clique para filtrar"
+                : undefined
+            }
+          />
+          <SummaryCard
+            title="Abaixo do mínimo"
+            value={kpis.criticos}
+            icon={AlertCircle}
             variant={kpis.criticos > 0 ? "danger" : "default"}
-            onClick={kpis.criticos > 0 ? () => setEstoqueFilters(["critico", "zerado"]) : undefined}
-            subtitle={kpis.criticos > 0 ? "Clique para filtrar" : undefined} />
+            density="compact"
+            active={isCriticosActive}
+            onClick={
+              isCriticosActive
+                ? () => setEstoqueFilters([])
+                : kpis.criticos > 0
+                ? () => setEstoqueFilters(["critico", "zerado"])
+                : undefined
+            }
+            subtitle={
+              isCriticosActive
+                ? "Filtro ativo · clique para limpar"
+                : kpis.criticos > 0
+                ? "Clique para filtrar"
+                : undefined
+            }
+          />
         </>
       }
     >
