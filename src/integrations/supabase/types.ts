@@ -6932,6 +6932,27 @@ export type Database = {
           },
         ]
       }
+      sefaz_consulta_log: {
+        Row: {
+          action: string
+          cnpj: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          action: string
+          cnpj: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          cnpj?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       social_alertas: {
         Row: {
           conta_id: string | null
@@ -9680,6 +9701,15 @@ export type Database = {
           grupos_inseridos: number
           revisao_manual: number
         }[]
+      }
+      sefaz_consulta_pode_disparar: {
+        Args: {
+          p_action: string
+          p_cnpj: string
+          p_janela_seg?: number
+          p_max?: number
+        }
+        Returns: boolean
       }
       set_principal_endereco: {
         Args: { p_cliente_id: string; p_endereco_id: string }
