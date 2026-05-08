@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, RefreshCcw, Download } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,6 +25,7 @@ import type { WorkbookGeracao, WorkbookModoGeracao } from '@/types/workbook';
 export default function WorkbookGerencial() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const { can } = useCan();
 
   const canGerar = can('workbook:exportar');
@@ -48,6 +49,9 @@ export default function WorkbookGerencial() {
       modoGeracao: WorkbookModoGeracao;
       abasSelecionadas: string[];
     }) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       const { blob, geracaoId } = await gerarWorkbook(
         {
           templateId: params.templateId,
@@ -56,7 +60,8 @@ export default function WorkbookGerencial() {
           modoGeracao: params.modoGeracao,
           abasSelecionadas: params.abasSelecionadas,
         },
-        undefined
+        undefined,
+        { signal: controller.signal },
       );
       const filename = `workbook_gerencial_${params.competenciaInicial}_${params.competenciaFinal}_${geracaoId.slice(0, 8)}.xlsx`;
       downloadBlob(blob, filename);
@@ -66,9 +71,16 @@ export default function WorkbookGerencial() {
       toast.success('Workbook gerado com sucesso! O download foi iniciado.');
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['workbook-geracoes'] });
+      abortRef.current = null;
     },
     onError: (err) => {
-      toast.error(`Erro ao gerar workbook: ${err instanceof Error ? err.message : String(err)}`);
+      const isAbort = err instanceof DOMException && err.name === 'AbortError';
+      if (isAbort) {
+        toast.info('Geração cancelada.');
+      } else {
+        toast.error(`Erro ao gerar workbook: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      abortRef.current = null;
     },
   });
 
@@ -156,6 +168,7 @@ export default function WorkbookGerencial() {
             templates={templates}
             onGerar={async (p) => { await gerarMutation.mutateAsync(p); }}
             isGenerating={gerarMutation.isPending}
+            onCancel={() => abortRef.current?.abort()}
           />
         </Suspense>
       )}
