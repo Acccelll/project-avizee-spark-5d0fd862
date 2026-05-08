@@ -626,7 +626,10 @@ export default function ProdutoForm({
                   {!form.eh_composto ? (
                     <div className="space-y-2">
                       <Label>Preço de Custo</Label>
-                      <Input type="number" step="0.01" min="0" value={form.preco_custo} onChange={(e) => setForm({ ...form, preco_custo: Number(e.target.value) })} />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                        <Input type="number" step="0.01" min="0" className="pl-9" value={form.preco_custo} onChange={(e) => setForm({ ...form, preco_custo: Number(e.target.value) })} />
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -638,7 +641,10 @@ export default function ProdutoForm({
                   )}
                   <div className="space-y-2">
                     <Label>Preço de Venda {form.tipo_item !== 'insumo' ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal text-xs">(opcional para insumo)</span>}</Label>
-                    <Input type="number" step="0.01" min="0" value={form.preco_venda} onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })} />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                      <Input type="number" step="0.01" min="0" className="pl-9" value={form.preco_venda} onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })} />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Lucro Bruto</Label>
@@ -649,7 +655,7 @@ export default function ProdutoForm({
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Margem</Label>
                     <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${margemPercent >= 0 ? "text-success bg-success/10" : "text-destructive bg-destructive/5"}`}>
-                      {custoParaCalculo > 0 ? `${margemPercent.toFixed(1)}%` : "—"}
+                      {custoParaCalculo > 0 ? `${margemPercent.toFixed(1).replace(".", ",")}%` : "—"}
                     </div>
                   </div>
                 </div>
