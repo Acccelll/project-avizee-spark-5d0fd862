@@ -30,14 +30,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Switch } from "@/components/ui/switch";
 import { listGruposEconomicosAtivos, listFormasPagamentoAtivas } from "@/services/clientes.service";
 import { formatDate } from "@/lib/format";
+import { cpfCnpjMask, phoneMask } from "@/utils/masks";
 import { toast } from "sonner";
 import {
   Building2, Search, User2, Phone, CreditCard, MapPin, Truck, FileText,
-  Info, Loader2, Calendar, Mail, Users, UserCheck,
+  Info, Loader2, Calendar, Mail, Users, UserCheck, AlertTriangle,
   MessageSquare, Home,
 } from "lucide-react";
 import { Plus } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
+import { Badge } from "@/components/ui/badge";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { notifyError } from "@/utils/errorMessages";
@@ -121,6 +123,7 @@ const Clientes = () => {
       tipo: { type: "stringArray" },
       grupo: { type: "stringArray" },
       ativo: { type: "stringArray" },
+      cadastro: { type: "stringArray" },
     },
   });
   const searchTerm = filterValue.q;
@@ -131,6 +134,8 @@ const Clientes = () => {
   const setGrupoFilters = (v: string[]) => setFilter({ grupo: v });
   const ativoFilters = filterValue.ativo;
   const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
+  const cadastroFilters = filterValue.cadastro;
+  const setCadastroFilters = (v: string[]) => setFilter({ cadastro: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
@@ -153,6 +158,20 @@ const Clientes = () => {
   }, [tipoFilters, grupoFilters, ativoFilters]);
 
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
+
+  // Avalia "qualidade cadastral" do cliente — completo se possui documento,
+  // contato (tel ou cel), e-mail, prazo > 0 e endereço (cidade+uf).
+  // O detalhe do que falta vai num tooltip e alimenta os filtros "Cadastro".
+  function getMissingFields(c: Cliente): string[] {
+    const missing: string[] = [];
+    if (!c.cpf_cnpj) missing.push("documento");
+    if (!(c.celular || c.telefone)) missing.push("telefone");
+    if (!c.email) missing.push("e-mail");
+    if (!c.prazo_padrao || c.prazo_padrao <= 0) missing.push("prazo");
+    if (!c.cidade || !c.uf) missing.push("endereço");
+    if (!c.grupo_economico_id) missing.push("grupo");
+    return missing;
+  }
 
   const sort = useServerSort("nome_razao_social", "asc");
   const {
@@ -307,53 +326,135 @@ const Clientes = () => {
   // tipo/ativo/grupo agora são server-side. Apenas o caso especial
   // "sem_grupo" misto (NULL + outros) ainda exige refinamento client-side.
   const filteredData = useMemo(() => {
-    if (!hasSemGrupoFilter) return data;
-    return data.filter((cliente) => {
-      const groupId = cliente.grupo_economico_id || "sem_grupo";
-      return grupoFilters.includes(groupId);
-    });
-  }, [data, hasSemGrupoFilter, grupoFilters]);
+    let out = data;
+    if (hasSemGrupoFilter) {
+      out = out.filter((cliente) => {
+        const groupId = cliente.grupo_economico_id || "sem_grupo";
+        return grupoFilters.includes(groupId);
+      });
+    }
+    if (cadastroFilters.length > 0) {
+      // Filtros client-side aplicados sobre a página atual.
+      // TODO: migrar para RPC server-side (kpi_clientes_qualidade) numa próxima onda.
+      out = out.filter((c) => {
+        const missing = getMissingFields(c);
+        return cadastroFilters.every((f) => {
+          switch (f) {
+            case "incompleto": return missing.filter((m) => m !== "grupo").length > 0;
+            case "sem_contato": return !(c.celular || c.telefone) && !c.email;
+            case "sem_telefone": return !(c.celular || c.telefone);
+            case "sem_email": return !c.email;
+            case "sem_prazo": return !c.prazo_padrao || c.prazo_padrao <= 0;
+            case "sem_grupo": return !c.grupo_economico_id;
+            default: return true;
+          }
+        });
+      });
+    }
+    return out;
+  }, [data, hasSemGrupoFilter, grupoFilters, cadastroFilters]);
 
   const columns = [
     {
-      key: "nome_razao_social", mobilePrimary: true, label: "Nome / Razão Social", sortable: true,
+      key: "nome_razao_social", mobilePrimary: true, label: "Cliente", sortable: true,
       // Permite ordenação server-side pela coluna de nome.
       serverSortable: true,
-      render: (c: Cliente) => (
-        <div>
-          <p className="font-medium leading-tight">{c.nome_razao_social}</p>
-          {c.nome_fantasia && c.nome_fantasia !== c.nome_razao_social && (
-            <p className="text-xs text-muted-foreground truncate max-w-xs">{c.nome_fantasia}</p>
-          )}
-        </div>
-      ),
-    },
-    { key: "cpf_cnpj", mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
-      render: (c: Cliente) => <span className="font-mono text-xs">{c.cpf_cnpj || "—"}</span> },
-    { key: "tipo_pessoa", label: "Tipo",
-      render: (c: Cliente) => (
-        <span className={`text-xs font-semibold ${c.tipo_pessoa === "F" ? "text-info dark:text-info" : "text-accent-foreground dark:text-accent-foreground"}`}>
-          {c.tipo_pessoa === "F" ? "PF" : "PJ"}
-        </span>
-      ),
-    },
-    { key: "contato_principal", mobileCard: true, label: "Contato",
       render: (c: Cliente) => {
-        const phone = c.celular || c.telefone;
-        if (!phone && !c.email) return <span className="text-muted-foreground text-xs">—</span>;
+        const fantasiaDifere = c.nome_fantasia && c.nome_fantasia !== c.nome_razao_social;
+        const cidadeUf = c.cidade && c.uf ? `${c.cidade}/${c.uf}` : c.cidade || c.uf;
+        const grupo = grupoNome(c.grupo_economico_id);
+        const subline = [
+          fantasiaDifere ? c.nome_fantasia : null,
+          cidadeUf || null,
+          grupo !== "—" ? grupo : null,
+        ].filter(Boolean).join(" · ");
         return (
-          <div className="text-xs space-y-0.5">
-            {phone && <p className="font-medium tabular-nums">{phone}</p>}
-            {c.email && <p className="text-muted-foreground truncate max-w-xs">{c.email}</p>}
+          <div className="min-w-0">
+            <p className="font-medium leading-tight truncate">{c.nome_razao_social}</p>
+            {subline && (
+              <p className="text-xs text-muted-foreground truncate max-w-xs">{subline}</p>
+            )}
           </div>
         );
       },
     },
-    { key: "prazo_padrao", label: "Prazo",
+    { key: "cpf_cnpj", mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
+      render: (c: Cliente) => (
+        <span className="font-mono text-xs tabular-nums">
+          {c.cpf_cnpj ? cpfCnpjMask(c.cpf_cnpj) : "—"}
+        </span>
+      ) },
+    { key: "tipo_pessoa", label: "Tipo",
+      render: (c: Cliente) => {
+        const isPf = c.tipo_pessoa === "F";
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wide font-semibold">
+                {isPf ? "PF" : "PJ"}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>{isPf ? "Pessoa Física" : "Pessoa Jurídica"}</TooltipContent>
+          </Tooltip>
+        );
+      },
+    },
+    { key: "contato_principal", mobileCard: true, label: "Contato",
+      render: (c: Cliente) => {
+        const phone = c.celular || c.telefone;
+        if (!phone && !c.email) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCadastroFilters(["sem_contato"]); }}
+              className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Sem contato
+            </button>
+          );
+        }
+        return (
+          <div className="text-xs space-y-0.5">
+            {phone && (
+              <p className="font-medium tabular-nums flex items-center gap-1.5">
+                <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                <span>{phoneMask(phone)}</span>
+              </p>
+            )}
+            {c.email && (
+              <p className="text-muted-foreground truncate max-w-[220px] flex items-center gap-1.5">
+                <Mail className="h-3 w-3 shrink-0" />
+                <span className="truncate">{c.email}</span>
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    { key: "prazo_padrao", label: "Prazo Pgto.",
       render: (c: Cliente) => c.prazo_padrao
-        ? <span className="font-mono text-xs font-medium">{c.prazo_padrao}d</span>
-        : <span className="text-muted-foreground text-xs">—</span> },
-    { key: "grupo", label: "Grupo Econômico",
+        ? <span className="text-xs font-medium"><span className="tabular-nums">{c.prazo_padrao}</span> dias</span>
+        : <span className="text-muted-foreground text-xs">Sem prazo</span> },
+    { key: "situacao", label: "Situação",
+      render: (c: Cliente) => {
+        const missing = getMissingFields(c).filter((m) => m !== "grupo");
+        if (missing.length === 0) {
+          return <StatusBadge status="ativo" label="Completo" />;
+        }
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-warning">
+                <AlertTriangle className="h-3 w-3" />
+                Incompleto
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Falta: {missing.join(", ")}</TooltipContent>
+          </Tooltip>
+        );
+      },
+    },
+    { key: "grupo", label: "Grupo Econômico", hidden: true,
       render: (c: Cliente) => grupoNome(c.grupo_economico_id) },
     { key: "ativo", mobileCard: true, label: "Status", hidden: true,
       render: (c: Cliente) => <StatusBadge status={c.ativo ? "ativo" : "inativo"} /> },
@@ -373,13 +474,26 @@ const Clientes = () => {
       chips.push({ key: "ativo", label: "Status", value: [f],
         displayValue: f === "ativo" ? "Ativo" : "Inativo" });
     });
+    const cadastroLabels: Record<string, string> = {
+      incompleto: "Incompletos",
+      sem_contato: "Sem contato",
+      sem_telefone: "Sem telefone",
+      sem_email: "Sem e-mail",
+      sem_prazo: "Sem prazo",
+      sem_grupo: "Sem grupo",
+    };
+    cadastroFilters.forEach(f => {
+      chips.push({ key: "cadastro", label: "Cadastro", value: [f],
+        displayValue: cadastroLabels[f] || f });
+    });
     return chips;
-  }, [tipoFilters, grupoFilters, grupos, ativoFilters]);
+  }, [tipoFilters, grupoFilters, grupos, ativoFilters, cadastroFilters]);
 
   const handleRemoveCliFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters(tipoFilters.filter(v => v !== value));
     if (key === "grupo") setGrupoFilters(grupoFilters.filter(v => v !== value));
     if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
+    if (key === "cadastro") setCadastroFilters(cadastroFilters.filter(v => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [
@@ -394,11 +508,32 @@ const Clientes = () => {
     { label: "Ativo", value: "ativo" },
     { label: "Inativo", value: "inativo" },
   ];
+  const cadastroOptions: MultiSelectOption[] = [
+    { label: "Incompletos", value: "incompleto" },
+    { label: "Sem contato", value: "sem_contato" },
+    { label: "Sem telefone", value: "sem_telefone" },
+    { label: "Sem e-mail", value: "sem_email" },
+    { label: "Sem prazo", value: "sem_prazo" },
+    { label: "Sem grupo", value: "sem_grupo" },
+  ];
 
   // Em modo paged `data` contém só a página atual — KPIs vêm de count() server-side.
   const summaryAtivos = totalAtivos ?? 0;
-  const summaryComGrupo = totalComGrupo ?? 0;
   const totalRegistros = totalCount ?? data.length;
+  // KPI client-side: contagem de cadastros incompletos na página atual.
+  // TODO: substituir por RPC agregado (kpi_clientes_qualidade) numa próxima onda.
+  const summaryIncompletosPagina = useMemo(
+    () => data.filter((c) => getMissingFields(c).filter((m) => m !== "grupo").length > 0).length,
+    [data],
+  );
+  // Mantém o total de "com grupo" disponível para análise futura.
+  void totalComGrupo;
+
+  const isIncompletoActive = cadastroFilters.includes("incompleto");
+  const ativoOnly = ativoFilters.length === 1 && ativoFilters[0] === "ativo";
+  const inativoOnly = ativoFilters.length === 1 && ativoFilters[0] === "inativo";
+  const noFilters = ativoFilters.length === 0 && tipoFilters.length === 0
+    && grupoFilters.length === 0 && cadastroFilters.length === 0 && !searchTerm;
 
   return (
     <>
@@ -410,11 +545,37 @@ const Clientes = () => {
         addButtonHelpId="clientes.novoBtn"
         summaryCards={
           <>
-            <SummaryCard title="Total de Clientes" value={totalRegistros} icon={Users} />
-            <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
+            <SummaryCard
+              title="Total de Clientes"
+              value={totalRegistros}
+              icon={Users}
+              onClick={() => clearFilters(["tipo", "grupo", "ativo", "cadastro"])}
+              active={noFilters}
+            />
+            <SummaryCard
+              title="Ativos"
+              value={summaryAtivos}
+              icon={UserCheck}
+              variant="success"
+              onClick={() => setAtivoFilters(ativoOnly ? [] : ["ativo"])}
+              active={ativoOnly}
+            />
             <div className="hidden md:contents">
-              <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={User2} />
-              <SummaryCard title="Com Grupo Econômico" value={summaryComGrupo} icon={Building2} />
+              <SummaryCard
+                title="Inativos"
+                value={Math.max(0, totalRegistros - summaryAtivos)}
+                icon={User2}
+                onClick={() => setAtivoFilters(inativoOnly ? [] : ["inativo"])}
+                active={inativoOnly}
+              />
+              <SummaryCard
+                title="Incompletos (página)"
+                value={summaryIncompletosPagina}
+                icon={AlertTriangle}
+                variant="warning"
+                onClick={() => setCadastroFilters(isIncompletoActive ? [] : ["incompleto"])}
+                active={isIncompletoActive}
+              />
             </div>
           </>
         }
@@ -426,12 +587,13 @@ const Clientes = () => {
           searchPlaceholder="Buscar por nome, CNPJ, e-mail ou cidade..."
           activeFilters={cliActiveFilters}
           onRemoveFilter={handleRemoveCliFilter}
-          onClearAll={() => clearFilters(["tipo", "grupo", "ativo"])}
+          onClearAll={() => clearFilters(["tipo", "grupo", "ativo", "cadastro"])}
           count={totalCount ?? filteredData.length}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[130px]" />
           <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipos" className="w-[150px]" />
           <MultiSelect options={grupoOptions} selected={grupoFilters} onChange={setGrupoFilters} placeholder="Grupos" className="w-[200px]" />
+          <MultiSelect options={cadastroOptions} selected={cadastroFilters} onChange={setCadastroFilters} placeholder="Cadastro" className="w-[160px]" />
         </AdvancedFilterBar>
         </div>
 
