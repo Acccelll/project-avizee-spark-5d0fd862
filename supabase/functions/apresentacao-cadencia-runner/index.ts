@@ -27,10 +27,11 @@ const corsHeaders = {
 };
 
 function competenciaAlvo(): { inicial: string; final: string; label: string } {
-  const now = new Date();
-  const ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-  const y = ref.getUTCFullYear();
-  const m = String(ref.getUTCMonth() + 1).padStart(2, "0");
+  // Mês anterior em horário do Brasil (mesma fonte usada para `today`).
+  const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const ref = new Date(nowBrt.getFullYear(), nowBrt.getMonth() - 1, 1);
+  const y = ref.getFullYear();
+  const m = String(ref.getMonth() + 1).padStart(2, "0");
   return { inicial: `${y}-${m}`, final: `${y}-${m}`, label: `${m}/${y}` };
 }
 
