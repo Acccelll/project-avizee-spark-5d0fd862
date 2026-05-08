@@ -199,43 +199,84 @@ export function ProdutoView({ id }: Props) {
     ) : undefined,
     actions: selected ? (
       <>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          aria-label="Editar produto"
-          onClick={() => {
-            navigate(`/produtos?editId=${id}`);
-            window.setTimeout(() => clearStack(), 0);
-          }}
-        >
-          <Edit className="h-3.5 w-3.5" /> Editar
-        </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
+        {/* Mobile: Editar (primário) + kebab */}
+        <div className="flex items-center gap-1.5 w-full sm:hidden">
+          <Button
+            size="sm"
+            className="h-9 flex-1 gap-1.5 text-xs"
+            aria-label="Editar produto"
+            onClick={() => {
+              navigate(`/produtos?editId=${id}`);
+              window.setTimeout(() => clearStack(), 0);
+            }}
+          >
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Mais ações">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
+              </DropdownMenuItem>
+              {isAdmin && selected.ativo === false && (
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setPermDeleteOpen(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir definitivamente
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Desktop: layout original */}
+        <div className="hidden sm:flex items-center gap-1.5 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            aria-label="Editar produto"
+            onClick={() => {
+              navigate(`/produtos?editId=${id}`);
+              window.setTimeout(() => clearStack(), 0);
+            }}
+          >
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                aria-label="Excluir produto"
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Excluir
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Excluir produto</TooltipContent>
+          </Tooltip>
+          {isAdmin && selected.ativo === false && (
             <Button
               variant="ghost"
               size="sm"
               className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-              aria-label="Excluir produto"
-              onClick={() => setDeleteConfirmOpen(true)}
+              aria-label="Excluir produto permanentemente"
+              onClick={() => setPermDeleteOpen(true)}
             >
-              <Trash2 className="h-3.5 w-3.5" /> Excluir
+              <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>Excluir produto</TooltipContent>
-        </Tooltip>
-        {isAdmin && selected.ativo === false && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-            aria-label="Excluir produto permanentemente"
-            onClick={() => setPermDeleteOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
-          </Button>
-        )}
+          )}
+        </div>
       </>
     ) : undefined,
   });
