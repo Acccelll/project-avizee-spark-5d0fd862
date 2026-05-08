@@ -196,7 +196,7 @@ export default function Relatorios() {
 
   // 9.5 — A-03: deriva mobile props a partir de helper compartilhado.
   const mobileTableProps = useMemo(
-    () => deriveMobileTableProps(visibleColumns, semantics?.statusField),
+    () => deriveMobileTableProps(visibleColumns, semantics?.statusField) as Record<string, unknown>,
     [visibleColumns, semantics?.statusField],
   );
 
