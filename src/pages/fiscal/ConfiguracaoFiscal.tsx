@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -155,7 +156,15 @@ export default function ConfiguracaoFiscal() {
       <div className="max-w-2xl">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSalvar)} className="space-y-6">
-            {/* Regime Tributário */}
+          <Tabs defaultValue="empresa" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+              <TabsTrigger value="empresa">Empresa Fiscal</TabsTrigger>
+              <TabsTrigger value="certificado">Certificado A1</TabsTrigger>
+              <TabsTrigger value="numeracao">Numeração</TabsTrigger>
+              <TabsTrigger value="distdfe">DistDFe</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="empresa" className="space-y-4">
             <div>
               <h2 className="text-base font-semibold">Regime Tributário</h2>
               <Separator className="my-2" />
@@ -218,8 +227,9 @@ export default function ConfiguracaoFiscal() {
                 )} />
               </div>
             </div>
+            </TabsContent>
 
-            {/* Numeração NF-e */}
+            <TabsContent value="numeracao" className="space-y-4">
             <div>
               <h2 className="text-base font-semibold">Numeração NF-e</h2>
               <Separator className="my-2" />
@@ -243,7 +253,6 @@ export default function ConfiguracaoFiscal() {
               </div>
             </div>
 
-            {/* Integração SEFAZ */}
             <div>
               <h2 className="text-base font-semibold">Integração SEFAZ</h2>
               <Separator className="my-2" />
@@ -264,8 +273,9 @@ export default function ConfiguracaoFiscal() {
                 )} />
               </div>
             </div>
+            </TabsContent>
 
-            {/* Certificado Digital */}
+            <TabsContent value="certificado" className="space-y-4">
             <div>
               <h2 className="text-base font-semibold">Certificado Digital</h2>
               <Separator className="my-2" />
@@ -298,6 +308,28 @@ export default function ConfiguracaoFiscal() {
                 )} />
               </div>
             </div>
+            </TabsContent>
+
+            <TabsContent value="distdfe" className="space-y-4">
+              <div>
+                <h2 className="text-base font-semibold">Manifestação do Destinatário (DistDFe)</h2>
+                <Separator className="my-2" />
+                <div className="rounded-lg border border-muted bg-muted/20 p-4 text-sm text-muted-foreground space-y-2">
+                  <p>
+                    A consulta automática de NF-e contra o CNPJ desta empresa roda via{" "}
+                    <code className="font-mono text-xs">process-distdfe-cron</code>.
+                  </p>
+                  <p>
+                    Throttle ativo: <strong>18 chamadas/hora</strong> por ação. Para acompanhar o
+                    histórico e as ciências enviadas, acesse{" "}
+                    <a href="/fiscal/distdfe" className="text-primary underline">
+                      Fiscal → Manifestação (DistDFe)
+                    </a>.
+                  </p>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
 
             <div className="flex justify-end">
               <Button type="submit" disabled={saving}>
