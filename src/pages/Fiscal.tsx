@@ -889,12 +889,40 @@ const Fiscal = () => {
     vencimentoMes,
     setVencimentoMes,
     removeFilter: handleRemoveFiscalFilter,
-  } = useFiscalFilters(data, {
+  } = useFiscalFilters([] as NotaFiscal[], {
     tipoFromUrl: tipoParam,
     statusFromUrl,
     vencimentoNotaIds,
     emissaoMesControlled: { value: emissaoMesState, onChange: setEmissaoMesState },
   });
+
+  // Filtros server-side derivados dos estados controlados acima.
+  const serverFilters = useMemo(
+    () => ({
+      dateFrom: emissaoDateRange?.from ?? null,
+      dateTo: emissaoDateRange?.to ?? null,
+      tipos: tipoParam ? [tipoParam] : (tipoFilters.length ? tipoFilters : null),
+      status: statusFromUrl.length ? statusFromUrl : (statusFilters.length ? statusFilters : null),
+      statusSefaz: statusSefazFilters.length ? statusSefazFilters : null,
+      modelos: modeloFilters.length ? modeloFilters : null,
+      origens: origemFilters.length ? origemFilters : null,
+      search: consultaSearch || null,
+    }),
+    [emissaoDateRange, tipoParam, tipoFilters, statusFromUrl, statusFilters, statusSefazFilters, modeloFilters, origemFilters, consultaSearch],
+  );
+
+  useResetPageOnFiltersChange(serverFilters, setPage);
+
+  const {
+    data: pagedData,
+    totalCount,
+    loading,
+    refetch: refetchPaged,
+  } = useNotasFiscaisPaged(serverFilters, page, PAGE_SIZE);
+
+  // Aliases para preservar callsites legados que esperavam `useSupabaseCrud`.
+  const data = pagedData;
+  const fetchData = refetchPaged;
 
   // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
   useEffect(() => {
