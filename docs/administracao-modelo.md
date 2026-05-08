@@ -57,6 +57,8 @@ Removidos: "Logins Falhos 24h" e "Logins Antigos" (eventos `auth:login`/`LOGIN_F
 - `AdminRoute` → role `admin` (porta principal da área administrativa).
 - `useVisibleNavSections` → mostra `administracao` se `isAdmin || can('administracao:visualizar')`.
 - `PermissionRoute resource="administracao"` disponível para sub-recursos delegáveis (ainda não usado).
+- **`RequireStrictAdmin`** (`src/components/admin/RequireStrictAdmin.tsx`) — wrapper interno aplicado em `Administracao.tsx` a toda seção que escreve em `app_configuracoes` ou `empresa_config` (Empresa, Empresas, Usuários, Perfis, E-mail, Integrações, Notificações, Webhooks, Backup, Fiscal, Financeiro, Saúde). Usa `useIsAdmin` estrito; o Dashboard de Segurança permanece somente leitura e delegável.
+- **`AuditDuplicidades`** — visualização delegável via `administracao:visualizar`, mas as ações `Remover` e `Manter` ficam desabilitadas para não-admins (`useIsAdmin`).
 
 ## 7. Modelo de usuário
 
