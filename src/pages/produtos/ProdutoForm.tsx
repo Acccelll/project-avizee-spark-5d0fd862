@@ -583,8 +583,19 @@ export default function ProdutoForm({
                       </Button>
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Classificação</Label>
+                    <Select value={form.tipo_item || "produto"} onValueChange={(v) => setForm({ ...form, tipo_item: v as TipoItem })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="produto">Produto</SelectItem>
+                        <SelectItem value="insumo">Insumo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg bg-muted/40 border">
+                <div className="p-3 rounded-lg bg-muted/40 border space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Tipo de composição</Label>
                   <div className="flex items-center gap-3">
                     <span className={`text-sm ${!form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Simples</span>
                     <Switch checked={form.eh_composto}
@@ -600,22 +611,12 @@ export default function ProdutoForm({
                         setForm({ ...form, eh_composto: v }); if (!v) setEditComposicao([]);
                       }} />
                     <span className={`text-sm ${form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Composto</span>
-                    <span className="text-xs text-muted-foreground ml-1">
-                      {form.eh_composto
-                        ? "Custo calculado automaticamente pela composição de componentes."
-                        : "Produto com custo definido manualmente."}
-                    </span>
                   </div>
-                  <div className="flex items-center gap-2 ml-auto">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Classificação</Label>
-                    <Select value={form.tipo_item || "produto"} onValueChange={(v) => setForm({ ...form, tipo_item: v as TipoItem })}>
-                      <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="produto">Produto</SelectItem>
-                        <SelectItem value="insumo">Insumo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {form.eh_composto
+                      ? "Custo calculado pelos componentes."
+                      : "Custo informado manualmente."}
+                  </p>
                 </div>
               </div>
 
