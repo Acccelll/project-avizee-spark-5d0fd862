@@ -19,38 +19,59 @@ export interface AutorizacaoResult {
 }
 
 /**
- * Lê `crt` e `ambiente_sefaz` da tabela `empresa_config`. Quando ausentes,
- * usa defaults seguros: Simples Nacional ("1") e Homologação ("2").
+ * Lê `crt` e `ambiente_sefaz` da tabela `empresa_config`. Falha explicitamente
+ * (lança Error) quando os dados obrigatórios não estão configurados — sem
+ * defaults silenciosos para evitar transmissões em ambiente errado.
  *
- * Retorna `null` se a consulta falhar — caller deve usar valores fornecidos
- * em `dadosNFe` ou abortar com mensagem clara.
+ * Caller deve capturar e exibir mensagem orientando o usuário a abrir
+ * /fiscal/configuracao antes de transmitir.
  */
 export async function lerConfigFiscalEmpresa(): Promise<{
   crt: CRT;
   ambiente: AmbienteSefaz;
-} | null> {
-  try {
-    const { data, error } = await supabase
-      .from("empresa_config")
-      .select("crt, ambiente_sefaz, ambiente_padrao")
-      .limit(1)
-      .maybeSingle();
-    if (error || !data) return null;
-
-    const crt = ((data.crt ?? "1") as CRT);
-    // Preferência: ambiente_sefaz (formato SEFAZ "1"/"2"); fallback derivado
-    // de ambiente_padrao ("producao"|"homologacao") para retrocompatibilidade.
-    let ambiente: AmbienteSefaz = "2";
-    const ambienteSefazRaw = (data as { ambiente_sefaz?: string | null }).ambiente_sefaz;
-    if (ambienteSefazRaw === "1" || ambienteSefazRaw === "2") {
-      ambiente = ambienteSefazRaw;
-    } else if (data.ambiente_padrao === "producao") {
-      ambiente = "1";
-    }
-    return { crt, ambiente };
-  } catch {
-    return null;
+}> {
+  const { data, error } = await supabase
+    .from("empresa_config")
+    .select("crt, ambiente_sefaz, ambiente_padrao")
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(
+      `Falha ao ler configuração fiscal da empresa: ${error.message}`,
+    );
   }
+  if (!data) {
+    throw new Error(
+      "Configuração fiscal incompleta: cadastre a empresa em /fiscal/configuracao antes de transmitir.",
+    );
+  }
+
+  const crtRaw = (data as { crt?: string | null }).crt;
+  if (crtRaw !== "1" && crtRaw !== "2" && crtRaw !== "3") {
+    throw new Error(
+      "Configuração fiscal incompleta: defina o CRT (Regime Tributário) em /fiscal/configuracao antes de transmitir.",
+    );
+  }
+  const crt = crtRaw as CRT;
+
+  // Preferência: ambiente_sefaz (formato SEFAZ "1"/"2"); fallback derivado
+  // de ambiente_padrao ("producao"|"homologacao") para retrocompatibilidade.
+  const ambienteSefazRaw = (data as { ambiente_sefaz?: string | null }).ambiente_sefaz;
+  let ambiente: AmbienteSefaz | null = null;
+  if (ambienteSefazRaw === "1" || ambienteSefazRaw === "2") {
+    ambiente = ambienteSefazRaw;
+  } else if (data.ambiente_padrao === "producao") {
+    ambiente = "1";
+  } else if (data.ambiente_padrao === "homologacao") {
+    ambiente = "2";
+  }
+  if (!ambiente) {
+    throw new Error(
+      "Configuração fiscal incompleta: defina o ambiente SEFAZ (homologação/produção) em /fiscal/configuracao antes de transmitir.",
+    );
+  }
+
+  return { crt, ambiente };
 }
 
 /**
@@ -92,11 +113,12 @@ export async function autorizarNFe(
   // não vieram explicitamente em dadosNFe.
   let dadosCompletos = dadosNFe;
   if (!dadosNFe.crt || !dadosNFe.ambiente) {
+    // Pode lançar — caller (UI) deve capturar e exibir orientação.
     const config = await lerConfigFiscalEmpresa();
     dadosCompletos = {
       ...dadosNFe,
-      crt: dadosNFe.crt ?? config?.crt ?? "1",
-      ambiente: dadosNFe.ambiente ?? config?.ambiente ?? "2",
+      crt: dadosNFe.crt ?? config.crt,
+      ambiente: dadosNFe.ambiente ?? config.ambiente,
     };
   }
 
