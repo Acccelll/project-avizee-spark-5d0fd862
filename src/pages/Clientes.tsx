@@ -751,16 +751,40 @@ const Clientes = () => {
         <form id="cliente-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
-              <TabsTrigger value="dados-gerais" className="gap-1.5"><User2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
-              <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
-              <TabsTrigger value="endereco" className="gap-1.5"><MapPin className="h-3.5 w-3.5" />Endereço</TabsTrigger>
+              <TabsTrigger value="dados-gerais" className="gap-1.5">
+                <User2 className="h-3.5 w-3.5" />Dados Gerais
+                {tabIssues.dadosGerais && (
+                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <TooltipContent className="text-xs">Faltam dados básicos do cliente.</TooltipContent></Tooltip>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="contatos" className="gap-1.5">
+                <Phone className="h-3.5 w-3.5" />Contatos
+                {tabIssues.contatos && (
+                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <TooltipContent className="text-xs">Sem nenhum canal de contato.</TooltipContent></Tooltip>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="endereco" className="gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />Endereço
+                {tabIssues.endereco && (
+                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <TooltipContent className="text-xs">Endereço incompleto.</TooltipContent></Tooltip>
+                )}
+              </TabsTrigger>
               {mode === "edit" && (
                 <TabsTrigger value="entregas" className="gap-1.5">
                   <Home className="h-3.5 w-3.5" />Entregas
                   {enderecosCount > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{enderecosCount}</span>}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="comercial" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Comercial</TabsTrigger>
+              <TabsTrigger value="comercial" className="gap-1.5">
+                <CreditCard className="h-3.5 w-3.5" />Comercial
+                {tabIssues.comercial && (
+                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <TooltipContent className="text-xs">Sem forma de pagamento ou prazo definido.</TooltipContent></Tooltip>
+                )}
+              </TabsTrigger>
               {mode === "edit" && (
                 <TabsTrigger value="comunicacoes" className="gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" />Comunicações
