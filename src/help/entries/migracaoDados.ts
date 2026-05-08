@@ -37,25 +37,25 @@ export const migracaoDadosHelp: HelpEntry = {
   ],
   tour: [
     {
-      target: 'migracao.upload',
-      title: 'Upload de arquivos',
-      body: 'Envie CSV, XLSX ou ZIP de XML. Arquivos grandes processam em background.',
+      target: 'migracao.tabs',
+      title: 'Áreas da migração',
+      body: 'Tipos de Importação reúne os grupos (cadastros, saldos, fiscal); Lotes mostra histórico; Conferência permite reconciliar saldos importados.',
     },
     {
-      target: 'migracao.mapeamento',
-      title: 'Mapeamento de colunas',
-      body: 'Associe colunas do arquivo aos campos do ERP. Salve o mapeamento para próximos lotes.',
+      target: 'migracao.fluxo',
+      title: 'Fluxo recomendado',
+      body: 'Siga a ordem: cadastros-base → saldos iniciais → histórico/documentos → conferência → confirmação. Pular etapas gera inconsistências.',
     },
     {
-      target: 'migracao.validacao',
+      target: 'migracao.tabs',
       title: 'Validação prévia',
       body: 'Veja linhas válidas, com aviso e com erro antes de gravar. Corrija no arquivo e reenvie só os erros.',
     },
     {
-      target: 'migracao.confirmar',
+      target: 'migracao.tabs',
       title: 'Confirmação',
       body: 'A gravação fica registrada em auditoria com o lote — é possível reverter pelo identificador.',
     },
   ],
-  version: 1,
+  version: 2,
 };
