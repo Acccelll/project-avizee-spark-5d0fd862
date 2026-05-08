@@ -799,13 +799,19 @@ const Clientes = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="space-y-1.5">
                   <Label>Tipo de Pessoa</Label>
-                  <Select value={form.tipo_pessoa} onValueChange={(v) => updateForm({ tipo_pessoa: v })}>
+                  <Select
+                    value={form.tipo_pessoa}
+                    onValueChange={(v) => { tipoPessoaTouched.current = true; updateForm({ tipo_pessoa: v }); }}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="F">Pessoa Física</SelectItem>
                       <SelectItem value="J">Pessoa Jurídica</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!tipoPessoaTouched.current && form.cpf_cnpj && (
+                    <p className="text-[11px] text-muted-foreground">Detectado automaticamente pelo documento.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
@@ -820,12 +826,24 @@ const Clientes = () => {
                     )}
                   </div>
                   <div className="flex gap-1">
-                    <MaskedInput mask="cpf_cnpj" value={form.cpf_cnpj} onChange={(v) => updateForm({ cpf_cnpj: v })} />
+                    <MaskedInput
+                      mask="cpf_cnpj"
+                      value={form.cpf_cnpj}
+                      onChange={(v) => {
+                        const digits = (v || "").replace(/\D/g, "");
+                        const patch: Partial<ClienteFormData> = { cpf_cnpj: v };
+                        if (!tipoPessoaTouched.current) {
+                          if (digits.length === 11) patch.tipo_pessoa = "F";
+                          else if (digits.length === 14) patch.tipo_pessoa = "J";
+                        }
+                        updateForm(patch);
+                      }}
+                    />
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           type="button" variant="outline" size="icon" className="shrink-0"
-                          aria-label="Buscar dados do CNPJ"
+                          aria-label="Consultar CNPJ na Receita"
                           disabled={cnpjLoading || form.tipo_pessoa !== "J"}
                           onClick={async () => {
                             const result = await buscarCnpj(form.cpf_cnpj);
@@ -857,6 +875,9 @@ const Clientes = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  {form.tipo_pessoa === "J" && (form.cpf_cnpj || "").replace(/\D/g, "").length === 14 && !formErrors.cpf_cnpj && (
+                    <p className="text-[11px] text-muted-foreground">Consultar CNPJ preenche razão social, endereço e contato.</p>
+                  )}
                   {formErrors.cpf_cnpj && <p className="text-xs text-destructive">{formErrors.cpf_cnpj}</p>}
                   {!formErrors.cpf_cnpj && docChecking && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -867,6 +888,7 @@ const Clientes = () => {
                     <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
                   )}
                 </div>
+                {form.tipo_pessoa === "J" && (
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
                     <Label>Inscrição Estadual</Label>
@@ -877,8 +899,21 @@ const Clientes = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <Input value={form.inscricao_estadual} onChange={(e) => updateForm({ inscricao_estadual: e.target.value })} placeholder="Ex: 123.456.789.000 ou ISENTO" />
+                  <Input
+                    value={form.inscricao_estadual}
+                    onChange={(e) => updateForm({ inscricao_estadual: e.target.value })}
+                    placeholder="Ex: 123.456.789.000"
+                    disabled={form.inscricao_estadual.toUpperCase() === "ISENTO"}
+                  />
+                  <label className="inline-flex items-center gap-2 text-[11px] text-muted-foreground cursor-pointer select-none">
+                    <Checkbox
+                      checked={form.inscricao_estadual.toUpperCase() === "ISENTO"}
+                      onCheckedChange={(v) => updateForm({ inscricao_estadual: v ? "ISENTO" : "" })}
+                    />
+                    Isento de IE
+                  </label>
                 </div>
+                )}
                 <div className="col-span-2 md:col-span-3 space-y-1.5">
                   <Label>Nome / Razão Social <span className="text-destructive">*</span></Label>
                   <Input
