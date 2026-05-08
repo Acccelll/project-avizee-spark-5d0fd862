@@ -480,7 +480,7 @@ const DashboardContent = () => {
         );
       })()}
 
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         {rows.map((row) => {
           if (row.pair) {
             const isFinRow = row.items[0] === 'financeiro' || row.items[1] === 'financeiro';
