@@ -251,6 +251,16 @@ const Clientes = () => {
   const [cepStatus, setCepStatus] = useState<"ok" | "fail" | null>(null);
   const [paisEditavel, setPaisEditavel] = useState(false);
 
+  // Aba ativa controlada (para auto-centralizar no mobile)
+  const [activeTab, setActiveTab] = useState<string>("dados-gerais");
+  const tabsListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const list = tabsListRef.current;
+    if (!list) return;
+    const active = list.querySelector<HTMLElement>('[data-state="active"]');
+    if (active) active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [activeTab]);
+
   // Decompõe observações: metadados (Importado/IBGE) ficam read-only
   const obsParts = useMemo(() => splitObservacoes(form.observacoes || ""), [form.observacoes]);
 
