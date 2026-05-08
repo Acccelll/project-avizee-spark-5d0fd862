@@ -1213,7 +1213,7 @@ const Fiscal = () => {
           columns={columns}
           data={data}
           loading={loading}
-          serverPagination={{ page, setPage, totalCount, pageSize: PAGE_SIZE }}
+          serverPagination={{ page, setPage, totalCount, hasMore: (page + 1) * PAGE_SIZE < totalCount }}
           moduleKey={tipoConfig.moduleKey}
           showColumnToggle={true}
           onView={openView}
