@@ -524,7 +524,7 @@ const Produtos = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nome, SKU ou código..."
+          searchPlaceholder="Nome, SKU ou código"
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
           onClearAll={() => clearFilters(["tipo", "tipoItem", "estoque", "grupo", "ativo"])}
