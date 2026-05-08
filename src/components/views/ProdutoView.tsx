@@ -58,6 +58,7 @@ export function ProdutoView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("geral");
   const { canHardDelete: isAdmin } = useCanHardDelete();
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
