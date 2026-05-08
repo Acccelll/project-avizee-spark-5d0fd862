@@ -547,6 +547,7 @@ const Clientes = () => {
           <>
             <SummaryCard
               title="Total de Clientes"
+              shortTitle="Total"
               value={totalRegistros}
               icon={Users}
               onClick={() => clearFilters(["tipo", "grupo", "ativo", "cadastro"])}
@@ -560,23 +561,22 @@ const Clientes = () => {
               onClick={() => setAtivoFilters(ativoOnly ? [] : ["ativo"])}
               active={ativoOnly}
             />
-            <div className="hidden md:contents">
-              <SummaryCard
-                title="Inativos"
-                value={Math.max(0, totalRegistros - summaryAtivos)}
-                icon={User2}
-                onClick={() => setAtivoFilters(inativoOnly ? [] : ["inativo"])}
-                active={inativoOnly}
-              />
-              <SummaryCard
-                title="Incompletos (página)"
-                value={summaryIncompletosPagina}
-                icon={AlertTriangle}
-                variant="warning"
-                onClick={() => setCadastroFilters(isIncompletoActive ? [] : ["incompleto"])}
-                active={isIncompletoActive}
-              />
-            </div>
+            <SummaryCard
+              title="Inativos"
+              value={Math.max(0, totalRegistros - summaryAtivos)}
+              icon={User2}
+              onClick={() => setAtivoFilters(inativoOnly ? [] : ["inativo"])}
+              active={inativoOnly}
+            />
+            <SummaryCard
+              title="Incompletos (página)"
+              shortTitle="Incompletos"
+              value={summaryIncompletosPagina}
+              icon={AlertTriangle}
+              variant="warning"
+              onClick={() => setCadastroFilters(isIncompletoActive ? [] : ["incompleto"])}
+              active={isIncompletoActive}
+            />
           </>
         }
       >
@@ -584,7 +584,7 @@ const Clientes = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nome, CNPJ, e-mail ou cidade..."
+          searchPlaceholder={isMobile ? "Buscar cliente..." : "Buscar por nome, CNPJ, e-mail ou cidade..."}
           activeFilters={cliActiveFilters}
           onRemoveFilter={handleRemoveCliFilter}
           onClearAll={() => clearFilters(["tipo", "grupo", "ativo", "cadastro"])}
@@ -598,7 +598,7 @@ const Clientes = () => {
         </div>
 
         <PullToRefresh onRefresh={fetchData}>
-          <div data-help-id="clientes.tabela">
+          <div data-help-id="clientes.tabela" className="pb-32 md:pb-0">
           <DataTable
             columns={columns}
             data={filteredData}
@@ -611,6 +611,7 @@ const Clientes = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
+            mobileLabeledDetails
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}
