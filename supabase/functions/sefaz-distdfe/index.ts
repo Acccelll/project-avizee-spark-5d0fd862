@@ -479,6 +479,34 @@ Deno.serve(async (req) => {
       return json({ sucesso: false, erro: "CNPJ inválido extraído do certificado." }, 500);
     }
 
+    // Throttle server-side (item 2.5 do plano Onda 8): cron com SR é bypass.
+    // Janela padrão 1h, máximo 18 chamadas por (cnpj, action).
+    if (!user.isService) {
+      try {
+        const { data: pode, error: throttleErr } = await adminClient.rpc(
+          "sefaz_consulta_pode_disparar",
+          { p_cnpj: cnpj, p_action: action },
+        );
+        if (throttleErr) {
+          log.warn("throttle rpc error (fail-open)", { message: throttleErr.message });
+        } else if (pode === false) {
+          log.warn("throttle bloqueou", { cnpj, action });
+          return json(
+            {
+              sucesso: false,
+              erro: "Limite de consultas SEFAZ excedido nesta janela. Aguarde alguns minutos e tente novamente.",
+              codigoTransporte: "RATE_LIMITED",
+              janelaSeg: 3600,
+              max: 18,
+            },
+            429,
+          );
+        }
+      } catch (e: any) {
+        log.warn("throttle check exception (fail-open)", { message: e?.message });
+      }
+    }
+
     // Transporte mTLS:
     //   1) Padrão — `Deno.createHttpClient({ cert, key })` direto contra a SEFAZ
     //      usando o A1 (com cadeia ICP-Brasil completa) carregado do Vault.
