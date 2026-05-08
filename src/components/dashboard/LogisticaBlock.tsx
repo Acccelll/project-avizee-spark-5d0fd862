@@ -12,6 +12,7 @@ interface LogisticaBlockProps {
   comprasAguardando: PedidoCompra[];
   /** Real count of shipments (remessas) with overdue delivery date. */
   totalRemessasAtrasadas: number;
+  hideHeaderOnMobile?: boolean;
 }
 
 function calcDiasEntrega(compra: PedidoCompra) {
@@ -21,7 +22,7 @@ function calcDiasEntrega(compra: PedidoCompra) {
   return Math.ceil((prevista.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: LogisticaBlockProps) {
+export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas, hideHeaderOnMobile = false }: LogisticaBlockProps) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
 
@@ -36,7 +37,12 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
   return (
     <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
+      <div
+        className={
+          'items-center justify-between px-4 pt-4 pb-2 border-b border-border/60 ' +
+          (hideHeaderOnMobile ? 'hidden md:flex' : 'flex')
+        }
+      >
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <Truck className="h-4 w-4 text-info" />
           Logística
