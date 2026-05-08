@@ -216,7 +216,11 @@ const DashboardContent = () => {
           title="Financeiro"
           icon={DollarSign}
           iconColor="text-primary"
-          summary={`Saldo: ${saldoProjetado >= 0 ? '+' : ''}${(saldoProjetado / 1000).toFixed(0)}k`}
+          summary={
+            stats.contasVencidas > 0
+              ? `Saldo ${fmtK(saldoProjetado)} · ${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? 's' : ''}`
+              : `Saldo ${fmtK(saldoProjetado)}`
+          }
           defaultOpen
           persistKey="financeiro"
         >
@@ -227,6 +231,7 @@ const DashboardContent = () => {
             saldoProjetado={saldoProjetado}
             recebimentosHoje={vencimentosHoje.receber}
             pagamentosHoje={vencimentosHoje.pagar}
+            hideHeaderOnMobile={isMobile}
           />
         </MobileCollapsibleBlock>
         </div>
@@ -270,7 +275,11 @@ const DashboardContent = () => {
           title="Comercial"
           icon={ShoppingBag}
           iconColor="text-secondary"
-          summary={`${stats.orcamentos} orç · ${backlogOVsCount} ped`}
+          summary={
+            faturamento.mesAtual > 0
+              ? `${fmtK(faturamento.mesAtual)} · ${backlogOVsCount} ped · ${stats.orcamentos} orç`
+              : `${stats.orcamentos} orç · ${backlogOVsCount} ped`
+          }
           persistKey="comercial"
         >
           <ComercialBlock
@@ -281,6 +290,7 @@ const DashboardContent = () => {
             loading={loading}
             faturamentoMesAtual={faturamento.mesAtual}
             faturamentoMesAnterior={faturamento.mesAnterior}
+            hideHeaderOnMobile={isMobile}
           />
         </MobileCollapsibleBlock>
         </div>
@@ -294,8 +304,8 @@ const DashboardContent = () => {
           iconColor="text-info"
           summary={
             estoqueBaixo.length > 0
-              ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''}`
-              : `${stats.produtos} ativos`
+              ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''} · ${fmtK(valorEstoque)} parado`
+              : `${stats.produtos} ativos · ${fmtK(valorEstoque)}`
           }
           defaultOpen={estoqueBaixo.length > 0}
           persistKey="estoque"
@@ -304,6 +314,7 @@ const DashboardContent = () => {
             itensBaixoMinimo={estoqueBaixo}
             valorTotalEstoque={valorEstoque}
             totalProdutosAtivos={stats.produtos}
+            hideHeaderOnMobile={isMobile}
           />
         </MobileCollapsibleBlock>
       </BlockErrorBoundary>
@@ -318,14 +329,15 @@ const DashboardContent = () => {
             iconColor="text-info"
             summary={
               remessasAtrasadas > 0
-                ? `${remessasAtrasadas} atrasada${remessasAtrasadas > 1 ? 's' : ''}`
-                : `${comprasAguardando.length} aguardando`
+                ? `${remessasAtrasadas} atrasada${remessasAtrasadas > 1 ? 's' : ''} · ${comprasAguardando.length} a chegar`
+                : `Sem atrasos · ${comprasAguardando.length} a chegar`
             }
             persistKey="logistica"
           >
             <LogisticaBlock
               comprasAguardando={comprasAguardando}
               totalRemessasAtrasadas={remessasAtrasadas}
+              hideHeaderOnMobile={isMobile}
             />
           </MobileCollapsibleBlock>
           </div>
@@ -342,12 +354,12 @@ const DashboardContent = () => {
             iconColor="text-secondary"
             summary={
               fiscalStats.pendentes > 0
-                ? `${fiscalStats.pendentes} pendente${fiscalStats.pendentes > 1 ? 's' : ''}`
+                ? `${fiscalStats.pendentes} pendente${fiscalStats.pendentes > 1 ? 's' : ''} · ${fiscalStats.emitidas} emitidas`
                 : `${fiscalStats.emitidas} emitidas`
             }
             persistKey="fiscal"
           >
-            <FiscalBlock stats={fiscalStats} scope={scopes?.fiscal} />
+            <FiscalBlock stats={fiscalStats} scope={scopes?.fiscal} hideHeaderOnMobile={isMobile} />
           </MobileCollapsibleBlock>
           </div>
         </BlockErrorBoundary>
