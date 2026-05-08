@@ -940,7 +940,7 @@ export function DataTable<T extends Record<string, any>>({
         ) : (
           <>
             {renderMobileCards()}
-            <div className="mt-3 flex items-center justify-between px-1 py-2">
+            <div className="mt-3 flex items-center justify-between px-1 py-2 pb-24 md:pb-2">
               <span className="text-xs text-muted-foreground">
                 {serverPagination
                   ? `${effectivePage * pageSize + 1}\u2013${Math.min((effectivePage + 1) * pageSize, totalRowsForPaging)} de ${totalRowsForPaging}`
