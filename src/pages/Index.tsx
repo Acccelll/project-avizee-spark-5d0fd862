@@ -143,6 +143,14 @@ const DashboardContent = () => {
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
 
+  // Compact currency for accordion summaries (e.g. "R$ 12k").
+  const fmtK = (n: number): string => {
+    const sign = n < 0 ? '-' : '';
+    const abs = Math.abs(n);
+    if (abs >= 1000) return `${sign}R$ ${Math.round(abs / 1000)}k`;
+    return `${sign}R$ ${abs.toFixed(0)}`;
+  };
+
   // ---------------------------------------------------------------------------
   // Renderers map — a função de cada widget é renderizada de acordo com a
   // ordem persistida em `prefs.order`. Isso faz com que reorder no menu
@@ -161,10 +169,10 @@ const DashboardContent = () => {
       <div
         aria-live="polite"
         aria-atomic="false"
-        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0"
+        className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
       >
         {kpiCards.map((c) => (
-          <div key={c.id} className="min-w-[78%] snap-start sm:min-w-0">
+          <div key={c.id} className="min-w-0">
             <SummaryCard {...c} density="compact" />
           </div>
         ))}
@@ -181,10 +189,10 @@ const DashboardContent = () => {
         <div
           aria-live="polite"
           aria-atomic="false"
-          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
         >
           {operationalCards.map((c) => (
-            <div key={c.id} className="min-w-[60%] snap-start sm:min-w-0">
+            <div key={c.id} className="min-w-0">
               <SummaryCard {...c} density="compact" />
             </div>
           ))}
@@ -207,7 +215,11 @@ const DashboardContent = () => {
           title="Financeiro"
           icon={DollarSign}
           iconColor="text-primary"
-          summary={`Saldo: ${saldoProjetado >= 0 ? '+' : ''}${(saldoProjetado / 1000).toFixed(0)}k`}
+          summary={
+            stats.contasVencidas > 0
+              ? `Saldo ${fmtK(saldoProjetado)} · ${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? 's' : ''}`
+              : `Saldo ${fmtK(saldoProjetado)}`
+          }
           defaultOpen
           persistKey="financeiro"
         >
@@ -218,6 +230,7 @@ const DashboardContent = () => {
             saldoProjetado={saldoProjetado}
             recebimentosHoje={vencimentosHoje.receber}
             pagamentosHoje={vencimentosHoje.pagar}
+            hideHeaderOnMobile={isMobile}
           />
         </MobileCollapsibleBlock>
         </div>
@@ -261,7 +274,11 @@ const DashboardContent = () => {
           title="Comercial"
           icon={ShoppingBag}
           iconColor="text-secondary"
-          summary={`${stats.orcamentos} orç · ${backlogOVsCount} ped`}
+          summary={
+            faturamento.mesAtual > 0
+              ? `${fmtK(faturamento.mesAtual)} · ${backlogOVsCount} ped · ${stats.orcamentos} orç`
+              : `${stats.orcamentos} orç · ${backlogOVsCount} ped`
+          }
           persistKey="comercial"
         >
           <ComercialBlock
@@ -272,6 +289,7 @@ const DashboardContent = () => {
             loading={loading}
             faturamentoMesAtual={faturamento.mesAtual}
             faturamentoMesAnterior={faturamento.mesAnterior}
+            hideHeaderOnMobile={isMobile}
           />
         </MobileCollapsibleBlock>
         </div>
@@ -285,8 +303,8 @@ const DashboardContent = () => {
           iconColor="text-info"
           summary={
             estoqueBaixo.length > 0
-              ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''}`
-              : `${stats.produtos} ativos`
+              ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''} · ${fmtK(valorEstoque)} parado`
+              : `${stats.produtos} ativos · ${fmtK(valorEstoque)}`
           }
           defaultOpen={estoqueBaixo.length > 0}
           persistKey="estoque"
@@ -295,6 +313,7 @@ const DashboardContent = () => {
             itensBaixoMinimo={estoqueBaixo}
             valorTotalEstoque={valorEstoque}
             totalProdutosAtivos={stats.produtos}
+            hideHeaderOnMobile={isMobile}
           />
         </MobileCollapsibleBlock>
       </BlockErrorBoundary>
@@ -309,14 +328,15 @@ const DashboardContent = () => {
             iconColor="text-info"
             summary={
               remessasAtrasadas > 0
-                ? `${remessasAtrasadas} atrasada${remessasAtrasadas > 1 ? 's' : ''}`
-                : `${comprasAguardando.length} aguardando`
+                ? `${remessasAtrasadas} atrasada${remessasAtrasadas > 1 ? 's' : ''} · ${comprasAguardando.length} a chegar`
+                : `Sem atrasos · ${comprasAguardando.length} a chegar`
             }
             persistKey="logistica"
           >
             <LogisticaBlock
               comprasAguardando={comprasAguardando}
               totalRemessasAtrasadas={remessasAtrasadas}
+              hideHeaderOnMobile={isMobile}
             />
           </MobileCollapsibleBlock>
           </div>
@@ -333,12 +353,12 @@ const DashboardContent = () => {
             iconColor="text-secondary"
             summary={
               fiscalStats.pendentes > 0
-                ? `${fiscalStats.pendentes} pendente${fiscalStats.pendentes > 1 ? 's' : ''}`
+                ? `${fiscalStats.pendentes} pendente${fiscalStats.pendentes > 1 ? 's' : ''} · ${fiscalStats.emitidas} emitidas`
                 : `${fiscalStats.emitidas} emitidas`
             }
             persistKey="fiscal"
           >
-            <FiscalBlock stats={fiscalStats} scope={scopes?.fiscal} />
+            <FiscalBlock stats={fiscalStats} scope={scopes?.fiscal} hideHeaderOnMobile={isMobile} />
           </MobileCollapsibleBlock>
           </div>
         </BlockErrorBoundary>
@@ -362,7 +382,25 @@ const DashboardContent = () => {
   const FULL_WIDTH = new Set<WidgetId>(["kpis", "operational", "alertas"]);
 
   // Constrói as linhas conforme prefs.order respeitando os pares.
-  const visibleOrder = prefs.order.filter((id) => isVisible(id));
+  const baseVisibleOrder = prefs.order.filter((id) => isVisible(id));
+  // No mobile, sobrescrevemos a ordem para uma sequência operacional fixa
+  // (KPIs → exceções → alertas → financeiro → vendas → pendências → comercial → estoque → logística → fiscal).
+  // Pares caem para 1 coluna automaticamente em <lg, então renderizar em sequência funciona.
+  const MOBILE_ORDER: WidgetId[] = [
+    'kpis',
+    'operational',
+    'alertas',
+    'financeiro',
+    'vendas_chart',
+    'pendencias',
+    'comercial',
+    'estoque',
+    'logistica',
+    'fiscal',
+  ];
+  const visibleOrder = isMobile
+    ? MOBILE_ORDER.filter((id) => baseVisibleOrder.includes(id))
+    : baseVisibleOrder;
   const rows: Array<{ key: string; items: WidgetId[]; pair: boolean }> = [];
   let i = 0;
   while (i < visibleOrder.length) {
@@ -441,7 +479,7 @@ const DashboardContent = () => {
         );
       })()}
 
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         {rows.map((row) => {
           if (row.pair) {
             const isFinRow = row.items[0] === 'financeiro' || row.items[1] === 'financeiro';

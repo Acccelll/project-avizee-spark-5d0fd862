@@ -17,9 +17,10 @@ interface FiscalStats {
 interface FiscalBlockProps {
   stats: FiscalStats;
   scope?: ScopeKind;
+  hideHeaderOnMobile?: boolean;
 }
 
-export function FiscalBlock({ stats, scope }: FiscalBlockProps) {
+export function FiscalBlock({ stats, scope, hideHeaderOnMobile = false }: FiscalBlockProps) {
   const navigate = useNavigate();
 
   const items = [
@@ -75,7 +76,12 @@ export function FiscalBlock({ stats, scope }: FiscalBlockProps) {
   return (
     <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
+      <div
+        className={
+          'items-center justify-between px-4 pt-4 pb-2 border-b border-border/60 ' +
+          (hideHeaderOnMobile ? 'hidden md:flex' : 'flex')
+        }
+      >
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-secondary" />
           Fiscal

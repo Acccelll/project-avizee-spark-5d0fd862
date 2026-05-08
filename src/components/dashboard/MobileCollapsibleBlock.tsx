@@ -73,7 +73,7 @@ export function MobileCollapsibleBlock({
         {badge}
         <div className="ml-auto flex items-center gap-2">
           {!open && summary && (
-            <span className="text-xs text-muted-foreground truncate max-w-[140px]">{summary}</span>
+            <span className="text-xs text-muted-foreground truncate max-w-[180px] text-right">{summary}</span>
           )}
           <ChevronDown
             className={cn(

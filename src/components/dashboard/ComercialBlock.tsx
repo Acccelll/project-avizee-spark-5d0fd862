@@ -18,6 +18,7 @@ interface ComercialBlockProps {
   faturamentoMesAtual?: number;
   /** Faturamento confirmado no mês anterior — para comparativo MoM. */
   faturamentoMesAnterior?: number;
+  hideHeaderOnMobile?: boolean;
 }
 
 const statusStyles: Record<string, string> = {
@@ -46,6 +47,7 @@ export function ComercialBlock({
   loading,
   faturamentoMesAtual = 0,
   faturamentoMesAnterior = 0,
+  hideHeaderOnMobile = false,
 }: ComercialBlockProps) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
@@ -58,7 +60,12 @@ export function ComercialBlock({
   return (
     <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
+      <div
+        className={
+          'items-center justify-between px-4 pt-4 pb-2 border-b border-border/60 ' +
+          (hideHeaderOnMobile ? 'hidden md:flex' : 'flex')
+        }
+      >
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <ShoppingBag className="h-4 w-4 text-secondary" />
           Comercial

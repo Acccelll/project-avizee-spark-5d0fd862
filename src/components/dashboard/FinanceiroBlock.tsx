@@ -14,6 +14,8 @@ interface FinanceiroBlockProps {
   saldoProjetado: number;
   recebimentosHoje: number;
   pagamentosHoje: number;
+  /** When true, hides the inner card header on viewports <md (used when wrapped in a MobileCollapsibleBlock). */
+  hideHeaderOnMobile?: boolean;
 }
 
 interface IndicadorProps {
@@ -47,6 +49,7 @@ export function FinanceiroBlock({
   saldoProjetado,
   recebimentosHoje,
   pagamentosHoje,
+  hideHeaderOnMobile = false,
 }: FinanceiroBlockProps) {
   const navigate = useNavigate();
   const saldoPositivo = saldoProjetado >= 0;
@@ -54,7 +57,12 @@ export function FinanceiroBlock({
   return (
     <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60 shrink-0">
+      <div
+        className={cn(
+          'items-center justify-between px-4 pt-4 pb-2 border-b border-border/60 shrink-0',
+          hideHeaderOnMobile ? 'hidden md:flex' : 'flex',
+        )}
+      >
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-primary" />
           Financeiro
