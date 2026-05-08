@@ -35,3 +35,11 @@ type: feature
 - Onda 2: reescrever `social-sync` para escrever em `social_posts`/`social_metricas_snapshot`, refresh long-lived, cron diário.
 - Onda 3: edge function `instagram-webhooks` (handshake + assinatura X-Hub-Signature-256).
 - Onda 4: trigger de alertas, PDF mensal, realtime na sidebar.
+
+## Hardening (Onda 10)
+- `social-sync` exige JWT válido + `requireAnyPermission(social:sincronizar)` (admin global passa).
+- Validação de ownership: `account_id` deve existir em `social_contas` e `plataforma` deve bater com a query string; senão 400/404.
+- **Sem mock silencioso:** quando `INSTAGRAM_ACCESS_TOKEN`/`LINKEDIN_ACCESS_TOKEN` não estiver configurado, retorna `{ success: false, error: "TOKEN_NOT_CONFIGURED" }` com status 422. Mock só roda com `?mock=1` E `SOCIAL_SYNC_ALLOW_MOCK=true` no env (uso em dev).
+- `listarAlertas(resolvido?)` em `social.service.ts` agora aplica filtro client-side sobre o resultado da RPC `social_alertas_periodo`.
+- `calculateTrend` usa thresholds: `alta` exige `>= 10` seguidores novos **e** `>= 2%` de engajamento médio; `queda` se negativo **ou** `< 1%`.
+- Help registry inclui `/social` (manual + tour de 5 passos) — anchors `social.tabs`, `social.connectBtn`, `social.syncBtn`.
