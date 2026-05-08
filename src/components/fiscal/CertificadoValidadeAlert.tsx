@@ -30,7 +30,7 @@ export function CertificadoValidadeAlert({ dismissible = false }: { dismissible?
 
   // Dismiss persistido por chave (validadeFim) — ao renovar, key muda e o alerta volta.
   const dismissKey = certificado ? `cert_dismissed_${certificado.validadeFim}` : "cert_dismissed_none";
-  const { value: dismissedKey, set: setDismissedKey } = useUserPreference<string | null>(
+  const { value: dismissedKey, save: setDismissedKey } = useUserPreference<string | null>(
     user?.id ?? null,
     "fiscal_cert_alert_dismissed",
     null,
@@ -62,7 +62,7 @@ export function CertificadoValidadeAlert({ dismissible = false }: { dismissible?
       variant="ghost"
       aria-label="Dispensar aviso"
       className="absolute right-2 top-2 h-7 w-7"
-      onClick={() => setDismissedKey(dismissKey)}
+      onClick={() => { void setDismissedKey(dismissKey); }}
     >
       <X className="h-4 w-4" />
     </Button>
