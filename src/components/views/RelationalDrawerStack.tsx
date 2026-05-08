@@ -161,11 +161,17 @@ const DrawerSlot = memo(function DrawerSlot({
     <Sheet open onOpenChange={(open) => !open && onPop()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-xl overflow-y-auto p-0 flex flex-col focus-visible:outline-none transition-all duration-300 ease-out border-l"
+        className="w-screen h-[100dvh] sm:h-auto sm:max-w-xl rounded-none sm:rounded-l-lg overflow-y-auto p-0 flex flex-col focus-visible:outline-none transition-all duration-300 ease-out sm:border-l"
         style={{
           zIndex: 50 + index,
-          transform: `translateX(${Math.max(0, (total - 1 - index) * -8)}px)`,
-          boxShadow: `${(index + 1) * -6}px 0 ${(index + 1) * 16}px rgba(15, 23, 42, 0.12)`,
+          transform:
+            typeof window !== "undefined" && window.innerWidth >= 640
+              ? `translateX(${Math.max(0, (total - 1 - index) * -8)}px)`
+              : undefined,
+          boxShadow:
+            typeof window !== "undefined" && window.innerWidth >= 640
+              ? `${(index + 1) * -6}px 0 ${(index + 1) * 16}px rgba(15, 23, 42, 0.12)`
+              : undefined,
           borderLeftColor: `hsl(var(--primary) / ${Math.min(0.18 + index * 0.06, 0.45)})`,
         }}
       >
@@ -184,7 +190,7 @@ const DrawerSlot = memo(function DrawerSlot({
           recordActions={slots?.actions}
         />
 
-        <div className="flex-1 px-4 sm:px-6 py-4">
+        <div className="flex-1 px-3 sm:px-6 pt-3 pb-24 sm:pb-4">
           <ViewBody view={view} />
         </div>
       </SheetContent>
