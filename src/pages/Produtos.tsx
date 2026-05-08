@@ -172,6 +172,21 @@ const Produtos = () => {
   // KPIs precisam de counts globais (data agora é só a página corrente).
   const totalProdutos = useTableCount("produtos", { tipo_item: "produto" }).data ?? null;
   const totalInsumos = useTableCount("produtos", { tipo_item: "insumo" }).data ?? null;
+  // Conta global de itens com problema de estoque (RPC) — substitui o "(página)".
+  const { data: estoqueSummary } = useQuery({
+    queryKey: ["produtos", "estoque-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("produtos_estoque_summary");
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        criticos: Number(row?.criticos ?? 0),
+        zerados: Number(row?.zerados ?? 0),
+        abaixo_minimo: Number(row?.abaixo_minimo ?? 0),
+      };
+    },
+    staleTime: 60_000,
+  });
   const { pushView } = useRelationalNavigation();
 
   const { data: grupoLookup } = useQuery({
