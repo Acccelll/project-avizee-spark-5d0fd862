@@ -41,6 +41,10 @@ import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
 import { useFiscalKpis } from "@/pages/fiscal/hooks/useFiscalKpis";
+import {
+  useNotasFiscaisPaged,
+  useResetPageOnFiltersChange,
+} from "@/pages/fiscal/hooks/useNotasFiscaisPaged";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
