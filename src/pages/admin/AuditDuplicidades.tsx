@@ -30,11 +30,13 @@ import {
   type AuditDup,
 } from "@/services/auditDups.service";
 import { AlertTriangle, RefreshCw, Trash2, ShieldCheck, ScanSearch } from "lucide-react";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 type StatusTab = "pendente" | "removido" | "mantido";
 
 export default function AuditDuplicidades() {
   const [tab, setTab] = useState<StatusTab>("pendente");
+  const { isAdmin } = useIsAdmin();
   const [data, setData] = useState<AuditDup[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -197,7 +199,8 @@ export default function AuditDuplicidades() {
               size="sm"
               variant="outline"
               className="h-7 text-xs"
-              disabled={(r.ids_a_remover as string[] | null)?.length === 0}
+              disabled={!isAdmin || (r.ids_a_remover as string[] | null)?.length === 0}
+              title={!isAdmin ? "Apenas administradores podem mesclar duplicidades" : undefined}
               onClick={() => setPurgeTarget(r)}
             >
               <Trash2 className="w-3 h-3 mr-1" />
@@ -207,6 +210,8 @@ export default function AuditDuplicidades() {
               size="sm"
               variant="ghost"
               className="h-7 text-xs"
+              disabled={!isAdmin}
+              title={!isAdmin ? "Apenas administradores podem marcar duplicidades" : undefined}
               onClick={() => setManterTarget(r)}
             >
               <ShieldCheck className="w-3 h-3 mr-1" />

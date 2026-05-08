@@ -10,7 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useProfileForm } from '../hooks/useProfileForm';
-import { ROLE_LABELS } from '../utils/passwordPolicy';
+import { ROLE_LABELS } from '@/lib/permissions';
 
 export function MeuPerfilSection() {
   const { user, roles } = useAuth();

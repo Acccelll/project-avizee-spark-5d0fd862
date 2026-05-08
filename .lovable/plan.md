@@ -1,137 +1,59 @@
-## Plano — Onda 7: Hardening do Módulo Fiscal e Faturamento
+## Onda 9 — Auditoria Verificada e Plano de Ação
 
-### Status
+### Verificação dos achados críticos (executada antes do plano)
 
-**Fase 1 — Críticos (concluída)**
-- ✅ **1.1** `BuscarPorChaveDialog` migrado para `consultarNFePorChave` (cache `nfe_distribuicao` → `sefaz-distdfe consultar-chave`). `consultadanfe-proxy` permanece como fallback opcional sob `VITE_FEATURE_FALLBACK_CONSULTADANFE`.
-- ✅ **1.2** `sefaz-proxy` e `sefaz-distdfe` autorizam por permissão fiscal via helper `_shared/permissions.ts` (`requireAnyPermission`). `process-distdfe-cron` usa SERVICE_ROLE para bypass.
-- ✅ **1.3** `fiscalInternalStatusMap` reduzido a 5 valores canônicos (rascunho/pendente/confirmada/importada/cancelada). `canEditFiscal`/`isFiscalReadOnly`/`isFiscalStructurallyLocked` agora aceitam `(status, statusSefaz)`.
+| ID | Achado | Verificação | Veredicto |
+|----|--------|-------------|-----------|
+| C-02 | RLS de `user_permissions` sem políticas I/U/D | `pg_policies` mostra `user_permissions_admin_insert/update/delete` com `has_role(auth.uid(),'admin')` | **Falso positivo** — já protegido |
+| C-03 | RPC `limpar_dados_migracao` sem SECURITY DEFINER + admin check | `pg_proc.prosecdef = true` e o corpo começa com `IF NOT public.has_role(auth.uid(),'admin') THEN RETURN 'acesso_negado'` | **Falso positivo** — já protegido |
+| A-07 | `admin-sessions` sem `requireAdmin` | Função tem `requireAdmin(serviceClient, req)` chamado em todas as ações | **Falso positivo** |
+| C-01 | Seções admin sem `useIsAdmin` interno | Confirmado: `BackupSection`, `EmpresaSection`, `NotificacoesSection`, `EmpresasSection`, `WebhooksSection`, `IntegracoesSection`, `EmailSection`, `FinanceiroSection`, `FiscalSection`, `PerfisCatalogoSection`, `SaudeSistemaSection` não revalidam `isAdmin`; `AdminRoute` aceita `administracao:visualizar` | **Real** — risco de delegado escrever config global |
 
-**Fase 2 — Altos (parcial)**
-- ✅ **2.2** `/faturamento` deixou de ser "Em breve". Hub real com 4 cards (Emitir, Backlog, Cadastros, Documentos), permissão por ação. `lib/navigation.ts` ganhou sub-itens canônicos.
-- ✅ **2.3** `verificarDuplicidadeChave` agora retorna `DuplicidadeChaveInfo` rica (`id, numero, serie, status, status_sefaz`) com flag `ignorarCanceladas`. `useNFeXmlImport` usa o contexto na mensagem de erro.
-- ✅ **2.7** `useSefazAcoes` ganhou mutual exclusion por ação (`pendingByAction.transmitir/consultar/cancelar`) — dois cliques rápidos não disparam duas RPCs concorrentes.
-- ✅ **M-03** `InutilizacaoDrawer` já valida `motivo.length >= 15` client-side antes de habilitar o botão (verificado).
-- ⏳ **2.1 / 2.5 / 2.6** — pendentes (paginação server-side, throttle DistDFe, checagem `nfe_distribuicao` no `useNFeXmlImport`).
+### Escopo desta onda
 
-**Fase 3 — Médios (parcial — esta sessão)**
-- ✅ **EF-03** `sanitizeForLog` em `_shared/sanitize.ts` aplicado via `createLogger` (extra é sempre serializado sanitizado). `consultadanfe-proxy` (único console.log direto) também migrado.
-- ✅ **M-01** Action `health` do `sefaz-proxy` agora oculta `hasPfxPassword` para usuários sem `faturamento_fiscal:admin_fiscal` (helper novo `hasAnyPermission`).
-- ✅ **M-02** `lerConfigFiscalEmpresa` falha explicitamente com mensagem orientando `/fiscal/configuracao` quando CRT/ambiente ausentes (sem mais defaults silenciosos `crt='1'`/`ambiente='2'`).
-- ✅ **2.6** `useNFeXmlImport` faz cross-check com `nfe_distribuicao` (status_manifestacao/data_manifestacao); toast informativo + campo `distdfeRef` no resultado.
-- Demais itens de Fase 3 detalhados na seção "Dívida técnica" abaixo.
+Foco no que é **comprovadamente** problema, sem retrabalhar o que já está protegido.
 
----
+### Bloco 1 — Hardening de gates admin (C-01 / A-04 / A-05)
 
-### Dívida técnica — Próxima onda (Onda 8: Fiscal Hardening II)
+1. **Gate centralizado por seção sensível.** Em `src/pages/Administracao.tsx`, envolver o `SectionContent` (ou cada `case` mutante) com um wrapper `<RequireStrictAdmin>` novo (`src/components/admin/RequireStrictAdmin.tsx`) que usa `useIsAdmin` e renderiza `<AccessDenied variant="route" resourceLabel="…">` para não-admins. Aplicar em: `empresa`, `empresas`, `email`, `integracoes`, `notificacoes`, `webhooks`, `backup`, `fiscal`, `financeiro`, `perfis`, `saude`, `usuarios`. Manter `dashboard` (somente leitura) sem o gate.
+2. **`AuditDuplicidades`:** adicionar `useIsAdmin` guard em torno do botão "Mesclar duplicidades" (manter visualização delegável, alinhado ao item de sidebar).
+3. **Doc.** Atualizar `docs/administracao-modelo.md` §6 com a regra: "toda seção sob `/administracao` que escreve em `app_configuracoes` ou `empresa_config` reverifica `useIsAdmin`."
 
-Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e critério de pronto.
+### Bloco 2 — Política de senha consistente (A-02 + M-03)
 
-#### Bloco A — Performance e idempotência (Fase 2 residual)
+1. Em `useChangePassword`/`SegurancaSection` e `Signup`/`ResetPassword`, bloquear submit quando `getPasswordStrength(pwd).level < 2`, exibindo a primeira mensagem de `validatePassword`.
+2. Adicionar critério "Caractere especial (recomendado)" em `getPasswordCriteria` (não-obrigatório, apenas visual) para alinhar com a fórmula de `getPasswordStrength`.
+3. Remover `ROLE_LABELS` de `passwordPolicy.ts` (4 roles desatualizados) — importar de `src/lib/permissions.ts` (6 roles canônicos).
 
-**2.1 — Paginação server-side em `Fiscal.tsx` (A-01)** · ✅ entregue · RPC `listar_notas_fiscais_ids(p_date_from, p_date_to, p_tipos, p_status, p_status_sefaz, p_modelos, p_origens, p_fornecedores, p_clientes, p_search, p_order_by, p_ascending, p_offset, p_limit)` (STABLE, `search_path=public`) + índices (`ativo+data_emissao desc`, `status`, `status_sefaz`, `fornecedor_id`, `cliente_id`). Hook `useNotasFiscaisPaged` (mesmo padrão de `useFinanceiroLancamentosPaged` — RPC de IDs → reidrata `notas_fiscais` com joins via `IN`). `Fiscal.tsx` substitui `useSupabaseCrud` por hook paginado + `serverPagination` no `DataTable`; KPIs continuam via `kpis_fiscal`.
+### Bloco 3 — Auditoria server-side (M-05)
 
-**2.5 — Throttle DistDFe server-side (EF-02)** · 🟠 Alto · ~4h
-- ✅ entregue · Tabela `sefaz_consulta_log` (RLS on, sem policies — só service_role acessa) + RPC `sefaz_consulta_pode_disparar(cnpj, action, janela_seg=3600, max=18)` `SECURITY DEFINER` com `search_path=public`. `sefaz-distdfe` chama a RPC antes de montar o SOAP; resposta `429 { codigoTransporte: 'RATE_LIMITED', janelaSeg, max }` quando estourado. SERVICE_ROLE (cron `process-distdfe-cron`) continua bypass via `user.isService`.
+Mover o filtro de `criticidade` em `Auditoria.tsx` para o hook `useAdminAuditUnificada` (parâmetro de query sobre `v_admin_audit_unified`), eliminando o "filtro sobre página atual" que esconde eventos críticos das páginas seguintes.
 
-**2.6 — `useNFeXmlImport` checa `nfe_distribuicao` antes de aplicar (A-07)** · ✅ entregue · usa `data_manifestacao`/`status_manifestacao` (schema real) e expõe `distdfeRef` no `NFeXmlImportResult`.
+### Bloco 4 — Limpezas de menor risco
 
-#### Bloco B — Segurança e robustez (Fase 3)
+1. **A-03** Remover deploy de `setup-admin` (`supabase functions delete setup-admin`) — código já é stub 410.
+2. **M-02** Adicionar card placeholder "Autenticação em dois fatores — `<EmBreve />`" em `SegurancaSection`.
+3. **M-06** Em `BackupSection`, exibir aviso fixo "valores serão aplicados quando o cron for ativado" (mantém persistência, deixa expectativa explícita).
+4. **B-01** Confirmar e, se necessário, migrar `AparenciaSection` para `user_preferences` (escopo por usuário, não global).
 
-**EF-03 — Sanitização de logs nas edge functions** · ✅ entregue · `_shared/sanitize.ts` + integração no `createLogger`.
-**M-01 — `health` oculta `hasPfxPassword` para não-admins** · ✅ entregue · gating via `hasAnyPermission`.
-**M-02 — `lerConfigFiscalEmpresa` falha explicitamente** · ✅ entregue · sem mais defaults silenciosos.
+### Itens deslocados para backlog (com justificativa)
 
-**M-05 — `CertificadoValidadeAlert` global em `AppLayout`** · 🟡 Médio · ~2h
-- ✅ entregue · montado uma única vez em `src/components/AppLayout.tsx` acima do `<Outlet />`, com query gated por `useCan('faturamento_fiscal:visualizar')`. Removido das páginas `Fiscal.tsx`, `FiscalDashboard.tsx` e `Cte.tsx`. Variante `dismissible` apenas para janela 8–30 dias, persistida em `user_preferences` (chave por `validadeFim` — ao renovar, o alerta volta). Vermelho/expirado nunca pode ser dispensado.
+- **C-02 / C-03 / A-07**: já protegidos no banco/edge — apenas registrar verificação na memória `mem://security/`.
+- **A-01** (janela `USING(true)`): exige acesso a logs Postgres não disponível no sandbox; abrir tarefa de auditoria operacional fora do código.
+- **A-06 / SH-03**: divergência `useEmpresaConfig` vs `useAppConfig` — refatoração ampla, agendar para Onda 10.
+- **MB-01 / MB-02 / MB-03**: revisão mobile dedicada (PermissionMatrix, MigracaoDados, Auditoria) — Onda 10 mobile.
+- **D-02 / D-03**: auditoria de segurança de Webhooks/Integrações — onda própria com checklist SSRF/HMAC.
+- **SH-02**: regenerar `types.ts` para `v_admin_audit_unified` quando o schema for re-snapshot.
+- **SH-05**: decompor `UserFormModal` (25 KB) — refator não-funcional, baixa prioridade.
 
-#### Bloco C — Backlog estrutural (Fase 3 — abrir como issues separadas)
+### Detalhes técnicos
 
-- ✅ **EF-04** entregue · Tabela `nfe_emissao_pendente` (RLS on, sem policies — só SR), RPCs `nfe_emissao_pendente_listar_proximo_lote(p_limit)` (FOR UPDATE SKIP LOCKED, marca `processando` atomicamente) e `nfe_emissao_pendente_concluir(p_id, p_sucesso, p_erro, p_protocolo)` (backoff exponencial 1→32 min, máx 6 tentativas). Edge function `process-nfe-retry-cron` (gate CRON_SECRET + SR) processa lote de 5/run, invoca `sefaz-proxy` (`enviar-sem-assinatura-vault`), atualiza `notas_fiscais.status/status_sefaz/protocolo_sefaz` em sucesso. Cron `*/5 * * * *` agendado.
-- ✅ **BK-01/02/03** entregue · helper `has_fiscal_permission(action)` (SECURITY DEFINER, search_path=public) usado como gate no topo das 3 RPCs. SR/cron continua bypass via `auth.uid() IS NULL`. Permissões: confirmar = `criar` ou `editar`; cancelar SEFAZ = `cancelar_sefaz` ou `admin_fiscal`; devolução = `criar` ou `editar`. Lógica original (estoque/financeiro/eventos/advisory locks) preservada integralmente.
-- ✅ **M-04** entregue · Índices compostos em `notas_fiscais` (`ativo+data_emissao+status` parcial WHERE ativo, `tipo` parcial, `modelo_documento` parcial) cobrindo o WHERE da `kpis_fiscal`. Soma-se aos índices simples já existentes.
-- ✅ **D-01** entregue (parcial) · `NotaFiscalEditModal` marcado com JSDoc `@deprecated` orientando novos callers a usar `/fiscal/:id/editar`. Caminho mobile já navega para a página dedicada; desktop continuará usando o modal até a migração completa (próxima onda).
-- ✅ **D-02** entregue · `ConfiguracaoFiscal` agora usa `<Tabs>` com 4 abas (Empresa Fiscal · Certificado A1 · Numeração · DistDFe). Aba DistDFe é informativa, com link para `/fiscal/distdfe` e nota do throttle ativo (18/h).
+- `RequireStrictAdmin` reutiliza `AuthLoadingScreen` enquanto `loading`, e `AccessDenied` com `variant="route"` para o estado negado — mesmo padrão do `AdminRoute`.
+- O wrapper é puramente cliente; o RLS já é a defesa real (todos os updates vão para `app_configuracoes`/`empresa_config`, cujos triggers de auditoria continuam capturando o ator).
+- Migrações de banco: **nenhuma** nesta onda. Tudo é frontend + edge function delete + doc.
 
-#### Bloco D — Mobile (Fase 3 — após Bloco A/B)
+### Saída esperada
 
-- **MB-03** — Auditar touch targets em `Fiscal.tsx`/`FiscalDetail.tsx`/`SefazAcoesPanel`: ≥44px conforme `scripts/lint-touch-targets.mjs`. 🟢 Baixo · ~2h
-- ✅ **MB-04** entregue · `TraducaoXmlDrawer` agora detecta mobile via `useIsMobile`, usa `Sheet side="bottom"` com altura 95vh, header/conteúdo/footer em colunas flex (footer fixo com botões `min-h-11 flex-1`). Layout dos cards já era responsivo (`grid-cols-1 md:grid-cols-[1fr_auto_1fr]`).
-- Salvar padrões em `mem://produto/fiscal-mobile.md` (já existe — apenas atualizar com decisões da onda).
-
----
-
-### Próxima onda — Lista de tarefas (ordem sugerida)
-
-1. [ ] **2.1** RPCs `listar_notas_fiscais_ids` + `kpis_fiscal` + hook `useNotasFiscaisPaged` + refactor `Fiscal.tsx`.
-2. [x] **2.5** Migration `sefaz_consulta_log` + RPC throttle + integração em `sefaz-distdfe`.
-3. [x] **2.6** Cross-check `nfe_distribuicao` em `useNFeXmlImport` com toast informativo.
-4. [x] **EF-03** `sanitizeForLog` aplicado em todas edge functions fiscais.
-5. [x] **M-01 + M-02 + M-05** Hardening de pequenos vazamentos e alerta global de certificado em `AppLayout`.
-6. [x] **BK-01/02/03** Gate de permissão nas 3 RPCs fiscais críticas via `has_fiscal_permission`.
-7. [ ] **EF-04** Fila de retry para emissões com timeout SEFAZ.
-8. [ ] **M-04 + D-01 + D-02** Performance KPIs, deprecação do modal e abas em ConfiguracaoFiscal.
-9. [ ] **MB-03 + MB-04** Mobile: touch targets + tradução XML em bottom-sheet.
-
-**Onda 8 — concluída.** Pendente apenas:
-- MB-03 (auditoria de touch targets em Fiscal/SefazAcoesPanel) — backlog Onda 9.
-- D-01 finalização: migrar callers desktop do `NotaFiscalEditModal` para `/fiscal/:id/editar` e excluir o componente — backlog Onda 9.
-
----
-
-### Verificação contínua
-- `tsc --noEmit` verde após cada lote.
-- `supabase--linter` após cada migration (zero `warn`/`error`).
-- Smoke contra `sefaz-proxy`/`sefaz-distdfe` com tokens admin × leitura-only.
-- `scripts/lint-touch-targets.mjs` verde antes de fechar Bloco D.
-
----
-
-## Onda 9 — Hardening Relatórios / Workbook / Apresentação (em curso)
-
-### 9.1 Críticos — CONCLUÍDO
-- [x] **C-01/DP-01/DP-04** Helper `fetchAllPages` + paginação universal nos 6 loaders (`financeiro, comercial, compras, estoque, cadastros, divergencias`). Hard cap 50k.
-- [x] **C-02** `vencido` removido como status persistido em `loaders/financeiro` (queries `.in()` e `isOpen`); status efetivo derivado de `atraso > 0`.
-- [x] **C-03** Migration backfill `apresentacao_comentarios.tags_json.tags`; fallback substring `'indispon'` removido de `ApresentacaoGerencial`.
-- [x] **C-04** `formatRegistry` canônico + `formatValue` por registry (sem heurística `key.includes`).
-
-### 9.2 Performance/Resiliência — pendente
-### 9.2 Performance/Resiliência — CONCLUÍDO
-- [x] **A-01** Caps explícitos no Workbook (`WorkbookCaps` parametrizáveis + `WORKBOOK_CAPS_DEFAULT`). `fetchWorkbookData` retorna `capsApplied` por listagem; `00_Capa` mostra nota visual com cap atingido.
-- [x] **A-04** `AbortController` real:
-  - `generateWorkbook` aceita `signal`; threading para `fetchWorkbookData` (que já honrava); cada etapa custosa (template, fetch, write) faz `signal.throwIfAborted()`.
-  - `gerarWorkbook` service propaga signal e marca status `cancelado` quando aborta.
-  - `WorkbookGerencial.tsx` mantém `abortRef` por mutation; `WorkbookGeracaoDialog` ganha botão "Cancelar geração" quando `isGenerating`.
-  - Mesma estrutura espelhada em `gerarApresentacao` + `ApresentacaoGeracaoDialog` + `ApresentacaoGerencial.tsx`.
-- [x] **A-05** Helper `src/lib/supabase/fromUntyped.ts` (também exportado como `sbu`) consolida o cast `(supabase as any).from(...)`. Migrado em `workbookGenerator.service.ts`, `fetchWorkbookData.ts`, `apresentacaoService.ts` e `fetchPresentationData.ts`. `supabase` segue importado para chamadas de `storage`.
-- [x] **A-06** `useRelatoriosFavoritos` agora emite toast explícito (`success` ou `warning`) quando a migração local→DB ocorre, evitando a sensação de "favoritos sumiram".
-
-### 9.3 UX/Mobile — pendente
-### 9.3 UX/Mobile — parcial
-- [x] **A-07** `RelatorioChart` agrega cauda em "Outros" para pie/bar quando série > 12 pontos; linha mantém eixo temporal completo. Aviso visual quando trunca.
-- [x] **M-04** Catálogo de Relatórios: busca casa também o título da categoria (ex.: "comercial" lista todos os relatórios da seção).
-- [x] **MB-04** `DreTable` em mobile renderiza cards verticais (header/subtotal/resultado/deducao com tons distintos) em vez da tabela de duas colunas.
-- [x] **MB-03** Auditado — `RelatorioChart` já usa `h-56 min-h-[224px] w-full` com `ResponsiveContainer minHeight=200`. Sem regressão.
-- [ ] **A-03** Derivações reaproveitáveis no loader (mover do component para o service). — backlog 9.4
-- [ ] **M-01/02/03/05/06** staleTime por tipo, badge "atualizando", chip regime DRE, validação modo fechado, bloqueio aprovação sem comentários. — backlog 9.4
-- [ ] **MB-05** Progresso de export (streaming). — backlog 9.4
-
-### 9.4 Refatorações — pendente
-### 9.4 Hardening fino — parcial
-- [x] **M-01** `useRelatorio` ganha `staleTimeFor(tipo)` — operacionais (estoque/fluxo/vendas) 2–5 min; agregados/cadastros 15–30 min. Default 10 min preservado.
-- [x] **M-02** `ReportHeader` exibe badge "atualizando" (RefreshCcw spin) quando `isFetching && !isLoading` — sinaliza refetch em background sem mexer no skeleton.
-- [x] **M-03** `ReportHeader` exibe chip "Regime: Caixa/Competência" quando o relatório ativo é DRE (`reportMeta.kind === 'dre'`), tanto desktop quanto mobile.
-- [x] **M-05** `WorkbookGeracaoDialog` mostra banner amarelo quando `modoGeracao === 'fechado'` listando os cortes V2 que serão suprimidos. Reforça o aviso já gravado na aba `00b_Aviso_Modo_Fechado`.
-- [x] **M-06** `ApresentacaoAprovacaoBar` recebe `comentariosCount`; "Aprovar e gerar final" fica `disabled` com tooltip orientativo enquanto não houver comentário associado à geração selecionada.
-
-### 9.5 Refinos — parcial
-- [x] **A-03** `services/relatorios/lib/derivations.ts` extrai `buildKpiCards(resultado, tipo)` (puro, reaproveitável em Workbook/Apresentação) e `deriveMobileTableProps(visibleColumns, statusField)`. `Relatorios.tsx` consome ambos via `useMemo` simples.
-- [x] **MB-05** `useRelatorioExport` emite toast em fases (`Preparando dados...` → `Montando PDF/planilha...` → sucesso/erro), mantendo `id` único por export para evitar empilhamento.
-- [x] **D-01** `RelatorioHeaderActions` extraído (Atualizar + Salvar/Aplicar favoritos com seu próprio estado de popover). `Relatorios.tsx` caiu de 572 → 492 linhas; sem mudança de comportamento.
-- [x] **M-07** `apresentacao-cadencia-runner` agora exige `CRON_SECRET` (header `x-cron-secret` ou query `cron_secret`), seguindo o mesmo padrão de `process-nfe-retry-cron`/`process-distdfe-cron`. `today` e `competenciaAlvo()` migrados para `America/Sao_Paulo` para evitar disparo duplicado/perdido na virada UTC.
-- [x] **DP-03/05** Auditoria concluída.
-  - **EXPLAIN** rodado nas 4 queries mais quentes dos loaders (`notas_fiscais` filtro saída/confirmada por período, `notas_fiscais_itens` join para Curva ABC, `estoque_movimentos` por período, `financeiro_lancamentos` em aberto por vencimento). Todas usam Index Scan — `idx_notas_fiscais_status`, `idx_notas_fiscais_itens_nota_fiscal_id`, `idx_estoque_movimentos_created_at`, `idx_financeiro_lancamentos_data_vencimento`. Nenhum Seq Scan; índices compostos da Onda 8 (`idx_notas_fiscais_ativo_data_status` + parciais por tipo/modelo) cobrem o volume atual.
-  - **N+1**: caça em `services/relatorios/loaders/*` (1532 LOC) confirma que **todos** os 6 loaders usam `fetchAllPages` + joins embutidos PostgREST (`produtos(...)`, `clientes(...)`, `notas_fiscais!inner(...)`, `grupos_economicos(...)`). Único `await` extra é `loadMovimentosEstoque` resolvendo `produtoIds` por grupo antes do `IN` — comportamento esperado, não é N+1. Sem laços `for..await` em todos os loaders.
-  - Conclusão: nada para corrigir nesta onda. Reabrir se índice/volume mudar.
-
-**Onda 9 — concluída.** Resta apenas backlog tático de touch-targets/ergonomia que será absorvido em ondas futuras.
+- Frontend: 1 novo componente, ~12 seções envolvidas no wrapper, 3 ajustes de senha, 1 mudança no hook de auditoria, 3 ajustes pequenos de UX.
+- Edge: remoção de `setup-admin` do deploy.
+- Docs/mem: atualização de `docs/administracao-modelo.md` e nova nota em `mem://security/admin-vs-view-admin.md` registrando os falsos positivos verificados.

@@ -8,6 +8,33 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import type { Criticality } from "@/lib/audit/metadata";
+
+// Espelha as listas de `getCriticality` em `@/lib/audit/metadata` para
+// permitir o filtro server-side por criticidade. Mantenha sincronizado
+// — há um teste rápido em `src/lib/audit/__tests__` (criar se necessário).
+const HIGH_ACOES = [
+  "DELETE",
+  "role_grant",
+  "role_revoke",
+  "role_update",
+  "permission_grant",
+  "permission_revoke",
+  "permission_update",
+];
+const MEDIUM_ACOES = ["UPDATE", "config_update", "branding_update", "logo_upload"];
+const SENSITIVE_ENTIDADES = [
+  "user_roles",
+  "user_permissions",
+  "profiles",
+  "empresa_config",
+  "app_configuracoes",
+  "notas_fiscais",
+  "financeiro_lancamentos",
+  "financeiro_baixas",
+];
+
+const csv = (xs: string[]) => `(${xs.map((x) => `"${x}"`).join(",")})`;
 
 export type AdminAuditRow =
   Database["public"]["Views"]["v_admin_audit_unified"]["Row"];
@@ -22,6 +49,8 @@ export interface AdminAuditFilters {
   targetUserId?: string | null;
   ipAddress?: string | null;
   registroId?: string | null;
+  /** "todas" | "alta" | "media" | "baixa" — filtro server-side derivado. */
+  criticidade?: Criticality | "todas" | null;
   /** Página 1-based */
   page?: number;
   pageSize?: number;
@@ -57,6 +86,22 @@ export function useAdminAuditUnificada(filtros: AdminAuditFilters = {}) {
       if (filtros.targetUserId) q = q.eq("target_user_id", filtros.targetUserId);
       if (filtros.ipAddress) q = q.eq("ip_address", filtros.ipAddress);
       if (filtros.registroId) q = q.eq("entidade_id", filtros.registroId);
+
+      // Criticidade derivada — replica a lógica de `getCriticality` no servidor.
+      const crit = filtros.criticidade && filtros.criticidade !== "todas" ? filtros.criticidade : null;
+      if (crit === "alta") {
+        q = q.or(`tipo_acao.in.${csv(HIGH_ACOES)},entidade.in.${csv(SENSITIVE_ENTIDADES)}`);
+      } else if (crit === "media") {
+        // Tipo médio E não cai em alta (ações médias não intersectam altas;
+        // basta garantir que a entidade não seja sensível).
+        q = q
+          .in("tipo_acao", MEDIUM_ACOES)
+          .not("entidade", "in", csv(SENSITIVE_ENTIDADES));
+      } else if (crit === "baixa") {
+        q = q
+          .not("tipo_acao", "in", csv([...HIGH_ACOES, ...MEDIUM_ACOES]))
+          .not("entidade", "in", csv(SENSITIVE_ENTIDADES));
+      }
 
       const { data, error, count } = await q;
       if (error) throw error;

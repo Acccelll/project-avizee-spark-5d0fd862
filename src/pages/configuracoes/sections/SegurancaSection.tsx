@@ -16,7 +16,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useChangePassword } from '../hooks/useChangePassword';
-import { getPasswordCriteria, getPasswordStrength } from '../utils/passwordPolicy';
+import { getPasswordCriteriaWithMatch, getPasswordStrength } from '@/lib/passwordPolicy';
+import { EmBreve } from '@/components/EmBreve';
 
 export function SegurancaSection() {
   const { user } = useAuth();
@@ -27,9 +28,12 @@ export function SegurancaSection() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const pwdStrength = getPasswordStrength(cp.newPassword);
-  const pwdCriteria = getPasswordCriteria(cp.newPassword, cp.confirmPassword);
+  const pwdCriteria = getPasswordCriteriaWithMatch(cp.newPassword, cp.confirmPassword);
   const allCriteriaMet = pwdCriteria.every((c) => c.met);
-  const canSubmit = !!cp.currentPassword && allCriteriaMet;
+  // Bloqueia submit em senhas com força "Fraca" (level 1) — alinhado com
+  // `validatePassword` em Login/Signup/Reset.
+  const strongEnough = pwdStrength.level >= 2;
+  const canSubmit = !!cp.currentPassword && allCriteriaMet && strongEnough;
 
   return (
     <div className="space-y-6">
@@ -302,6 +306,25 @@ export function SegurancaSection() {
           </ul>
         </div>
       </div>
+
+      {/* 2FA — placeholder até a implementação real (Supabase MFA). */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            Autenticação em dois fatores
+            <EmBreve />
+          </CardTitle>
+          <CardDescription>
+            Camada extra de segurança usando aplicativo autenticador. Será habilitada em uma próxima atualização.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button size="sm" variant="outline" disabled>
+            Configurar autenticador
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Sticky save bar mobile — aparece quando há senha atual digitada */}
       {isMobile && cp.currentPassword && (

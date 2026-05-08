@@ -36,6 +36,7 @@ import { PerfisCatalogoSection } from "@/pages/admin/sections/PerfisCatalogoSect
 import { SaudeSistemaSection } from "@/pages/admin/sections/SaudeSistemaSection";
 import { WebhooksSection } from "@/pages/admin/sections/WebhooksSection";
 import { EmpresasSection } from "@/pages/admin/sections/EmpresasSection";
+import { RequireStrictAdmin } from "@/components/admin/RequireStrictAdmin";
 
 /** Seções renderizadas internamente (não inclui atalhos externos). */
 const VALID_SECTION_KEYS = new Set([
@@ -188,34 +189,26 @@ export default function Administracao() {
 }
 
 function SectionContent({ section }: { section: string }) {
-  switch (section) {
-    case "dashboard":
-      return <DashboardAdmin />;
-    case "empresa":
-      return <EmpresaSection />;
-    case "empresas":
-      return <EmpresasSection />;
-    case "usuarios":
-      return <UsuariosTab />;
-    case "perfis":
-      return <PerfisCatalogoSection />;
-    case "email":
-      return <EmailSection />;
-    case "integracoes":
-      return <IntegracoesSection />;
-    case "notificacoes":
-      return <NotificacoesSection />;
-    case "webhooks":
-      return <WebhooksSection />;
-    case "backup":
-      return <BackupSection />;
-    case "fiscal":
-      return <FiscalSection />;
-    case "financeiro":
-      return <FinanceiroSection />;
-    case "saude":
-      return <SaudeSistemaSection />;
-    default:
-      return <EmpresaSection />;
-  }
+  // Dashboard é somente leitura — acesso delegável.
+  if (section === "dashboard") return <DashboardAdmin />;
+
+  // Demais seções escrevem em app_configuracoes/empresa_config ou expõem
+  // gestão sensível (usuários, perfis, webhooks). Reverificamos `useIsAdmin`
+  // estrito porque `AdminRoute` aceita o override `administracao:visualizar`.
+  const guarded: Record<string, { node: JSX.Element; label: string }> = {
+    empresa: { node: <EmpresaSection />, label: "Dados da Empresa" },
+    empresas: { node: <EmpresasSection />, label: "Empresas e vínculos" },
+    usuarios: { node: <UsuariosTab />, label: "Usuários e Permissões" },
+    perfis: { node: <PerfisCatalogoSection />, label: "Perfis e Catálogo" },
+    email: { node: <EmailSection />, label: "Configurações de E-mail" },
+    integracoes: { node: <IntegracoesSection />, label: "Integrações" },
+    notificacoes: { node: <NotificacoesSection />, label: "Notificações globais" },
+    webhooks: { node: <WebhooksSection />, label: "Webhooks de saída" },
+    backup: { node: <BackupSection />, label: "Política de Backup" },
+    fiscal: { node: <FiscalSection />, label: "Parâmetros Fiscais" },
+    financeiro: { node: <FinanceiroSection />, label: "Parâmetros Financeiros" },
+    saude: { node: <SaudeSistemaSection />, label: "Saúde do Sistema" },
+  };
+  const entry = guarded[section] ?? { node: <EmpresaSection />, label: "Dados da Empresa" };
+  return <RequireStrictAdmin resourceLabel={entry.label}>{entry.node}</RequireStrictAdmin>;
 }
