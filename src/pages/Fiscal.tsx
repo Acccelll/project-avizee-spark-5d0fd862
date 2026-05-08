@@ -296,16 +296,26 @@ const Fiscal = () => {
   // Substitui a antiga rota /fiscal/:id (FiscalDetail), agora deprecada (D-2).
   useEffect(() => {
     const nfId = searchParams.get("nf");
-    if (!nfId || loading) return;
-    const found = data.find((n) => n.id === nfId);
-    if (!found) return;
-    setSelected(found);
-    setDrawerOpen(true);
-    const next = new URLSearchParams(searchParams);
-    next.delete("nf");
-    setSearchParams(next, { replace: true });
+    if (!nfId) return;
+    let cancelled = false;
+    (async () => {
+      const { data: row, error } = await supabase
+        .from("notas_fiscais")
+        .select(
+          "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)",
+        )
+        .eq("id", nfId)
+        .maybeSingle();
+      if (cancelled || error || !row) return;
+      setSelected(row as unknown as NotaFiscal);
+      setDrawerOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("nf");
+      setSearchParams(next, { replace: true });
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot via querystring
-  }, [searchParams, data, loading]);
+  }, [searchParams]);
 
   // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.
   useEffect(() => {
