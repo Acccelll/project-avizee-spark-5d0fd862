@@ -447,6 +447,16 @@ export default function OrcamentoForm() {
                 return fallback ? { ...it, variacao: fallback } : it;
               });
               setItems(hidratado);
+              // Hidrata override de peso: se o peso salvo difere do somatório
+              // dos itens (>= 0.01 kg), o usuário sobrescreveu manualmente.
+              const pesoCalc = hidratado.reduce(
+                (s: number, it) => s + (Number((it as { peso_total?: number }).peso_total) || 0),
+                0,
+              );
+              const pesoSalvo = Number((orc as { peso_total?: number | null }).peso_total ?? 0);
+              if (Math.abs(pesoSalvo - pesoCalc) >= 0.01) {
+                setPesoTotalOverride(pesoSalvo);
+              }
             }
           } else if (orc !== null) {
             toast.error("Orçamento não encontrado.", { description: `Nenhum orçamento com ID ${id}.` });
