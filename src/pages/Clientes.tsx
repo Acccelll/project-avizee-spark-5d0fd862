@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -28,14 +28,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { listGruposEconomicosAtivos, listFormasPagamentoAtivas } from "@/services/clientes.service";
 import { formatDate } from "@/lib/format";
-import { cpfCnpjMask, phoneMask } from "@/utils/masks";
+import { cpfCnpjMask, phoneMask, cpfMask, cnpjMask } from "@/utils/masks";
 import { toast } from "sonner";
 import {
   Building2, Search, User2, Phone, CreditCard, MapPin, Truck, FileText,
   Info, Loader2, Calendar, Mail, Users, UserCheck, AlertTriangle,
-  MessageSquare, Home,
+  MessageSquare, Home, Pencil, Check as CheckIcon,
 } from "lucide-react";
 import { Plus } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
