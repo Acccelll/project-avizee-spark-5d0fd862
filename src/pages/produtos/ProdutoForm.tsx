@@ -428,14 +428,23 @@ export default function ProdutoForm({
 
   const headerTitle = (
     <div className="flex flex-col min-w-0">
-      <span className="text-sm text-muted-foreground font-medium leading-tight">{titleText}</span>
+      <span className="text-xs sm:text-sm text-muted-foreground font-medium leading-tight">{titleText}</span>
       {mode === "edit" && editingProduct && (
-        <span className="text-base sm:text-lg font-semibold leading-tight truncate">
-          {editingProduct.nome || "—"}
+        <>
+          <span className="text-base sm:text-lg font-semibold leading-tight truncate">
+            {editingProduct.nome || "—"}
+          </span>
           {editingProduct.codigo_interno && (
-            <span className="ml-2 font-mono text-xs text-muted-foreground">{editingProduct.codigo_interno}</span>
+            <span className="font-mono text-[11px] text-muted-foreground leading-tight sm:hidden">
+              {editingProduct.codigo_interno}
+            </span>
           )}
-        </span>
+          {editingProduct.codigo_interno && (
+            <span className="hidden sm:inline ml-0 font-mono text-xs text-muted-foreground">
+              {editingProduct.codigo_interno}
+            </span>
+          )}
+        </>
       )}
     </div>
   );
@@ -446,33 +455,63 @@ export default function ProdutoForm({
   // Status agora é controlado exclusivamente pelo toggle nas headerActions
   const headerBadge = undefined;
   const headerActions = (
-          <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2">
+      {mode === "edit" && editingProduct && (
+        <label className="flex items-center gap-2 text-xs">
+          <Switch
+            checked={form.ativo}
+            onCheckedChange={(v) => updateForm({ ativo: v })}
+            aria-label={form.ativo ? "Inativar produto" : "Reativar produto"}
+          />
+          <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
+        </label>
+      )}
+      {/* Ações secundárias visíveis em sm+; no mobile vão para o kebab */}
+      {mode === "edit" && editingProduct && (
+        <Button type="button" variant="ghost" size="sm" className="hidden sm:inline-flex h-8 px-2 text-xs"
+          onClick={() => pushView("produto", editingProduct.id)}>
+          Ver resumo
+        </Button>
+      )}
+      {mode === "create" && (
+        <Button type="button" variant="outline" onClick={handleSaveAndNew} disabled={saving} className="hidden sm:inline-flex">
+          Salvar e novo
+        </Button>
+      )}
+      {/* Kebab no mobile com ações secundárias */}
+      {(mode === "edit" || mode === "create") && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className="sm:hidden h-9 w-9" aria-label="Mais ações">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             {mode === "edit" && editingProduct && (
-              <>
-                <label className="flex items-center gap-2 text-xs">
-                  <Switch
-                    checked={form.ativo}
-                    onCheckedChange={(v) => updateForm({ ativo: v })}
-                    aria-label={form.ativo ? "Inativar produto" : "Reativar produto"}
-                  />
-                  <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
-                </label>
-                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs"
-                  onClick={() => pushView("produto", editingProduct.id)}>
-                  Ver resumo
-                </Button>
-              </>
+              <DropdownMenuItem onClick={() => pushView("produto", editingProduct.id)}>
+                Ver resumo
+              </DropdownMenuItem>
             )}
             {mode === "create" && (
-              <Button type="button" variant="outline" onClick={handleSaveAndNew} disabled={saving}>
+              <DropdownMenuItem onClick={handleSaveAndNew} disabled={saving}>
                 Salvar e novo
-              </Button>
+              </DropdownMenuItem>
             )}
-            <Button type="submit" form="produto-form" disabled={saving} className="gap-2">
-              <Save className="h-4 w-4" />
-              {saving ? "Salvando..." : "Salvar"}
-            </Button>
-          </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      {/* Salvar visível somente em sm+; no mobile usamos footer sticky */}
+      <Button type="submit" form="produto-form" disabled={saving} className="hidden sm:inline-flex gap-2">
+        <Save className="h-4 w-4" />
+        {saving ? "Salvando..." : "Salvar"}
+      </Button>
+      {/* Botão X de fechar — só no mobile, no embedded */}
+      {embedded && (
+        <Button type="button" variant="ghost" size="icon" className="sm:hidden h-9 w-9" aria-label="Fechar" onClick={handleBack}>
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
   );
 
   const formBody = (
