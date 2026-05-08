@@ -47,16 +47,16 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 
 #### Bloco C — Backlog estrutural (Fase 3 — abrir como issues separadas)
 
-- **EF-04** — Fila `nfe_emissao_pendente` para retry de timeouts SEFAZ (tabela + worker `process-nfe-retry-cron` com backoff exponencial). 🟠 Alto · ~1d
+- ✅ **EF-04** entregue · Tabela `nfe_emissao_pendente` (RLS on, sem policies — só SR), RPCs `nfe_emissao_pendente_listar_proximo_lote(p_limit)` (FOR UPDATE SKIP LOCKED, marca `processando` atomicamente) e `nfe_emissao_pendente_concluir(p_id, p_sucesso, p_erro, p_protocolo)` (backoff exponencial 1→32 min, máx 6 tentativas). Edge function `process-nfe-retry-cron` (gate CRON_SECRET + SR) processa lote de 5/run, invoca `sefaz-proxy` (`enviar-sem-assinatura-vault`), atualiza `notas_fiscais.status/status_sefaz/protocolo_sefaz` em sucesso. Cron `*/5 * * * *` agendado.
 - ✅ **BK-01/02/03** entregue · helper `has_fiscal_permission(action)` (SECURITY DEFINER, search_path=public) usado como gate no topo das 3 RPCs. SR/cron continua bypass via `auth.uid() IS NULL`. Permissões: confirmar = `criar` ou `editar`; cancelar SEFAZ = `cancelar_sefaz` ou `admin_fiscal`; devolução = `criar` ou `editar`. Lógica original (estoque/financeiro/eventos/advisory locks) preservada integralmente.
-- **M-04** — `EXPLAIN ANALYZE` em `vw_fiscal_kpis` + criar índices faltantes (provável `notas_fiscais(empresa_id, periodo_emissao, status)`). 🟡 Médio · ~3h
-- **D-01** — Marcar `NotaFiscalEditModal` (48 KB) como `@deprecated` e migrar callers restantes para `/fiscal/:id` (página). 🟠 Alto · ~1d
+- ✅ **M-04** entregue · Índices compostos em `notas_fiscais` (`ativo+data_emissao+status` parcial WHERE ativo, `tipo` parcial, `modelo_documento` parcial) cobrindo o WHERE da `kpis_fiscal`. Soma-se aos índices simples já existentes.
+- ✅ **D-01** entregue (parcial) · `NotaFiscalEditModal` marcado com JSDoc `@deprecated` orientando novos callers a usar `/fiscal/:id/editar`. Caminho mobile já navega para a página dedicada; desktop continuará usando o modal até a migração completa (próxima onda).
 - ✅ **D-02** entregue · `ConfiguracaoFiscal` agora usa `<Tabs>` com 4 abas (Empresa Fiscal · Certificado A1 · Numeração · DistDFe). Aba DistDFe é informativa, com link para `/fiscal/distdfe` e nota do throttle ativo (18/h).
 
 #### Bloco D — Mobile (Fase 3 — após Bloco A/B)
 
 - **MB-03** — Auditar touch targets em `Fiscal.tsx`/`FiscalDetail.tsx`/`SefazAcoesPanel`: ≥44px conforme `scripts/lint-touch-targets.mjs`. 🟢 Baixo · ~2h
-- **MB-04** — `TraducaoXmlDrawer` em mobile: bottom-sheet full-height + sticky footer + cards por linha. 🟡 Médio · ~2h
+- ✅ **MB-04** entregue · `TraducaoXmlDrawer` agora detecta mobile via `useIsMobile`, usa `Sheet side="bottom"` com altura 95vh, header/conteúdo/footer em colunas flex (footer fixo com botões `min-h-11 flex-1`). Layout dos cards já era responsivo (`grid-cols-1 md:grid-cols-[1fr_auto_1fr]`).
 - Salvar padrões em `mem://produto/fiscal-mobile.md` (já existe — apenas atualizar com decisões da onda).
 
 ---
@@ -72,6 +72,10 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 7. [ ] **EF-04** Fila de retry para emissões com timeout SEFAZ.
 8. [ ] **M-04 + D-01 + D-02** Performance KPIs, deprecação do modal e abas em ConfiguracaoFiscal.
 9. [ ] **MB-03 + MB-04** Mobile: touch targets + tradução XML em bottom-sheet.
+
+**Onda 8 — concluída.** Pendente apenas:
+- MB-03 (auditoria de touch targets em Fiscal/SefazAcoesPanel) — backlog Onda 9.
+- D-01 finalização: migrar callers desktop do `NotaFiscalEditModal` para `/fiscal/:id/editar` e excluir o componente — backlog Onda 9.
 
 ---
 
