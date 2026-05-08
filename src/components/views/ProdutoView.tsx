@@ -113,6 +113,12 @@ export function ProdutoView({ id }: Props) {
   const custoCompostoView = composicao.reduce((s, c) => s + c.quantidade * (c.preco_custo || 0), 0);
   const estoqueValor = selected ? (selected.estoque_atual || 0) * (selected.preco_custo || 0) : 0;
 
+  const custoNum = Number(selected?.preco_custo || 0);
+  const vendaNum = Number(selected?.preco_venda || 0);
+  const markupPct = custoNum > 0 ? ((vendaNum / custoNum) - 1) * 100 : null;
+  const margemSobreVendaPct = vendaNum > 0 ? ((vendaNum - custoNum) / vendaNum) * 100 : null;
+  const lucroEmEstoque = lucroBruto * Number(selected?.estoque_atual || 0);
+
   // KPIs Compras
   const totalComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0), 0);
   const valorComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
@@ -127,10 +133,32 @@ export function ProdutoView({ id }: Props) {
     : 0;
 
   const estoqueBaixo = selected ? Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0 : false;
+  const naoControlaEstoque = selected ? Number(selected.estoque_minimo || 0) === 0 && Number(selected.estoque_atual || 0) === 0 : false;
+  const semEstoque = selected ? Number(selected.estoque_atual || 0) === 0 && Number(selected.estoque_minimo || 0) > 0 : false;
+  const reservado = Number((selected as { estoque_reservado?: number | null } | null)?.estoque_reservado || 0);
+  const disponivel = Number(selected?.estoque_atual || 0) - reservado;
   const fiscalCompleto = !!(selected?.ncm && selected?.cst && selected?.cfop_padrao);
+  const fiscalFaltantes: string[] = selected
+    ? ([!selected.ncm && "NCM", !selected.cst && "CST", !selected.cfop_padrao && "CFOP"].filter(Boolean) as string[])
+    : [];
+  const semVenda = selected ? Number(selected.preco_venda || 0) === 0 : false;
+  const semCusto = selected ? Number(selected.preco_custo || 0) === 0 : false;
   const fornecedorPrincipal = fornecedoresProd.find((f) => f.eh_principal);
   const ultimaEntrada = movimentos.find((m) => m.tipo === 'entrada');
   const ultimaSaida = movimentos.find((m) => m.tipo === 'saida');
+
+  const fornecedoresCount = fornecedoresProd.length;
+  const vendasCount = historicoVendas.length;
+
+  type HealthAlert = { id: string; label: string; tone: "warning" | "destructive"; tab: string };
+  const healthAlerts: HealthAlert[] = selected ? ([
+    semEstoque && { id: "sem-estoque", label: "Sem estoque", tone: "destructive" as const, tab: "estoque" },
+    !semEstoque && estoqueBaixo && { id: "abaixo-min", label: "Estoque abaixo do mínimo", tone: "warning" as const, tab: "estoque" },
+    fornecedoresCount === 0 && { id: "sem-fornecedor", label: "Sem fornecedor vinculado", tone: "warning" as const, tab: "compras" },
+    !fiscalCompleto && { id: "fiscal-inc", label: `Fiscal incompleto · faltam ${fiscalFaltantes.join(", ")}`, tone: "warning" as const, tab: "fiscal" },
+    semVenda && { id: "sem-venda", label: "Preço de venda zerado", tone: "destructive" as const, tab: "preco" },
+    semCusto && !semVenda && { id: "sem-custo", label: "Custo ausente — afeta margem", tone: "warning" as const, tab: "preco" },
+  ].filter(Boolean) as HealthAlert[]) : [];
 
   // ── PUBLISH DRAWER SLOTS (header padronizado via DrawerHeaderShell) ──
   usePublishDrawerSlots(`produto:${id}`, {
