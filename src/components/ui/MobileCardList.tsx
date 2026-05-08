@@ -34,6 +34,13 @@ interface MobileCardListProps<T extends { id?: string }> {
   primaryAction?: (item: T) => ReactNode;
   /** Long-press abre bottom-sheet de ações destrutivas. */
   onLongPress?: (item: T) => void;
+  /** Suprime a renderização da linha identifier (CNPJ/SKU) — útil quando o
+   *  primary já carrega os metadados. */
+  hideIdentifier?: boolean;
+  /** Quando true, renderiza detail-fields como pares `label: valor` em grid
+   *  2-col, ao invés do flex inline cinza. Útil em cards com KPIs (estoque,
+   *  preço, margem) onde os rótulos ajudam a leitura. */
+  labeledDetails?: boolean;
   /** Virtualiza lista quando items > 100 (default true). Desligue para listas curtas em containers sem altura definida. */
   virtualize?: boolean;
   className?: string;
@@ -53,6 +60,8 @@ export function MobileCardList<T extends { id?: string }>({
   actionsInline,
   primaryAction,
   onLongPress,
+  hideIdentifier = false,
+  labeledDetails = false,
   virtualize = true,
   className,
   emptyMessage = "Nenhum item encontrado.",
@@ -64,7 +73,7 @@ export function MobileCardList<T extends { id?: string }>({
   }
 
   const primaryField = fields.find((f) => f.primary) ?? fields[0];
-  const identifierField = fields.find((f) => f.identifier);
+  const identifierField = hideIdentifier ? undefined : fields.find((f) => f.identifier);
   const detailFields = fields.filter((f) => !f.primary && !f.identifier);
 
   const renderValue = (item: T, field: MobileCardField<T>): ReactNode => {
@@ -120,13 +129,28 @@ export function MobileCardList<T extends { id?: string }>({
               )}
               {/* Detalhes secundários */}
               {detailFields.length > 0 && (
-                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5">
-                  {detailFields.map((field) => (
-                    <div key={field.key} className="text-xs text-muted-foreground min-w-0 truncate">
-                      {renderValue(item, field)}
-                    </div>
-                  ))}
-                </div>
+                labeledDetails ? (
+                  <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                    {detailFields.map((field) => (
+                      <div key={field.key} className="min-w-0">
+                        <dt className="text-[10px] uppercase tracking-wide text-muted-foreground/80 leading-none">
+                          {field.label}
+                        </dt>
+                        <dd className="text-xs text-foreground min-w-0 truncate mt-0.5">
+                          {renderValue(item, field)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5">
+                    {detailFields.map((field) => (
+                      <div key={field.key} className="text-xs text-muted-foreground min-w-0 truncate">
+                        {renderValue(item, field)}
+                      </div>
+                    ))}
+                  </div>
+                )
               )}
             </div>
             {/* Menu ⋮ no canto */}
