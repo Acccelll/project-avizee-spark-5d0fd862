@@ -582,6 +582,20 @@ export function ProdutoView({ id }: Props) {
               <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
             </div>
           </div>
+          {reservado > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Reservado</p>
+                <p className="text-xl font-bold font-mono">{reservado}</p>
+                <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Disponível</p>
+                <p className={cn("text-xl font-bold font-mono", disponivel < 0 && "text-destructive")}>{disponivel}</p>
+                <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
+              </div>
+            </div>
+          )}
           {estoqueValor > 0 && (
             <div className="rounded-lg border bg-card p-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
