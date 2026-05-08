@@ -17,7 +17,6 @@ import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { BlockErrorBoundary } from "@/components/dashboard/BlockErrorBoundary";
 import { KpiDetailDrawer, type KpiMetricKey } from "@/components/dashboard/KpiDetailDrawer";
 import { useAuth } from "@/contexts/AuthContext";
-import { DashboardPeriodProvider } from "@/contexts/DashboardPeriodContext";
 import { useNavigate } from "react-router-dom";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
@@ -435,8 +434,15 @@ const DashboardContent = () => {
       <div className="space-y-4">
         {rows.map((row) => {
           if (row.pair) {
+            const isFinRow = row.items[0] === 'financeiro' || row.items[1] === 'financeiro';
             return (
-              <div key={row.key} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div
+                key={row.key}
+                className={
+                  'grid grid-cols-1 gap-4 lg:items-start ' +
+                  (isFinRow ? 'lg:grid-cols-[2fr_1fr]' : 'lg:grid-cols-2')
+                }
+              >
                 {row.items.map((id) => (
                   <Fragment key={id}>{RENDERERS[id]()}</Fragment>
                 ))}
@@ -458,10 +464,7 @@ const DashboardContent = () => {
   );
 };
 
-const Dashboard = () => (
-  <DashboardPeriodProvider>
-    <DashboardContent />
-  </DashboardPeriodProvider>
-);
+// O `GlobalPeriodProvider` já é montado em `AppLayout` — não duplicar aqui.
+const Dashboard = DashboardContent;
 
 export default Dashboard;
