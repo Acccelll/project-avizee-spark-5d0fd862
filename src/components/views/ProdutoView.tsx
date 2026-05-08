@@ -240,6 +240,28 @@ export function ProdutoView({ id }: Props) {
 
   return (
     <div className="space-y-5">
+      {healthAlerts.length > 0 && (
+        <div className="flex flex-wrap gap-2" role="region" aria-label="Alertas do produto">
+          {healthAlerts.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setActiveTab(a.tab)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                a.tone === "destructive"
+                  ? "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                  : "border-warning/30 bg-warning/5 text-warning hover:bg-warning/10",
+              )}
+              aria-label={`${a.label} — abrir aba`}
+            >
+              <AlertTriangle className="h-3 w-3" />
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <DrawerSummaryCard label="Venda" value={formatCurrency(selected.preco_venda)} align="center" />
@@ -258,22 +280,32 @@ export function ProdutoView({ id }: Props) {
         />
         <DrawerSummaryCard
           label="Estoque"
-          value={`${selected.estoque_atual ?? 0} ${selected.unidade_medida}`}
-          tone={estoqueBaixo ? "destructive" : "neutral"}
-          hint={estoqueBaixo ? "Abaixo do mínimo" : undefined}
+          value={naoControlaEstoque ? "—" : `${selected.estoque_atual ?? 0} ${selected.unidade_medida || ""}`}
+          tone={semEstoque || estoqueBaixo ? "destructive" : "neutral"}
+          hint={naoControlaEstoque ? "Não controla" : semEstoque ? "Sem estoque" : estoqueBaixo ? "Abaixo do mínimo" : undefined}
           align="center"
         />
       </div>
 
-      <Tabs defaultValue="geral" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full grid grid-cols-7">
           <TabsTrigger value="geral" className="text-xs px-0.5">Geral</TabsTrigger>
-          <TabsTrigger value="compras" className="text-xs px-0.5">Compras</TabsTrigger>
-          <TabsTrigger value="preco" className="text-xs px-0.5">Preço</TabsTrigger>
-          <TabsTrigger value="estoque" className="text-xs px-0.5">Estoque</TabsTrigger>
-          <TabsTrigger value="fiscal" className="text-xs px-0.5">Fiscal</TabsTrigger>
+          <TabsTrigger value="compras" className="text-xs px-0.5">
+            Compras{fornecedoresCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({fornecedoresCount})</span>}
+          </TabsTrigger>
+          <TabsTrigger value="preco" className="text-xs px-0.5">
+            Preço{(semVenda || semCusto) && <span className="ml-1 text-[10px] text-warning" aria-label="Preço incompleto">!</span>}
+          </TabsTrigger>
+          <TabsTrigger value="estoque" className="text-xs px-0.5">
+            Estoque{(estoqueBaixo || semEstoque) && <span className="ml-1 text-[10px] text-destructive" aria-label="Estoque crítico">!</span>}
+          </TabsTrigger>
+          <TabsTrigger value="fiscal" className="text-xs px-0.5">
+            Fiscal{!fiscalCompleto && <span className="ml-1 text-[10px] text-warning" aria-label="Fiscal incompleto">!</span>}
+          </TabsTrigger>
           <TabsTrigger value="precos" className="text-xs px-0.5">Espec.</TabsTrigger>
-          <TabsTrigger value="vendas" className="text-xs px-0.5">Vendas</TabsTrigger>
+          <TabsTrigger value="vendas" className="text-xs px-0.5">
+            Vendas{vendasCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({vendasCount})</span>}
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab: Geral */}
