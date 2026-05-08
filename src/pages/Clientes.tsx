@@ -1010,8 +1010,8 @@ const Clientes = () => {
               <p className="text-xs text-muted-foreground mb-3">
                 Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 mb-6">
+                <div className="sm:col-span-2 space-y-1.5">
                   <Label>CEP</Label>
                   <div className="relative">
                     <MaskedInput
@@ -1042,21 +1042,21 @@ const Clientes = () => {
                     <p className="text-[11px] text-destructive">CEP não encontrado</p>
                   )}
                 </div>
-                <div className="col-span-2 space-y-1.5">
+                <div className="sm:col-span-4 space-y-1.5">
                   <Label>Logradouro</Label>
                   <Input value={form.logradouro} onChange={(e) => updateForm({ logradouro: e.target.value })} placeholder="Rua, Av., Travessa..." />
                 </div>
-                <div className="space-y-1.5">
+                <div className="sm:col-span-2 space-y-1.5">
                   <Label>Número</Label>
                   <Input value={form.numero} onChange={(e) => updateForm({ numero: e.target.value })} placeholder="Nº ou S/N" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="sm:col-span-4 space-y-1.5">
                   <Label>Complemento</Label>
                   <Input value={form.complemento} onChange={(e) => updateForm({ complemento: e.target.value })} placeholder="Sala, bloco, andar..." />
                 </div>
-                <div className="space-y-1.5"><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => updateForm({ bairro: e.target.value })} /></div>
-                <div className="space-y-1.5"><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => updateForm({ cidade: e.target.value })} /></div>
-                <div className="space-y-1.5">
+                <div className="sm:col-span-3 space-y-1.5"><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => updateForm({ bairro: e.target.value })} /></div>
+                <div className="sm:col-span-3 space-y-1.5"><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => updateForm({ cidade: e.target.value })} /></div>
+                <div className="sm:col-span-2 space-y-1.5">
                   <Label>UF</Label>
                   <Select value={form.uf || undefined} onValueChange={(v) => updateForm({ uf: v })}>
                     <SelectTrigger className={formErrors.uf ? "border-destructive" : ""}>
@@ -1070,7 +1070,7 @@ const Clientes = () => {
                   </Select>
                   {formErrors.uf && <p className="text-xs text-destructive">{formErrors.uf}</p>}
                 </div>
-                <div className="space-y-1.5">
+                <div className="sm:col-span-4 space-y-1.5">
                   <Label>País</Label>
                   {paisEditavel ? (
                     <Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} autoFocus />
