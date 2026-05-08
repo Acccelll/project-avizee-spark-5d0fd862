@@ -1140,6 +1140,13 @@ const Clientes = () => {
                       {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.id}>{fp.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <button
+                    type="button"
+                    onClick={() => setQuickAddFormaPagOpen(true)}
+                    className="text-[11px] text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                  >
+                    <Plus className="h-3 w-3" /> Cadastrar nova forma
+                  </button>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
@@ -1186,17 +1193,8 @@ const Clientes = () => {
                     onChange={(e) => updateForm({ limite_credito: Number(e.target.value) })}
                     className={formErrors.limite_credito ? "border-destructive" : ""}
                   />
+                  <p className="text-[11px] text-muted-foreground">Use 0 para "sem crédito aprovado"; em branco para "não definido".</p>
                   {formErrors.limite_credito && <p className="text-xs text-destructive">{formErrors.limite_credito}</p>}
-                </div>
-                <div className="space-y-1.5 col-span-2 flex items-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setQuickAddFormaPagOpen(true)}
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Cadastrar nova forma de pagamento
-                  </Button>
                 </div>
               </div>
 
