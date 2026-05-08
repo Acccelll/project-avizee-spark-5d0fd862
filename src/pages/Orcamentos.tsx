@@ -445,8 +445,8 @@ const Orcamentos = () => {
             placeholder="Validade"
             className="w-[200px]"
           />
-          {/* M-08: filtro histórico em chips (alinha ao padrão AdvancedFilterBar). */}
-          <div className="inline-flex items-center gap-1 rounded-md border border-input bg-background p-1" role="group" aria-label="Filtro de históricos">
+          {/* M-08: filtro de legados em chips (alinha ao padrão AdvancedFilterBar). */}
+          <div className="inline-flex items-center gap-1 rounded-md border border-input bg-background p-1" role="group" aria-label="Filtro de legados">
             {historicoOptions.map((opt) => {
               const active = historicoFilter === opt.value;
               return (
