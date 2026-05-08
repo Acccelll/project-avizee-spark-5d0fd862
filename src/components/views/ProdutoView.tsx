@@ -812,6 +812,7 @@ export function ProdutoView({ id }: Props) {
                   const total = qtd * vu;
                   return (
                     <div key={idx} className="rounded-lg border bg-card hover:bg-muted/30 transition-colors p-2.5 space-y-1">
+                      {/* Linha 1: Cliente · Total */}
                       <div className="flex justify-between items-center gap-2">
                         {h.notas_fiscais?.clientes ? (
                           <RelationalLink
@@ -825,6 +826,7 @@ export function ProdutoView({ id }: Props) {
                         )}
                         <span className="font-mono font-semibold text-sm shrink-0">{formatCurrency(total)}</span>
                       </div>
+                      {/* Linha 2: NF · Data — Linha 3: qtd × valor (mobile separado) */}
                       <div className="flex justify-between items-center text-[11px] text-muted-foreground">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-[11px]">
@@ -833,7 +835,10 @@ export function ProdutoView({ id }: Props) {
                           <span>·</span>
                           <span>{formatDate(h.notas_fiscais?.data_emissao)}</span>
                         </div>
-                        <span className="font-mono">{qtd} × {formatCurrency(vu)}</span>
+                        <span className="font-mono hidden sm:inline">{qtd} × {formatCurrency(vu)}</span>
+                      </div>
+                      <div className="sm:hidden text-[11px] text-muted-foreground font-mono">
+                        {qtd} × {formatCurrency(vu)}
                       </div>
                     </div>
                   );
