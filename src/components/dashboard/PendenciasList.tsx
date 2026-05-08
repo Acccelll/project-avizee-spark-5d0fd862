@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Eye, AlertTriangle, Clock } from 'lucide-react';
+import { Eye, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
@@ -151,49 +151,74 @@ export function PendenciasList() {
             const vencido = p.data_vencimento < today;
             const isReceber = p.tipo === 'receber';
             return (
-              <div
+              <button
                 key={p.id}
-                className="flex items-center gap-2 rounded py-2 px-1 min-h-[44px] hover:bg-muted/20 active:bg-muted/40 transition-colors"
+                type="button"
+                onClick={() => navigate(`/financeiro/${p.id}`)}
+                aria-label={`Abrir lançamento ${p.descricao} no financeiro`}
+                className="w-full text-left flex items-stretch gap-2 rounded py-2 px-1 min-h-[56px] md:min-h-[44px] hover:bg-muted/20 active:bg-muted/40 transition-colors"
               >
                 <div
                   className={cn(
-                    'h-2 w-2 rounded-full shrink-0',
+                    'mt-1.5 h-2 w-2 rounded-full shrink-0',
                     vencido ? 'bg-destructive' : isReceber ? 'bg-success' : 'bg-warning',
                   )}
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium truncate">{p.pessoa}</p>
+                {/* md+: layout single-row (compatibilidade desktop) */}
+                <div className="hidden md:flex flex-1 items-center gap-2 min-w-0">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate">{p.pessoa}</p>
+                    <p
+                      className={cn(
+                        'text-[11px] flex items-center gap-0.5',
+                        vencido ? 'text-destructive' : 'text-muted-foreground',
+                      )}
+                    >
+                      <Clock className="h-2.5 w-2.5" />
+                      {vencido ? 'Vencido em ' : ''}{formatDate(p.data_vencimento)}
+                      <span className="mx-1">·</span>
+                      <span className="truncate" title={p.plano_contas}>{p.plano_contas}</span>
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      'text-xs font-bold mono shrink-0',
+                      isReceber ? 'text-success' : 'text-warning',
+                    )}
+                  >
+                    {formatCurrency(p.valor)}
+                  </span>
+                  <Eye className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                </div>
+                {/* mobile: layout 2 andares */}
+                <div className="flex md:hidden flex-1 min-w-0 flex-col gap-0.5">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.pessoa}</p>
+                    <span
+                      className={cn(
+                        'text-sm font-bold mono shrink-0',
+                        isReceber ? 'text-success' : 'text-warning',
+                      )}
+                    >
+                      {formatCurrency(p.valor)}
+                    </span>
+                  </div>
                   <p
                     className={cn(
-                      'text-[11px] flex items-center gap-0.5',
+                      'text-[11px] flex items-center gap-1 min-w-0',
                       vencido ? 'text-destructive' : 'text-muted-foreground',
                     )}
                   >
-                    <Clock className="h-2.5 w-2.5" />
-                    {vencido ? 'Vencido em ' : ''}{formatDate(p.data_vencimento)}
-                    <span className="mx-1">·</span>
+                    <Clock className="h-2.5 w-2.5 shrink-0" />
+                    <span className="shrink-0">
+                      {vencido ? 'Vencido em ' : ''}{formatDate(p.data_vencimento)}
+                    </span>
+                    <span className="opacity-60">·</span>
                     <span className="truncate" title={p.plano_contas}>{p.plano_contas}</span>
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    'text-xs font-bold mono shrink-0',
-                    isReceber ? 'text-success' : 'text-warning',
-                  )}
-                >
-                  {formatCurrency(p.valor)}
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-9 w-9 shrink-0 md:h-6 md:w-6"
-                  title="Abrir no módulo financeiro"
-                  aria-label={`Abrir lançamento ${p.descricao} no financeiro`}
-                  onClick={() => navigate(`/financeiro/${p.id}`)}
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+                <ChevronRight className="md:hidden h-4 w-4 text-muted-foreground shrink-0 self-center" />
+              </button>
             );
           })}
           {pendencias.length > INITIAL_VISIBLE && (
