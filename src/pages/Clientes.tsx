@@ -159,6 +159,20 @@ const Clientes = () => {
 
   const hasSemGrupoFilter = grupoFilters.includes("sem_grupo");
 
+  // Avalia "qualidade cadastral" do cliente — completo se possui documento,
+  // contato (tel ou cel), e-mail, prazo > 0 e endereço (cidade+uf).
+  // O detalhe do que falta vai num tooltip e alimenta os filtros "Cadastro".
+  function getMissingFields(c: Cliente): string[] {
+    const missing: string[] = [];
+    if (!c.cpf_cnpj) missing.push("documento");
+    if (!(c.celular || c.telefone)) missing.push("telefone");
+    if (!c.email) missing.push("e-mail");
+    if (!c.prazo_padrao || c.prazo_padrao <= 0) missing.push("prazo");
+    if (!c.cidade || !c.uf) missing.push("endereço");
+    if (!c.grupo_economico_id) missing.push("grupo");
+    return missing;
+  }
+
   const sort = useServerSort("nome_razao_social", "asc");
   const {
     data,
