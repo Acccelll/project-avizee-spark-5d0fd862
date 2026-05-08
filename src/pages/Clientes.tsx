@@ -326,12 +326,33 @@ const Clientes = () => {
   // tipo/ativo/grupo agora são server-side. Apenas o caso especial
   // "sem_grupo" misto (NULL + outros) ainda exige refinamento client-side.
   const filteredData = useMemo(() => {
-    if (!hasSemGrupoFilter) return data;
-    return data.filter((cliente) => {
-      const groupId = cliente.grupo_economico_id || "sem_grupo";
-      return grupoFilters.includes(groupId);
-    });
-  }, [data, hasSemGrupoFilter, grupoFilters]);
+    let out = data;
+    if (hasSemGrupoFilter) {
+      out = out.filter((cliente) => {
+        const groupId = cliente.grupo_economico_id || "sem_grupo";
+        return grupoFilters.includes(groupId);
+      });
+    }
+    if (cadastroFilters.length > 0) {
+      // Filtros client-side aplicados sobre a página atual.
+      // TODO: migrar para RPC server-side (kpi_clientes_qualidade) numa próxima onda.
+      out = out.filter((c) => {
+        const missing = getMissingFields(c);
+        return cadastroFilters.every((f) => {
+          switch (f) {
+            case "incompleto": return missing.filter((m) => m !== "grupo").length > 0;
+            case "sem_contato": return !(c.celular || c.telefone) && !c.email;
+            case "sem_telefone": return !(c.celular || c.telefone);
+            case "sem_email": return !c.email;
+            case "sem_prazo": return !c.prazo_padrao || c.prazo_padrao <= 0;
+            case "sem_grupo": return !c.grupo_economico_id;
+            default: return true;
+          }
+        });
+      });
+    }
+    return out;
+  }, [data, hasSemGrupoFilter, grupoFilters, cadastroFilters]);
 
   const columns = [
     {
