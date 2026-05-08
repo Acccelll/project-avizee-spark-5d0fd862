@@ -356,44 +356,105 @@ const Clientes = () => {
 
   const columns = [
     {
-      key: "nome_razao_social", mobilePrimary: true, label: "Nome / Razão Social", sortable: true,
+      key: "nome_razao_social", mobilePrimary: true, label: "Cliente", sortable: true,
       // Permite ordenação server-side pela coluna de nome.
       serverSortable: true,
-      render: (c: Cliente) => (
-        <div>
-          <p className="font-medium leading-tight">{c.nome_razao_social}</p>
-          {c.nome_fantasia && c.nome_fantasia !== c.nome_razao_social && (
-            <p className="text-xs text-muted-foreground truncate max-w-xs">{c.nome_fantasia}</p>
-          )}
-        </div>
-      ),
-    },
-    { key: "cpf_cnpj", mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
-      render: (c: Cliente) => <span className="font-mono text-xs">{c.cpf_cnpj || "—"}</span> },
-    { key: "tipo_pessoa", label: "Tipo",
-      render: (c: Cliente) => (
-        <span className={`text-xs font-semibold ${c.tipo_pessoa === "F" ? "text-info dark:text-info" : "text-accent-foreground dark:text-accent-foreground"}`}>
-          {c.tipo_pessoa === "F" ? "PF" : "PJ"}
-        </span>
-      ),
-    },
-    { key: "contato_principal", mobileCard: true, label: "Contato",
       render: (c: Cliente) => {
-        const phone = c.celular || c.telefone;
-        if (!phone && !c.email) return <span className="text-muted-foreground text-xs">—</span>;
+        const fantasiaDifere = c.nome_fantasia && c.nome_fantasia !== c.nome_razao_social;
+        const cidadeUf = c.cidade && c.uf ? `${c.cidade}/${c.uf}` : c.cidade || c.uf;
+        const grupo = grupoNome(c.grupo_economico_id);
+        const subline = [
+          fantasiaDifere ? c.nome_fantasia : null,
+          cidadeUf || null,
+          grupo !== "—" ? grupo : null,
+        ].filter(Boolean).join(" · ");
         return (
-          <div className="text-xs space-y-0.5">
-            {phone && <p className="font-medium tabular-nums">{phone}</p>}
-            {c.email && <p className="text-muted-foreground truncate max-w-xs">{c.email}</p>}
+          <div className="min-w-0">
+            <p className="font-medium leading-tight truncate">{c.nome_razao_social}</p>
+            {subline && (
+              <p className="text-xs text-muted-foreground truncate max-w-xs">{subline}</p>
+            )}
           </div>
         );
       },
     },
-    { key: "prazo_padrao", label: "Prazo",
+    { key: "cpf_cnpj", mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
+      render: (c: Cliente) => (
+        <span className="font-mono text-xs tabular-nums">
+          {c.cpf_cnpj ? cpfCnpjMask(c.cpf_cnpj) : "—"}
+        </span>
+      ) },
+    { key: "tipo_pessoa", label: "Tipo",
+      render: (c: Cliente) => {
+        const isPf = c.tipo_pessoa === "F";
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wide font-semibold">
+                {isPf ? "PF" : "PJ"}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>{isPf ? "Pessoa Física" : "Pessoa Jurídica"}</TooltipContent>
+          </Tooltip>
+        );
+      },
+    },
+    { key: "contato_principal", mobileCard: true, label: "Contato",
+      render: (c: Cliente) => {
+        const phone = c.celular || c.telefone;
+        if (!phone && !c.email) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCadastroFilters(["sem_contato"]); }}
+              className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Sem contato
+            </button>
+          );
+        }
+        return (
+          <div className="text-xs space-y-0.5">
+            {phone && (
+              <p className="font-medium tabular-nums flex items-center gap-1.5">
+                <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                <span>{phoneMask(phone)}</span>
+              </p>
+            )}
+            {c.email && (
+              <p className="text-muted-foreground truncate max-w-[220px] flex items-center gap-1.5">
+                <Mail className="h-3 w-3 shrink-0" />
+                <span className="truncate">{c.email}</span>
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    { key: "prazo_padrao", label: "Prazo Pgto.",
       render: (c: Cliente) => c.prazo_padrao
-        ? <span className="font-mono text-xs font-medium">{c.prazo_padrao}d</span>
-        : <span className="text-muted-foreground text-xs">—</span> },
-    { key: "grupo", label: "Grupo Econômico",
+        ? <span className="text-xs font-medium"><span className="tabular-nums">{c.prazo_padrao}</span> dias</span>
+        : <span className="text-muted-foreground text-xs">Sem prazo</span> },
+    { key: "situacao", label: "Situação",
+      render: (c: Cliente) => {
+        const missing = getMissingFields(c).filter((m) => m !== "grupo");
+        if (missing.length === 0) {
+          return <StatusBadge status="ativo" label="Completo" />;
+        }
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-warning">
+                <AlertTriangle className="h-3 w-3" />
+                Incompleto
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Falta: {missing.join(", ")}</TooltipContent>
+          </Tooltip>
+        );
+      },
+    },
+    { key: "grupo", label: "Grupo Econômico", hidden: true,
       render: (c: Cliente) => grupoNome(c.grupo_economico_id) },
     { key: "ativo", mobileCard: true, label: "Status", hidden: true,
       render: (c: Cliente) => <StatusBadge status={c.ativo ? "ativo" : "inativo"} /> },
