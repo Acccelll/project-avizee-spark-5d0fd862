@@ -613,6 +613,10 @@ export function ProdutoView({ id }: Props) {
 
         {/* Tab: Estoque */}
         <TabsContent value="estoque" className="space-y-3 mt-3">
+          <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Controla estoque?</span>
+            <span className="font-medium">{naoControlaEstoque ? "Não" : "Sim"}</span>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className={`rounded-lg border p-3 text-center ${estoqueBaixo ? "border-destructive/40 bg-destructive/5" : ""}`}>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estoque Atual</p>
@@ -631,6 +635,27 @@ export function ProdutoView({ id }: Props) {
               <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
             </div>
           </div>
+          {!naoControlaEstoque && Number(selected.estoque_minimo || 0) > 0 && Number(selected.estoque_atual || 0) > 0 && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Margem de segurança</span>
+                <span className="font-mono">
+                  {Number(selected.estoque_atual)} / {Number(selected.estoque_minimo) * 2}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    estoqueBaixo ? "bg-destructive" : "bg-success",
+                  )}
+                  style={{
+                    width: `${Math.min(100, (Number(selected.estoque_atual) / (Number(selected.estoque_minimo) * 2)) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
           {reservado > 0 && (
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border p-3 text-center">
