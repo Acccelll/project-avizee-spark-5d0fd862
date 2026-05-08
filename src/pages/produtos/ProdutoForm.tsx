@@ -29,7 +29,10 @@ import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import {
   Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart,
   AlertCircle, AlertTriangle, CheckCircle2, AlignLeft, Tag, Wand2, Pencil, Save,
+  X, MoreVertical,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { TabsListScrollable } from "@/components/ui/TabsListScrollable";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useNcmLookup } from "@/hooks/useNcmLookup";
