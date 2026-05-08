@@ -519,8 +519,21 @@ const Clientes = () => {
 
   // Em modo paged `data` contém só a página atual — KPIs vêm de count() server-side.
   const summaryAtivos = totalAtivos ?? 0;
-  const summaryComGrupo = totalComGrupo ?? 0;
   const totalRegistros = totalCount ?? data.length;
+  // KPI client-side: contagem de cadastros incompletos na página atual.
+  // TODO: substituir por RPC agregado (kpi_clientes_qualidade) numa próxima onda.
+  const summaryIncompletosPagina = useMemo(
+    () => data.filter((c) => getMissingFields(c).filter((m) => m !== "grupo").length > 0).length,
+    [data],
+  );
+  // Mantém o total de "com grupo" disponível para análise futura.
+  void totalComGrupo;
+
+  const isIncompletoActive = cadastroFilters.includes("incompleto");
+  const ativoOnly = ativoFilters.length === 1 && ativoFilters[0] === "ativo";
+  const inativoOnly = ativoFilters.length === 1 && ativoFilters[0] === "inativo";
+  const noFilters = ativoFilters.length === 0 && tipoFilters.length === 0
+    && grupoFilters.length === 0 && cadastroFilters.length === 0 && !searchTerm;
 
   return (
     <>
@@ -532,11 +545,37 @@ const Clientes = () => {
         addButtonHelpId="clientes.novoBtn"
         summaryCards={
           <>
-            <SummaryCard title="Total de Clientes" value={totalRegistros} icon={Users} />
-            <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
+            <SummaryCard
+              title="Total de Clientes"
+              value={totalRegistros}
+              icon={Users}
+              onClick={() => clearFilters(["tipo", "grupo", "ativo", "cadastro"])}
+              active={noFilters}
+            />
+            <SummaryCard
+              title="Ativos"
+              value={summaryAtivos}
+              icon={UserCheck}
+              variant="success"
+              onClick={() => setAtivoFilters(ativoOnly ? [] : ["ativo"])}
+              active={ativoOnly}
+            />
             <div className="hidden md:contents">
-              <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={User2} />
-              <SummaryCard title="Com Grupo Econômico" value={summaryComGrupo} icon={Building2} />
+              <SummaryCard
+                title="Inativos"
+                value={Math.max(0, totalRegistros - summaryAtivos)}
+                icon={User2}
+                onClick={() => setAtivoFilters(inativoOnly ? [] : ["inativo"])}
+                active={inativoOnly}
+              />
+              <SummaryCard
+                title="Incompletos (página)"
+                value={summaryIncompletosPagina}
+                icon={AlertTriangle}
+                variant="warning"
+                onClick={() => setCadastroFilters(isIncompletoActive ? [] : ["incompleto"])}
+                active={isIncompletoActive}
+              />
             </div>
           </>
         }
@@ -554,6 +593,7 @@ const Clientes = () => {
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[130px]" />
           <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipos" className="w-[150px]" />
           <MultiSelect options={grupoOptions} selected={grupoFilters} onChange={setGrupoFilters} placeholder="Grupos" className="w-[200px]" />
+          <MultiSelect options={cadastroOptions} selected={cadastroFilters} onChange={setCadastroFilters} placeholder="Cadastro" className="w-[160px]" />
         </AdvancedFilterBar>
         </div>
 
