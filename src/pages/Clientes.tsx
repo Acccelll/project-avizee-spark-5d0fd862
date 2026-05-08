@@ -1086,8 +1086,6 @@ const Clientes = () => {
                   </div>
                 </div>
               </details>
-              <div className="hidden">
-              </div>
             </TabsContent>
 
             {/* COMERCIAL */}
