@@ -105,9 +105,11 @@ export function useRelatorioExport({
       );
       if (!ok) return;
     }
-    const tid = toast.loading('Gerando PDF...', { description: exportScopeDescription });
+    // 9.5 — MB-05: feedback de progresso em fases.
+    const tid = toast.loading('Preparando dados...', { description: exportScopeDescription });
     setIsExporting(true);
     try {
+      toast.loading('Montando PDF...', { id: tid, description: exportScopeDescription });
       await exportarParaPdf({
         titulo: resultado?.title || String(tipo),
         rows: sortedRows,
@@ -147,9 +149,11 @@ export function useRelatorioExport({
       );
       if (!ok) return;
     }
-    const tid = toast.loading('Gerando Excel...', { description: exportScopeDescription });
+    // 9.5 — MB-05: feedback de progresso em fases.
+    const tid = toast.loading('Preparando dados...', { description: exportScopeDescription });
     setIsExporting(true);
     try {
+      toast.loading('Montando planilha...', { id: tid, description: exportScopeDescription });
       await exportarParaExcel({
         titulo: resultado?.title || String(tipo),
         rows: sortedRows,
