@@ -709,3 +709,24 @@ export function ProdutoView({ id }: Props) {
     </div>
   );
 }
+
+interface FieldItemProps {
+  label: string;
+  value: string | number | null | undefined;
+  emptyText?: string;
+  mono?: boolean;
+  capitalize?: boolean;
+}
+function FieldItem({ label, value, emptyText = "—", mono, capitalize }: FieldItemProps) {
+  const isEmpty = value === null || value === undefined || value === "";
+  return (
+    <div>
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
+      {isEmpty ? (
+        <p className="text-sm text-muted-foreground italic">{emptyText}</p>
+      ) : (
+        <p className={cn("text-sm", mono && "font-mono", capitalize && "capitalize")}>{value}</p>
+      )}
+    </div>
+  );
+}
