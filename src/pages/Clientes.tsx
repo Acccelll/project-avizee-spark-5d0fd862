@@ -251,6 +251,16 @@ const Clientes = () => {
   const [cepStatus, setCepStatus] = useState<"ok" | "fail" | null>(null);
   const [paisEditavel, setPaisEditavel] = useState(false);
 
+  // Aba ativa controlada (para auto-centralizar no mobile)
+  const [activeTab, setActiveTab] = useState<string>("dados-gerais");
+  const tabsListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const list = tabsListRef.current;
+    if (!list) return;
+    const active = list.querySelector<HTMLElement>('[data-state="active"]');
+    if (active) active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [activeTab]);
+
   // Decompõe observações: metadados (Importado/IBGE) ficam read-only
   const obsParts = useMemo(() => splitObservacoes(form.observacoes || ""), [form.observacoes]);
 
@@ -298,6 +308,7 @@ const Clientes = () => {
     tipoPessoaTouched.current = false;
     setCepStatus(null);
     setPaisEditavel(false);
+    setActiveTab("dados-gerais");
     setModalOpen(true);
   };
 
@@ -322,6 +333,7 @@ const Clientes = () => {
     tipoPessoaTouched.current = true; // edição: usuário já decidiu o tipo
     setCepStatus(null);
     setPaisEditavel(false);
+    setActiveTab("dados-gerais");
     setModalOpen(true);
   };
 
@@ -738,8 +750,12 @@ const Clientes = () => {
         footer={
           <FormModalFooter
             saving={saving} isDirty={isDirty}
-            disabled={Object.keys(formErrors).length > 0}
-            disabledReason={Object.keys(formErrors).length > 0 ? "Corrija os erros do formulário antes de salvar." : undefined}
+            disabled={Object.keys(formErrors).length > 0 || (mode === "edit" && !isDirty)}
+            disabledReason={
+              Object.keys(formErrors).length > 0
+                ? "Corrija os erros do formulário antes de salvar."
+                : (mode === "edit" && !isDirty ? "Nenhuma alteração para salvar." : undefined)
+            }
             onCancel={async () => {
               if (isDirty && !(await confirmDiscard())) return;
               setModalOpen(false);
@@ -749,8 +765,11 @@ const Clientes = () => {
         }
       >
         <form id="cliente-form" onSubmit={handleSubmit} className="space-y-0">
-          <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList
+              ref={tabsListRef}
+              className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
+            >
               <TabsTrigger value="dados-gerais" className="gap-1.5">
                 <User2 className="h-3.5 w-3.5" />Dados Gerais
                 {tabIssues.dadosGerais && (
@@ -796,8 +815,8 @@ const Clientes = () => {
 
             {/* DADOS GERAIS */}
             <TabsContent value="dados-gerais" className="space-y-4 mt-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <div className="col-span-2 md:col-span-1 space-y-1.5">
                   <Label>Tipo de Pessoa</Label>
                   <Select
                     value={form.tipo_pessoa}
@@ -813,7 +832,7 @@ const Clientes = () => {
                     <p className="text-[11px] text-muted-foreground">Detectado automaticamente pelo documento.</p>
                   )}
                 </div>
-                <div className="space-y-1.5">
+                <div className="col-span-2 md:col-span-1 space-y-1.5">
                   <div className="flex items-center gap-1">
                     <Label>CPF/CNPJ</Label>
                     {form.tipo_pessoa === "J" && (
@@ -826,6 +845,7 @@ const Clientes = () => {
                     )}
                   </div>
                   <div className="flex gap-1">
+                    <div className="flex-1 min-w-0">
                     <MaskedInput
                       mask="cpf_cnpj"
                       value={form.cpf_cnpj}
@@ -839,6 +859,7 @@ const Clientes = () => {
                         updateForm(patch);
                       }}
                     />
+                    </div>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -889,7 +910,7 @@ const Clientes = () => {
                   )}
                 </div>
                 {form.tipo_pessoa === "J" && (
-                <div className="space-y-1.5">
+                <div className="col-span-2 md:col-span-1 space-y-1.5">
                   <div className="flex items-center gap-1">
                     <Label>Inscrição Estadual</Label>
                     <Tooltip>
@@ -947,7 +968,11 @@ const Clientes = () => {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Referência de atendimento</p>
                   <div className="space-y-1.5">
                     <Label>Pessoa de Contato</Label>
-                    <Input value={form.contato} onChange={(e) => updateForm({ contato: e.target.value })} placeholder="Nome do responsável pelo contato comercial" />
+                    <Input
+                      value={form.contato}
+                      onChange={(e) => updateForm({ contato: e.target.value })}
+                      placeholder={isMobile ? "Nome do contato" : "Nome do responsável pelo contato comercial"}
+                    />
                   </div>
                 </div>
                 <div>
@@ -992,8 +1017,8 @@ const Clientes = () => {
               <p className="text-xs text-muted-foreground mb-3">
                 Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 mb-6">
+                <div className="sm:col-span-2 space-y-1.5">
                   <Label>CEP</Label>
                   <div className="relative">
                     <MaskedInput
@@ -1024,21 +1049,21 @@ const Clientes = () => {
                     <p className="text-[11px] text-destructive">CEP não encontrado</p>
                   )}
                 </div>
-                <div className="col-span-2 space-y-1.5">
+                <div className="sm:col-span-4 space-y-1.5">
                   <Label>Logradouro</Label>
                   <Input value={form.logradouro} onChange={(e) => updateForm({ logradouro: e.target.value })} placeholder="Rua, Av., Travessa..." />
                 </div>
-                <div className="space-y-1.5">
+                <div className="sm:col-span-2 space-y-1.5">
                   <Label>Número</Label>
                   <Input value={form.numero} onChange={(e) => updateForm({ numero: e.target.value })} placeholder="Nº ou S/N" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="sm:col-span-4 space-y-1.5">
                   <Label>Complemento</Label>
                   <Input value={form.complemento} onChange={(e) => updateForm({ complemento: e.target.value })} placeholder="Sala, bloco, andar..." />
                 </div>
-                <div className="space-y-1.5"><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => updateForm({ bairro: e.target.value })} /></div>
-                <div className="space-y-1.5"><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => updateForm({ cidade: e.target.value })} /></div>
-                <div className="space-y-1.5">
+                <div className="sm:col-span-3 space-y-1.5"><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => updateForm({ bairro: e.target.value })} /></div>
+                <div className="sm:col-span-3 space-y-1.5"><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => updateForm({ cidade: e.target.value })} /></div>
+                <div className="sm:col-span-2 space-y-1.5">
                   <Label>UF</Label>
                   <Select value={form.uf || undefined} onValueChange={(v) => updateForm({ uf: v })}>
                     <SelectTrigger className={formErrors.uf ? "border-destructive" : ""}>
@@ -1052,7 +1077,7 @@ const Clientes = () => {
                   </Select>
                   {formErrors.uf && <p className="text-xs text-destructive">{formErrors.uf}</p>}
                 </div>
-                <div className="space-y-1.5">
+                <div className="sm:col-span-4 space-y-1.5">
                   <Label>País</Label>
                   {paisEditavel ? (
                     <Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} autoFocus />
@@ -1118,6 +1143,13 @@ const Clientes = () => {
                       {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.id}>{fp.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <button
+                    type="button"
+                    onClick={() => setQuickAddFormaPagOpen(true)}
+                    className="text-[11px] text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                  >
+                    <Plus className="h-3 w-3" /> Cadastrar nova forma
+                  </button>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
@@ -1164,17 +1196,8 @@ const Clientes = () => {
                     onChange={(e) => updateForm({ limite_credito: Number(e.target.value) })}
                     className={formErrors.limite_credito ? "border-destructive" : ""}
                   />
+                  <p className="text-[11px] text-muted-foreground">Use 0 para "sem crédito aprovado"; em branco para "não definido".</p>
                   {formErrors.limite_credito && <p className="text-xs text-destructive">{formErrors.limite_credito}</p>}
-                </div>
-                <div className="space-y-1.5 col-span-2 flex items-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setQuickAddFormaPagOpen(true)}
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Cadastrar nova forma de pagamento
-                  </Button>
                 </div>
               </div>
 
@@ -1283,7 +1306,7 @@ const Clientes = () => {
                   rows={5} maxLength={MAX_OBSERVACOES_LENGTH}
                   value={obsParts.user}
                   onChange={(e) => updateForm({ observacoes: joinObservacoes(obsParts.meta, e.target.value) })}
-                  placeholder="Informações relevantes sobre o cliente: preferências, restrições, histórico de relacionamento..."
+                  placeholder={isMobile ? "Notas internas..." : "Informações relevantes sobre o cliente: preferências, restrições, histórico de relacionamento..."}
                 />
                 <p className="text-xs text-muted-foreground mt-1 text-right">{obsParts.user.length}/{MAX_OBSERVACOES_LENGTH}</p>
               </div>

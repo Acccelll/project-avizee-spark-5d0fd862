@@ -1,103 +1,118 @@
-## Onda 23 — Refinos no formulário de Clientes (Novo / Editar)
+## Onda 24 — Refinos mobile do formulário de Clientes
 
-Foco frontend: melhorar o cabeçalho, tornar o preenchimento mais inteligente, indicar pendências por aba e separar metadados de observações. Sem mudanças de schema, RLS ou regras de negócio.
+Foco no uso mobile do `FormModal` de cliente: navegação por abas, densidade de campos, CTAs do empty state e estados do botão Salvar. Frontend apenas, sem mudanças de schema/RLS.
 
-Arquivo principal: `src/pages/Clientes.tsx` (FormModal de cliente, linhas ~657-1136). Sem novos componentes, sem novos hooks.
+Arquivos:
+- `src/pages/Clientes.tsx` (form do cliente)
+- `src/pages/clientes/components/ClienteEnderecosTab.tsx` (CTA central no empty state)
+- `src/pages/clientes/components/ClienteComunicacoesTab.tsx` (header empilhado mobile)
+- `src/index.css` (utilitário `.scrollbar-hide` + máscara de fade lateral)
 
-### 1. Cabeçalho — eliminar redundância badge × toggle (alta)
+### 1. TabsList scrollável sem barra cinza (alta)
 
-Hoje aparecem ao mesmo tempo: `StatusBadge` em `status` + `Switch` "Ativo" em `headerActions`. No modo **edição**:
+Hoje a `TabsList` usa `overflow-x-auto` que mostra scrollbar nativa. No mobile fica visualmente ruim e algumas labels (`Ender...`, `Comun...`) cortam.
 
-- Remover o `status={<StatusBadge .../>}` do `FormModal` para edição.
-- Manter apenas o `Switch` em `headerActions`, com label claro: `Cliente ativo` / `Cliente inativo` (em vez de só "Ativo"/"Inativo"), e tooltip "Alterar status do cadastro".
-- No modo **criação**: nada de toggle nem badge (cliente novo já nasce ativo; o `createHint` cobre).
+- Adicionar utilitário global em `src/index.css`:
+  ```css
+  .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .tabs-fade-mask { mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent); }
+  ```
+- Em `Clientes.tsx`, na `TabsList` do form de cliente: trocar `overflow-x-auto` por `overflow-x-auto scrollbar-hide tabs-fade-mask` e adicionar `gap-1` + nas `TabsTrigger`s `whitespace-nowrap shrink-0 min-w-[5.5rem] justify-center` para evitar truncamento e dar área de toque maior.
+- Centralizar a aba ativa ao trocar via `useEffect` que ouve `activeTab` e chama `el.scrollIntoView({ inline: "center", behavior: "smooth", block: "nearest" })` no trigger ativo (precisa converter as `Tabs` para controladas — `value={activeTab}` + `onValueChange={setActiveTab}` com estado local; o `defaultValue` atual é "dados-gerais").
 
-### 2. Diferenciar Novo vs Editar (alta)
+### 2. Dados Gerais — Tipo de Pessoa em linha própria no mobile (alta)
 
-- Título já alterna; reforçar:
-  - **Criação**: `meta` enxuta — apenas hints relevantes (nada de "Cadastrado em").
-  - **Edição**: manter `Cadastrado em …` e enriquecer com `Última atualização` (usar `selected.updated_at` se existir; caso contrário, omitir).
-- O CTA do footer já vem do `FormModalFooter` via `mode` (Criar vs Salvar Alterações) — apenas confirmar que está sendo passado (já está).
+A grid é `grid-cols-1 md:grid-cols-3`, então no mobile cada campo já fica full-width. O problema visual reportado é em tablet (md ≥ 768). Ajuste:
+- Tipo de Pessoa: `col-span-2 md:col-span-1` para reservar largura útil em telas estreitas.
+- CPF/CNPJ: manter `md:col-span-1` mas garantir que o botão lupa não comprima o input (envolver em `flex-1` no `MaskedInput`).
 
-### 3. Cabeçalho mais compacto (média)
+### 3. Placeholders mais curtos no mobile (alta/média)
 
-Sem reescrever o `FormModal`, apenas reorganizar o que `Clientes.tsx` envia:
+Detectar `isMobile` (já existe `useIsMobile()`) e trocar:
+- Pessoa de Contato: `"Nome do responsável pelo contato comercial"` → mobile `"Nome do contato"`.
+- Nome/Razão Social: manter — já é curto no mobile via `tipo_pessoa === "J" ? "Razão social" : "Nome completo"` se for mobile.
+- Textarea Observações: mobile `"Notas internas..."`.
 
-- `identifier` mostra o documento mascarado (`cpfCnpjMask(selected.cpf_cnpj)`), prefixado por `CPF:` ou `CNPJ:` conforme o número de dígitos (mesma lógica de `ClienteView`).
-- `meta`: `Cadastrado em DD/MM/AAAA` + grupo econômico (se houver). Remover o item de "Forma de pagamento" do `meta` — já aparece dentro da aba Comercial e polui o topo.
+### 4. Endereço — campos com largura útil no mobile (alta)
 
-### 4. Aba Dados Gerais — preenchimento inteligente (alta)
+Reordenar para layout vertical em mobile (já é grid-cols-1 no mobile, então o problema é tablet). Ajustar grid para tablet:
+- Trocar `grid-cols-1 md:grid-cols-3` por `grid-cols-1 sm:grid-cols-6` e atribuir spans adequados:
+  - CEP: `sm:col-span-2`
+  - Logradouro: `sm:col-span-4`
+  - Número: `sm:col-span-2`
+  - Complemento: `sm:col-span-4`
+  - Bairro: `sm:col-span-3`
+  - Cidade: `sm:col-span-3`
+  - UF: `sm:col-span-2`
+  - País: `sm:col-span-4`
+- Garante que CEP e Número não fiquem espremidos, e Cidade/Bairro tenham largura adequada.
 
-- **Inferência de Tipo de Pessoa pelo CPF/CNPJ**: ao alterar `cpf_cnpj`, se `digits.length === 11` → setar `tipo_pessoa = "F"`; se `=== 14` → `"J"`. Só aplica quando o usuário ainda não tocou manualmente o campo na sessão (flag local `tipoPessoaTouched`). Disparado no `onChange` do `MaskedInput` de CPF/CNPJ.
-- **Botão lupa do CNPJ**: já tem tooltip; trocar o ícone para um par mais claro — manter `Search` mas adicionar `aria-label="Consultar CNPJ na Receita"` e exibir um pequeno texto auxiliar abaixo do campo: `Consultar CNPJ preenche razão social, endereço e contato.` (visível só quando `tipo_pessoa === "J"` e o documento tem 14 dígitos).
-- **Inscrição Estadual**:
-  - Se `tipo_pessoa === "F"`: ocultar o campo (PF não tem IE comercial nesse fluxo).
-  - Se `tipo_pessoa === "J"`: manter, e adicionar checkbox/atalho `Isento` que, quando marcado, preenche o input com `ISENTO` e desabilita-o.
+### 5. Campo País — UX mais clara (baixa)
 
-### 5. Aba Endereço (média)
+Trocar o botão "Alterar" inline por padrão dl + `Button` ghost size="sm":
+- Estado padrão: input desabilitado mostrando `Brasil` + botão `variant="ghost" size="sm"` com label `Alterar país` ao lado.
+- Quando clicado, troca para `Input` editável focado.
 
-- Já há lookup no `onBlur` do CEP + spinner. Apenas:
-  - Adicionar mensagem de sucesso/erro inline abaixo do CEP (`CEP encontrado` / `CEP não encontrado`), via estado local `cepStatus`.
-  - **País**: default `Brasil`, render readonly com botão pequeno `Alterar` que torna editável (reduz protagonismo sem remover).
-  - **Caixa Postal**: mover para uma seção "Avançado" colapsável (`<details>` simples) no fim da aba.
+### 6. Avançado — cabeçalho mais claro (baixa)
 
-### 6. Aba Entregas — empty state (baixa)
+Trocar `<summary>` para incluir chevron e prefixo:
+- Texto: `▸ Campos avançados` (com `[&[open]>summary]:before:content-['▾']` ou ícone Lucide `ChevronRight` rotacionado via `group-open:rotate-90`).
 
-- O componente vive em `ClienteEnderecosTab`, fora de escopo desta onda. Aqui: passar via prop opcional `emptyHint` (string) com texto reforçando que o endereço de faturamento é usado por padrão. Se o componente não suportar, **adiar** este item (sem editar o sub-componente — mantém escopo).
+### 7. Comercial — mantém 3 blocos, "Cadastrar nova forma" compacta (média)
 
-### 7. Aba Comercial — modularização visual (média)
+Já existem três headers (Condições, Grupo, Logística). Ajustes:
+- O botão "Cadastrar nova forma de pagamento" hoje fica em `col-span-2 flex items-end`, ocupando toda a largura. Trocar para `variant="ghost" size="sm"` alinhado à direita do select de Forma de Pagamento (mesma linha em md, abaixo em mobile com `text-xs`).
+- Limite de Crédito: adicionar microcopy `Deixe 0 para "sem crédito aprovado"; em branco para "não definido".` abaixo do input.
 
-Já existe a separação em "Condições Comerciais" e "Grupo Econômico". Refinar:
+### 8. Comunicações — header empilhado no mobile (alta)
 
-- Criar um terceiro bloco visual `Logística Comercial` envolvendo o `ClienteTransportadorasTab` (apenas um header com ícone + título, sem alterar o sub-componente).
-- Compactar o **Limite de Crédito**: trazer para dentro do grid principal de 4 colunas (linha 2, ocupando 2 col), removendo a caixa `bg-muted/20` que dá respiro excessivo.
-- Promover o link "Cadastrar nova forma" para botão `variant="outline"` `size="sm"` posicionado **ao lado** do `Select` de forma de pagamento, dentro de um `flex gap-2` (mais visível, ainda secundário).
-- Empty state de transportadoras: passa por melhoria no sub-componente — fora de escopo.
+Em `ClienteComunicacoesTab.tsx` (linha ~110), o `flex items-center justify-between` quebra mal:
+- Trocar para `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3`.
+- O botão `Nova Comunicação` ganha `w-full sm:w-auto` no mobile.
 
-### 8. Aba Observações — separar metadado (alta)
+### 9. Entregas — CTA central no empty state (média)
 
-Hoje o textarea pode conter `Importado via faturamento histórico (IBGE: 4308607)`.
+Em `ClienteEnderecosTab.tsx`, dentro do bloco `enderecos.length === 0`:
+- Substituir o último parágrafo (`Clique em Incluir...`) por um `Button` `variant="default"` `className="w-full sm:w-auto"` que dispara o mesmo `onClick` do botão Incluir do topo:
+  ```tsx
+  <Button onClick={openCreateEndereco} className="w-full sm:w-auto gap-1.5">
+    <Plus className="h-4 w-4" /> Incluir endereço de entrega
+  </Button>
+  ```
+- Extrair a função `openCreateEndereco` para compartilhar entre o botão do topo e este CTA.
 
-- Detectar prefixo `Importado via faturamento histórico` ou `IBGE:` em `form.observacoes` (regex idêntica à usada em `ClienteView`).
-- Renderizar dois blocos:
-  - **Origem do cadastro** (read-only, chip cinza com o trecho metadado).
-  - **Observações internas** (`Textarea` editável só com o restante).
-- No `handleSubmit`, ao salvar, **reanexar** o trecho de metadado ao texto editado (concatenar com `\n\n` se houver observação). Isso evita perda de informação histórica.
+### 10. Botão Salvar — desabilitar quando não há alterações (média)
 
-### 9. Indicadores de pendência por aba (média)
+Em `Clientes.tsx`, no `FormModalFooter`:
+- Trocar `disabled={Object.keys(formErrors).length > 0}` por:
+  ```ts
+  disabled={Object.keys(formErrors).length > 0 || (mode === "edit" && !isDirty)}
+  disabledReason={
+    Object.keys(formErrors).length > 0
+      ? "Corrija os erros do formulário antes de salvar."
+      : (mode === "edit" && !isDirty ? "Nenhuma alteração para salvar." : undefined)
+  }
+  ```
 
-Calcular um conjunto `tabIssues = { dadosGerais, contatos, endereco, comercial }`:
+### 11. Footer mais compacto no mobile (baixa)
 
-- `dadosGerais`: falta `tipo_pessoa` ou `nome_razao_social` ou `cpf_cnpj` inválido.
-- `contatos`: faltam **todos** os canais (telefone, celular, email).
-- `endereco`: faltam `cep` ou `logradouro` ou `cidade`/`uf`.
-- `comercial`: `forma_pagamento_id` vazio **e** `prazo_padrao` zero.
+No `FormModal.tsx` o footer já tem `py-3` + safe-area. Sem mudanças aqui (já está compacto). O `FormModalFooter` já usa `max-sm:w-full max-sm:h-11`. Manter como está.
 
-Renderizar pequeno `•` ou ícone `AlertTriangle` (h-3 w-3 text-warning) ao lado do label do `TabsTrigger` quando `true`. Tooltip explica o que falta.
-
-### 10. Validação e estado de alteração (baixa, parcialmente já existe)
-
-- `FormModalFooter` já desabilita Save quando `!isDirty` em modo edit. Apenas garantir que o bloqueio também ocorra quando há `formErrors` populados.
-- O `confirmDiscard` já cobre fechar com alterações pendentes.
-
----
-
-### Fora de escopo (deixa para próxima onda)
+### Fora de escopo
 
 - Múltiplos contatos por cliente (mudaria schema).
-- Ajustes profundos em `ClienteEnderecosTab`, `ClienteComunicacoesTab`, `ClienteTransportadorasTab`.
-- Separar `Nova Comunicação` em fluxo independente (já é um sub-componente; refator próprio).
-- Mudanças no `FormModal` shell (cabeçalho do modal).
+- Refator de `FormModal` shell.
+- Indicadores de pendência DENTRO de cada aba (texto "Pendências desta seção: ..."); os ícones nos triggers já cobrem o essencial.
+- Separar "Nova Comunicação" em fluxo isolado (já é dialog próprio internamente).
 
 ### Detalhes técnicos
 
-- Sem novos pacotes. Tudo dentro de `src/pages/Clientes.tsx`.
-- Reaproveitar `cpfCnpjMask` de `@/utils/masks` para o `identifier`.
-- Inferência de PF/PJ usa um `useRef<boolean>(false)` (`tipoPessoaTouched`) — `useState` causaria re-render desnecessário.
-- Detecção de metadado: `const META_RE = /(Importado via faturamento histórico[^\n]*|IBGE:\s*\d+)/g;` (split + reconstrução).
-- Indicadores de aba: `useMemo` derivado de `form` + `formErrors`.
+- Adicionar `useState` para `activeTab` no form de cliente, com `useRef<HTMLDivElement>` para a TabsList. Effect que faz `[data-state=active]` scrollIntoView dentro da lista.
+- A máscara de fade usa `mask-image` (suporte Safari requer prefixo `-webkit-mask-image`; incluir os dois).
+- `.scrollbar-hide` global é seguro — já usado em projetos similares; só afeta elementos onde a classe é aplicada.
 
-### Memórias a registrar após implementação
+### Memórias a registrar
 
-- `mem://produto/cliente-form-cabecalho` — Regra: badge de status é redundante com toggle no header de edição; usar apenas o toggle.
-- `mem://produto/inferencia-tipo-pessoa` — Regra: PF/PJ deve ser inferido pelo número de dígitos do documento, com possibilidade de override manual.
+- `mem://produto/tabs-mobile-scroll` — Padrão: TabsList horizontal mobile usa `scrollbar-hide` + `tabs-fade-mask` + min-width por trigger + auto-center do ativo.
+- `mem://produto/cliente-form-mobile` — Regra: empty states críticos (Entregas) repetem CTA central; headers de tabs internos empilham no mobile (`flex-col sm:flex-row`).

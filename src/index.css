@@ -401,3 +401,16 @@
 .drag-handle:active {
   cursor: grabbing;
 }
+
+/* Mobile: TabsList scrollable sem barra cinza, com fade lateral */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.tabs-fade-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+  mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+}
