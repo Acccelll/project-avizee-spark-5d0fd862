@@ -999,10 +999,15 @@ const Clientes = () => {
                     <MaskedInput
                       mask="cep" value={form.cep} onChange={(v) => updateForm({ cep: v })}
                       onBlur={async () => {
+                        const digits = (form.cep || "").replace(/\D/g, "");
+                        if (digits.length !== 8) { setCepStatus(null); return; }
                         const result = await buscarCep(form.cep);
                         if (result) {
                           setForm(prev => ({ ...prev, logradouro: result.logradouro, bairro: result.bairro, cidade: result.localidade, uf: result.uf }));
                           setIsDirty(true);
+                          setCepStatus("ok");
+                        } else {
+                          setCepStatus("fail");
                         }
                       }}
                       className={cepLoading ? "pr-8" : ""}
@@ -1012,6 +1017,12 @@ const Clientes = () => {
                     )}
                   </div>
                   {formErrors.cep && <p className="text-xs text-destructive">{formErrors.cep}</p>}
+                  {!formErrors.cep && cepStatus === "ok" && (
+                    <p className="text-[11px] text-success inline-flex items-center gap-1"><CheckIcon className="h-3 w-3" /> CEP encontrado</p>
+                  )}
+                  {!formErrors.cep && cepStatus === "fail" && (
+                    <p className="text-[11px] text-destructive">CEP não encontrado</p>
+                  )}
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>Logradouro</Label>
@@ -1041,19 +1052,41 @@ const Clientes = () => {
                   </Select>
                   {formErrors.uf && <p className="text-xs text-destructive">{formErrors.uf}</p>}
                 </div>
-                <div className="space-y-1.5"><Label>País</Label><Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} /></div>
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-1">
-                    <Label>Caixa Postal</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
-                      <TooltipContent className="text-xs">
-                        Caixa Postal para entrega de correspondências, quando diferente do endereço principal.
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Input value={form.caixa_postal} onChange={(e) => updateForm({ caixa_postal: e.target.value })} placeholder="Ex: CP 1234" />
+                  <Label>País</Label>
+                  {paisEditavel ? (
+                    <Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} autoFocus />
+                  ) : (
+                    <div className="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted/30 text-sm">
+                      <span className="flex-1">{form.pais || "Brasil"}</span>
+                      <button type="button" onClick={() => setPaisEditavel(true)}
+                        className="text-xs text-primary inline-flex items-center gap-1 hover:underline">
+                        <Pencil className="h-3 w-3" /> Alterar
+                      </button>
+                    </div>
+                  )}
                 </div>
+              </div>
+              <details className="mt-2 group">
+                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">
+                  Avançado (caixa postal)
+                </summary>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1">
+                      <Label>Caixa Postal</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                        <TooltipContent className="text-xs">
+                          Caixa Postal para entrega de correspondências, quando diferente do endereço principal.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input value={form.caixa_postal} onChange={(e) => updateForm({ caixa_postal: e.target.value })} placeholder="Ex: CP 1234" />
+                  </div>
+                </div>
+              </details>
+              <div className="hidden">
               </div>
             </TabsContent>
 
