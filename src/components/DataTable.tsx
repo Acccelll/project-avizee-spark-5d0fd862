@@ -43,6 +43,24 @@ import { MobileCardList, type MobileCardField } from '@/components/ui/MobileCard
 import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
 import { useDataTableExport } from '@/hooks/useDataTableExport';
 import type { PermissionKey } from '@/lib/permissions';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 
 export interface Column<T> {
   key: string;
