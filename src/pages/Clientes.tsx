@@ -965,7 +965,11 @@ const Clientes = () => {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Referência de atendimento</p>
                   <div className="space-y-1.5">
                     <Label>Pessoa de Contato</Label>
-                    <Input value={form.contato} onChange={(e) => updateForm({ contato: e.target.value })} placeholder="Nome do responsável pelo contato comercial" />
+                    <Input
+                      value={form.contato}
+                      onChange={(e) => updateForm({ contato: e.target.value })}
+                      placeholder={isMobile ? "Nome do contato" : "Nome do responsável pelo contato comercial"}
+                    />
                   </div>
                 </div>
                 <div>
