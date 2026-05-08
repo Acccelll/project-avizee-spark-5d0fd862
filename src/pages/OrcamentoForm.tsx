@@ -1269,7 +1269,9 @@ export default function OrcamentoForm() {
 
           <OrcamentoTotaisCard
             totalProdutos={totalProdutos}
-            pesoTotal={pesoTotal}
+            pesoTotal={pesoTotalCalculado}
+            pesoOverride={pesoTotalOverride}
+            onPesoOverrideChange={setPesoTotalOverride}
             form={{ valor_total: valorTotal, desconto, imposto_st: impostoSt, imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas }}
             onChange={handleTotalChange}
           />
