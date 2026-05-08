@@ -803,20 +803,20 @@ export default function ProdutoForm({
                     <span className="ml-1 text-xs text-success font-normal flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Completo</span>
                   )}
                 </h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label>CST</Label>
                     <FiscalAutocomplete data={cstIcmsCodes} value={form.cst} onChange={(v) => setForm({ ...form, cst: v })} placeholder="Ex: 000" />
-                    <p className="text-xs text-muted-foreground">Código de Situação Tributária do ICMS.</p>
+                    <p className="text-xs text-muted-foreground">Situação tributária do ICMS.</p>
                   </div>
                   <div className="space-y-2">
                     <Label>CFOP Padrão</Label>
                     <FiscalAutocomplete data={cfopCodes} value={form.cfop_padrao} onChange={(v) => setForm({ ...form, cfop_padrao: v })} placeholder="Ex: 5102" />
-                    <p className="text-xs text-muted-foreground">Código Fiscal de Operações e Prestações.</p>
+                    <p className="text-xs text-muted-foreground">Código fiscal de operações.</p>
                   </div>
                   <div className="space-y-2">
                     <Label>NCM</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Input value={form.ncm || ''} onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '').slice(0, 8);
                           setForm({ ...form, ncm: val });
@@ -824,7 +824,7 @@ export default function ProdutoForm({
                         placeholder="Ex: 84713012"
                         className={`flex-1 font-mono ${form.ncm && (form.ncm.length < 4 || form.ncm.length > 8) ? "border-destructive" : ""}`}
                         maxLength={8} />
-                      <Button type="button" variant="outline" size="sm" className="shrink-0 text-xs"
+                      <Button type="button" variant="outline" size="sm" className="shrink-0 text-xs w-full sm:w-auto"
                         disabled={ncmLoading || (form.ncm || '').replace(/\D/g, '').length < 4}
                         onClick={async () => {
                           const result = await buscarNcm(form.ncm || '');
@@ -833,7 +833,7 @@ export default function ProdutoForm({
                        {ncmLoading ? '...' : 'Verificar NCM'}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">4–8 dígitos. Verifique na tabela TIPI da Receita Federal.</p>
+                    <p className="text-xs text-muted-foreground">4–8 dígitos (tabela TIPI).</p>
                   </div>
                 </div>
               </div>
