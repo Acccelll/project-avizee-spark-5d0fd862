@@ -18,9 +18,12 @@ import { useAuth } from '@/contexts/AuthContext';
 export interface DataTablePrefs {
   hiddenKeys: string[];
   viewMode?: 'pagination' | 'infinite';
+  /** Ordem persistida das colunas (lista de keys). Colunas não listadas
+   *  caem no fim, na ordem original de `columns`. */
+  columnOrder?: string[];
 }
 
-const DEFAULT: DataTablePrefs = { hiddenKeys: [], viewMode: 'pagination' };
+const DEFAULT: DataTablePrefs = { hiddenKeys: [], viewMode: 'pagination', columnOrder: [] };
 
 const legacyKeys = (moduleKey: string) => ({
   cols: `datatable:${moduleKey}:columns`,
@@ -68,12 +71,18 @@ export function useDataTablePrefs(moduleKey: string | undefined, initialHiddenKe
     (mode: 'pagination' | 'infinite') => save({ ...value, viewMode: mode }),
     [save, value],
   );
+  const setColumnOrder = useCallback(
+    (order: string[]) => save({ ...value, columnOrder: order }),
+    [save, value],
+  );
 
   return {
     hiddenKeys: value.hiddenKeys ?? [],
     viewMode: value.viewMode ?? 'pagination',
+    columnOrder: value.columnOrder ?? [],
     setHiddenKeys,
     setViewMode,
+    setColumnOrder,
     loading,
   };
 }

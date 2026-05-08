@@ -277,6 +277,7 @@ export default function OrcamentoForm() {
   const [freteLarguraCm, setFreteLarguraCm] = useState<number>(10);
   const [freteComprimentoCm, setFreteComprimentoCm] = useState<number>(30);
   const [pesoEmbalagemTotal, setPesoEmbalagemTotal] = useState<number>(0);
+  const [pesoTotalOverride, setPesoTotalOverride] = useState<number | null>(null);
 
   const [scenarioConfig, setScenarioConfig] = useState<RentabilidadeScenarioConfig>({
     freteSimulado: 0,
@@ -296,7 +297,8 @@ export default function OrcamentoForm() {
   const valorSimulado = Math.max(0, valorTotal - simDescontoGeral + simFreteSeguro);
   const quantidadeTotal = items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
   const pesoTotalItens = items.reduce((sum, i) => sum + (i.peso_total || 0), 0);
-  const pesoTotal = pesoTotalItens + (pesoEmbalagemTotal || 0);
+  const pesoTotalCalculado = pesoTotalItens + (pesoEmbalagemTotal || 0);
+  const pesoTotal = pesoTotalOverride !== null ? pesoTotalOverride : pesoTotalCalculado;
   const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
 
   const productCostMap = useMemo(() => {
@@ -445,6 +447,16 @@ export default function OrcamentoForm() {
                 return fallback ? { ...it, variacao: fallback } : it;
               });
               setItems(hidratado);
+              // Hidrata override de peso: se o peso salvo difere do somatório
+              // dos itens (>= 0.01 kg), o usuário sobrescreveu manualmente.
+              const pesoCalc = hidratado.reduce(
+                (s: number, it) => s + (Number((it as { peso_total?: number }).peso_total) || 0),
+                0,
+              );
+              const pesoSalvo = Number((orc as { peso_total?: number | null }).peso_total ?? 0);
+              if (Math.abs(pesoSalvo - pesoCalc) >= 0.01) {
+                setPesoTotalOverride(pesoSalvo);
+              }
             }
           } else if (orc !== null) {
             toast.error("Orçamento não encontrado.", { description: `Nenhum orçamento com ID ${id}.` });
@@ -721,6 +733,12 @@ export default function OrcamentoForm() {
           await deleteOrcamentoDraft(user.id, draftKey);
         } catch {/* ignore */}
       }
+      // Invalida caches para que a lista (Orcamentos) e dashboard reflitam
+      // a inclusão/edição sem F5. Inclui também filtros server-side.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["orcamentos"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+      ]);
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
         description: `Registro ${payload.numero} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
@@ -777,6 +795,7 @@ export default function OrcamentoForm() {
         itens: itemsPayload,
       });
 
+      await queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
       toast.success(`Duplicado: ${payload.numero}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
@@ -1267,7 +1286,9 @@ export default function OrcamentoForm() {
 
           <OrcamentoTotaisCard
             totalProdutos={totalProdutos}
-            pesoTotal={pesoTotal}
+            pesoTotal={pesoTotalCalculado}
+            pesoOverride={pesoTotalOverride}
+            onPesoOverrideChange={setPesoTotalOverride}
             form={{ valor_total: valorTotal, desconto, imposto_st: impostoSt, imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas }}
             onChange={handleTotalChange}
           />

@@ -528,10 +528,12 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
       <div className="hidden md:block">{renderTable(true)}</div>
 
       <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
-        <DialogContent className="max-w-6xl w-[95vw]">
-          <DialogHeader><DialogTitle>Itens do Orçamento — Tela cheia</DialogTitle></DialogHeader>
-          <div className="overflow-auto max-h-[75vh]">{renderTable(false)}</div>
-          <div className="flex items-center justify-between gap-2 pt-2 border-t">
+        <DialogContent className="max-w-[98vw] w-[98vw] sm:max-w-[98vw] h-[95vh] p-0 flex flex-col gap-0">
+          <DialogHeader className="shrink-0 px-5 py-4 border-b">
+            <DialogTitle>Itens do Orçamento — Tela cheia</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-auto px-5 py-3">{renderTable(false)}</div>
+          <div className="shrink-0 flex items-center justify-between gap-2 px-5 py-3 border-t bg-background">
             <div className="text-xs text-muted-foreground">Parcial: <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span></div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>

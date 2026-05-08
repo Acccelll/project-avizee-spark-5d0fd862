@@ -67,8 +67,8 @@ const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado", "expirado"];
 const PROXIMA_VENCER_DIAS = 7;
 
 const historicoOptions: { label: string; value: string }[] = [
-  { label: "Excluir históricos", value: "excluir" },
-  { label: "Apenas históricos", value: "apenas" },
+  { label: "Excluir legados", value: "excluir" },
+  { label: "Apenas legados", value: "apenas" },
   { label: "Todos", value: "todos" },
 ];
 
@@ -445,8 +445,8 @@ const Orcamentos = () => {
             placeholder="Validade"
             className="w-[200px]"
           />
-          {/* M-08: filtro histórico em chips (alinha ao padrão AdvancedFilterBar). */}
-          <div className="inline-flex items-center gap-1 rounded-md border border-input bg-background p-1" role="group" aria-label="Filtro de históricos">
+          {/* M-08: filtro de legados em chips (alinha ao padrão AdvancedFilterBar). */}
+          <div className="inline-flex items-center gap-1 rounded-md border border-input bg-background p-1" role="group" aria-label="Filtro de legados">
             {historicoOptions.map((opt) => {
               const active = historicoFilter === opt.value;
               return (

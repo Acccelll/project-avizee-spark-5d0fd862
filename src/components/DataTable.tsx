@@ -43,6 +43,24 @@ import { MobileCardList, type MobileCardField } from '@/components/ui/MobileCard
 import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
 import { useDataTableExport } from '@/hooks/useDataTableExport';
 import type { PermissionKey } from '@/lib/permissions';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 
 export interface Column<T> {
   key: string;
@@ -280,8 +298,10 @@ export function DataTable<T extends Record<string, any>>({
   const {
     hiddenKeys: hiddenKeysArr,
     viewMode,
+    columnOrder,
     setHiddenKeys: persistHiddenKeys,
     setViewMode: persistViewMode,
+    setColumnOrder: persistColumnOrder,
   } = useDataTablePrefs(moduleKey, initialHiddenKeys);
   const hiddenKeys = useMemo(() => new Set(hiddenKeysArr), [hiddenKeysArr]);
   const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
@@ -328,9 +348,41 @@ export function DataTable<T extends Record<string, any>>({
     localStorage.setItem(getStorageKey(moduleKey, 'saved-filters'), JSON.stringify(savedFilters));
   }, [savedFilters, moduleKey]);
 
-  const visibleColumns = columns.filter((c) => !hiddenKeys.has(c.key));
+  // Aplica columnOrder persistido. Colunas não listadas (novas adições ao
+  // schema) caem no fim na ordem original de `columns`.
+  const orderedColumns = useMemo(() => {
+    if (!columnOrder || columnOrder.length === 0) return columns;
+    const byKey = new Map(columns.map((c) => [c.key, c]));
+    const seen = new Set<string>();
+    const ordered: typeof columns = [];
+    for (const k of columnOrder) {
+      const c = byKey.get(k);
+      if (c) { ordered.push(c); seen.add(k); }
+    }
+    for (const c of columns) {
+      if (!seen.has(c.key)) ordered.push(c);
+    }
+    return ordered;
+  }, [columns, columnOrder]);
+  const visibleColumns = orderedColumns.filter((c) => !hiddenKeys.has(c.key));
   const primaryColumn = visibleColumns[0] || { key: 'id', label: 'ID' };
   const secondaryColumns = visibleColumns.slice(1);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const canReorder = !!moduleKey;
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const currentOrder = orderedColumns.map((c) => c.key);
+    const oldIndex = currentOrder.indexOf(String(active.id));
+    const newIndex = currentOrder.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(currentOrder, oldIndex, newIndex);
+    void persistColumnOrder(next);
+  };
 
   // Dev-only: avisa quando uma DataTable provavelmente tem coluna de status
   // (ex.: `ativo`, `status`, `situacao`) mas o consumidor não passou
@@ -762,8 +814,18 @@ export function DataTable<T extends Record<string, any>>({
                   ))}
                 </div>
                 <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => void persistHiddenKeys(columns.filter((c) => c.hidden).map((c) => c.key))}>
-                  <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar padrão
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar visibilidade
                 </Button>
+                {canReorder && (columnOrder?.length ?? 0) > 0 && (
+                  <Button variant="ghost" size="sm" className="w-full" onClick={() => void persistColumnOrder([])}>
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar ordem das colunas
+                  </Button>
+                )}
+                {canReorder && (
+                  <p className="text-[10px] text-muted-foreground px-1 mt-1.5 leading-snug">
+                    Dica: arraste o ícone <GripVertical className="inline h-3 w-3 align-text-bottom" /> no cabeçalho para reordenar.
+                  </p>
+                )}
                 <div className="mt-2 pt-2 border-t">
                   <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">Modo de exibição</p>
                   <div className="space-y-1">
@@ -934,16 +996,45 @@ export function DataTable<T extends Record<string, any>>({
                     <tr className="border-b bg-muted/70 backdrop-blur">
                       {hasActions && <th className="px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>}
                       {selectable && <th className="w-10 px-3 py-2.5"><Checkbox checked={pagedData.length > 0 && pagedData.every((item) => selectedIds.includes(item.id))} onCheckedChange={toggleSelectAll} /></th>}
-                       {visibleColumns.map((col) => {
-                         const sortableHere = serverPagination
-                           ? !!col.serverSortable
-                           : col.sortable !== false;
-                         return (
-                           <th key={col.key} className={cn('px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', sortableHere && 'cursor-pointer hover:text-foreground transition-colors')} onClick={() => sortableHere && handleSort(col.key)}>
-                             <div className="flex items-center gap-1.5">{col.label}{sortableHere && <SortIcon colKey={col.key} />}</div>
-                           </th>
-                         );
-                       })}
+                       {canReorder ? (
+                         <DndContext
+                           sensors={dndSensors}
+                           collisionDetection={closestCenter}
+                           onDragEnd={handleColumnDragEnd}
+                         >
+                           <SortableContext
+                             items={visibleColumns.map((c) => c.key)}
+                             strategy={horizontalListSortingStrategy}
+                           >
+                             {visibleColumns.map((col) => {
+                               const sortableHere = serverPagination
+                                 ? !!col.serverSortable
+                                 : col.sortable !== false;
+                               return (
+                                 <SortableHeaderCell
+                                   key={col.key}
+                                   colKey={col.key}
+                                   label={col.label}
+                                   sortable={sortableHere}
+                                   onSort={() => sortableHere && handleSort(col.key)}
+                                   sortIcon={sortableHere ? <SortIcon colKey={col.key} /> : null}
+                                 />
+                               );
+                             })}
+                           </SortableContext>
+                         </DndContext>
+                       ) : (
+                         visibleColumns.map((col) => {
+                           const sortableHere = serverPagination
+                             ? !!col.serverSortable
+                             : col.sortable !== false;
+                           return (
+                             <th key={col.key} className={cn('px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', sortableHere && 'cursor-pointer hover:text-foreground transition-colors')} onClick={() => sortableHere && handleSort(col.key)}>
+                               <div className="flex items-center gap-1.5">{col.label}{sortableHere && <SortIcon colKey={col.key} />}</div>
+                             </th>
+                           );
+                         })
+                       )}
                     </tr>
                   </thead>
                   <VirtualizedOrPlainTbody
@@ -1044,6 +1135,64 @@ export function DataTable<T extends Record<string, any>>({
 }
 
 // ── Virtualized or plain tbody ──────────────────────────────────────────────
+
+function SortableHeaderCell({
+  colKey,
+  label,
+  sortable,
+  onSort,
+  sortIcon,
+}: {
+  colKey: string;
+  label: string;
+  sortable: boolean;
+  onSort: () => void;
+  sortIcon: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: colKey });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'group px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground select-none',
+        sortable && 'hover:text-foreground transition-colors',
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-label={`Reordenar coluna ${label}`}
+          className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity touch-none -ml-1"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <span
+          className={cn(sortable && 'cursor-pointer flex items-center gap-1.5')}
+          onClick={sortable ? onSort : undefined}
+        >
+          {label}
+          {sortIcon}
+        </span>
+      </div>
+    </th>
+  );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function VirtualizedOrPlainTbody<T extends Record<string, any>>({
   data,
