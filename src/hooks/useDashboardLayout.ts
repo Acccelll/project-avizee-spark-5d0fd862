@@ -32,12 +32,12 @@ export const DEFAULT_ORDER: WidgetId[] = [
   'alertas',
   'financeiro',
   'acoes_rapidas',
-  'vendas_chart',
   'pendencias',
+  'fiscal',
   'comercial',
   'estoque',
   'logistica',
-  'fiscal',
+  'vendas_chart',
 ];
 
 const DEFAULT_PREFS: DashboardLayoutPrefs = { order: DEFAULT_ORDER, hidden: [] };

@@ -347,9 +347,9 @@ const DashboardContent = () => {
   // Pares "naturais" para layout 2 colunas. Ordem dentro do par é livre.
   const PAIR_GROUPS: Record<string, WidgetId[]> = {
     finRow: ["financeiro", "acoes_rapidas"],
-    midRow: ["vendas_chart", "pendencias"],
+    midRow: ["pendencias", "fiscal"],
     comRow: ["comercial", "estoque"],
-    logRow: ["logistica", "fiscal"],
+    logRow: ["logistica", "vendas_chart"],
   };
   const widgetToGroup = new Map<WidgetId, string>();
   for (const [gid, members] of Object.entries(PAIR_GROUPS)) {
