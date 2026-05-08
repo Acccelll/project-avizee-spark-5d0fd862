@@ -41,6 +41,9 @@ export function getPasswordCriteria(pwd: string): PasswordCriterion[] {
     { key: 'length', label: `Pelo menos ${PASSWORD_MIN_LENGTH} caracteres`, met: pwd.length >= PASSWORD_MIN_LENGTH },
     { key: 'case', label: 'Letras maiúsculas e minúsculas', met: /[A-Z]/.test(pwd) && /[a-z]/.test(pwd) },
     { key: 'digit', label: 'Pelo menos um número', met: /\d/.test(pwd) },
+    // Não-obrigatório, apenas visual — alinha com `getPasswordStrength`,
+    // que pontua caracteres especiais para chegar a "Forte".
+    { key: 'special', label: 'Caractere especial (recomendado)', met: /[^A-Za-z0-9]/.test(pwd) },
   ];
 }
 
@@ -55,7 +58,10 @@ export function getPasswordCriteriaWithMatch(pwd: string, confirm: string): Pass
 /** Valida e retorna a primeira mensagem de erro adequada para um inline alert. */
 export function validatePassword(pwd: string): PasswordValidationResult {
   const criteria = getPasswordCriteria(pwd);
-  const [lengthOk, caseOk, digitOk] = criteria.map((c) => c.met);
+  // O critério "special" é apenas visual — não entra na validação dura.
+  const lengthOk = criteria.find((c) => c.key === 'length')?.met ?? false;
+  const caseOk = criteria.find((c) => c.key === 'case')?.met ?? false;
+  const digitOk = criteria.find((c) => c.key === 'digit')?.met ?? false;
   if (!pwd) return { valid: false, error: 'Informe uma senha', criteria };
   if (!lengthOk) return { valid: false, error: `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`, criteria };
   if (!caseOk) return { valid: false, error: 'Use letras maiúsculas e minúsculas', criteria };
