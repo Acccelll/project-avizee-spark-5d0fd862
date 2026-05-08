@@ -25,6 +25,7 @@ import {
   Presentation,
   Store,
   Briefcase,
+  FolderCog,
 } from 'lucide-react';
 
 /** Canonical list of navSection keys. Add here first when introducing a new section. */
