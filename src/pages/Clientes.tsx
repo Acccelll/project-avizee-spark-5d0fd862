@@ -587,7 +587,7 @@ const Clientes = () => {
           searchPlaceholder="Buscar por nome, CNPJ, e-mail ou cidade..."
           activeFilters={cliActiveFilters}
           onRemoveFilter={handleRemoveCliFilter}
-          onClearAll={() => clearFilters(["tipo", "grupo", "ativo"])}
+          onClearAll={() => clearFilters(["tipo", "grupo", "ativo", "cadastro"])}
           count={totalCount ?? filteredData.length}
         >
           <MultiSelect options={ativoOptions} selected={ativoFilters} onChange={setAtivoFilters} placeholder="Status" className="w-[130px]" />
