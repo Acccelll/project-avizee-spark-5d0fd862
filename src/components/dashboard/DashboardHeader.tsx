@@ -14,6 +14,9 @@ const periodLabels: Record<DashboardPeriod, string> = {
   custom: 'Personalizado',
 };
 
+const PERIOD_BASE_TOOLTIP =
+  'Período base aplicado aos blocos sensíveis ao período. Estoque e Logística usam snapshot, Fiscal usa janela própria.';
+
 function formatRange(dateFrom: string, dateTo: string): string {
   // dateFrom / dateTo são YYYY-MM-DD locais.
   const fmt = (iso: string) => {
@@ -75,10 +78,13 @@ export function DashboardHeader({ lastUpdated, onRefresh, fetching = false, righ
             <span className="hidden md:inline text-border">·</span>
             <span
               className="flex items-center gap-1"
-              title="Intervalo efetivo aplicado aos blocos sensíveis ao período"
+              title={PERIOD_BASE_TOOLTIP}
             >
               <CalendarRange className="h-3 w-3" />
-              {periodLabels[period]}: {formatRange(range.dateFrom, range.dateTo)}
+              <span className="font-medium text-foreground/80">Período base</span>
+              <span aria-hidden className="text-border">·</span>
+              <span>{formatRange(range.dateFrom, range.dateTo)}</span>
+              <span className="text-muted-foreground/70">({periodLabels[period]})</span>
             </span>
           </div>
         </div>
