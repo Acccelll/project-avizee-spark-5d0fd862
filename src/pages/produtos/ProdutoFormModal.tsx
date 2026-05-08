@@ -49,7 +49,7 @@ export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved }: Pr
             <DialogTitle>{mode === "create" ? "Novo Produto" : "Editar Produto"}</DialogTitle>
             <DialogDescription>Formulário de cadastro de produto.</DialogDescription>
           </DialogHeader>
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 py-4">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
             {open && (
               <ProdutoForm
                 embedded
