@@ -85,15 +85,18 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
       </div>
 
       {/* Lista compras aguardando */}
-      <div className="flex-1 px-4 pt-2.5 pb-3 min-h-0 overflow-hidden flex flex-col">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Compras Aguardando Entrega
-        </p>
-        {comprasAguardando.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            Nenhuma entrega pendente
+      {comprasAguardando.length === 0 ? (
+        <div className="px-4 py-2.5">
+          <div className="flex items-center gap-2 rounded-lg bg-success/5 border border-success/20 px-3 py-2">
+            <div className="h-2 w-2 rounded-full bg-success shrink-0" />
+            <p className="text-xs text-success font-medium">Nenhuma entrega pendente.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="px-4 pt-2.5 pb-3 flex flex-col">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Compras Aguardando Entrega
           </p>
-        ) : (
           <div className="space-y-1 max-h-[160px] overflow-y-auto">
             {comprasAguardando.slice(0, 5).map((c: PedidoCompra) => {
               const dias = calcDiasEntrega(c);
@@ -130,8 +133,8 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
