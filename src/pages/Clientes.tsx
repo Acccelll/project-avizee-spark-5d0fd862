@@ -748,8 +748,12 @@ const Clientes = () => {
         footer={
           <FormModalFooter
             saving={saving} isDirty={isDirty}
-            disabled={Object.keys(formErrors).length > 0}
-            disabledReason={Object.keys(formErrors).length > 0 ? "Corrija os erros do formulário antes de salvar." : undefined}
+            disabled={Object.keys(formErrors).length > 0 || (mode === "edit" && !isDirty)}
+            disabledReason={
+              Object.keys(formErrors).length > 0
+                ? "Corrija os erros do formulário antes de salvar."
+                : (mode === "edit" && !isDirty ? "Nenhuma alteração para salvar." : undefined)
+            }
             onCancel={async () => {
               if (isDirty && !(await confirmDiscard())) return;
               setModalOpen(false);
@@ -759,8 +763,11 @@ const Clientes = () => {
         }
       >
         <form id="cliente-form" onSubmit={handleSubmit} className="space-y-0">
-          <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList
+              ref={tabsListRef}
+              className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
+            >
               <TabsTrigger value="dados-gerais" className="gap-1.5">
                 <User2 className="h-3.5 w-3.5" />Dados Gerais
                 {tabIssues.dadosGerais && (
