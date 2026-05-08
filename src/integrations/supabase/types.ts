@@ -9648,6 +9648,14 @@ export type Database = {
         }
         Returns: Json
       }
+      produtos_estoque_summary: {
+        Args: never
+        Returns: {
+          abaixo_minimo: number
+          criticos: number
+          zerados: number
+        }[]
+      }
       proximo_codigo_interno: { Args: { _tipo: string }; Returns: string }
       proximo_numero_cotacao_compra: { Args: never; Returns: string }
       proximo_numero_nf: { Args: never; Returns: string }
