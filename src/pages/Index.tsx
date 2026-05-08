@@ -195,6 +195,9 @@ const DashboardContent = () => {
       <AlertStrip
         titulosVencidos={stats.contasVencidas}
         notasPendentes={fiscalStats.pendentes}
+        saldoProjetado={saldoProjetado}
+        comprasAtrasadas={comprasAtrasadasCount}
+        remessasAtrasadas={remessasAtrasadas}
       />
     ),
     financeiro: () => (
