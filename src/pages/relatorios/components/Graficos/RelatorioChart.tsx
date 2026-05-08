@@ -40,6 +40,25 @@ const CHART_COLORS = [
   "hsl(262 83% 58%)",
 ];
 
+/**
+ * Onda 9.3 (A-07) — quando a série tem muitos pontos (> TOP_N) em pie/bar,
+ * agregamos a cauda em uma fatia "Outros" para evitar legenda ilegível e
+ * eixo X poluído. Linha mantém todos os pontos (eixo temporal precisa
+ * cobertura completa).
+ */
+const TOP_N = 12;
+function truncateTop(data: ChartDataPoint[], topN: number = TOP_N): { data: ChartDataPoint[]; truncated: number } {
+  if (data.length <= topN) return { data, truncated: 0 };
+  const sorted = [...data].sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  const head = sorted.slice(0, topN - 1);
+  const tail = sorted.slice(topN - 1);
+  const tailSum = tail.reduce((s, p) => s + (Number.isFinite(p.value) ? p.value : 0), 0);
+  return {
+    data: [...head, { name: `Outros (${tail.length})`, value: tailSum }],
+    truncated: tail.length,
+  };
+}
+
 export interface RelatorioChartProps {
   chartData: ChartDataPoint[];
   chartType: ChartType;
@@ -61,6 +80,11 @@ export function RelatorioChart({
   const useLine = chartType === "line";
   const formatValue = (v: number) =>
     isQuantityReport ? formatNumber(v) : formatCurrency(v);
+
+  // Linha preserva eixo temporal completo; pie/bar truncam para top-N.
+  const { data: chartDataView, truncated } = useLine
+    ? { data: chartData, truncated: 0 }
+    : truncateTop(chartData);
 
   /** Recharts activeDot onClick receives (event, payload) with extra positional args. */
   const handleActiveDotClick: React.MouseEventHandler<SVGCircleElement> | undefined =
@@ -94,6 +118,11 @@ export function RelatorioChart({
       <CardContent className="space-y-4">
         {chartData.length > 0 ? (
           <>
+            {truncated > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Mostrando os {TOP_N - 1} maiores · {truncated} agrupados em "Outros".
+              </p>
+            )}
             <div className="h-56 min-h-[224px] w-full">
               <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={200}>
                 {useLine ? (
@@ -113,7 +142,7 @@ export function RelatorioChart({
                 ) : usePie ? (
                   <PieChart>
                     <Pie
-                      data={chartData}
+                      data={chartDataView}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
@@ -124,7 +153,7 @@ export function RelatorioChart({
                       onClick={onDataPointClick}
                       style={onDataPointClick ? { cursor: 'pointer' } : undefined}
                     >
-                      {chartData.map((_, i) => (
+                      {chartDataView.map((_, i) => (
                         <Cell
                           key={i}
                           fill={CHART_COLORS[i % CHART_COLORS.length]}
@@ -135,8 +164,8 @@ export function RelatorioChart({
                     <Tooltip formatter={(v: number) => formatValue(v)} />
                   </PieChart>
                 ) : (
-                  <BarChart data={chartData}>
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={chartData.length > 8 ? 'preserveStartEnd' : 0} />
+                  <BarChart data={chartDataView}>
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={chartDataView.length > 8 ? 'preserveStartEnd' : 0} />
                     <YAxis hide />
                     <Tooltip formatter={(v: number) => formatValue(v)} />
                     <Bar
@@ -152,7 +181,7 @@ export function RelatorioChart({
             </div>
 
             <div className="space-y-2">
-              {chartData.slice(0, 6).map((item, i) => (
+              {chartDataView.slice(0, 6).map((item, i) => (
                 <div
                   key={`${item.name}-${i}`}
                   className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5"

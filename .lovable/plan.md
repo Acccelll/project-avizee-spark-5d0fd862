@@ -107,9 +107,14 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - [x] **A-06** `useRelatoriosFavoritos` agora emite toast explícito (`success` ou `warning`) quando a migração local→DB ocorre, evitando a sensação de "favoritos sumiram".
 
 ### 9.3 UX/Mobile — pendente
-- [ ] A-07/A-03/M-04 RelatorioChart topN, derivações no loader, busca por keyword no catálogo.
-- [ ] M-01/02/03/05/06 staleTime por tipo, badge "atualizando", chip regime DRE, validação modo fechado, bloqueio aprovação sem comentários.
-- [ ] MB-03/04/05 chart min-h, DreTable mobile cards, progresso de export.
+### 9.3 UX/Mobile — parcial
+- [x] **A-07** `RelatorioChart` agrega cauda em "Outros" para pie/bar quando série > 12 pontos; linha mantém eixo temporal completo. Aviso visual quando trunca.
+- [x] **M-04** Catálogo de Relatórios: busca casa também o título da categoria (ex.: "comercial" lista todos os relatórios da seção).
+- [x] **MB-04** `DreTable` em mobile renderiza cards verticais (header/subtotal/resultado/deducao com tons distintos) em vez da tabela de duas colunas.
+- [x] **MB-03** Auditado — `RelatorioChart` já usa `h-56 min-h-[224px] w-full` com `ResponsiveContainer minHeight=200`. Sem regressão.
+- [ ] **A-03** Derivações reaproveitáveis no loader (mover do component para o service). — backlog 9.4
+- [ ] **M-01/02/03/05/06** staleTime por tipo, badge "atualizando", chip regime DRE, validação modo fechado, bloqueio aprovação sem comentários. — backlog 9.4
+- [ ] **MB-05** Progresso de export (streaming). — backlog 9.4
 
 ### 9.4 Refatorações — pendente
 - [ ] D-01 decompor `Relatorios.tsx`. M-07 auditar `apresentacao-cadencia-runner`. DP-03/05 EXPLAIN views + N+1.
