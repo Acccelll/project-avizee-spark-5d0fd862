@@ -675,7 +675,7 @@ export default function ProdutoForm({
             </TabsContent>
 
             {/* ESTOQUE */}
-            <TabsContent value="estoque" className="space-y-4 mt-0">
+            <TabsContent value="estoque" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><Archive className="w-4 h-4" /> Suprimentos e Logística</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -697,7 +697,7 @@ export default function ProdutoForm({
             </TabsContent>
 
             {/* FISCAL */}
-            <TabsContent value="fiscal" className="space-y-4 mt-0">
+            <TabsContent value="fiscal" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <FileText className="w-4 h-4" /> Dados Fiscais
@@ -742,7 +742,7 @@ export default function ProdutoForm({
             </TabsContent>
 
             {/* COMPRAS */}
-            <TabsContent value="compras" className="space-y-4 mt-0">
+            <TabsContent value="compras" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-sm flex items-center gap-2"><ShoppingCart className="w-4 h-4" /> Compras / Fornecedores</h3>
@@ -870,7 +870,7 @@ export default function ProdutoForm({
             </TabsContent>
 
             {/* OBSERVAÇÕES */}
-            <TabsContent value="observacoes" className="space-y-4 mt-0">
+            <TabsContent value="observacoes" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição / Observações</h3>
                 <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
