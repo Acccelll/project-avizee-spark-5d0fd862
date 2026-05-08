@@ -162,7 +162,7 @@ export function ProdutoView({ id }: Props) {
 
   // ── PUBLISH DRAWER SLOTS (header padronizado via DrawerHeaderShell) ──
   usePublishDrawerSlots(`produto:${id}`, {
-    breadcrumb: selected?.sku ? `Produto · ${selected.sku}` : undefined,
+    breadcrumb: "Cadastros › Produtos",
     summary: selected ? (
       <RecordIdentityCard
         icon={Package}
@@ -173,6 +173,7 @@ export function ProdutoView({ id }: Props) {
             {selected.sku && selected.sku !== selected.codigo_interno && (
               <span className="font-mono">SKU: {selected.sku}</span>
             )}
+            <span className="text-muted-foreground/70">· atualizado {formatDate(selected.updated_at)}</span>
           </>
         }
         badges={
