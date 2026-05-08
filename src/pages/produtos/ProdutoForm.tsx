@@ -425,23 +425,24 @@ export default function ProdutoForm({
   const titleText = mode === "create" ? "Novo Produto" : "Editar Produto";
 
   const headerTitle = (
-          <span className="flex items-center gap-2">
-            <span>{titleText}</span>
-            {mode === "edit" && editingProduct && (
-              <span className="font-mono text-sm text-muted-foreground">
-                {editingProduct.codigo_interno || editingProduct.sku || ""}
-              </span>
-            )}
-          </span>
+    <div className="flex flex-col min-w-0">
+      <span className="text-sm text-muted-foreground font-medium leading-tight">{titleText}</span>
+      {mode === "edit" && editingProduct && (
+        <span className="text-base sm:text-lg font-semibold leading-tight truncate">
+          {editingProduct.nome || "—"}
+          {editingProduct.codigo_interno && (
+            <span className="ml-2 font-mono text-xs text-muted-foreground">{editingProduct.codigo_interno}</span>
+          )}
+        </span>
+      )}
+    </div>
   );
   const headerSubtitle =
     mode === "edit" && editingProduct
-            ? <>Atualizado em {editingProduct.updated_at ? formatDate(editingProduct.updated_at) : "—"}</>
+      ? <>Atualizado em {editingProduct.updated_at ? formatDate(editingProduct.updated_at) : "—"}</>
       : "Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar.";
-  const headerBadge =
-    mode === "edit" && editingProduct ? (
-      <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} />
-    ) : undefined;
+  // Status agora é controlado exclusivamente pelo toggle nas headerActions
+  const headerBadge = undefined;
   const headerActions = (
           <div className="flex items-center gap-2">
             {mode === "edit" && editingProduct && (
