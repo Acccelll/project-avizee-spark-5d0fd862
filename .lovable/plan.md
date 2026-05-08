@@ -129,4 +129,9 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - [x] **MB-05** `useRelatorioExport` emite toast em fases (`Preparando dados...` → `Montando PDF/planilha...` → sucesso/erro), mantendo `id` único por export para evitar empilhamento.
 - [x] **D-01** `RelatorioHeaderActions` extraído (Atualizar + Salvar/Aplicar favoritos com seu próprio estado de popover). `Relatorios.tsx` caiu de 572 → 492 linhas; sem mudança de comportamento.
 - [x] **M-07** `apresentacao-cadencia-runner` agora exige `CRON_SECRET` (header `x-cron-secret` ou query `cron_secret`), seguindo o mesmo padrão de `process-nfe-retry-cron`/`process-distdfe-cron`. `today` e `competenciaAlvo()` migrados para `America/Sao_Paulo` para evitar disparo duplicado/perdido na virada UTC.
-- [ ] **DP-03/05** EXPLAIN views + N+1. — backlog 9.6
+- [x] **DP-03/05** Auditoria concluída.
+  - **EXPLAIN** rodado nas 4 queries mais quentes dos loaders (`notas_fiscais` filtro saída/confirmada por período, `notas_fiscais_itens` join para Curva ABC, `estoque_movimentos` por período, `financeiro_lancamentos` em aberto por vencimento). Todas usam Index Scan — `idx_notas_fiscais_status`, `idx_notas_fiscais_itens_nota_fiscal_id`, `idx_estoque_movimentos_created_at`, `idx_financeiro_lancamentos_data_vencimento`. Nenhum Seq Scan; índices compostos da Onda 8 (`idx_notas_fiscais_ativo_data_status` + parciais por tipo/modelo) cobrem o volume atual.
+  - **N+1**: caça em `services/relatorios/loaders/*` (1532 LOC) confirma que **todos** os 6 loaders usam `fetchAllPages` + joins embutidos PostgREST (`produtos(...)`, `clientes(...)`, `notas_fiscais!inner(...)`, `grupos_economicos(...)`). Único `await` extra é `loadMovimentosEstoque` resolvendo `produtoIds` por grupo antes do `IN` — comportamento esperado, não é N+1. Sem laços `for..await` em todos os loaders.
+  - Conclusão: nada para corrigir nesta onda. Reabrir se índice/volume mudar.
+
+**Onda 9 — concluída.** Resta apenas backlog tático de touch-targets/ergonomia que será absorvido em ondas futuras.
