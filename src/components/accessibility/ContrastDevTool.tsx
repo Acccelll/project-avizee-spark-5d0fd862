@@ -37,7 +37,7 @@ export function ContrastDevTool() {
   const badgeText = useMemo(() => (issues.length > 0 ? `${issues.length} contraste(s)` : "Contraste OK"), [issues.length]);
 
   return (
-    <div className="fixed bottom-3 left-3 z-[120]">
+    <div className="fixed bottom-3 left-3 z-[120] hidden sm:block">
       <button
         type="button"
         aria-label="Abrir auditoria de contraste"

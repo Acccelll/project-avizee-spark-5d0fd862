@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tables } from "@/integrations/supabase/types";
 import { fetchProdutoDetalhes, deleteProduto } from "@/services/produtos.service";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, Layers, DollarSign } from "lucide-react";
+import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, Layers, DollarSign, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -193,43 +199,84 @@ export function ProdutoView({ id }: Props) {
     ) : undefined,
     actions: selected ? (
       <>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          aria-label="Editar produto"
-          onClick={() => {
-            navigate(`/produtos?editId=${id}`);
-            window.setTimeout(() => clearStack(), 0);
-          }}
-        >
-          <Edit className="h-3.5 w-3.5" /> Editar
-        </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
+        {/* Mobile: Editar (primário) + kebab */}
+        <div className="flex items-center gap-1.5 w-full sm:hidden">
+          <Button
+            size="sm"
+            className="h-9 flex-1 gap-1.5 text-xs"
+            aria-label="Editar produto"
+            onClick={() => {
+              navigate(`/produtos?editId=${id}`);
+              window.setTimeout(() => clearStack(), 0);
+            }}
+          >
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Mais ações">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
+              </DropdownMenuItem>
+              {isAdmin && selected.ativo === false && (
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setPermDeleteOpen(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir definitivamente
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Desktop: layout original */}
+        <div className="hidden sm:flex items-center gap-1.5 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            aria-label="Editar produto"
+            onClick={() => {
+              navigate(`/produtos?editId=${id}`);
+              window.setTimeout(() => clearStack(), 0);
+            }}
+          >
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                aria-label="Excluir produto"
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Excluir
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Excluir produto</TooltipContent>
+          </Tooltip>
+          {isAdmin && selected.ativo === false && (
             <Button
               variant="ghost"
               size="sm"
               className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-              aria-label="Excluir produto"
-              onClick={() => setDeleteConfirmOpen(true)}
+              aria-label="Excluir produto permanentemente"
+              onClick={() => setPermDeleteOpen(true)}
             >
-              <Trash2 className="h-3.5 w-3.5" /> Excluir
+              <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>Excluir produto</TooltipContent>
-        </Tooltip>
-        {isAdmin && selected.ativo === false && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-            aria-label="Excluir produto permanentemente"
-            onClick={() => setPermDeleteOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
-          </Button>
-        )}
+          )}
+        </div>
       </>
     ) : undefined,
   });
@@ -278,35 +325,37 @@ export function ProdutoView({ id }: Props) {
           tone={selectedMargem > 0 ? "success" : selectedMargem < 0 ? "destructive" : "neutral"}
           align="center"
         />
-        <DrawerSummaryCard
-          label="Estoque"
-          value={naoControlaEstoque ? "—" : `${selected.estoque_atual ?? 0} ${selected.unidade_medida || ""}`}
-          tone={semEstoque || estoqueBaixo ? "destructive" : "neutral"}
-          hint={naoControlaEstoque ? "Não controla" : semEstoque ? "Sem estoque" : estoqueBaixo ? "Abaixo do mínimo" : undefined}
-          align="center"
-        />
+        <div className="col-span-2 sm:col-span-1">
+          <DrawerSummaryCard
+            label="Estoque"
+            value={naoControlaEstoque ? "—" : `${selected.estoque_atual ?? 0} ${selected.unidade_medida || ""}`}
+            tone={semEstoque || estoqueBaixo ? "destructive" : "neutral"}
+            hint={naoControlaEstoque ? "Não controla" : semEstoque ? "Sem estoque" : estoqueBaixo ? "Abaixo do mínimo" : undefined}
+            align="center"
+          />
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full grid grid-cols-7">
-          <TabsTrigger value="geral" className="text-xs px-0.5">Geral</TabsTrigger>
-          <TabsTrigger value="compras" className="text-xs px-0.5">
+        <TabsListScrollable>
+          <TabsTrigger value="geral" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">Geral</TabsTrigger>
+          <TabsTrigger value="compras" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Compras{fornecedoresCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({fornecedoresCount})</span>}
           </TabsTrigger>
-          <TabsTrigger value="preco" className="text-xs px-0.5">
+          <TabsTrigger value="preco" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Preço{(semVenda || semCusto) && <span className="ml-1 text-[10px] text-warning" aria-label="Preço incompleto">!</span>}
           </TabsTrigger>
-          <TabsTrigger value="estoque" className="text-xs px-0.5">
+          <TabsTrigger value="estoque" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Estoque{(estoqueBaixo || semEstoque) && <span className="ml-1 text-[10px] text-destructive" aria-label="Estoque crítico">!</span>}
           </TabsTrigger>
-          <TabsTrigger value="fiscal" className="text-xs px-0.5">
+          <TabsTrigger value="fiscal" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Fiscal{!fiscalCompleto && <span className="ml-1 text-[10px] text-warning" aria-label="Fiscal incompleto">!</span>}
           </TabsTrigger>
-          <TabsTrigger value="precos" className="text-xs px-0.5">Espec.</TabsTrigger>
-          <TabsTrigger value="vendas" className="text-xs px-0.5">
+          <TabsTrigger value="precos" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">Espec.</TabsTrigger>
+          <TabsTrigger value="vendas" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Vendas{vendasCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({vendasCount})</span>}
           </TabsTrigger>
-        </TabsList>
+        </TabsListScrollable>
 
         {/* Tab: Geral */}
         <TabsContent value="geral" className="space-y-3 mt-3">
@@ -564,6 +613,10 @@ export function ProdutoView({ id }: Props) {
 
         {/* Tab: Estoque */}
         <TabsContent value="estoque" className="space-y-3 mt-3">
+          <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Controla estoque?</span>
+            <span className="font-medium">{naoControlaEstoque ? "Não" : "Sim"}</span>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className={`rounded-lg border p-3 text-center ${estoqueBaixo ? "border-destructive/40 bg-destructive/5" : ""}`}>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estoque Atual</p>
@@ -582,6 +635,27 @@ export function ProdutoView({ id }: Props) {
               <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
             </div>
           </div>
+          {!naoControlaEstoque && Number(selected.estoque_minimo || 0) > 0 && Number(selected.estoque_atual || 0) > 0 && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Margem de segurança</span>
+                <span className="font-mono">
+                  {Number(selected.estoque_atual)} / {Number(selected.estoque_minimo) * 2}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    estoqueBaixo ? "bg-destructive" : "bg-success",
+                  )}
+                  style={{
+                    width: `${Math.min(100, (Number(selected.estoque_atual) / (Number(selected.estoque_minimo) * 2)) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
           {reservado > 0 && (
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border p-3 text-center">
@@ -605,7 +679,7 @@ export function ProdutoView({ id }: Props) {
               <span className="font-mono font-semibold text-sm">{formatCurrency(estoqueValor)}</span>
             </div>
           )}
-          {(ultimaEntrada || ultimaSaida) && (
+          {(ultimaEntrada || ultimaSaida) ? (
             <div className="grid grid-cols-2 gap-3">
               {ultimaEntrada && (
                 <div className="rounded-lg border p-3 space-y-0.5">
@@ -624,6 +698,10 @@ export function ProdutoView({ id }: Props) {
                 </div>
               )}
             </div>
+          ) : (
+            !naoControlaEstoque && (
+              <p className="text-xs text-muted-foreground italic px-1">Sem movimentações registradas.</p>
+            )
           )}
           {movimentos.length > 0 && (
             <div>
@@ -734,6 +812,7 @@ export function ProdutoView({ id }: Props) {
                   const total = qtd * vu;
                   return (
                     <div key={idx} className="rounded-lg border bg-card hover:bg-muted/30 transition-colors p-2.5 space-y-1">
+                      {/* Linha 1: Cliente · Total */}
                       <div className="flex justify-between items-center gap-2">
                         {h.notas_fiscais?.clientes ? (
                           <RelationalLink
@@ -747,6 +826,7 @@ export function ProdutoView({ id }: Props) {
                         )}
                         <span className="font-mono font-semibold text-sm shrink-0">{formatCurrency(total)}</span>
                       </div>
+                      {/* Linha 2: NF · Data — Linha 3: qtd × valor (mobile separado) */}
                       <div className="flex justify-between items-center text-[11px] text-muted-foreground">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-[11px]">
@@ -755,7 +835,10 @@ export function ProdutoView({ id }: Props) {
                           <span>·</span>
                           <span>{formatDate(h.notas_fiscais?.data_emissao)}</span>
                         </div>
-                        <span className="font-mono">{qtd} × {formatCurrency(vu)}</span>
+                        <span className="font-mono hidden sm:inline">{qtd} × {formatCurrency(vu)}</span>
+                      </div>
+                      <div className="sm:hidden text-[11px] text-muted-foreground font-mono">
+                        {qtd} × {formatCurrency(vu)}
                       </div>
                     </div>
                   );
@@ -824,7 +907,7 @@ interface FieldItemProps {
   mono?: boolean;
   capitalize?: boolean;
 }
-function FieldItem({ label, value, emptyText = "—", mono, capitalize }: FieldItemProps) {
+function FieldItem({ label, value, emptyText = "Não informado", mono, capitalize }: FieldItemProps) {
   const isEmpty = value === null || value === undefined || value === "";
   return (
     <div>
@@ -834,6 +917,34 @@ function FieldItem({ label, value, emptyText = "—", mono, capitalize }: FieldI
       ) : (
         <p className={cn("text-sm", mono && "font-mono", capitalize && "capitalize")}>{value}</p>
       )}
+    </div>
+  );
+}
+
+/**
+ * TabsListScrollable — no mobile vira lista horizontal com scroll suave;
+ * no sm+ mantém o grid de 7 colunas. Faz auto-scroll para a aba ativa.
+ */
+function TabsListScrollable({ children }: { children: React.ReactNode }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const observer = new MutationObserver(() => {
+      const active = wrapper.querySelector<HTMLElement>('[data-state="active"]');
+      if (active) active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    });
+    observer.observe(wrapper, { attributes: true, subtree: true, attributeFilter: ["data-state"] });
+    // scroll inicial
+    const active = wrapper.querySelector<HTMLElement>('[data-state="active"]');
+    if (active) active.scrollIntoView({ inline: "center", block: "nearest" });
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div ref={wrapperRef} className="-mx-3 sm:mx-0 overflow-x-auto scrollbar-none">
+      <TabsList className="inline-flex w-max gap-1 px-3 h-auto sm:h-10 sm:px-0 sm:w-full sm:grid sm:grid-cols-7">
+        {children}
+      </TabsList>
     </div>
   );
 }

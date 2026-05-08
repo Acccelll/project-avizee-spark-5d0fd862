@@ -1,65 +1,100 @@
-## Onda 16 — Grid de Produtos no mobile
 
-Foco: refinar densidade e clareza do card mobile, eliminar redundâncias percebidas e melhorar paginação. Mudanças concentradas em `src/pages/Produtos.tsx`, `src/components/SummaryCard.tsx`, `src/components/AdvancedFilterBar.tsx`, `src/components/ui/MobileCardList.tsx` e `src/components/DataTable.tsx`.
+# Onda 17 — Drawer de Produtos: refino mobile
 
-### 1. FAB "+" vs botão "Novo Produto" (alta)
-O "+" no canto inferior direito é o **`MobileQuickActions`** global (atalhos rápidos cross-módulo), não um duplicado de "Novo Produto" — mas a leitura do usuário é de duplicidade. Estratégia:
-- Trocar o ícone do FAB global de `Plus` para `Zap` (raio) e adicionar uma **mini-label "Atalhos"** abaixo do ícone, para diferenciar visualmente do botão de criar.
-- Manter "Novo Produto" no topo (canônico para cadastros).
+Foco exclusivo em UI/UX no mobile (≤ md). Sem mudanças de regra de negócio. Desktop mantém o comportamento atual.
 
-### 2. SummaryCard "Abaixo do mín..." truncado (alta)
-- Em `SummaryCard.tsx`, aceitar uma prop opcional `shortTitle` e usá-la quando `useIsMobile()` for true (sem mexer em desktop).
-- Em `Produtos.tsx`, passar `shortTitle="Estoque crítico"` para o card de criticos. O `subtitle` ganha frase clara: `"itens no cadastro"` (ou "filtrando: X" quando ativo).
-- Reduzir levemente o tamanho do `value` em modo `compact` no mobile para evitar reflow.
+## 1. Drawer full-screen no mobile (alta)
 
-### 3. Card mobile do produto — remover SKU duplicado e melhorar hierarquia (alta)
-Hoje o `MobileCardList` renderiza:
-- linha 1: nome (primary)
-- linha 2: identifier (codigo_interno) — vindo de `mobileIdentifierKey="sku"` mal mapeado
-- linha 3: detail-fields (Estoque, P. Venda)
+`src/components/views/RelationalDrawerStack.tsx`
 
-Ações em `Produtos.tsx`:
-- Trocar `mobileIdentifierKey="sku"` por `mobileIdentifierKey="codigo_interno"` (a célula "Produto" já mostra `SKU · Interno · Var.` na linha 2, então o identifier separado vira redundância — preferimos remover o identifier no mobile).
-- Adicionar nova prop em `DataTable`: `mobileHideIdentifier?: boolean` para suprimir a linha identifier quando o `mobilePrimary` já carrega esses metadados. Usar no Produtos.
-- Ajustar render da coluna `nome` para incluir variação completa (não só a primeira) com truncate: `Var. 13 x 45` ou `Var. 13 x 45 +N` (já está, manter).
+- `SheetContent`:
+  - `w-full sm:max-w-xl` → `w-screen h-[100dvh] sm:h-auto sm:max-w-xl rounded-none sm:rounded-l-lg`
+  - Empilhamento (`translateX -8px`) só a partir de `sm`: aplicar inline style apenas quando `window.innerWidth >= 640` (ou via CSS responsivo). No mobile, todos os drawers ocupam tela cheia.
+  - Sombra/borda lateral apenas `sm`+ (no mobile não há "espaço escuro ao redor").
+- Padding do conteúdo: `px-4 sm:px-6 py-4` → `px-3 sm:px-6 pt-3 pb-24 sm:pb-4` (folga p/ o FAB Atalhos).
 
-### 4. Variação visível no card (alta)
-- Garantir que a variação aparece sempre na 2ª linha do card. Se `parseVariacoes(p.variacoes).length === 0`, omitir o segmento (sem `Var. —`). Já está parcialmente correto, validar.
-- No card "Estoque" mobile, exibir um `Badge` neutro com a primeira variação quando houver — opcional, controlado por flag local para não poluir.
+## 2. Header mais leve no mobile (média)
 
-### 5. "0 CX" + "Não controla" ambíguo (alta)
-Em `Produtos.tsx`, no `render` da coluna `estoque_atual`:
-- Quando `situacao === "nao_controla"`: renderizar **apenas** o texto "Estoque: não controlado" (sem o número 0 e sem o sufixo da unidade). Mantém o badge cinza "Não controla".
-- Demais situações continuam como hoje, mas com prefixo `"Estoque:"` no mobile (via flag `useIsMobile()` dentro do render ou simplesmente prepend sempre — manter desktop limpo via CSS `hidden sm:inline`).
+`src/components/ui/DrawerHeaderShell.tsx`
 
-### 6. Rótulos "Estoque" / "Venda" no card (média)
-- Adicionar suporte em `MobileCardList` para um modo `labeledDetails` (default off). Quando ligado, cada `detailField` renderiza `<dt>label</dt><dd>value</dd>` em uma grid 2-col compacta — usado pelo `DataTable` com nova prop `mobileLabeledDetails: true`.
-- Ativar em Produtos para mostrar `Estoque: 0 CX  ·  Venda: R$ 33,99  ·  Margem: 41,6%`.
+- Esconder breadcrumb e contador `1 de N` no mobile quando `total === 1`: classes `hidden sm:flex` na linha de breadcrumb. Quando `total > 1`, mantém apenas o counter compacto.
+- Reduzir paddings no mobile: `pt-3 pb-2 px-4` → `pt-2 pb-1.5 px-3 sm:pt-3 sm:pb-2 sm:px-6`.
+- Zona "ações do registro": `justify-end` → `justify-between sm:justify-end` para que `Editar` (esquerda) e `Excluir` (direita) usem toda a largura no mobile e não pareçam "soltos".
 
-### 7. Margem no mobile (média)
-- Adicionar `mobileCard: true` na coluna `margem` em `Produtos.tsx`. Como já existem estados explícitos ("Sem custo" / "Sem preço"), o card mostra o valor sem ambiguidade.
+`src/components/views/ProdutoView.tsx` (slot `actions`)
 
-### 8. Status no card — reposicionar (baixa)
-- O `statusBadge` já é renderizado no canto superior direito via `mobileStatusKey="ativo"`. Reduzir o tamanho via classe `text-[10px] px-1.5 h-4` no render da coluna `ativo` para diminuir competição com o nome.
+- No mobile, exibir somente **Editar** como botão primário sólido (`flex-1`) + **menu kebab** (`MoreVertical`) com Excluir / Excluir definitivamente. No `sm`+ manter o layout atual (botões inline).
+- Implementar via `hidden sm:inline-flex` / `sm:hidden` — sem novo componente.
 
-### 9. Placeholder de busca trunca (média)
-- Em `Produtos.tsx`, passar dois placeholders: usar texto curto no mobile. Como `AdvancedFilterBar` não conhece viewport, simplificar para `"Nome, SKU ou código"` (cabe no mobile e desktop).
+## 3. KPIs reorganizados no mobile (média)
 
-### 10. Indicador de filtros ativos (média)
-- Já existe badge numérico no botão "Filtros" mobile e chips ativos abaixo da busca — validar que `prodActiveFilters` aparecem visíveis e que o botão "Limpar filtros" some quando não há ativos. Sem mudança de código necessária; documentar como já-OK.
+`ProdutoView.tsx` — grid de KPIs (linhas 266–288)
 
-### 11. Paginação mobile (média)
-- O footer atual mostra `1–25 de 243` + botões `‹ ›` mas o FAB pode estar cobrindo. Em `DataTable.tsx`, adicionar `pb-20 md:pb-0` no container do footer mobile e/ou aumentar `padding-bottom` do wrapper de paginação para que os botões ‹ › fiquem acima do FAB.
-- Adicionar opção `mobilePaginationStyle: "pager" | "loadMore"` (default `pager`). Quando `loadMore`, substituir os botões por um único `Carregar mais` em modo server-paged (acumulando `pageSize`). Não vamos ativar por padrão; documentar.
+- `grid-cols-2 sm:grid-cols-5` mantém-se, mas:
+  - Card "Estoque" recebe `col-span-2 sm:col-span-1` para ocupar largura total na 3ª linha do mobile.
+  - Ordem: Venda, Custo, Lucro, Margem, Estoque (full-width).
 
-### Arquivos editados
-- `src/pages/Produtos.tsx` — props no SummaryCard, render da coluna estoque com regra `nao_controla`, `mobileCard` em margem, placeholder curto, `mobileIdentifierKey`, `mobileHideIdentifier`, `mobileLabeledDetails`.
-- `src/components/SummaryCard.tsx` — prop `shortTitle`.
-- `src/components/ui/MobileCardList.tsx` — modo `labeledDetails` e suporte a `hideIdentifier`.
-- `src/components/DataTable.tsx` — props `mobileHideIdentifier`, `mobileLabeledDetails`; padding-bottom do footer mobile.
-- `src/components/navigation/MobileQuickActions.tsx` — trocar ícone do FAB para `Zap` + label discreta "Atalhos".
+## 4. Tabs horizontais scrolláveis (alta)
 
-### Fora do escopo
-- "Mostrar mais" como default da paginação mobile (apenas tornar opt-in).
-- Skeleton específico mobile.
-- Alterações no `AdvancedFilterBar` (chips e contador já cobrem o ponto 11).
+`ProdutoView.tsx` (linhas 290–309)
+
+- Trocar `TabsList className="w-full grid grid-cols-7"` por:
+  - Wrapper: `<div className="-mx-3 sm:mx-0 overflow-x-auto scrollbar-none">`
+  - `TabsList`: `inline-flex w-max gap-1 px-3 sm:px-0 sm:w-full sm:grid sm:grid-cols-7`
+  - Cada `TabsTrigger`: `text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink` (target ≥ 40px no mobile).
+- Garantir que a aba ativa fica visível: ao mudar `activeTab`, scroll horizontal para o gatilho ativo (`scrollIntoView({ inline: "center", block: "nearest" })`). Implementar via `useEffect` lendo `[data-state=active]` dentro do wrapper.
+
+## 5. Aba Compras / Espec. — empty states acionáveis (alta)
+
+Já há CTA em "Vincular fornecedor" (compras) e em `PrecosEspeciaisTab` (Espec.). Refinar copy:
+
+- Compras: subtítulo já é bom; apenas trocar título do `h4` superior para esconder no estado vazio (evitar duplicar contexto).
+- Espec.: garantir que o estado vazio do `PrecosEspeciaisTab` traga texto explicativo: "Crie regras por cliente, grupo comercial ou período promocional." + exemplos curtos (3 bullets) + CTA "Adicionar regra". Verificar `PrecosEspeciaisTab.tsx` (já tocado em ondas anteriores) e ajustar somente o empty state se ainda estiver minimalista.
+
+## 6. Aba Estoque — mais conteúdo (alta)
+
+`ProdutoView.tsx` (linhas 566–650)
+
+- Adicionar card compacto "Controla estoque?" (Sim/Não) baseado em `naoControlaEstoque`.
+- Quando não houver `ultimaEntrada` nem `ultimaSaida`, exibir linha discreta "Sem movimentações registradas".
+- Se `selected.estoque_minimo > 0` e `estoque_atual > 0`, mostrar barra de progresso simples (`atual / (mínimo * 2)`) abaixo dos cards principais para visualizar margem de segurança.
+
+## 7. Aba Geral — campos vazios (baixa)
+
+`FieldItem` (linha 827) — substituir default `emptyText = "—"` por `"Não informado"`. Verificar nenhum local ainda dependa do hífen literal.
+
+## 8. Aba Vendas — leitura em 3 linhas (média)
+
+`ProdutoView.tsx` (linhas 730–763)
+
+- Refatorar item para 3 linhas em mobile:
+  - Linha 1: Cliente (esquerda, truncate) · Total (direita, font-mono semibold).
+  - Linha 2: NF nº · Data.
+  - Linha 3: `qtd × valor unitário` (texto menor, muted).
+- Em `sm:`+ pode permanecer no layout atual (2 linhas).
+- Destacar "Margem Méd." em `text-destructive` quando negativa (já é, manter) e adicionar `font-bold`.
+
+## 9. Badge "Contraste OK" (baixa)
+
+`src/components/accessibility/ContrastDevTool.tsx`
+
+- Já é gated por `import.meta.env.DEV`. Para evitar competir com o conteúdo no mobile:
+  - Adicionar `hidden sm:block` no wrapper fixo, ou
+  - Reduzir para um ponto pequeno (`w-2 h-2 rounded-full bg-success`) e expandir só ao hover/click.
+- Escolher: `hidden sm:block` (mais simples; mantém ferramenta para auditoria desktop em dev).
+
+## Arquivos afetados
+
+```text
+src/components/views/RelationalDrawerStack.tsx
+src/components/ui/DrawerHeaderShell.tsx
+src/components/views/ProdutoView.tsx
+src/components/precos/PrecosEspeciaisTab.tsx        (apenas refino do empty state se necessário)
+src/components/accessibility/ContrastDevTool.tsx
+```
+
+## Fora de escopo
+
+- Mudar a estrutura de `RelationalDrawerStack` para `Drawer` (vaul) no mobile — manteremos `Sheet` apenas com `h-[100dvh]` para reduzir risco.
+- Reordenação semântica das abas.
+- Persistência de `activeTab` por produto.
