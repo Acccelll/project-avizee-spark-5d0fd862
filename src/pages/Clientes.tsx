@@ -1266,14 +1266,26 @@ const Clientes = () => {
               <p className="text-xs text-muted-foreground mb-3">
                 Notas internas e contexto adicional sobre o cliente. Visível apenas internamente.
               </p>
+              {obsParts.meta && (
+                <div className="mb-4">
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Origem do cadastro</p>
+                  <div className="inline-flex items-center gap-2 rounded-md bg-muted/40 border px-2.5 py-1.5 text-xs text-muted-foreground">
+                    <Info className="h-3 w-3" />
+                    <span>{obsParts.meta}</span>
+                  </div>
+                </div>
+              )}
               <div className="mb-6">
+                {obsParts.meta && (
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Observações internas</p>
+                )}
                 <Textarea
                   rows={5} maxLength={MAX_OBSERVACOES_LENGTH}
-                  value={form.observacoes}
-                  onChange={(e) => updateForm({ observacoes: e.target.value })}
+                  value={obsParts.user}
+                  onChange={(e) => updateForm({ observacoes: joinObservacoes(obsParts.meta, e.target.value) })}
                   placeholder="Informações relevantes sobre o cliente: preferências, restrições, histórico de relacionamento..."
                 />
-                <p className="text-xs text-muted-foreground mt-1 text-right">{(form.observacoes || "").length}/{MAX_OBSERVACOES_LENGTH}</p>
+                <p className="text-xs text-muted-foreground mt-1 text-right">{obsParts.user.length}/{MAX_OBSERVACOES_LENGTH}</p>
               </div>
             </TabsContent>
           </Tabs>
