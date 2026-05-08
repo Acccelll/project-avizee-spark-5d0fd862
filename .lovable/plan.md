@@ -56,7 +56,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - ✅ **BK-01/02/03** entregue · helper `has_fiscal_permission(action)` (SECURITY DEFINER, search_path=public) usado como gate no topo das 3 RPCs. SR/cron continua bypass via `auth.uid() IS NULL`. Permissões: confirmar = `criar` ou `editar`; cancelar SEFAZ = `cancelar_sefaz` ou `admin_fiscal`; devolução = `criar` ou `editar`. Lógica original (estoque/financeiro/eventos/advisory locks) preservada integralmente.
 - **M-04** — `EXPLAIN ANALYZE` em `vw_fiscal_kpis` + criar índices faltantes (provável `notas_fiscais(empresa_id, periodo_emissao, status)`). 🟡 Médio · ~3h
 - **D-01** — Marcar `NotaFiscalEditModal` (48 KB) como `@deprecated` e migrar callers restantes para `/fiscal/:id` (página). 🟠 Alto · ~1d
-- **D-02** — `ConfiguracaoFiscal` em 4 abas (Empresa Fiscal · Certificado A1 · Numeração · DistDFe/Schedules). 🟢 Baixo · ~2h
+- ✅ **D-02** entregue · `ConfiguracaoFiscal` agora usa `<Tabs>` com 4 abas (Empresa Fiscal · Certificado A1 · Numeração · DistDFe). Aba DistDFe é informativa, com link para `/fiscal/distdfe` e nota do throttle ativo (18/h).
 
 #### Bloco D — Mobile (Fase 3 — após Bloco A/B)
 
