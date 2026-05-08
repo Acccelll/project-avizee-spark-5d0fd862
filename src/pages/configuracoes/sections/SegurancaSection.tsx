@@ -17,6 +17,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useChangePassword } from '../hooks/useChangePassword';
 import { getPasswordCriteriaWithMatch, getPasswordStrength } from '@/lib/passwordPolicy';
+import { EmBreve } from '@/components/EmBreve';
 
 export function SegurancaSection() {
   const { user } = useAuth();
