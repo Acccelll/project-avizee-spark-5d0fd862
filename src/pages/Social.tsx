@@ -204,11 +204,22 @@ export default function Social() {
         subtitle="Gestão de Instagram Business e LinkedIn com histórico de métricas e alertas operacionais"
         headerActions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleSync()} disabled={!permissions.canSync}>
+            <Button
+              data-help-id="social.syncBtn"
+              variant="outline"
+              onClick={() => handleSync()}
+              disabled={!permissions.canSync}
+            >
               <RefreshCcw className="h-4 w-4 mr-2" />
               Sincronizar
             </Button>
-            <Button onClick={() => setContaModalOpen(true)} disabled={!permissions.canManageAccounts}>Conectar conta</Button>
+            <Button
+              data-help-id="social.connectBtn"
+              onClick={() => setContaModalOpen(true)}
+              disabled={!permissions.canManageAccounts}
+            >
+              Conectar conta
+            </Button>
           </div>
         }
         summaryCards={
@@ -245,7 +256,7 @@ export default function Social() {
         }
       >
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <ScrollableTabsList>
+          <ScrollableTabsList data-help-id="social.tabs">
             <TabsTrigger value="contas">Contas conectadas</TabsTrigger>
             <TabsTrigger value="metricas">Métricas gerais</TabsTrigger>
             <TabsTrigger value="posts">Postagens</TabsTrigger>
