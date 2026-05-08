@@ -175,6 +175,11 @@ interface DataTableProps<T> {
    * Tipicamente uma coluna que renderiza `<StatusBadge />`.
    */
   mobileStatusKey?: string;
+  /** Suprime a renderização da linha identifier no card mobile (quando os
+   *  metadados já aparecem dentro da célula `mobilePrimary`). */
+  mobileHideIdentifier?: boolean;
+  /** Renderiza detail-fields como pares `label: valor` em grid 2-col no mobile. */
+  mobileLabeledDetails?: boolean;
   /**
    * Função opcional que retorna a cor de acento (faixa lateral) para a linha
    * com base no item. Permite indicar status/saúde do registro com baixa
@@ -259,6 +264,8 @@ export function DataTable<T extends Record<string, any>>({
   mobileInlineActions,
   mobilePrimaryAction,
   mobileStatusKey,
+  mobileHideIdentifier,
+  mobileLabeledDetails,
   rowAccent,
   rowExtraActions,
   defaultSortKey,
