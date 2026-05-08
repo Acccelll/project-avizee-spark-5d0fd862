@@ -53,7 +53,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 #### Bloco C — Backlog estrutural (Fase 3 — abrir como issues separadas)
 
 - **EF-04** — Fila `nfe_emissao_pendente` para retry de timeouts SEFAZ (tabela + worker `process-nfe-retry-cron` com backoff exponencial). 🟠 Alto · ~1d
-- **BK-01/02/03** — Auditoria das RPCs `confirmar_nota_fiscal`, `gerar_devolucao_nota_fiscal`, `cancelar_nota_fiscal_sefaz`: garantir `SECURITY DEFINER`, `SET search_path = public`, validação de permissão dentro da função, transações atômicas. 🟠 Alto · ~6h
+- ✅ **BK-01/02/03** entregue · helper `has_fiscal_permission(action)` (SECURITY DEFINER, search_path=public) usado como gate no topo das 3 RPCs. SR/cron continua bypass via `auth.uid() IS NULL`. Permissões: confirmar = `criar` ou `editar`; cancelar SEFAZ = `cancelar_sefaz` ou `admin_fiscal`; devolução = `criar` ou `editar`. Lógica original (estoque/financeiro/eventos/advisory locks) preservada integralmente.
 - **M-04** — `EXPLAIN ANALYZE` em `vw_fiscal_kpis` + criar índices faltantes (provável `notas_fiscais(empresa_id, periodo_emissao, status)`). 🟡 Médio · ~3h
 - **D-01** — Marcar `NotaFiscalEditModal` (48 KB) como `@deprecated` e migrar callers restantes para `/fiscal/:id` (página). 🟠 Alto · ~1d
 - **D-02** — `ConfiguracaoFiscal` em 4 abas (Empresa Fiscal · Certificado A1 · Numeração · DistDFe/Schedules). 🟢 Baixo · ~2h
@@ -73,7 +73,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 3. [x] **2.6** Cross-check `nfe_distribuicao` em `useNFeXmlImport` com toast informativo.
 4. [x] **EF-03** `sanitizeForLog` aplicado em todas edge functions fiscais.
 5. [x] **M-01 + M-02 + M-05** Hardening de pequenos vazamentos e alerta global de certificado em `AppLayout`.
-6. [ ] **BK-01/02/03** Auditoria das 3 RPCs fiscais críticas (`SECURITY DEFINER`, `search_path`, permissões).
+6. [x] **BK-01/02/03** Gate de permissão nas 3 RPCs fiscais críticas via `has_fiscal_permission`.
 7. [ ] **EF-04** Fila de retry para emissões com timeout SEFAZ.
 8. [ ] **M-04 + D-01 + D-02** Performance KPIs, deprecação do modal e abas em ConfiguracaoFiscal.
 9. [ ] **MB-03 + MB-04** Mobile: touch targets + tradução XML em bottom-sheet.
