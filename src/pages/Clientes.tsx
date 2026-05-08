@@ -907,7 +907,7 @@ const Clientes = () => {
                   )}
                 </div>
                 {form.tipo_pessoa === "J" && (
-                <div className="space-y-1.5">
+                <div className="col-span-2 md:col-span-1 space-y-1.5">
                   <div className="flex items-center gap-1">
                     <Label>Inscrição Estadual</Label>
                     <Tooltip>
