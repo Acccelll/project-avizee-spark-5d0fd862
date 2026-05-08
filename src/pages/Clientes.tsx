@@ -714,33 +714,32 @@ const Clientes = () => {
         size="xl"
         mode={mode}
         createHint="Preencha os dados básicos para criar o cliente. Endereços, transportadoras e comunicações ficam disponíveis após salvar."
-        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
+        identifier={mode === "edit" && selected?.cpf_cnpj ? labelDocumento(selected.cpf_cnpj) : undefined}
         headerActions={mode === "edit" && selected ? (
-          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-            <Switch
-              checked={form.ativo}
-              onCheckedChange={(v) => updateForm({ ativo: v })}
-              aria-label={form.ativo ? "Inativar cliente" : "Reativar cliente"}
-            />
-            <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
-          </label>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <Switch
+                  checked={form.ativo}
+                  onCheckedChange={(v) => updateForm({ ativo: v })}
+                  aria-label={form.ativo ? "Inativar cliente" : "Reativar cliente"}
+                />
+                <span className="font-medium">{form.ativo ? "Cliente ativo" : "Cliente inativo"}</span>
+              </label>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">Alterar status do cadastro</TooltipContent>
+          </Tooltip>
         ) : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
-          ...(form.forma_pagamento_id
-            ? [{
-                icon: CreditCard,
-                label: formasPagamento.find((fp) => fp.id === form.forma_pagamento_id)?.descricao
-                  ?? "Forma de pagamento",
-              }]
-            : []),
           ...(form.grupo_economico_id ? [{ icon: Building2, label: grupos.find(g => g.id === form.grupo_economico_id)?.nome ?? "Grupo" }] : []),
         ] : undefined}
         isDirty={isDirty}
         footer={
           <FormModalFooter
             saving={saving} isDirty={isDirty}
+            disabled={Object.keys(formErrors).length > 0}
+            disabledReason={Object.keys(formErrors).length > 0 ? "Corrija os erros do formulário antes de salvar." : undefined}
             onCancel={async () => {
               if (isDirty && !(await confirmDiscard())) return;
               setModalOpen(false);
