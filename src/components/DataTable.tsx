@@ -814,8 +814,18 @@ export function DataTable<T extends Record<string, any>>({
                   ))}
                 </div>
                 <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => void persistHiddenKeys(columns.filter((c) => c.hidden).map((c) => c.key))}>
-                  <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar padrão
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar visibilidade
                 </Button>
+                {canReorder && (columnOrder?.length ?? 0) > 0 && (
+                  <Button variant="ghost" size="sm" className="w-full" onClick={() => void persistColumnOrder([])}>
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar ordem das colunas
+                  </Button>
+                )}
+                {canReorder && (
+                  <p className="text-[10px] text-muted-foreground px-1 mt-1.5 leading-snug">
+                    Dica: arraste o ícone <GripVertical className="inline h-3 w-3 align-text-bottom" /> no cabeçalho para reordenar.
+                  </p>
+                )}
                 <div className="mt-2 pt-2 border-t">
                   <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">Modo de exibição</p>
                   <div className="space-y-1">
