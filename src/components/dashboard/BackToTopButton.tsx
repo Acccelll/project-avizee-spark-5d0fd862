@@ -12,7 +12,7 @@ interface BackToTopButtonProps {
   threshold?: number;
 }
 
-export function BackToTopButton({ threshold = 600 }: BackToTopButtonProps) {
+export function BackToTopButton({ threshold = 900 }: BackToTopButtonProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -25,16 +25,17 @@ export function BackToTopButton({ threshold = 600 }: BackToTopButtonProps) {
   return (
     <Button
       size="icon"
-      variant="secondary"
+      variant="outline"
       aria-label="Voltar ao topo"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       className={cn(
-        'fixed left-4 z-40 h-11 w-11 rounded-full border border-border/60 shadow-lg transition-all md:hidden',
+        'fixed left-4 z-40 h-10 w-10 rounded-full border border-border/60 bg-background/95 shadow-md backdrop-blur transition-all md:hidden',
+        'supports-[backdrop-filter]:bg-background/80',
         visible ? 'opacity-100' : 'pointer-events-none opacity-0',
       )}
-      style={{ bottom: 'calc(5.8rem + env(safe-area-inset-bottom))' }}
+      style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom))' }}
     >
-      <ArrowUp className="h-5 w-5" />
+      <ArrowUp className="h-4 w-4" />
     </Button>
   );
 }
