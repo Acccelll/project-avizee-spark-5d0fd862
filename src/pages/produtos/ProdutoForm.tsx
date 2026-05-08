@@ -849,8 +849,8 @@ export default function ProdutoForm({
                   </Button>
                 </div>
                 {editFornecedores.length === 0 && (
-                  <div className="rounded-lg border border-dashed bg-muted/20 p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+                  <div className="rounded-lg border border-dashed bg-muted/20 p-4 sm:p-6 flex flex-col items-center justify-center text-center space-y-2">
+                    <ShoppingCart className="h-7 w-7 sm:h-6 sm:w-6 text-muted-foreground" />
                     <p className="text-sm font-medium">Nenhum fornecedor vinculado</p>
                     <p className="text-xs text-muted-foreground max-w-md">
                       Vincule fornecedores para registrar código do fornecedor, custo de compra, prazo e histórico de aquisição.
@@ -992,7 +992,8 @@ export default function ProdutoForm({
                 <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição comercial</h3>
                 <p className="text-xs text-muted-foreground">Texto exibido em orçamentos, pedidos e catálogos.</p>
                 <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  placeholder="Características, especificações técnicas, conteúdo da embalagem…" rows={4} />
+                  placeholder="Características, especificações técnicas, conteúdo da embalagem…"
+                  rows={5} className="min-h-[140px]" />
               </div>
               <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
                 <p className="text-sm font-medium">Observação interna</p>
