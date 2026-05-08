@@ -531,8 +531,8 @@ export default function ProdutoForm({
             <TabsContent value="dados-gerais" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3 pt-1">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Identificação</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="col-span-2 space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="sm:col-span-2 space-y-2">
                     <Label>Nome *</Label>
                     <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required placeholder="Nome do produto" />
                     {formErrors.nome && <p className="text-xs text-destructive">{formErrors.nome}</p>}
@@ -565,7 +565,7 @@ export default function ProdutoForm({
                     {skuChecking && form.sku && <p className="text-xs text-muted-foreground">Verificando SKU...</p>}
                     {!skuChecking && skuUnico === false && <p className="text-xs text-destructive">SKU já cadastrado em outro produto.</p>}
                     {form.grupo_id && !grupos.find(g => g.id === form.grupo_id)?.sigla && (
-                      <p className="text-[11px] text-muted-foreground">Defina uma sigla no grupo para gerar SKU automático (ex.: AG, SR).</p>
+                      <p className="text-[11px] text-muted-foreground">Defina sigla no grupo para gerar SKU automático.</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -666,7 +666,7 @@ export default function ProdutoForm({
 
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2 border-t pt-3"><TrendingUp className="w-4 h-4" /> Comercial</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {!form.eh_composto ? (
                     <div className="space-y-2">
                       <Label>Preço de Custo</Label>
@@ -711,8 +711,7 @@ export default function ProdutoForm({
                   <Input value={form.variacoes_texto} onChange={(e) => setForm({ ...form, variacoes_texto: e.target.value })}
                     placeholder="Ex: Azul, Vermelho, Verde, P, M, G" />
                   <p className="text-xs text-muted-foreground">
-                    Separe as variações por vírgula. Exemplo: <em>Azul, Vermelho, 100ml, 200ml</em>.
-                    As variações ficam disponíveis para uso no orçamento.
+                    Separe por vírgula. Ex.: <em>Azul, Vermelho, P, M, G</em>.
                   </p>
                   {form.variacoes_texto && (
                     <div className="flex flex-wrap gap-1.5 pt-1">
