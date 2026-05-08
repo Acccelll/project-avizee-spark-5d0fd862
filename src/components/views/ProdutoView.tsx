@@ -400,7 +400,23 @@ export function ProdutoView({ id }: Props) {
             <ShoppingCart className="w-3.5 h-3.5" /> Fornecedores Vinculados
           </h4>
           {fornecedoresProd.length === 0 ? (
-            <DetailEmpty icon={ShoppingCart} title="Nenhum fornecedor vinculado" message="Nenhum fornecedor vinculado a este produto" />
+            <DetailEmpty
+              icon={ShoppingCart}
+              title="Nenhum fornecedor vinculado"
+              message="Vincule fornecedores para registrar custo de compra, código do fornecedor e lead time."
+              action={
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    navigate(`/produtos?editId=${id}`);
+                    window.setTimeout(() => clearStack(), 0);
+                  }}
+                  className="h-8 gap-1"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" /> Vincular fornecedor
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-2">
             {fornecedoresProd.map((f, idx: number) => (
