@@ -51,7 +51,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 **M-02 — `lerConfigFiscalEmpresa` falha explicitamente** · ✅ entregue · sem mais defaults silenciosos.
 
 **M-05 — `CertificadoValidadeAlert` global em `AppLayout`** · 🟡 Médio · ~2h
-- Mover componente de `Fiscal.tsx` para `src/components/layout/AppLayout.tsx`, exibido apenas quando `pfxExpiraEm <= 30 dias` e usuário tem `faturamento_fiscal:visualizar`. Dismiss persistido em `user_preferences`.
+- ✅ entregue · montado uma única vez em `src/components/AppLayout.tsx` acima do `<Outlet />`, com query gated por `useCan('faturamento_fiscal:visualizar')`. Removido das páginas `Fiscal.tsx`, `FiscalDashboard.tsx` e `Cte.tsx`. Variante `dismissible` apenas para janela 8–30 dias, persistida em `user_preferences` (chave por `validadeFim` — ao renovar, o alerta volta). Vermelho/expirado nunca pode ser dispensado.
 
 #### Bloco C — Backlog estrutural (Fase 3 — abrir como issues separadas)
 
