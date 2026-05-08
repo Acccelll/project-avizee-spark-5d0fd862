@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { fromUntyped } from '@/lib/supabase/fromUntyped';
 import type {
   ApresentacaoComentario,
   ApresentacaoGeracao,
@@ -26,8 +27,7 @@ async function loadGeneratePresentation() {
 }
 
 export async function listarApresentacaoTemplates(): Promise<ApresentacaoTemplate[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).from('apresentacao_templates').select('*').eq('ativo', true).order('nome');
+  const { data, error } = await fromUntyped('apresentacao_templates').select('*').eq('ativo', true).order('nome');
   if (error) throw error;
   return (data ?? []) as ApresentacaoTemplate[];
 }
@@ -73,9 +73,7 @@ export async function incluirTemplateApresentacao(input: {
 }
 
 export async function listarApresentacaoGeracoes(): Promise<ApresentacaoGeracao[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('apresentacao_geracoes')
+  const { data, error } = await fromUntyped('apresentacao_geracoes')
     .select('*, apresentacao_templates(nome, versao, codigo)')
     .order('created_at', { ascending: false })
     .limit(80);
@@ -84,9 +82,7 @@ export async function listarApresentacaoGeracoes(): Promise<ApresentacaoGeracao[
 }
 
 export async function listarComentarios(geracaoId: string): Promise<ApresentacaoComentario[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('apresentacao_comentarios')
+  const { data, error } = await fromUntyped('apresentacao_comentarios')
     .select('*')
     .eq('geracao_id', geracaoId)
     .order('ordem');
@@ -95,9 +91,7 @@ export async function listarComentarios(geracaoId: string): Promise<Apresentacao
 }
 
 export async function atualizarComentario(id: string, comentario_editado: string): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
-    .from('apresentacao_comentarios')
+  const { error } = await fromUntyped('apresentacao_comentarios')
     .update({ comentario_editado, comentario_status: comentario_editado ? 'editado' : 'automatico', updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) throw error;
@@ -109,19 +103,23 @@ export async function atualizarStatusEditorial(geracaoId: string, status: Aprese
     payload.aprovado_por = aprovadorId ?? null;
     payload.aprovado_em = new Date().toISOString();
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any).from('apresentacao_geracoes').update(payload).eq('id', geracaoId);
+  const { error } = await fromUntyped('apresentacao_geracoes').update(payload).eq('id', geracaoId);
   if (error) throw error;
 }
 
 async function buildSlideSelection(templateId: string, generationSlideConfig?: SlideConfigItem[]) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: template } = await (supabase as any).from('apresentacao_templates').select('*').eq('id', templateId).single();
+  const { data: template } = await fromUntyped('apresentacao_templates').select('*').eq('id', templateId).single();
   const resolved = resolveSlideConfig(template as ApresentacaoTemplate, generationSlideConfig);
   return { resolved, active: activeSlides(resolved) };
 }
 
-export async function gerarApresentacao(params: ApresentacaoParametros, userId?: string) {
+export async function gerarApresentacao(
+  params: ApresentacaoParametros,
+  userId?: string,
+  options: { signal?: AbortSignal } = {},
+) {
+  const { signal } = options;
+  signal?.throwIfAborted?.();
   const { resolved: resolvedConfig, active } = await buildSlideSelection(params.templateId, params.slideConfig);
   const hash = hashPayload({ ...params, slides: active });
   const nowIso = new Date().toISOString();
@@ -130,9 +128,7 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
   // baixar e reutilizar o artefato em vez de regenerar.
   try {
     const desde = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: cached } = await (supabase as any)
-      .from('apresentacao_geracoes')
+    const { data: cached } = await fromUntyped('apresentacao_geracoes')
       .select('id, arquivo_path, status, is_final, created_at')
       .eq('hash_geracao', hash)
       .eq('status', 'concluido')
@@ -157,9 +153,8 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
     /* cache miss não bloqueia geração */
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: geracao, error: geracaoError } = await (supabase as any)
-    .from('apresentacao_geracoes')
+  signal?.throwIfAborted?.();
+  const { data: geracao, error: geracaoError } = await fromUntyped('apresentacao_geracoes')
     .insert({
       template_id: params.templateId,
       empresa_id: params.empresaId ?? null,
@@ -180,7 +175,8 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
   if (geracaoError) throw geracaoError;
 
   try {
-    const bundle = await fetchPresentationData(`${params.competenciaInicial}-01`, `${params.competenciaFinal}-01`, params.modoGeracao, active);
+    const bundle = await fetchPresentationData(`${params.competenciaInicial}-01`, `${params.competenciaFinal}-01`, params.modoGeracao, active, signal);
+    signal?.throwIfAborted?.();
 
     const comentarios = active.map((codigo, ordem) => {
       const list = buildAutomaticComments(codigo, bundle.slides[codigo] ?? {});
@@ -198,12 +194,9 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
       };
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('apresentacao_comentarios').insert(comentarios);
+    await fromUntyped('apresentacao_comentarios').insert(comentarios);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updateError } = await (supabase as any)
-      .from('apresentacao_geracoes')
+    const { error: updateError } = await fromUntyped('apresentacao_geracoes')
       .update({
         status: 'concluido',
         status_editorial: params.exigirRevisao ? 'revisao' : 'aprovado',
@@ -219,13 +212,17 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
       return { geracaoId: geracao.id as string, blob: null as Blob | null, aguardandoAprovacao: true };
     }
 
+    signal?.throwIfAborted?.();
     const { blob, arquivoPath } = await gerarArquivoFinal(geracao.id, active, bundle, hash);
     return { geracaoId: geracao.id as string, blob, arquivoPath, aguardandoAprovacao: false };
   } catch (err) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
-      .from('apresentacao_geracoes')
-      .update({ status: 'erro', observacoes: err instanceof Error ? err.message : String(err), updated_at: new Date().toISOString() })
+    const isAbort = err instanceof DOMException && err.name === 'AbortError';
+    await fromUntyped('apresentacao_geracoes')
+      .update({
+        status: isAbort ? 'cancelado' : 'erro',
+        observacoes: isAbort ? 'Geração cancelada pelo usuário.' : (err instanceof Error ? err.message : String(err)),
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', geracao.id);
     throw err;
   }
@@ -234,9 +231,7 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
 async function fetchPresentationBranding(): Promise<PresentationBranding> {
   const branding: PresentationBranding = {};
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
-      .from('app_configuracoes')
+    const { data } = await fromUntyped('app_configuracoes')
       .select('valor')
       .eq('chave', 'geral')
       .maybeSingle();
@@ -268,9 +263,7 @@ async function fetchPresentationBranding(): Promise<PresentationBranding> {
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: emp } = await (supabase as any)
-      .from('empresa_config')
+    const { data: emp } = await fromUntyped('empresa_config')
       .select('nome_fantasia, razao_social, cor_primaria, cor_secundaria, logo_url')
       .maybeSingle();
     if (emp) {
@@ -330,9 +323,7 @@ async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundl
     });
   if (uploadError) throw uploadError;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
-    .from('apresentacao_geracoes')
+  await fromUntyped('apresentacao_geracoes')
     .update({ status: 'concluido', status_editorial: 'gerado', is_final: true, arquivo_path: arquivoPath, updated_at: new Date().toISOString() })
     .eq('id', geracaoId);
 
@@ -340,8 +331,7 @@ async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundl
 }
 
 export async function aprovarEGerarFinal(geracaoId: string, aprovadorId?: string): Promise<Blob> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: geracao, error } = await (supabase as any).from('apresentacao_geracoes').select('*').eq('id', geracaoId).single();
+  const { data: geracao, error } = await fromUntyped('apresentacao_geracoes').select('*').eq('id', geracaoId).single();
   if (error) throw error;
   if (!geracao) throw new Error('Geração não encontrada.');
 
