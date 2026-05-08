@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
 import { parseVariacoes } from "@/utils/cadastros";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
+import { supabase } from "@/integrations/supabase/client";
 
 type TipoItem = "produto" | "insumo";
 
@@ -34,11 +35,13 @@ interface Produto {
 
 type ProdutoTableRow = Produto & { display_codigo: string; display_sku_secundario: string | null };
 
-type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado";
+type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado" | "nao_controla";
 
 function getSituacaoEstoque(p: { estoque_atual?: number | null; estoque_minimo?: number | null }): SituacaoEstoque {
   const atual = Number(p.estoque_atual || 0);
   const minimo = Number(p.estoque_minimo || 0);
+  // Sem mínimo configurado e estoque zero → "não controla" (cinza, neutro).
+  if (minimo <= 0 && atual <= 0) return "nao_controla";
   if (atual <= 0) return "zerado";
   if (minimo > 0 && atual <= minimo) return "critico";
   if (minimo > 0 && atual <= minimo * 1.2) return "atencao";
@@ -46,10 +49,11 @@ function getSituacaoEstoque(p: { estoque_atual?: number | null; estoque_minimo?:
 }
 
 const situacaoEstoqueConfig: Record<SituacaoEstoque, { label: string; statusBadge: string; textClass: string }> = {
-  normal:  { label: "Normal",            statusBadge: "confirmado", textClass: "text-foreground"  },
-  atencao: { label: "Em atenção",         statusBadge: "pendente",   textClass: "text-warning"     },
-  critico: { label: "Abaixo do mínimo",  statusBadge: "cancelado",  textClass: "text-destructive" },
-  zerado:  { label: "Sem estoque",       statusBadge: "cancelado",  textClass: "text-destructive" },
+  normal:       { label: "Normal",           statusBadge: "confirmado", textClass: "text-foreground"      },
+  atencao:      { label: "Em atenção",       statusBadge: "pendente",   textClass: "text-warning"         },
+  critico:      { label: "Abaixo do mínimo", statusBadge: "pendente",   textClass: "text-warning"         },
+  zerado:       { label: "Sem estoque",      statusBadge: "cancelado",  textClass: "text-destructive"     },
+  nao_controla: { label: "Não controla",     statusBadge: "rascunho",   textClass: "text-muted-foreground" },
 };
 
 function compactProductCode(value: string | null | undefined): string {
