@@ -803,7 +803,16 @@ export default function ProdutoForm({
                   </Button>
                 </div>
                 {editFornecedores.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum fornecedor vinculado. Clique em "+ Fornecedor" para adicionar.</p>
+                  <div className="rounded-lg border border-dashed bg-muted/20 p-6 flex flex-col items-center justify-center text-center space-y-2">
+                    <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-sm font-medium">Nenhum fornecedor vinculado</p>
+                    <p className="text-xs text-muted-foreground max-w-md">
+                      Vincule fornecedores para registrar código do fornecedor, custo de compra, prazo e histórico de aquisição.
+                    </p>
+                    <Button type="button" size="sm" variant="outline" onClick={addFornecedor} className="gap-1 mt-1">
+                      <Plus className="w-3.5 h-3.5" /> Vincular fornecedor
+                    </Button>
+                  </div>
                 )}
                 {editFornecedores.map((forn, idx) => (
                   <div key={idx} className="border rounded-lg p-3 space-y-3 bg-muted/20">
