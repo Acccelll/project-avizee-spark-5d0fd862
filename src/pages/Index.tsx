@@ -29,7 +29,6 @@ import { useDashboardLayout, type WidgetId } from "@/hooks/useDashboardLayout";
 import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomizeMenu";
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
 import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
-import { formatCurrency } from "@/lib/format";
 import {
   ShoppingBag,
   Package,
