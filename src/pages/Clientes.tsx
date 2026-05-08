@@ -384,7 +384,7 @@ const Clientes = () => {
           {c.cpf_cnpj ? cpfCnpjMask(c.cpf_cnpj) : "—"}
         </span>
       ) },
-    { key: "tipo_pessoa", label: "Tipo",
+    { key: "tipo_pessoa", mobileCard: true, label: "Tipo",
       render: (c: Cliente) => {
         const isPf = c.tipo_pessoa === "F";
         return (
@@ -431,7 +431,7 @@ const Clientes = () => {
         );
       },
     },
-    { key: "prazo_padrao", label: "Prazo Pgto.",
+    { key: "prazo_padrao", mobileCard: true, label: "Prazo Pgto.",
       render: (c: Cliente) => c.prazo_padrao
         ? <span className="text-xs font-medium"><span className="tabular-nums">{c.prazo_padrao}</span> dias</span>
         : <span className="text-muted-foreground text-xs">Sem prazo</span> },
