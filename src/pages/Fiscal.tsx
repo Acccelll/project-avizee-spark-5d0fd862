@@ -41,6 +41,10 @@ import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { useFiscalFilters } from "@/pages/fiscal/hooks/useFiscalFilters";
 import { useFiscalKpis } from "@/pages/fiscal/hooks/useFiscalKpis";
+import {
+  useNotasFiscaisPaged,
+  useResetPageOnFiltersChange,
+} from "@/pages/fiscal/hooks/useNotasFiscaisPaged";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { FiscalChaveScannerDialog } from "@/pages/fiscal/components/FiscalChaveScannerDialog";
@@ -161,17 +165,17 @@ const Fiscal = () => {
   // Supabase trabalhe sobre o conjunto já filtrado (Sprint 7.3 #11).
   const [emissaoMesState, setEmissaoMesState] = useState<string>("");
   const emissaoDateRange = useMemo(() => {
-    if (!emissaoMesState) return undefined;
+    if (!emissaoMesState) return null;
     const start = `${emissaoMesState}-01`;
     const [y, m] = emissaoMesState.split("-").map(Number);
     const end = new Date(y, m, 0).toISOString().slice(0, 10);
-    return { column: "data_emissao", from: start, to: end };
+    return { from: start, to: end };
   }, [emissaoMesState]);
-  const { data, loading, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
-    table: "notas_fiscais",
-    select: "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)",
-    dateRange: emissaoDateRange,
-  });
+  // Paginação server-side (Onda 8 / item 2.1). Substitui o `useSupabaseCrud`
+  // que carregava até 1000 notas no cliente. Filtros, ordenação e busca
+  // delegados à RPC `listar_notas_fiscais_ids`; KPIs continuam via `kpis_fiscal`.
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
   const fornecedoresCrud = useSupabaseCrud<FornecedorRef>({ table: "fornecedores" });
   const clientesCrud = useSupabaseCrud<ClienteRef>({ table: "clientes" });
   const produtosCrud = useSupabaseCrud<ProdutoRef>({ table: "produtos" });
@@ -292,16 +296,26 @@ const Fiscal = () => {
   // Substitui a antiga rota /fiscal/:id (FiscalDetail), agora deprecada (D-2).
   useEffect(() => {
     const nfId = searchParams.get("nf");
-    if (!nfId || loading) return;
-    const found = data.find((n) => n.id === nfId);
-    if (!found) return;
-    setSelected(found);
-    setDrawerOpen(true);
-    const next = new URLSearchParams(searchParams);
-    next.delete("nf");
-    setSearchParams(next, { replace: true });
+    if (!nfId) return;
+    let cancelled = false;
+    (async () => {
+      const { data: row, error } = await supabase
+        .from("notas_fiscais")
+        .select(
+          "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)",
+        )
+        .eq("id", nfId)
+        .maybeSingle();
+      if (cancelled || error || !row) return;
+      setSelected(row as unknown as NotaFiscal);
+      setDrawerOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("nf");
+      setSearchParams(next, { replace: true });
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot via querystring
-  }, [searchParams, data, loading]);
+  }, [searchParams]);
 
   // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.
   useEffect(() => {
@@ -885,12 +899,40 @@ const Fiscal = () => {
     vencimentoMes,
     setVencimentoMes,
     removeFilter: handleRemoveFiscalFilter,
-  } = useFiscalFilters(data, {
+  } = useFiscalFilters([] as NotaFiscal[], {
     tipoFromUrl: tipoParam,
     statusFromUrl,
     vencimentoNotaIds,
     emissaoMesControlled: { value: emissaoMesState, onChange: setEmissaoMesState },
   });
+
+  // Filtros server-side derivados dos estados controlados acima.
+  const serverFilters = useMemo(
+    () => ({
+      dateFrom: emissaoDateRange?.from ?? null,
+      dateTo: emissaoDateRange?.to ?? null,
+      tipos: tipoParam ? [tipoParam] : (tipoFilters.length ? tipoFilters : null),
+      status: statusFromUrl.length ? statusFromUrl : (statusFilters.length ? statusFilters : null),
+      statusSefaz: statusSefazFilters.length ? statusSefazFilters : null,
+      modelos: modeloFilters.length ? modeloFilters : null,
+      origens: origemFilters.length ? origemFilters : null,
+      search: consultaSearch || null,
+    }),
+    [emissaoDateRange, tipoParam, tipoFilters, statusFromUrl, statusFilters, statusSefazFilters, modeloFilters, origemFilters, consultaSearch],
+  );
+
+  useResetPageOnFiltersChange(serverFilters, setPage);
+
+  const {
+    data: pagedData,
+    totalCount,
+    loading,
+    refetch: refetchPaged,
+  } = useNotasFiscaisPaged(serverFilters, page, PAGE_SIZE);
+
+  // Aliases para preservar callsites legados que esperavam `useSupabaseCrud`.
+  const data = pagedData;
+  const fetchData = refetchPaged;
 
   // Carrega IDs de notas com lançamentos vencendo no mês selecionado.
   useEffect(() => {
@@ -1129,7 +1171,7 @@ const Fiscal = () => {
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
           onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); setEmissaoMes(""); setVencimentoMes(""); }}
-          count={filteredData.length}
+          count={totalCount}
         >
           {!tipoParam && <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />}
           <MultiSelect options={modeloOptions} selected={modeloFilters} onChange={setModeloFilters} placeholder="Modelos" className="w-[180px]" />
@@ -1169,8 +1211,9 @@ const Fiscal = () => {
         <div data-help-id="fiscal.tabela">
         <DataTable
           columns={columns}
-          data={filteredData}
+          data={data}
           loading={loading}
+          serverPagination={{ page, setPage, totalCount, hasMore: (page + 1) * PAGE_SIZE < totalCount }}
           moduleKey={tipoConfig.moduleKey}
           showColumnToggle={true}
           onView={openView}

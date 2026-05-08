@@ -31,6 +31,7 @@ export interface NotaFiscalFilterInput {
   numero: string | null;
   serie: string | null;
   chave_acesso: string | null;
+  tipo_operacao?: string | null;
   fornecedores?: { nome_razao_social: string } | null;
   clientes?: { nome_razao_social: string } | null;
   ordens_venda?: { numero: string } | null;
