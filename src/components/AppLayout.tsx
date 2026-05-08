@@ -18,6 +18,7 @@ import { HelpProvider, useHelp } from '@/contexts/HelpContext';
 import { HelpDrawer } from './help/HelpDrawer';
 import { CoachTour } from './help/CoachTour';
 import { FirstVisitToast } from './help/FirstVisitToast';
+import { CertificadoValidadeAlert } from './fiscal/CertificadoValidadeAlert';
 
 /**
  * AppLayout
@@ -104,6 +105,9 @@ export function AppLayout() {
           role="main"
           className="mx-auto max-w-[1600px] px-3 py-4 pb-28 md:px-6 md:py-5 md:pb-5"
         >
+          <div className="mb-3 empty:mb-0">
+            <CertificadoValidadeAlert dismissible />
+          </div>
           <Outlet />
         </main>
       </div>
