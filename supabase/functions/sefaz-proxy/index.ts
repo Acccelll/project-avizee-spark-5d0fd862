@@ -17,7 +17,7 @@
 import forge from "https://esm.sh/node-forge@1.3.1";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createLogger } from "../_shared/logger.ts";
-import { requireAnyPermission, type PermissionRequirement } from "../_shared/permissions.ts";
+import { requireAnyPermission, hasAnyPermission, type PermissionRequirement } from "../_shared/permissions.ts";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 
@@ -438,13 +438,23 @@ Deno.serve(async (req) => {
         auth: { autoRefreshToken: false, persistSession: false },
       });
 
-      const hasPfxPassword = !!(await getVaultSecretByName(adminClient, "CERTIFICADO_PFX_SENHA"));
-      return json({
+      // Campos sensíveis (existência do PFX no Vault) só vão para admins
+      // fiscais. Usuários com apenas `visualizar` recebem ack mínimo.
+      const isFiscalAdmin = await hasAnyPermission(user.id, [
+        { resource: "faturamento_fiscal", action: "admin_fiscal" },
+      ]);
+      const payload: Record<string, unknown> = {
         ok: true,
         action: "health",
-        hasPfxPassword,
         timestamp: new Date().toISOString(),
-      });
+      };
+      if (isFiscalAdmin) {
+        payload.hasPfxPassword = !!(await getVaultSecretByName(
+          adminClient,
+          "CERTIFICADO_PFX_SENHA",
+        ));
+      }
+      return json(payload);
     }
 
     if (action === "parse-certificado") {
