@@ -25,6 +25,8 @@ interface WorkbookGeracaoDialogProps {
     abasSelecionadas: string[];
   }) => Promise<void>;
   isGenerating: boolean;
+  /** Onda 9.2 (A-04) — cancela a geração em andamento. */
+  onCancel?: () => void;
 }
 
 export function WorkbookGeracaoDialog({
@@ -33,6 +35,7 @@ export function WorkbookGeracaoDialog({
   templates,
   onGerar,
   isGenerating,
+  onCancel,
 }: WorkbookGeracaoDialogProps) {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -72,9 +75,15 @@ export function WorkbookGeracaoDialog({
           onAbasChange={setAbasSelecionadas}
         />
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating}>
-            Cancelar
-          </Button>
+          {isGenerating && onCancel ? (
+            <Button variant="outline" onClick={onCancel}>
+              Cancelar geração
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating}>
+              Fechar
+            </Button>
+          )}
           <Button onClick={handleGerar} disabled={isGenerating || !templateId}>
             {isGenerating ? (
               <>
