@@ -932,23 +932,28 @@ export default function ProdutoForm({
                   {editComposicao.map((comp, idx) => {
                     const prod = produtosLookup.find((p) => p.id === comp.produto_filho_id);
                     return (
-                      <div key={idx} className="grid grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
-                        <div className="space-y-1"><Label className="text-xs">Produto</Label>
-                          <ProductAutocomplete products={produtosDisponiveis} value={comp.produto_filho_id}
-                            onChange={(v) => updateComponent(idx, "produto_filho_id", v)} placeholder="Buscar produto..." />
+                      <div key={idx} className="space-y-1">
+                        <div className="grid grid-cols-[1fr_72px_40px] sm:grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
+                          <div className="space-y-1"><Label className="text-xs">Produto</Label>
+                            <ProductAutocomplete products={produtosDisponiveis} value={comp.produto_filho_id}
+                              onChange={(v) => updateComponent(idx, "produto_filho_id", v)} placeholder="Buscar produto..." />
+                          </div>
+                          <div className="space-y-1"><Label className="text-xs">Qtd</Label>
+                            <Input type="number" min={0.01} step="0.01" value={comp.quantidade}
+                              onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" />
+                          </div>
+                          <div className="hidden sm:block space-y-1"><Label className="text-xs">Custo</Label>
+                            <p className="h-9 flex items-center text-xs font-mono text-muted-foreground">
+                              {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
+                            </p>
+                          </div>
+                          <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <div className="space-y-1"><Label className="text-xs">Qtd</Label>
-                          <Input type="number" min={0.01} step="0.01" value={comp.quantidade}
-                            onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" />
-                        </div>
-                        <div className="space-y-1"><Label className="text-xs">Custo</Label>
-                          <p className="h-9 flex items-center text-xs font-mono text-muted-foreground">
-                            {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
-                          </p>
-                        </div>
-                        <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <p className="sm:hidden text-[11px] text-muted-foreground font-mono pl-1">
+                          Custo: {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
+                        </p>
                       </div>
                     );
                   })}
