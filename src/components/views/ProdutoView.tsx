@@ -731,26 +731,42 @@ export function ProdutoView({ id }: Props) {
                 {historicoVendas.map((h, idx: number) => {
                   const qtd = Number(h.quantidade || 0);
                   const vu = Number(h.valor_unitario || 0);
+                  const total = qtd * vu;
                   return (
-                    <div key={idx} className="text-sm py-1.5 border-b last:border-b-0">
-                      <div className="flex justify-between items-center">
-                        <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
-                        <span className="text-[10px] text-muted-foreground">{formatDate(h.notas_fiscais?.data_emissao)}</span>
-                      </div>
-                      <div className="flex justify-between text-[10px] mt-1">
+                    <div key={idx} className="rounded-lg border bg-card hover:bg-muted/30 transition-colors p-2.5 space-y-1">
+                      <div className="flex justify-between items-center gap-2">
                         {h.notas_fiscais?.clientes ? (
-                          <RelationalLink onClick={() => pushView("cliente", h.notas_fiscais?.clientes?.id)} className="truncate max-w-[180px] text-xs">
+                          <RelationalLink
+                            onClick={() => pushView("cliente", h.notas_fiscais?.clientes?.id)}
+                            className="truncate text-sm font-medium flex-1 min-w-0"
+                          >
                             {h.notas_fiscais.clientes.nome_razao_social}
                           </RelationalLink>
                         ) : (
-                          <span className="truncate max-w-[180px] text-muted-foreground">—</span>
+                          <span className="truncate text-sm text-muted-foreground flex-1 min-w-0">—</span>
                         )}
-                        <span className="font-mono">Qtd: {qtd} × {formatCurrency(vu)} = <span className="font-semibold">{formatCurrency(qtd * vu)}</span></span>
+                        <span className="font-mono font-semibold text-sm shrink-0">{formatCurrency(total)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-[11px]">
+                            NF {h.notas_fiscais?.numero}
+                          </RelationalLink>
+                          <span>·</span>
+                          <span>{formatDate(h.notas_fiscais?.data_emissao)}</span>
+                        </div>
+                        <span className="font-mono">{qtd} × {formatCurrency(vu)}</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
+              {valorVendido > 0 && (
+                <div className="flex justify-between items-center pt-2 border-t text-xs">
+                  <span className="text-muted-foreground">Total no período</span>
+                  <span className="font-mono font-semibold">{formatCurrency(valorVendido)}</span>
+                </div>
+              )}
             </>
           )}
         </TabsContent>
