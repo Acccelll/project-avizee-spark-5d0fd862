@@ -51,7 +51,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 **M-02 — `lerConfigFiscalEmpresa` falha explicitamente** · ✅ entregue · sem mais defaults silenciosos.
 
 **M-05 — `CertificadoValidadeAlert` global em `AppLayout`** · 🟡 Médio · ~2h
-- Mover componente de `Fiscal.tsx` para `src/components/layout/AppLayout.tsx`, exibido apenas quando `pfxExpiraEm <= 30 dias` e usuário tem `faturamento_fiscal:visualizar`. Dismiss persistido em `user_preferences`.
+- ✅ entregue · montado uma única vez em `src/components/AppLayout.tsx` acima do `<Outlet />`, com query gated por `useCan('faturamento_fiscal:visualizar')`. Removido das páginas `Fiscal.tsx`, `FiscalDashboard.tsx` e `Cte.tsx`. Variante `dismissible` apenas para janela 8–30 dias, persistida em `user_preferences` (chave por `validadeFim` — ao renovar, o alerta volta). Vermelho/expirado nunca pode ser dispensado.
 
 #### Bloco C — Backlog estrutural (Fase 3 — abrir como issues separadas)
 
@@ -75,7 +75,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 2. [ ] **2.5** Migration `sefaz_consulta_log` + RPC throttle + integração em `sefaz-distdfe`.
 3. [x] **2.6** Cross-check `nfe_distribuicao` em `useNFeXmlImport` com toast informativo.
 4. [x] **EF-03** `sanitizeForLog` aplicado em todas edge functions fiscais.
-5. [x] **M-01 + M-02** Hardening de pequenos vazamentos. Resta **M-05** (CertificadoValidadeAlert global no AppLayout).
+5. [x] **M-01 + M-02 + M-05** Hardening de pequenos vazamentos e alerta global de certificado em `AppLayout`.
 6. [ ] **BK-01/02/03** Auditoria das 3 RPCs fiscais críticas (`SECURITY DEFINER`, `search_path`, permissões).
 7. [ ] **EF-04** Fila de retry para emissões com timeout SEFAZ.
 8. [ ] **M-04 + D-01 + D-02** Performance KPIs, deprecação do modal e abas em ConfiguracaoFiscal.
