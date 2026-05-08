@@ -29,7 +29,7 @@ import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import {
   Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart,
-  AlertCircle, CheckCircle2, AlignLeft, Tag, Wand2, Pencil, Save,
+  AlertCircle, AlertTriangle, CheckCircle2, AlignLeft, Tag, Wand2, Pencil, Save,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
