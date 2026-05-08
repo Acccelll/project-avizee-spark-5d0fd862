@@ -19,26 +19,30 @@ import {
   type RelatorioResultado,
   type RawFluxoItem,
 } from "@/services/relatorios/lib/shared";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
 export async function loadFinanceiro(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  // Status canônicos: aberto | parcial | pago | vencido | cancelado | estornado.
-  // Para "em aberto" consideramos aberto, parcial e vencido (cancelado/estornado são excluídos).
-  let query = supabase
-    .from("financeiro_lancamentos")
-    .select("id, cliente_id, fornecedor_id, tipo, descricao, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, banco, forma_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
-    .eq("ativo", true)
-    .not("status", "in", "(cancelado,estornado)")
-    .order("data_vencimento", { ascending: true });
-
-  query = withDateRange(query, "data_vencimento", filtros);
-  if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
-  const { data, error } = await query;
-  if (error) throw error;
+  // Doutrina canônica (Onda 6): status persistidos = aberto | parcial | pago |
+  // cancelado | estornado. `vencido` é DERIVADO de `status='aberto' AND
+  // data_vencimento < hoje` — não existe mais como valor de coluna no DB.
+  // Onda 9 (C-01): paginação universal via fetchAllPages para evitar
+  // truncamento silencioso no limite default de 1000 do Supabase.
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("financeiro_lancamentos")
+      .select("id, cliente_id, fornecedor_id, tipo, descricao, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, banco, forma_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
+      .eq("ativo", true)
+      .not("status", "in", "(cancelado,estornado)")
+      .order("data_vencimento", { ascending: true });
+    q = withDateRange(q, "data_vencimento", filtros);
+    if (filtros.tiposFinanceiros?.length) q = q.in('tipo', filtros.tiposFinanceiros);
+    return q;
+  });
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  const rows = (data || []).map((item: Record<string, unknown>) => {
+  const rows = data.map((item: Record<string, unknown>) => {
     const valor = Number(item.valor || 0);
     const status = (item.status as string | null) ?? '-';
     const valorEmAberto = status === 'pago'
@@ -47,14 +51,17 @@ export async function loadFinanceiro(filtros: FiltroRelatorio): Promise<Relatori
         ? Number(item.saldo_restante)
         : valor;
     const venc = item.data_vencimento ? new Date(item.data_vencimento as string) : null;
-    const isOpen = status === 'aberto' || status === 'parcial' || status === 'vencido';
+    // C-02: 'vencido' não é mais status persistido (backfill Onda 6).
+    const isOpen = status === 'aberto' || status === 'parcial';
     const atraso = (venc && isOpen && venc < hoje)
       ? Math.floor((hoje.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24))
       : 0;
     const parceiro = item.tipo === 'receber'
       ? ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || '-'
       : ((item.fornecedores as { nome_razao_social?: string } | null)?.nome_razao_social) || '-';
-    const stMeta = resolveStatus(financeiroStatusMap, status);
+    // Status efetivo derivado para chip/badge (display layer):
+    const effectiveStatus = (isOpen && atraso > 0) ? 'vencido' : status;
+    const stMeta = resolveStatus(financeiroStatusMap, effectiveStatus);
     return {
       lancamentoId: item.id as string,
       clienteId: (item.cliente_id as string | null) ?? undefined,
@@ -65,7 +72,7 @@ export async function loadFinanceiro(filtros: FiltroRelatorio): Promise<Relatori
       valor,
       valorEmAberto,
       atraso,
-      status,
+      status: effectiveStatus,
       statusKey: stMeta.key,
       statusKind: stMeta.kind,
       vencimento: item.data_vencimento,
@@ -75,6 +82,7 @@ export async function loadFinanceiro(filtros: FiltroRelatorio): Promise<Relatori
     };
   });
 
+  // 'vencido' aqui é o status derivado já presente nas rows.
   const isOpenStatus = (s: string) => s === 'aberto' || s === 'parcial' || s === 'vencido';
   const totalReceber = rows.filter((r) => r.tipo === 'Receber' && isOpenStatus(r.status)).reduce((s, r) => s + r.valorEmAberto, 0);
   const totalPagar = rows.filter((r) => r.tipo === 'Pagar' && isOpenStatus(r.status)).reduce((s, r) => s + r.valorEmAberto, 0);
@@ -102,18 +110,19 @@ export async function loadFinanceiro(filtros: FiltroRelatorio): Promise<Relatori
 }
 
 export async function loadFluxoCaixa(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("financeiro_lancamentos")
-    .select("id, tipo, descricao, valor, valor_pago, status, data_vencimento, data_pagamento")
-    .eq("ativo", true)
-    .not("status", "in", "(cancelado,estornado)");
+  const data = await fetchAllPages<RawFluxoItem & { id?: string; valor_pago?: number | null }>(() => {
+    let q = supabase
+      .from("financeiro_lancamentos")
+      .select("id, tipo, descricao, valor, valor_pago, status, data_vencimento, data_pagamento")
+      .eq("ativo", true)
+      .not("status", "in", "(cancelado,estornado)")
+      .order("data_vencimento", { ascending: true });
+    q = withDateRange(q, "data_vencimento", filtros);
+    if (filtros.tiposFinanceiros?.length) q = q.in('tipo', filtros.tiposFinanceiros);
+    return q;
+  });
 
-  query = withDateRange(query, "data_vencimento", filtros);
-  if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const sorted = (data || []).slice().sort((a: RawFluxoItem, b: RawFluxoItem) => {
+  const sorted = data.slice().sort((a, b) => {
     const da = a.data_pagamento || a.data_vencimento || '';
     const db = b.data_pagamento || b.data_vencimento || '';
     return da.localeCompare(db);
@@ -167,22 +176,24 @@ export async function loadFluxoCaixa(filtros: FiltroRelatorio): Promise<Relatori
 }
 
 export async function loadAging(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("financeiro_lancamentos")
-    .select("id, cliente_id, fornecedor_id, tipo, descricao, valor, saldo_restante, status, data_vencimento, data_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
-    .eq("ativo", true)
-    .in("status", ["aberto", "parcial", "vencido"])
-    .order("data_vencimento", { ascending: true });
-  query = withDateRange(query, "data_vencimento", filtros);
-  if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
-  if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
-  const { data, error } = await query;
-  if (error) throw error;
+  // C-02: 'vencido' não existe mais como status persistido — removido do .in().
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("financeiro_lancamentos")
+      .select("id, cliente_id, fornecedor_id, tipo, descricao, valor, saldo_restante, status, data_vencimento, data_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
+      .eq("ativo", true)
+      .in("status", ["aberto", "parcial"])
+      .order("data_vencimento", { ascending: true });
+    q = withDateRange(q, "data_vencimento", filtros);
+    if (filtros.clienteIds?.length) q = q.in('cliente_id', filtros.clienteIds);
+    if (filtros.tiposFinanceiros?.length) q = q.in('tipo', filtros.tiposFinanceiros);
+    return q;
+  });
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  const rows = (data || []).map((raw: Record<string, unknown>) => {
+  const rows = data.map((raw: Record<string, unknown>) => {
     const item = raw as {
       id: string;
       cliente_id: string | null;

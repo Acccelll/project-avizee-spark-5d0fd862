@@ -15,6 +15,7 @@ import type {
   FiltroRelatorio,
   RelatorioResultado,
 } from "@/services/relatorios/lib/shared";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
 const isLegacySku = (sku: string | null | undefined): boolean =>
   !!sku && /^0+[A-Z0-9]+$/i.test(sku);
@@ -33,21 +34,18 @@ function deriveSituacao(row: {
 export async function loadCadastroProdutos(
   filtros: FiltroRelatorio,
 ): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("produtos")
-    .select(
-      "id, sku, codigo_interno, nome, ncm, origem, unidade_medida, tipo_item, preco_custo, preco_venda, estoque_atual, estoque_minimo, ativo, deleted_at, descontinuado_em, grupo_id, grupos_produto(nome)",
-    )
-    .order("nome", { ascending: true });
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("produtos")
+      .select(
+        "id, sku, codigo_interno, nome, ncm, origem, unidade_medida, tipo_item, preco_custo, preco_venda, estoque_atual, estoque_minimo, ativo, deleted_at, descontinuado_em, grupo_id, grupos_produto(nome)",
+      )
+      .order("nome", { ascending: true });
+    if (filtros.grupoProdutoIds?.length) q = q.in("grupo_id", filtros.grupoProdutoIds);
+    return q;
+  });
 
-  if (filtros.grupoProdutoIds?.length) {
-    query = query.in("grupo_id", filtros.grupoProdutoIds);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const rows = (data || [])
+  const rows = data
     .filter((p) => !isLegacySku(p.sku as string | null))
     .map((p) => {
       const sit = deriveSituacao(p);
@@ -115,19 +113,18 @@ export async function loadCadastroProdutos(
 export async function loadCadastroClientes(
   filtros: FiltroRelatorio,
 ): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("clientes")
-    .select(
-      "id, tipo_pessoa, nome_razao_social, nome_fantasia, cpf_cnpj, email, telefone, celular, municipio_nome, uf, limite_credito, prazo_padrao, prazo_preferencial, forma_pagamento_padrao, ativo, deleted_at, grupo_economico_id, grupos_economicos(nome)",
-    )
-    .order("nome_razao_social", { ascending: true });
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("clientes")
+      .select(
+        "id, tipo_pessoa, nome_razao_social, nome_fantasia, cpf_cnpj, email, telefone, celular, municipio_nome, uf, limite_credito, prazo_padrao, prazo_preferencial, forma_pagamento_padrao, ativo, deleted_at, grupo_economico_id, grupos_economicos(nome)",
+      )
+      .order("nome_razao_social", { ascending: true });
+    if (filtros.clienteIds?.length) q = q.in("id", filtros.clienteIds);
+    return q;
+  });
 
-  if (filtros.clienteIds?.length) query = query.in("id", filtros.clienteIds);
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const rows = (data || []).map((c) => {
+  const rows = data.map((c) => {
     const sit = deriveSituacao(c);
     const sitMeta = resolveStatus(cadastroSituacaoStatusMap, sit);
     const telefone = c.telefone || c.celular || "-";
@@ -188,19 +185,18 @@ export async function loadCadastroClientes(
 export async function loadCadastroFornecedores(
   filtros: FiltroRelatorio,
 ): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("fornecedores")
-    .select(
-      "id, tipo_pessoa, nome_razao_social, nome_fantasia, cpf_cnpj, email, telefone, celular, municipio_nome, uf, prazo_padrao, origem, transportadora, ativo, deleted_at",
-    )
-    .order("nome_razao_social", { ascending: true });
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("fornecedores")
+      .select(
+        "id, tipo_pessoa, nome_razao_social, nome_fantasia, cpf_cnpj, email, telefone, celular, municipio_nome, uf, prazo_padrao, origem, transportadora, ativo, deleted_at",
+      )
+      .order("nome_razao_social", { ascending: true });
+    if (filtros.fornecedorIds?.length) q = q.in("id", filtros.fornecedorIds);
+    return q;
+  });
 
-  if (filtros.fornecedorIds?.length) query = query.in("id", filtros.fornecedorIds);
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const rows = (data || []).map((f) => {
+  const rows = data.map((f) => {
     const sit = deriveSituacao(f);
     const sitMeta = resolveStatus(cadastroSituacaoStatusMap, sit);
     const telefone = f.telefone || f.celular || "-";
@@ -257,16 +253,17 @@ export async function loadCadastroFornecedores(
 export async function loadCadastroTransportadoras(
   _filtros: FiltroRelatorio,
 ): Promise<RelatorioResultado> {
-  const { data, error } = await supabase
-    .from("fornecedores")
-    .select(
-      "id, nome_razao_social, cpf_cnpj, email, telefone, celular, municipio_nome, uf, ativo, deleted_at",
-    )
-    .eq("transportadora", true)
-    .order("nome_razao_social", { ascending: true });
-  if (error) throw error;
+  const data = await fetchAllPages<Record<string, unknown>>(() =>
+    supabase
+      .from("fornecedores")
+      .select(
+        "id, nome_razao_social, cpf_cnpj, email, telefone, celular, municipio_nome, uf, ativo, deleted_at",
+      )
+      .eq("transportadora", true)
+      .order("nome_razao_social", { ascending: true }),
+  );
 
-  const rows = (data || []).map((f) => {
+  const rows = data.map((f) => {
     const sit = deriveSituacao(f);
     const sitMeta = resolveStatus(cadastroSituacaoStatusMap, sit);
     const telefone = f.telefone || f.celular || "-";
