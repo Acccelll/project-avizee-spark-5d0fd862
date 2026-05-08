@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +74,8 @@ async function lerConfigEmpresa(): Promise<ConfigEmpresa> {
 
 export interface UseSefazAcoesReturn {
   pending: boolean;
+  /** Locks individuais por ação — true enquanto a ação respectiva está em curso. */
+  pendingByAction: { transmitir: boolean; consultar: boolean; cancelar: boolean };
   ultimoRetorno: SefazRetornoUI | null;
   modalAberto: boolean;
   fecharModal: () => void;
@@ -85,6 +87,29 @@ export interface UseSefazAcoesReturn {
 export function useSefazAcoes(): UseSefazAcoesReturn {
   const qc = useQueryClient();
   const [pending, setPending] = useState(false);
+  // Mutual exclusion por ação: dois cliques rápidos em "Transmitir" não disparam
+  // duas chamadas concorrentes ao sefaz-proxy para a mesma NF. Usamos um ref
+  // para o lock síncrono (sem race com setState) e estado para refletir na UI.
+  const locks = useRef<Record<"transmitir" | "consultar" | "cancelar", boolean>>({
+    transmitir: false,
+    consultar: false,
+    cancelar: false,
+  });
+  const [pendingByAction, setPendingByAction] = useState({
+    transmitir: false,
+    consultar: false,
+    cancelar: false,
+  });
+  const acquire = useCallback((key: "transmitir" | "consultar" | "cancelar") => {
+    if (locks.current[key]) return false;
+    locks.current[key] = true;
+    setPendingByAction((p) => ({ ...p, [key]: true }));
+    return true;
+  }, []);
+  const release = useCallback((key: "transmitir" | "consultar" | "cancelar") => {
+    locks.current[key] = false;
+    setPendingByAction((p) => ({ ...p, [key]: false }));
+  }, []);
   const [ultimoRetorno, setUltimoRetorno] = useState<SefazRetornoUI | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
 
@@ -92,8 +117,13 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
 
   const transmitir = useCallback<UseSefazAcoesReturn["transmitir"]>(
     async (nf, dadosNFe) => {
+      if (!acquire("transmitir")) {
+        toast.info("Transmissão já em andamento.");
+        return null;
+      }
       if (nf.status_sefaz === "autorizada") {
         toast.error("NF já autorizada pela SEFAZ.");
+        release("transmitir");
         return null;
       }
       // ── Garantir número e chave antes de qualquer pré-validação ──
@@ -137,6 +167,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         }
       } catch (e) {
         notifyError(e);
+        release("transmitir");
         return null;
       }
       // Pré-validação local antes de bater na SEFAZ — bloqueia rejeições
@@ -159,6 +190,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         });
         setModalAberto(true);
         toast.error(`${erros.length} problema(s) antes da emissão`);
+        release("transmitir");
         return null;
       }
       setPending(true);
@@ -198,15 +230,21 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         return null;
       } finally {
         setPending(false);
+        release("transmitir");
       }
     },
-    [qc],
+    [qc, acquire, release],
   );
 
   const consultar = useCallback<UseSefazAcoesReturn["consultar"]>(
     async (nf) => {
+      if (!acquire("consultar")) {
+        toast.info("Consulta já em andamento.");
+        return null;
+      }
       if (!nf.chave_acesso) {
         toast.error("Esta NF não possui chave de acesso para consulta.");
+        release("consultar");
         return null;
       }
       setPending(true);
@@ -235,23 +273,31 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         return null;
       } finally {
         setPending(false);
+        release("consultar");
       }
     },
-    [],
+    [acquire, release],
   );
 
   const cancelar = useCallback<UseSefazAcoesReturn["cancelar"]>(
     async (nf, justificativa) => {
+      if (!acquire("cancelar")) {
+        toast.info("Cancelamento já em andamento.");
+        return null;
+      }
       if (nf.status_sefaz !== "autorizada") {
         toast.error("Apenas NFs autorizadas podem ser canceladas via SEFAZ.");
+        release("cancelar");
         return null;
       }
       if (!nf.chave_acesso || !nf.protocolo_autorizacao) {
         toast.error("NF sem chave/protocolo de autorização — não é possível cancelar.");
+        release("cancelar");
         return null;
       }
       if (justificativa.trim().length < 15) {
         toast.error("Justificativa de cancelamento exige no mínimo 15 caracteres.");
+        release("cancelar");
         return null;
       }
       setPending(true);
@@ -296,13 +342,15 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         return null;
       } finally {
         setPending(false);
+        release("cancelar");
       }
     },
-    [qc],
+    [qc, acquire, release],
   );
 
   return {
     pending,
+    pendingByAction,
     ultimoRetorno,
     modalAberto,
     fecharModal,

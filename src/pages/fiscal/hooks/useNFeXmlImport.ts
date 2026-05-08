@@ -99,11 +99,16 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
       const nfe: NFeData = parseNFeXml(xmlText);
 
       // Bloqueio de re-importação por chave de acesso (idempotência fiscal).
+      // Ignora canceladas/inutilizadas para permitir reimportação corretiva.
       if (nfe.chaveAcesso) {
-        const isDuplicate = await verificarDuplicidadeChave(nfe.chaveAcesso);
-        if (isDuplicate) {
+        const dup = await verificarDuplicidadeChave(nfe.chaveAcesso, {
+          ignorarCanceladas: true,
+        });
+        if (dup) {
+          const ref = dup.numero ? `nº ${dup.numero}/${dup.serie ?? "1"}` : `id ${dup.id.slice(0, 8)}…`;
+          const statusInfo = dup.status_sefaz ?? dup.status ?? "—";
           toast.error(
-            `XML já importado anteriormente (chave: ${nfe.chaveAcesso.slice(0, 12)}…). Importação abortada.`,
+            `XML já importado (NF ${ref}, status: ${statusInfo}). Importação abortada.`,
           );
           return null;
         }
