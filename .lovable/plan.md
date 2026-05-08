@@ -37,10 +37,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - **Pronto quando:** lista carrega em <500 ms com 50k notas; sem `select('*')` cliente; KPIs idem.
 
 **2.5 — Throttle DistDFe server-side (EF-02)** · 🟠 Alto · ~4h
-- Migration: tabela `sefaz_consulta_log (id, cnpj text, action text, created_at timestamptz default now())` + index `(cnpj, action, created_at desc)`. RLS: `service_role` only.
-- Migration: RPC `sefaz_consulta_pode_disparar(p_cnpj text, p_action text, p_janela_seg int default 3600, p_max int default 18) returns boolean`. `SECURITY DEFINER`, `SET search_path = public`. Insere log e retorna `false` se excedeu.
-- `supabase/functions/sefaz-distdfe/index.ts`: antes de cada `consultar-chave`/`consultar-nsu`, chama a RPC; se `false`, devolve `429 { error: 'rate_limited', janela_seg, max }`. Bypass para SERVICE_ROLE (cron) permanece.
-- **Pronto quando:** 19ª chamada na mesma hora retorna 429; cron continua funcionando.
+- ✅ entregue · Tabela `sefaz_consulta_log` (RLS on, sem policies — só service_role acessa) + RPC `sefaz_consulta_pode_disparar(cnpj, action, janela_seg=3600, max=18)` `SECURITY DEFINER` com `search_path=public`. `sefaz-distdfe` chama a RPC antes de montar o SOAP; resposta `429 { codigoTransporte: 'RATE_LIMITED', janelaSeg, max }` quando estourado. SERVICE_ROLE (cron `process-distdfe-cron`) continua bypass via `user.isService`.
 
 **2.6 — `useNFeXmlImport` checa `nfe_distribuicao` antes de aplicar (A-07)** · ✅ entregue · usa `data_manifestacao`/`status_manifestacao` (schema real) e expõe `distdfeRef` no `NFeXmlImportResult`.
 
@@ -72,7 +69,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 ### Próxima onda — Lista de tarefas (ordem sugerida)
 
 1. [ ] **2.1** RPCs `listar_notas_fiscais_ids` + `kpis_fiscal` + hook `useNotasFiscaisPaged` + refactor `Fiscal.tsx`.
-2. [ ] **2.5** Migration `sefaz_consulta_log` + RPC throttle + integração em `sefaz-distdfe`.
+2. [x] **2.5** Migration `sefaz_consulta_log` + RPC throttle + integração em `sefaz-distdfe`.
 3. [x] **2.6** Cross-check `nfe_distribuicao` em `useNFeXmlImport` com toast informativo.
 4. [x] **EF-03** `sanitizeForLog` aplicado em todas edge functions fiscais.
 5. [x] **M-01 + M-02 + M-05** Hardening de pequenos vazamentos e alerta global de certificado em `AppLayout`.
