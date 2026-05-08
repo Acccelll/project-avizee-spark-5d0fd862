@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -28,14 +28,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { listGruposEconomicosAtivos, listFormasPagamentoAtivas } from "@/services/clientes.service";
 import { formatDate } from "@/lib/format";
-import { cpfCnpjMask, phoneMask } from "@/utils/masks";
+import { cpfCnpjMask, phoneMask, cpfMask, cnpjMask } from "@/utils/masks";
 import { toast } from "sonner";
 import {
   Building2, Search, User2, Phone, CreditCard, MapPin, Truck, FileText,
   Info, Loader2, Calendar, Mail, Users, UserCheck, AlertTriangle,
-  MessageSquare, Home,
+  MessageSquare, Home, Pencil, Check as CheckIcon,
 } from "lucide-react";
 import { Plus } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -113,6 +114,30 @@ const relacaoOptions = [
 
 const MAX_PAYMENT_DAYS = 365;
 const MAX_OBSERVACOES_LENGTH = 2000;
+
+// Regex para detectar metadados de origem dentro de `observacoes`
+// (gerados por scripts de importação antigos). Mantemos read-only no form
+// para o usuário não apagar acidentalmente.
+const META_RE = /(Importado via faturamento histórico[^\n]*|IBGE:\s*\d+)/g;
+
+function splitObservacoes(raw: string): { meta: string; user: string } {
+  if (!raw) return { meta: "", user: "" };
+  const metas = raw.match(META_RE) || [];
+  const user = raw.replace(META_RE, "").replace(/\n{3,}/g, "\n\n").trim();
+  return { meta: metas.join(" · "), user };
+}
+
+function joinObservacoes(meta: string, user: string): string {
+  if (meta && user) return `${user.trim()}\n\n${meta}`;
+  return (user || meta || "").trim();
+}
+
+function labelDocumento(doc: string): string {
+  const digits = (doc || "").replace(/\D/g, "");
+  if (digits.length === 11) return `CPF: ${cpfMask(doc)}`;
+  if (digits.length === 14) return `CNPJ: ${cnpjMask(doc)}`;
+  return doc || "";
+}
 
 const Clientes = () => {
   const location = useLocation();
@@ -221,6 +246,25 @@ const Clientes = () => {
   const [quickAddFormaPagOpen, setQuickAddFormaPagOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  // Refs/estado de UX do formulário de cliente
+  const tipoPessoaTouched = useRef(false);
+  const [cepStatus, setCepStatus] = useState<"ok" | "fail" | null>(null);
+  const [paisEditavel, setPaisEditavel] = useState(false);
+
+  // Decompõe observações: metadados (Importado/IBGE) ficam read-only
+  const obsParts = useMemo(() => splitObservacoes(form.observacoes || ""), [form.observacoes]);
+
+  // Pendências por aba para os indicadores nas TabsTrigger
+  const tabIssues = useMemo(() => {
+    const docDigits = (form.cpf_cnpj || "").replace(/\D/g, "");
+    const docInvalido = !docDigits || (docDigits.length !== 11 && docDigits.length !== 14);
+    const dadosGerais = !form.tipo_pessoa || !form.nome_razao_social || docInvalido;
+    const contatos = !form.telefone && !form.celular && !form.email;
+    const endereco = !form.cep || !form.logradouro || !form.cidade || !form.uf;
+    const comercial = !form.forma_pagamento_id && (!form.prazo_padrao || form.prazo_padrao <= 0);
+    return { dadosGerais, contatos, endereco, comercial };
+  }, [form]);
+
   useEffect(() => {
     Promise.all([listGruposEconomicosAtivos(), listFormasPagamentoAtivas()])
       .then(([g, fp]) => {
@@ -251,6 +295,9 @@ const Clientes = () => {
   const openCreate = () => {
     setMode("create"); setForm({ ...emptyCliente }); setSelected(null); setIsDirty(false);
     setEnderecosCount(0); setComunicacoesCount(0);
+    tipoPessoaTouched.current = false;
+    setCepStatus(null);
+    setPaisEditavel(false);
     setModalOpen(true);
   };
 
@@ -272,6 +319,9 @@ const Clientes = () => {
     });
     setIsDirty(false);
     setEnderecosCount(0); setComunicacoesCount(0);
+    tipoPessoaTouched.current = true; // edição: usuário já decidiu o tipo
+    setCepStatus(null);
+    setPaisEditavel(false);
     setModalOpen(true);
   };
 
@@ -664,33 +714,32 @@ const Clientes = () => {
         size="xl"
         mode={mode}
         createHint="Preencha os dados básicos para criar o cliente. Endereços, transportadoras e comunicações ficam disponíveis após salvar."
-        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
+        identifier={mode === "edit" && selected?.cpf_cnpj ? labelDocumento(selected.cpf_cnpj) : undefined}
         headerActions={mode === "edit" && selected ? (
-          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-            <Switch
-              checked={form.ativo}
-              onCheckedChange={(v) => updateForm({ ativo: v })}
-              aria-label={form.ativo ? "Inativar cliente" : "Reativar cliente"}
-            />
-            <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
-          </label>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <Switch
+                  checked={form.ativo}
+                  onCheckedChange={(v) => updateForm({ ativo: v })}
+                  aria-label={form.ativo ? "Inativar cliente" : "Reativar cliente"}
+                />
+                <span className="font-medium">{form.ativo ? "Cliente ativo" : "Cliente inativo"}</span>
+              </label>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">Alterar status do cadastro</TooltipContent>
+          </Tooltip>
         ) : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
-          ...(form.forma_pagamento_id
-            ? [{
-                icon: CreditCard,
-                label: formasPagamento.find((fp) => fp.id === form.forma_pagamento_id)?.descricao
-                  ?? "Forma de pagamento",
-              }]
-            : []),
           ...(form.grupo_economico_id ? [{ icon: Building2, label: grupos.find(g => g.id === form.grupo_economico_id)?.nome ?? "Grupo" }] : []),
         ] : undefined}
         isDirty={isDirty}
         footer={
           <FormModalFooter
             saving={saving} isDirty={isDirty}
+            disabled={Object.keys(formErrors).length > 0}
+            disabledReason={Object.keys(formErrors).length > 0 ? "Corrija os erros do formulário antes de salvar." : undefined}
             onCancel={async () => {
               if (isDirty && !(await confirmDiscard())) return;
               setModalOpen(false);
@@ -702,16 +751,40 @@ const Clientes = () => {
         <form id="cliente-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
-              <TabsTrigger value="dados-gerais" className="gap-1.5"><User2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
-              <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
-              <TabsTrigger value="endereco" className="gap-1.5"><MapPin className="h-3.5 w-3.5" />Endereço</TabsTrigger>
+              <TabsTrigger value="dados-gerais" className="gap-1.5">
+                <User2 className="h-3.5 w-3.5" />Dados Gerais
+                {tabIssues.dadosGerais && (
+                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <TooltipContent className="text-xs">Faltam dados básicos do cliente.</TooltipContent></Tooltip>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="contatos" className="gap-1.5">
+                <Phone className="h-3.5 w-3.5" />Contatos
+                {tabIssues.contatos && (
+                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <TooltipContent className="text-xs">Sem nenhum canal de contato.</TooltipContent></Tooltip>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="endereco" className="gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />Endereço
+                {tabIssues.endereco && (
+                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <TooltipContent className="text-xs">Endereço incompleto.</TooltipContent></Tooltip>
+                )}
+              </TabsTrigger>
               {mode === "edit" && (
                 <TabsTrigger value="entregas" className="gap-1.5">
                   <Home className="h-3.5 w-3.5" />Entregas
                   {enderecosCount > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{enderecosCount}</span>}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="comercial" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Comercial</TabsTrigger>
+              <TabsTrigger value="comercial" className="gap-1.5">
+                <CreditCard className="h-3.5 w-3.5" />Comercial
+                {tabIssues.comercial && (
+                  <Tooltip><TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-warning" /></TooltipTrigger>
+                  <TooltipContent className="text-xs">Sem forma de pagamento ou prazo definido.</TooltipContent></Tooltip>
+                )}
+              </TabsTrigger>
               {mode === "edit" && (
                 <TabsTrigger value="comunicacoes" className="gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" />Comunicações
@@ -726,13 +799,19 @@ const Clientes = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="space-y-1.5">
                   <Label>Tipo de Pessoa</Label>
-                  <Select value={form.tipo_pessoa} onValueChange={(v) => updateForm({ tipo_pessoa: v })}>
+                  <Select
+                    value={form.tipo_pessoa}
+                    onValueChange={(v) => { tipoPessoaTouched.current = true; updateForm({ tipo_pessoa: v }); }}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="F">Pessoa Física</SelectItem>
                       <SelectItem value="J">Pessoa Jurídica</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!tipoPessoaTouched.current && form.cpf_cnpj && (
+                    <p className="text-[11px] text-muted-foreground">Detectado automaticamente pelo documento.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
@@ -747,12 +826,24 @@ const Clientes = () => {
                     )}
                   </div>
                   <div className="flex gap-1">
-                    <MaskedInput mask="cpf_cnpj" value={form.cpf_cnpj} onChange={(v) => updateForm({ cpf_cnpj: v })} />
+                    <MaskedInput
+                      mask="cpf_cnpj"
+                      value={form.cpf_cnpj}
+                      onChange={(v) => {
+                        const digits = (v || "").replace(/\D/g, "");
+                        const patch: Partial<ClienteFormData> = { cpf_cnpj: v };
+                        if (!tipoPessoaTouched.current) {
+                          if (digits.length === 11) patch.tipo_pessoa = "F";
+                          else if (digits.length === 14) patch.tipo_pessoa = "J";
+                        }
+                        updateForm(patch);
+                      }}
+                    />
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           type="button" variant="outline" size="icon" className="shrink-0"
-                          aria-label="Buscar dados do CNPJ"
+                          aria-label="Consultar CNPJ na Receita"
                           disabled={cnpjLoading || form.tipo_pessoa !== "J"}
                           onClick={async () => {
                             const result = await buscarCnpj(form.cpf_cnpj);
@@ -784,6 +875,9 @@ const Clientes = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  {form.tipo_pessoa === "J" && (form.cpf_cnpj || "").replace(/\D/g, "").length === 14 && !formErrors.cpf_cnpj && (
+                    <p className="text-[11px] text-muted-foreground">Consultar CNPJ preenche razão social, endereço e contato.</p>
+                  )}
                   {formErrors.cpf_cnpj && <p className="text-xs text-destructive">{formErrors.cpf_cnpj}</p>}
                   {!formErrors.cpf_cnpj && docChecking && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -794,6 +888,7 @@ const Clientes = () => {
                     <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
                   )}
                 </div>
+                {form.tipo_pessoa === "J" && (
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
                     <Label>Inscrição Estadual</Label>
@@ -804,8 +899,21 @@ const Clientes = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <Input value={form.inscricao_estadual} onChange={(e) => updateForm({ inscricao_estadual: e.target.value })} placeholder="Ex: 123.456.789.000 ou ISENTO" />
+                  <Input
+                    value={form.inscricao_estadual}
+                    onChange={(e) => updateForm({ inscricao_estadual: e.target.value })}
+                    placeholder="Ex: 123.456.789.000"
+                    disabled={form.inscricao_estadual.toUpperCase() === "ISENTO"}
+                  />
+                  <label className="inline-flex items-center gap-2 text-[11px] text-muted-foreground cursor-pointer select-none">
+                    <Checkbox
+                      checked={form.inscricao_estadual.toUpperCase() === "ISENTO"}
+                      onCheckedChange={(v) => updateForm({ inscricao_estadual: v ? "ISENTO" : "" })}
+                    />
+                    Isento de IE
+                  </label>
                 </div>
+                )}
                 <div className="col-span-2 md:col-span-3 space-y-1.5">
                   <Label>Nome / Razão Social <span className="text-destructive">*</span></Label>
                   <Input
@@ -891,10 +999,15 @@ const Clientes = () => {
                     <MaskedInput
                       mask="cep" value={form.cep} onChange={(v) => updateForm({ cep: v })}
                       onBlur={async () => {
+                        const digits = (form.cep || "").replace(/\D/g, "");
+                        if (digits.length !== 8) { setCepStatus(null); return; }
                         const result = await buscarCep(form.cep);
                         if (result) {
                           setForm(prev => ({ ...prev, logradouro: result.logradouro, bairro: result.bairro, cidade: result.localidade, uf: result.uf }));
                           setIsDirty(true);
+                          setCepStatus("ok");
+                        } else {
+                          setCepStatus("fail");
                         }
                       }}
                       className={cepLoading ? "pr-8" : ""}
@@ -904,6 +1017,12 @@ const Clientes = () => {
                     )}
                   </div>
                   {formErrors.cep && <p className="text-xs text-destructive">{formErrors.cep}</p>}
+                  {!formErrors.cep && cepStatus === "ok" && (
+                    <p className="text-[11px] text-success inline-flex items-center gap-1"><CheckIcon className="h-3 w-3" /> CEP encontrado</p>
+                  )}
+                  {!formErrors.cep && cepStatus === "fail" && (
+                    <p className="text-[11px] text-destructive">CEP não encontrado</p>
+                  )}
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>Logradouro</Label>
@@ -933,20 +1052,40 @@ const Clientes = () => {
                   </Select>
                   {formErrors.uf && <p className="text-xs text-destructive">{formErrors.uf}</p>}
                 </div>
-                <div className="space-y-1.5"><Label>País</Label><Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} /></div>
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-1">
-                    <Label>Caixa Postal</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
-                      <TooltipContent className="text-xs">
-                        Caixa Postal para entrega de correspondências, quando diferente do endereço principal.
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Input value={form.caixa_postal} onChange={(e) => updateForm({ caixa_postal: e.target.value })} placeholder="Ex: CP 1234" />
+                  <Label>País</Label>
+                  {paisEditavel ? (
+                    <Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} autoFocus />
+                  ) : (
+                    <div className="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted/30 text-sm">
+                      <span className="flex-1">{form.pais || "Brasil"}</span>
+                      <button type="button" onClick={() => setPaisEditavel(true)}
+                        className="text-xs text-primary inline-flex items-center gap-1 hover:underline">
+                        <Pencil className="h-3 w-3" /> Alterar
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
+              <details className="mt-2 group">
+                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">
+                  Avançado (caixa postal)
+                </summary>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1">
+                      <Label>Caixa Postal</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                        <TooltipContent className="text-xs">
+                          Caixa Postal para entrega de correspondências, quando diferente do endereço principal.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input value={form.caixa_postal} onChange={(e) => updateForm({ caixa_postal: e.target.value })} placeholder="Ex: CP 1234" />
+                  </div>
+                </div>
+              </details>
             </TabsContent>
 
             {/* COMERCIAL */}
@@ -973,21 +1112,12 @@ const Clientes = () => {
                     value={form.forma_pagamento_id || "nenhuma"}
                     onValueChange={(v) => updateForm({ forma_pagamento_id: v === "nenhuma" ? "" : v })}
                   >
-                    <SelectTrigger><SelectValue placeholder="Não definida" /></SelectTrigger>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Não definida" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="nenhuma">Não definida</SelectItem>
                       {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.id}>{fp.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={() => setQuickAddFormaPagOpen(true)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" /> Cadastrar nova forma
-                  </Button>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
@@ -1006,7 +1136,7 @@ const Clientes = () => {
                   />
                   {formErrors.prazo_padrao && <p className="text-xs text-destructive">{formErrors.prazo_padrao}</p>}
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 col-span-2 md:col-span-1">
                   <div className="flex items-center gap-1">
                     <Label>Prazo Preferencial (dias)</Label>
                     <Tooltip>
@@ -1019,9 +1149,7 @@ const Clientes = () => {
                   <Input type="number" min={0} max={MAX_PAYMENT_DAYS} value={form.prazo_preferencial}
                     onChange={(e) => updateForm({ prazo_preferencial: Number(e.target.value) })} />
                 </div>
-              </div>
-              <div className="mb-4">
-                <div className="rounded-md border bg-muted/20 px-4 py-3 space-y-1.5">
+                <div className="space-y-1.5 col-span-2">
                   <div className="flex items-center gap-1">
                     <Label>Limite de Crédito (R$)</Label>
                     <Tooltip>
@@ -1034,9 +1162,19 @@ const Clientes = () => {
                   <Input
                     type="number" step="0.01" min={0} placeholder="0,00" value={form.limite_credito}
                     onChange={(e) => updateForm({ limite_credito: Number(e.target.value) })}
-                    className={`max-w-xs ${formErrors.limite_credito ? "border-destructive" : ""}`}
+                    className={formErrors.limite_credito ? "border-destructive" : ""}
                   />
                   {formErrors.limite_credito && <p className="text-xs text-destructive">{formErrors.limite_credito}</p>}
+                </div>
+                <div className="space-y-1.5 col-span-2 flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuickAddFormaPagOpen(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Cadastrar nova forma de pagamento
+                  </Button>
                 </div>
               </div>
 
@@ -1092,6 +1230,13 @@ const Clientes = () => {
                 </div>
               ) : <div className="mb-4" />}
 
+              <div className="flex items-center gap-2 pt-3 pb-1 border-t">
+                <Truck className="w-4 h-4 text-primary/70" />
+                <h3 className="font-semibold text-sm">Logística Comercial</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Transportadoras preferenciais usadas em remessas para este cliente.
+              </p>
               {mode === "create" ? (
                 <div className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-2.5 border border-dashed text-xs text-muted-foreground">
                   <Truck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -1121,14 +1266,26 @@ const Clientes = () => {
               <p className="text-xs text-muted-foreground mb-3">
                 Notas internas e contexto adicional sobre o cliente. Visível apenas internamente.
               </p>
+              {obsParts.meta && (
+                <div className="mb-4">
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Origem do cadastro</p>
+                  <div className="inline-flex items-center gap-2 rounded-md bg-muted/40 border px-2.5 py-1.5 text-xs text-muted-foreground">
+                    <Info className="h-3 w-3" />
+                    <span>{obsParts.meta}</span>
+                  </div>
+                </div>
+              )}
               <div className="mb-6">
+                {obsParts.meta && (
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Observações internas</p>
+                )}
                 <Textarea
                   rows={5} maxLength={MAX_OBSERVACOES_LENGTH}
-                  value={form.observacoes}
-                  onChange={(e) => updateForm({ observacoes: e.target.value })}
+                  value={obsParts.user}
+                  onChange={(e) => updateForm({ observacoes: joinObservacoes(obsParts.meta, e.target.value) })}
                   placeholder="Informações relevantes sobre o cliente: preferências, restrições, histórico de relacionamento..."
                 />
-                <p className="text-xs text-muted-foreground mt-1 text-right">{(form.observacoes || "").length}/{MAX_OBSERVACOES_LENGTH}</p>
+                <p className="text-xs text-muted-foreground mt-1 text-right">{obsParts.user.length}/{MAX_OBSERVACOES_LENGTH}</p>
               </div>
             </TabsContent>
           </Tabs>

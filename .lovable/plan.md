@@ -1,108 +1,103 @@
-# Onda 22 — Drawer de Clientes (UI/Presentational)
+## Onda 23 — Refinos no formulário de Clientes (Novo / Editar)
 
-Refina o `ClienteView` (drawer aberto via `?drawer=cliente:<id>`) para deixar a tela mais legível e acionável. Tudo é frontend/apresentação — sem mudanças em RPCs, RLS, services ou domínio.
+Foco frontend: melhorar o cabeçalho, tornar o preenchimento mais inteligente, indicar pendências por aba e separar metadados de observações. Sem mudanças de schema, RLS ou regras de negócio.
 
-Arquivo único editado: `src/components/views/ClienteView.tsx`.
+Arquivo principal: `src/pages/Clientes.tsx` (FormModal de cliente, linhas ~657-1136). Sem novos componentes, sem novos hooks.
 
-## 1. Cabeçalho com rótulos claros (alta)
+### 1. Cabeçalho — eliminar redundância badge × toggle (alta)
 
-No `RecordIdentityCard.meta`, trocar a sequência crua `72725605920 · RS` por rótulos:
+Hoje aparecem ao mesmo tempo: `StatusBadge` em `status` + `Switch` "Ativo" em `headerActions`. No modo **edição**:
 
-- Documento formatado com `cpfCnpjMask(selected.cpf_cnpj)` e prefixo dinâmico:
-  - 11 dígitos → `CPF: 727.256.059-20`
-  - 14 dígitos → `CNPJ: 12.345.678/0001-90`
-  - outro tamanho → `Documento: <valor>`
-- Cidade/UF rotulados: `Cidade: Caxias do Sul/RS` (ou só `UF: RS` quando sem cidade).
-- Quando faltar documento: omitir a parte "CPF/CNPJ" em vez de mostrar `—`.
+- Remover o `status={<StatusBadge .../>}` do `FormModal` para edição.
+- Manter apenas o `Switch` em `headerActions`, com label claro: `Cliente ativo` / `Cliente inativo` (em vez de só "Ativo"/"Inativo"), e tooltip "Alterar status do cadastro".
+- No modo **criação**: nada de toggle nem badge (cliente novo já nasce ativo; o `createHint` cobre).
 
-## 2. Badge de saúde cadastral (alta)
+### 2. Diferenciar Novo vs Editar (alta)
 
-Helper local `getMissingFields(c)` (mesmo critério já usado em `Clientes.tsx`: documento, telefone+celular, email, prazo, endereço — logradouro/cidade/uf/cep).
+- Título já alterna; reforçar:
+  - **Criação**: `meta` enxuta — apenas hints relevantes (nada de "Cadastrado em").
+  - **Edição**: manter `Cadastrado em …` e enriquecer com `Última atualização` (usar `selected.updated_at` se existir; caso contrário, omitir).
+- O CTA do footer já vem do `FormModalFooter` via `mode` (Criar vs Salvar Alterações) — apenas confirmar que está sendo passado (já está).
 
-No `badges` do `RecordIdentityCard`, ao lado do `StatusBadge`:
+### 3. Cabeçalho mais compacto (média)
 
-- Se `missing.length === 0`: nada extra.
-- Se houver pendências: badge `warning` "Cadastro incompleto" com `Tooltip` listando os campos faltantes (ex.: "Sem e-mail · Sem telefone · Endereço incompleto").
+Sem reescrever o `FormModal`, apenas reorganizar o que `Clientes.tsx` envia:
 
-## 3. KPIs com microcopy melhor (alta)
+- `identifier` mostra o documento mascarado (`cpfCnpjMask(selected.cpf_cnpj)`), prefixado por `CPF:` ou `CNPJ:` conforme o número de dígitos (mesma lógica de `ClienteView`).
+- `meta`: `Cadastrado em DD/MM/AAAA` + grupo econômico (se houver). Remover o item de "Forma de pagamento" do `meta` — já aparece dentro da aba Comercial e polui o topo.
 
-Reescrever os 4 `DrawerSummaryCard`:
+### 4. Aba Dados Gerais — preenchimento inteligente (alta)
 
-| Atual | Novo label | Novo `hint` |
-|---|---|---|
-| `Saldo Devedor` | `Saldo devedor` | `Sem títulos em aberto` quando `totalAberto === 0`, senão `<n> título(s) em aberto` |
-| `PMV (Médio)` | `Pedido médio` | `baseado em <n> pedido(s)` ou `baseado em <n> nota(s)` (quando `vendas.length === 0`) |
-| `Lmt. Crédito` | `Limite de crédito` | quando `limite_credito` é `null/undefined`: valor = `Não definido` (com `mono={false}`, `tone="neutral"`); quando `0`: valor `R$ 0,00` + hint `Sem crédito aprovado`; quando `>0`: valor + hint `Crédito disponível` |
-| `Última Compra` | `Última compra` | hint `Pedido` ou `NF importada` conforme origem |
+- **Inferência de Tipo de Pessoa pelo CPF/CNPJ**: ao alterar `cpf_cnpj`, se `digits.length === 11` → setar `tipo_pessoa = "F"`; se `=== 14` → `"J"`. Só aplica quando o usuário ainda não tocou manualmente o campo na sessão (flag local `tipoPessoaTouched`). Disparado no `onChange` do `MaskedInput` de CPF/CNPJ.
+- **Botão lupa do CNPJ**: já tem tooltip; trocar o ícone para um par mais claro — manter `Search` mas adicionar `aria-label="Consultar CNPJ na Receita"` e exibir um pequeno texto auxiliar abaixo do campo: `Consultar CNPJ preenche razão social, endereço e contato.` (visível só quando `tipo_pessoa === "J"` e o documento tem 14 dígitos).
+- **Inscrição Estadual**:
+  - Se `tipo_pessoa === "F"`: ocultar o campo (PF não tem IE comercial nesse fluxo).
+  - Se `tipo_pessoa === "J"`: manter, e adicionar checkbox/atalho `Isento` que, quando marcado, preenche o input com `ISENTO` e desabilita-o.
 
-## 4. Aba Geral — endereço e campos vazios (alta)
+### 5. Aba Endereço (média)
 
-Substituir o bloco atual por renderização condicional:
+- Já há lookup no `onBlur` do CEP + spinner. Apenas:
+  - Adicionar mensagem de sucesso/erro inline abaixo do CEP (`CEP encontrado` / `CEP não encontrado`), via estado local `cepStatus`.
+  - **País**: default `Brasil`, render readonly com botão pequeno `Alterar` que torna editável (reduz protagonismo sem remover).
+  - **Caixa Postal**: mover para uma seção "Avançado" colapsável (`<details>` simples) no fim da aba.
 
-- Helper `fmt(v)` que devolve `<span className="text-muted-foreground italic">Não informado</span>` quando vazio.
-- Endereço:
-  - Concatenar `logradouro + numero` somente se houver `logradouro`; senão linha "Endereço não informado".
-  - Linha 2: `bairro` quando existir; "Cidade/UF" só quando algum dos dois existir (com separador correto: `Caxias do Sul/RS`, `—/RS`, `Caxias do Sul`).
-  - CEP: `cepMask(selected.cep)` ou "CEP não informado".
-- Aplicar `fmt` em e-mail, telefone (com `phoneMask`), celular (com `phoneMask`), grupo econômico.
+### 6. Aba Entregas — empty state (baixa)
 
-Quando `missingFields.length >= 3`, mostrar callout no topo da aba Geral:
+- O componente vive em `ClienteEnderecosTab`, fora de escopo desta onda. Aqui: passar via prop opcional `emptyHint` (string) com texto reforçando que o endereço de faturamento é usado por padrão. Se o componente não suportar, **adiar** este item (sem editar o sub-componente — mantém escopo).
 
-```
-[ ! ] Cadastro incompleto
-      Faltam: <lista>
-      [Completar cadastro]  ← navigate(`/clientes?editId=${id}`)
-```
+### 7. Aba Comercial — modularização visual (média)
 
-## 5. Origem do cadastro separada (média)
+Já existe a separação em "Condições Comerciais" e "Grupo Econômico". Refinar:
 
-Detectar marcação de migração nas `observacoes` (regex `/Importado via faturamento histórico|IBGE:/i`):
+- Criar um terceiro bloco visual `Logística Comercial` envolvendo o `ClienteTransportadorasTab` (apenas um header com ícone + título, sem alterar o sub-componente).
+- Compactar o **Limite de Crédito**: trazer para dentro do grid principal de 4 colunas (linha 2, ocupando 2 col), removendo a caixa `bg-muted/20` que dá respiro excessivo.
+- Promover o link "Cadastrar nova forma" para botão `variant="outline"` `size="sm"` posicionado **ao lado** do `Select` de forma de pagamento, dentro de um `flex gap-2` (mais visível, ainda secundário).
+- Empty state de transportadoras: passa por melhoria no sub-componente — fora de escopo.
 
-- Se reconhecida: separar em duas seções na aba Geral:
-  - **Observações comerciais** → resto do texto sem o trecho de auditoria, ou empty `Nenhuma observação cadastrada.`
-  - **Origem do cadastro** → chip cinza pequeno com o trecho extraído (ex.: `Importado via faturamento histórico · IBGE 4308607`).
-- Caso contrário: manter bloco único "Observações" como hoje.
+### 8. Aba Observações — separar metadado (alta)
 
-## 6. Aba Vendas — distinção pedidos vs NF (média)
+Hoje o textarea pode conter `Importado via faturamento histórico (IBGE: 4308607)`.
 
-- Trocar título "Últimos Pedidos" por **"Pedidos de venda"**.
-- Empty state: título `Nenhum pedido de venda encontrado`, mensagem `Pedidos comerciais cadastrados aparecerão aqui.`
-- Trocar "Notas Fiscais de Saída" por **"Notas fiscais (saída)"** com sublabel `Inclui notas importadas sem pedido vinculado.`
-- Quando `vendas.length === 0` E `notasSaida.length > 0`, exibir um pequeno banner informativo no topo: `Este cliente possui notas fiscais importadas, mas nenhum pedido de venda registrado.`
+- Detectar prefixo `Importado via faturamento histórico` ou `IBGE:` em `form.observacoes` (regex idêntica à usada em `ClienteView`).
+- Renderizar dois blocos:
+  - **Origem do cadastro** (read-only, chip cinza com o trecho metadado).
+  - **Observações internas** (`Textarea` editável só com o restante).
+- No `handleSubmit`, ao salvar, **reanexar** o trecho de metadado ao texto editado (concatenar com `\n\n` se houver observação). Isso evita perda de informação histórica.
 
-## 7. Empty states com CTA (alta)
+### 9. Indicadores de pendência por aba (média)
 
-- **Financeiro / Condições padrão**: quando `formas_pagamento` e `forma_pagamento_padrao` forem nulos, exibir botão `Definir condição financeira` → `navigate('/clientes?editId=' + id)`.
-- **Financeiro / Lançamentos**: mensagem ampliada: `Quando houver contas a receber deste cliente, elas aparecerão aqui.`
-- **Contatos**: `DetailEmpty` ganha prop `action` (já suportada — verificar) com botão `+ Registrar contato` (placeholder: `toast.info("Use o botão Editar para registrar comunicação.")` — **não** abre formulário novo nesta onda; apenas presença visual do CTA, redirecionando para edição).
-- **Logística**: idem `+ Vincular transportadora` redirigindo para edição.
-- **Preços** (`PrecosEspeciaisTab`): fora do escopo; já tem CTA próprio.
+Calcular um conjunto `tabIssues = { dadosGerais, contatos, endereco, comercial }`:
 
-> Observação: criar formulários inline de contato/transportadora exige hooks/services novos → fora do escopo desta onda. Os CTAs roteiam para o formulário de edição existente, mantendo o drawer apenas como leitura+navegação.
+- `dadosGerais`: falta `tipo_pessoa` ou `nome_razao_social` ou `cpf_cnpj` inválido.
+- `contatos`: faltam **todos** os canais (telefone, celular, email).
+- `endereco`: faltam `cep` ou `logradouro` ou `cidade`/`uf`.
+- `comercial`: `forma_pagamento_id` vazio **e** `prazo_padrao` zero.
 
-## 8. Botão "Excluir" agrupado em "Mais ações" (média)
+Renderizar pequeno `•` ou ícone `AlertTriangle` (h-3 w-3 text-warning) ao lado do label do `TabsTrigger` quando `true`. Tooltip explica o que falta.
 
-No slot `actions` publicado via `usePublishDrawerSlots`:
+### 10. Validação e estado de alteração (baixa, parcialmente já existe)
 
-- Manter `[Editar]` como ação primária visível.
-- Substituir os 2 botões "Excluir" / "Excluir definitivamente" por um único `DropdownMenu` "Mais ações" (`MoreHorizontal`) contendo:
-  - `Excluir` (abre `ConfirmDialog` atual).
-  - `Excluir definitivamente` (apenas se `isAdmin && !ativo`).
-  - Itens "Duplicar cadastro / Ver histórico / Abrir financeiro" ficam **fora desta onda** (precisam handlers/serviços novos).
+- `FormModalFooter` já desabilita Save quando `!isDirty` em modo edit. Apenas garantir que o bloqueio também ocorra quando há `formErrors` populados.
+- O `confirmDiscard` já cobre fechar com alterações pendentes.
 
-Reduz a faixa visual e esconde a ação destrutiva sem removê-la.
+---
 
-## Fora do escopo (não nesta onda)
+### Fora de escopo (deixa para próxima onda)
 
-- Mudar o botão de fechar do `DrawerHeaderShell` (afeta todos os drawers — exige onda transversal).
-- Contadores nos rótulos das tabs (`Vendas (1)` etc.) — precisa repensar o layout `grid-cols-6` que já está apertado.
-- Espaçamento vertical / ícones de seção / micro-tipografia (cosmético, baixa prioridade).
-- Criar tabelas `cliente_contatos` ou inline-add de transportadoras.
+- Múltiplos contatos por cliente (mudaria schema).
+- Ajustes profundos em `ClienteEnderecosTab`, `ClienteComunicacoesTab`, `ClienteTransportadorasTab`.
+- Separar `Nova Comunicação` em fluxo independente (já é um sub-componente; refator próprio).
+- Mudanças no `FormModal` shell (cabeçalho do modal).
 
-## Detalhes técnicos
+### Detalhes técnicos
 
-- Imports novos: `cpfCnpjMask, phoneMask, cepMask` de `@/utils/masks`; `AlertTriangle, MoreHorizontal` de `lucide-react`; `Tooltip, TooltipTrigger, TooltipContent` de `@/components/ui/tooltip`; `DropdownMenu*` de `@/components/ui/dropdown-menu`.
-- Verificar se `DetailEmpty` aceita `action?: ReactNode`; se não, adicionar a prop opcional (alteração mínima e backward-compatible) ou renderizar o botão fora do componente.
-- Helper `getMissingFields` definido **localmente** no arquivo (mesma assinatura/critério do `Clientes.tsx`); não extrair para shared agora — duplicação aceitável até a próxima onda de saneamento.
-- Manter contrato de `usePublishDrawerSlots` — apenas conteúdo dos slots muda.
-- Sem mudanças em tipos, services, RPCs, RLS, routes, edge functions ou tabelas.
+- Sem novos pacotes. Tudo dentro de `src/pages/Clientes.tsx`.
+- Reaproveitar `cpfCnpjMask` de `@/utils/masks` para o `identifier`.
+- Inferência de PF/PJ usa um `useRef<boolean>(false)` (`tipoPessoaTouched`) — `useState` causaria re-render desnecessário.
+- Detecção de metadado: `const META_RE = /(Importado via faturamento histórico[^\n]*|IBGE:\s*\d+)/g;` (split + reconstrução).
+- Indicadores de aba: `useMemo` derivado de `form` + `formErrors`.
+
+### Memórias a registrar após implementação
+
+- `mem://produto/cliente-form-cabecalho` — Regra: badge de status é redundante com toggle no header de edição; usar apenas o toggle.
+- `mem://produto/inferencia-tipo-pessoa` — Regra: PF/PJ deve ser inferido pelo número de dígitos do documento, com possibilidade de override manual.
