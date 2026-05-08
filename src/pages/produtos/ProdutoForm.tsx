@@ -862,7 +862,7 @@ export default function ProdutoForm({
                 )}
                 {editFornecedores.map((forn, idx) => (
                   <div key={idx} className="border rounded-lg p-3 space-y-3 bg-muted/20">
-                    <div className="flex items-end gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-3">
                       <div className="flex-1 space-y-1">
                         <Label className="text-xs">Fornecedor *</Label>
                         <Select value={forn.fornecedor_id} onValueChange={(v) => updateFornecedor(idx, "fornecedor_id", v)}>
@@ -872,15 +872,17 @@ export default function ProdutoForm({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="flex items-center gap-2 pb-1">
-                        <Switch checked={forn.eh_principal} onCheckedChange={() => setPrincipalFornecedor(idx)} />
-                        <Label className="text-xs cursor-pointer whitespace-nowrap">Principal</Label>
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:pb-1">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={forn.eh_principal} onCheckedChange={() => setPrincipalFornecedor(idx)} />
+                          <Label className="text-xs cursor-pointer whitespace-nowrap">Principal</Label>
+                        </div>
+                        <Button type="button" size="icon" variant="ghost" aria-label="Remover fornecedor" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeFornecedor(idx)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
-                      <Button type="button" size="icon" variant="ghost" aria-label="Remover fornecedor" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeFornecedor(idx)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Cód. Fornecedor (De/Para)</Label>
                         <Input className="h-9 font-mono" value={forn.referencia_fornecedor} onChange={(e) => updateFornecedor(idx, "referencia_fornecedor", e.target.value)} placeholder="Ex: REF-ABC" />
