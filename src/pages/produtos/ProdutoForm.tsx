@@ -1092,18 +1092,28 @@ export default function ProdutoForm({
   if (embedded) {
     return (
       <div className="flex flex-col h-full min-h-0">
-        <div className="shrink-0 border-b bg-background/95 px-1 pb-3 mb-3 flex items-start justify-between gap-3 flex-wrap">
+        <div className="shrink-0 border-b bg-background/95 px-1 pb-2 sm:pb-3 mb-2 sm:mb-3 flex items-start justify-between gap-2 sm:gap-3 flex-wrap">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               {headerTitle}
               {headerBadge}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{headerSubtitle}</p>
+            <p className="hidden sm:block text-xs text-muted-foreground mt-0.5">{headerSubtitle}</p>
           </div>
           <div className="shrink-0">{headerActions}</div>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
           {formBody}
+        </div>
+        {/* Footer sticky com Salvar/Cancelar — apenas mobile */}
+        <div className="sm:hidden sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-background/95 backdrop-blur border-t flex gap-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+          <Button type="button" variant="outline" className="flex-1" onClick={handleBack} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="produto-form" className="flex-1 gap-2" disabled={saving}>
+            <Save className="h-4 w-4" />
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
         </div>
         {auxDialogs}
       </div>
