@@ -21,6 +21,7 @@ import { AlertCircle, ArrowRight, CheckCircle2, PlusCircle } from "lucide-react"
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import type { TraducaoLinha, ProdutoMatchRef } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   open: boolean;
@@ -43,6 +44,7 @@ const fmt = (n: number, dec = 4) =>
 
 export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, produtos, linhas, onCancel, onConfirm, onCreateProduto }: Props) {
   const [draft, setDraft] = useState<TraducaoLinha[]>(linhas);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     setDraft(linhas);
@@ -81,10 +83,17 @@ export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, prod
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onCancel(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
-        <SheetHeader>
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className={
+          isMobile
+            ? "h-[95vh] w-full p-0 flex flex-col"
+            : "w-full sm:max-w-3xl overflow-y-auto"
+        }
+      >
+        <SheetHeader className={isMobile ? "px-4 pt-4 pb-2 border-b" : ""}>
           <SheetTitle>Traduzir XML para o cadastro</SheetTitle>
-          <SheetDescription>
+          <SheetDescription className={isMobile ? "text-xs" : ""}>
             Os dados da esquerda vêm do XML do fornecedor <strong>{fornecedorNome || "—"}</strong> e são preservados como verdade fiscal.
             À direita, mapeie cada item ao produto do cadastro e informe o fator de conversão de unidades.
             <span className="block mt-1 text-xs">
@@ -93,7 +102,7 @@ export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, prod
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 flex items-center gap-2 text-sm">
+        <div className={`flex items-center gap-2 text-sm ${isMobile ? "px-4 pt-3" : "mt-4"}`}>
           {pendentes > 0 ? (
             <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" /> {pendentes} item(ns) pendente(s)</Badge>
           ) : (
@@ -102,7 +111,7 @@ export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, prod
           {readOnly && <Badge variant="outline">Somente leitura</Badge>}
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className={`space-y-3 ${isMobile ? "px-4 mt-3 flex-1 overflow-y-auto pb-4" : "mt-4"}`}>
           {ordenadas.map((linha) => (
             <LinhaCard
               key={linha.index}
@@ -115,11 +124,23 @@ export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, prod
           ))}
         </div>
 
-        <Separator className="my-4" />
-        <div className="flex items-center justify-end gap-2 sticky bottom-0 bg-background pt-2 pb-2">
-          <Button variant="outline" onClick={onCancel}>{readOnly ? "Fechar" : "Cancelar importação"}</Button>
+        {!isMobile && <Separator className="my-4" />}
+        <div
+          className={
+            isMobile
+              ? "flex items-center justify-end gap-2 border-t bg-background px-4 py-3"
+              : "flex items-center justify-end gap-2 sticky bottom-0 bg-background pt-2 pb-2"
+          }
+        >
+          <Button variant="outline" onClick={onCancel} className={isMobile ? "min-h-11 flex-1" : undefined}>
+            {readOnly ? "Fechar" : "Cancelar importação"}
+          </Button>
           {!readOnly && (
-            <Button onClick={() => onConfirm(draft)} disabled={!podeConfirmar}>
+            <Button
+              onClick={() => onConfirm(draft)}
+              disabled={!podeConfirmar}
+              className={isMobile ? "min-h-11 flex-1" : undefined}
+            >
               Confirmar tradução
             </Button>
           )}
