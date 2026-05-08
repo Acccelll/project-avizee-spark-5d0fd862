@@ -375,7 +375,7 @@ const Produtos = () => {
       <StatusBadge status={p.tipo_item || "produto"} />
     )},
     { key: "ativo", mobileCard: true, label: "Status", render: (p: Produto) => (
-      <StatusBadge status={p.ativo !== false ? "ativo" : "inativo"} />
+      <StatusBadge status={p.ativo !== false ? "ativo" : "inativo"} className="text-[10px] px-1.5 h-4" />
     )},
     { key: "eh_composto", label: "Tipo", hidden: true, render: (p: Produto) => (
       <StatusBadge status={p.eh_composto ? "composto" : "simples"} />
