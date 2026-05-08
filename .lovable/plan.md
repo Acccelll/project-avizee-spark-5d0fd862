@@ -1,97 +1,108 @@
-## Onda 21 — Refino mobile do grid de Clientes
+# Onda 22 — Drawer de Clientes (UI/Presentational)
 
-Foco exclusivo na experiência mobile da listagem `/clientes`. Sem mudanças em backend, RLS, services ou no formulário de cliente.
+Refina o `ClienteView` (drawer aberto via `?drawer=cliente:<id>`) para deixar a tela mais legível e acionável. Tudo é frontend/apresentação — sem mudanças em RPCs, RLS, services ou domínio.
 
-### Escopo
+Arquivo único editado: `src/components/views/ClienteView.tsx`.
 
-**Arquivos previstos**
-- `src/pages/Clientes.tsx` (principal)
-- `src/components/MobileQuickAddFAB.tsx` (ajuste de offset para conviver com FAB global "Atalhos")
+## 1. Cabeçalho com rótulos claros (alta)
 
-**Fora de escopo**
-- `AppHeader` (problema 1 do brief): a barra superior é global, compartilhada por todos os módulos. Mexer aqui afeta o app inteiro e fica para uma onda dedicada de "header mobile".
-- Refator do `DataTable` / paginação (problema 9): mantemos a paginação atual; só damos respiro visual no rodapé.
-- `MobileQuickActions` (FAB global "Atalhos"): mantido — apenas reposicionamos o FAB de criação para não colidir.
+No `RecordIdentityCard.meta`, trocar a sequência crua `72725605920 · RS` por rótulos:
 
----
+- Documento formatado com `cpfCnpjMask(selected.cpf_cnpj)` e prefixo dinâmico:
+  - 11 dígitos → `CPF: 727.256.059-20`
+  - 14 dígitos → `CNPJ: 12.345.678/0001-90`
+  - outro tamanho → `Documento: <valor>`
+- Cidade/UF rotulados: `Cidade: Caxias do Sul/RS` (ou só `UF: RS` quando sem cidade).
+- Quando faltar documento: omitir a parte "CPF/CNPJ" em vez de mostrar `—`.
 
-### 1. Cards de resumo (alta) — corrigir truncamento
+## 2. Badge de saúde cadastral (alta)
 
-Hoje no mobile só 2 cards aparecem (Total e Ativos), e o título "Total de Clientes" trunca em telas estreitas.
+Helper local `getMissingFields(c)` (mesmo critério já usado em `Clientes.tsx`: documento, telefone+celular, email, prazo, endereço — logradouro/cidade/uf/cep).
 
-- Mostrar **os 4 cards no mobile** em grid `2x2` (remover o `hidden md:contents` que oculta Inativos e Incompletos).
-- Usar `shortTitle` do `SummaryCard` para rótulos curtos no mobile:
-  - "Total de Clientes" → short: **"Total"**
-  - "Ativos" → mantém
-  - "Inativos" → mantém
-  - "Incompletos (página)" → short: **"Incompletos"**
+No `badges` do `RecordIdentityCard`, ao lado do `StatusBadge`:
 
-### 2. Placeholder da busca (alta) — encurtar no mobile
+- Se `missing.length === 0`: nada extra.
+- Se houver pendências: badge `warning` "Cadastro incompleto" com `Tooltip` listando os campos faltantes (ex.: "Sem e-mail · Sem telefone · Endereço incompleto").
 
-Atual: `"Buscar por nome, CNPJ, e-mail ou cidade..."` — trunca.
+## 3. KPIs com microcopy melhor (alta)
 
-- Trocar por `useIsMobile()` e usar:
-  - mobile: `"Buscar cliente..."`
-  - desktop: texto atual completo.
+Reescrever os 4 `DrawerSummaryCard`:
 
-### 3. Card de cliente (alta) — mais contexto comercial
+| Atual | Novo label | Novo `hint` |
+|---|---|---|
+| `Saldo Devedor` | `Saldo devedor` | `Sem títulos em aberto` quando `totalAberto === 0`, senão `<n> título(s) em aberto` |
+| `PMV (Médio)` | `Pedido médio` | `baseado em <n> pedido(s)` ou `baseado em <n> nota(s)` (quando `vendas.length === 0`) |
+| `Lmt. Crédito` | `Limite de crédito` | quando `limite_credito` é `null/undefined`: valor = `Não definido` (com `mono={false}`, `tone="neutral"`); quando `0`: valor `R$ 0,00` + hint `Sem crédito aprovado`; quando `>0`: valor + hint `Crédito disponível` |
+| `Última Compra` | `Última compra` | hint `Pedido` ou `NF importada` conforme origem |
 
-Hoje o card mobile mostra: nome (+ subline), CNPJ formatado, contato, status pill. Falta tipo (PF/PJ) e prazo.
+## 4. Aba Geral — endereço e campos vazios (alta)
 
-- Marcar a coluna `tipo_pessoa` como `mobileCard: true` para que o badge PF/PJ apareça no card.
-- Marcar a coluna `prazo_padrao` como `mobileCard: true` (renderiza "30 dias" / "Sem prazo").
-- Ativar `mobileLabeledDetails` no `DataTable` para que os detalhes apareçam como pares `label: valor` legíveis (Tipo, Prazo Pgto., Contato), em vez de inline cinza.
-- Status (`ativo`) já é renderizado como `statusBadge` no canto — mantém.
+Substituir o bloco atual por renderização condicional:
 
-Resultado por card:
+- Helper `fmt(v)` que devolve `<span className="text-muted-foreground italic">Não informado</span>` quando vazio.
+- Endereço:
+  - Concatenar `logradouro + numero` somente se houver `logradouro`; senão linha "Endereço não informado".
+  - Linha 2: `bairro` quando existir; "Cidade/UF" só quando algum dos dois existir (com separador correto: `Caxias do Sul/RS`, `—/RS`, `Caxias do Sul`).
+  - CEP: `cepMask(selected.cep)` ou "CEP não informado".
+- Aplicar `fmt` em e-mail, telefone (com `phoneMask`), celular (com `phoneMask`), grupo econômico.
+
+Quando `missingFields.length >= 3`, mostrar callout no topo da aba Geral:
+
 ```
-GRANJA FARIA S.A.                 [Ativo] ⋮
-RECRIA · UBERABA/MG · GRUPO X
-
-CNPJ  35.236.156/0001-50
-
-Tipo:    PJ
-Prazo:   28 dias
-Contato: 📞 (35) 3363-9301
-         ✉ nfe@granjafaria.com.br
-
-[ 📞  💬  ✉  ]                       [ Ver ]
+[ ! ] Cadastro incompleto
+      Faltam: <lista>
+      [Completar cadastro]  ← navigate(`/clientes?editId=${id}`)
 ```
 
-Para cadastro incompleto, o "Sem contato" clicável já existe e vira filtro.
+## 5. Origem do cadastro separada (média)
 
-### 4. FAB "Novo cliente" x FAB global "Atalhos" (alta) — empilhar sem colidir
+Detectar marcação de migração nas `observacoes` (regex `/Importado via faturamento histórico|IBGE:/i`):
 
-Hoje ambos ficam fixos à direita: `MobileQuickAddFAB` em `bottom: 5.25rem` e `MobileQuickActions` ("Atalhos") em `bottom: ~5.8rem` — visualmente sobrepostos.
+- Se reconhecida: separar em duas seções na aba Geral:
+  - **Observações comerciais** → resto do texto sem o trecho de auditoria, ou empty `Nenhuma observação cadastrada.`
+  - **Origem do cadastro** → chip cinza pequeno com o trecho extraído (ex.: `Importado via faturamento histórico · IBGE 4308607`).
+- Caso contrário: manter bloco único "Observações" como hoje.
 
-- Aumentar o `bottomOffset` default do `MobileQuickAddFAB` para ficar **acima** do FAB de Atalhos (ex.: `9.25rem` com `safe-area-inset-bottom`), mantendo a prop sobreponível.
-- Reduzir levemente o tamanho/sombra do FAB para dar respiro (manter touch target ≥ 44px). 
+## 6. Aba Vendas — distinção pedidos vs NF (média)
 
-Não removemos o FAB de Atalhos (global); só evitamos a colisão nesta tela e em todas as outras que usam `MobileQuickAddFAB`.
+- Trocar título "Últimos Pedidos" por **"Pedidos de venda"**.
+- Empty state: título `Nenhum pedido de venda encontrado`, mensagem `Pedidos comerciais cadastrados aparecerão aqui.`
+- Trocar "Notas Fiscais de Saída" por **"Notas fiscais (saída)"** com sublabel `Inclui notas importadas sem pedido vinculado.`
+- Quando `vendas.length === 0` E `notasSaida.length > 0`, exibir um pequeno banner informativo no topo: `Este cliente possui notas fiscais importadas, mas nenhum pedido de venda registrado.`
 
-### 5. Respiro no rodapé (média)
+## 7. Empty states com CTA (alta)
 
-- Adicionar padding-bottom extra ao container da lista no mobile (ex.: `pb-32 md:pb-0`) para que o último card não fique embaixo do FAB + paginação + bottom nav.
+- **Financeiro / Condições padrão**: quando `formas_pagamento` e `forma_pagamento_padrao` forem nulos, exibir botão `Definir condição financeira` → `navigate('/clientes?editId=' + id)`.
+- **Financeiro / Lançamentos**: mensagem ampliada: `Quando houver contas a receber deste cliente, elas aparecerão aqui.`
+- **Contatos**: `DetailEmpty` ganha prop `action` (já suportada — verificar) com botão `+ Registrar contato` (placeholder: `toast.info("Use o botão Editar para registrar comunicação.")` — **não** abre formulário novo nesta onda; apenas presença visual do CTA, redirecionando para edição).
+- **Logística**: idem `+ Vincular transportadora` redirigindo para edição.
+- **Preços** (`PrecosEspeciaisTab`): fora do escopo; já tem CTA próprio.
 
-### 6. Microcopy (baixa)
+> Observação: criar formulários inline de contato/transportadora exige hooks/services novos → fora do escopo desta onda. Os CTAs roteiam para o formulário de edição existente, mantendo o drawer apenas como leitura+navegação.
 
-- Chip do filtro "Cadastro" com texto curto já está bom; manter.
-- Subline do card já concatena `fantasia · cidade/uf · grupo` — mantém.
+## 8. Botão "Excluir" agrupado em "Mais ações" (média)
 
----
+No slot `actions` publicado via `usePublishDrawerSlots`:
 
-### Detalhes técnicos
+- Manter `[Editar]` como ação primária visível.
+- Substituir os 2 botões "Excluir" / "Excluir definitivamente" por um único `DropdownMenu` "Mais ações" (`MoreHorizontal`) contendo:
+  - `Excluir` (abre `ConfirmDialog` atual).
+  - `Excluir definitivamente` (apenas se `isAdmin && !ativo`).
+  - Itens "Duplicar cadastro / Ver histórico / Abrir financeiro" ficam **fora desta onda** (precisam handlers/serviços novos).
 
-- `SummaryCard` já suporta `shortTitle` via `useIsMobile()` internamente; basta passar a prop.
-- `DataTable` já expõe `mobileIdentifierKey`, `mobileStatusKey`, `mobileInlineActions`, `mobileLabeledDetails`. Adicionar `mobileLabeledDetails` em `Clientes.tsx`.
-- Não introduzir novos componentes; reaproveitar `Badge`, `Tooltip`, `StatusBadge`, `MobileCardList`.
-- Sem alterações em `useSupabaseCrud`, RPCs, RLS ou tipos de domínio.
+Reduz a faixa visual e esconde a ação destrutiva sem removê-la.
 
-### Critérios de aceite
+## Fora do escopo (não nesta onda)
 
-- Em viewport ≤ 414px: 4 cards de resumo visíveis em 2x2 sem truncar título.
-- Placeholder de busca não trunca.
-- Cada card de cliente exibe: nome, subline, documento mascarado, tipo (PF/PJ), prazo, contato (ou "Sem contato"), status pill.
-- FAB "Novo cliente" e FAB "Atalhos" não se sobrepõem; ambos clicáveis.
-- Último card da lista tem respiro visível antes da paginação + bottom nav.
-- Nenhuma regressão no desktop (cards permanecem em 4 colunas, placeholder completo, layout de tabela inalterado).
+- Mudar o botão de fechar do `DrawerHeaderShell` (afeta todos os drawers — exige onda transversal).
+- Contadores nos rótulos das tabs (`Vendas (1)` etc.) — precisa repensar o layout `grid-cols-6` que já está apertado.
+- Espaçamento vertical / ícones de seção / micro-tipografia (cosmético, baixa prioridade).
+- Criar tabelas `cliente_contatos` ou inline-add de transportadoras.
+
+## Detalhes técnicos
+
+- Imports novos: `cpfCnpjMask, phoneMask, cepMask` de `@/utils/masks`; `AlertTriangle, MoreHorizontal` de `lucide-react`; `Tooltip, TooltipTrigger, TooltipContent` de `@/components/ui/tooltip`; `DropdownMenu*` de `@/components/ui/dropdown-menu`.
+- Verificar se `DetailEmpty` aceita `action?: ReactNode`; se não, adicionar a prop opcional (alteração mínima e backward-compatible) ou renderizar o botão fora do componente.
+- Helper `getMissingFields` definido **localmente** no arquivo (mesma assinatura/critério do `Clientes.tsx`); não extrair para shared agora — duplicação aceitável até a próxima onda de saneamento.
+- Manter contrato de `usePublishDrawerSlots` — apenas conteúdo dos slots muda.
+- Sem mudanças em tipos, services, RPCs, RLS, routes, edge functions ou tabelas.
