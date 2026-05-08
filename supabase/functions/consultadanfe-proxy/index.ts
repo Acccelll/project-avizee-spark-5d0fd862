@@ -1,3 +1,5 @@
+import { sanitizeForLog } from "../_shared/sanitize.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -63,7 +65,7 @@ Deno.serve(async (req) => {
       parsed = { raw: text };
     }
 
-    console.log("[consultadanfe] upstream", {
+    console.log("[consultadanfe] upstream", sanitizeForLog({
       action,
       status: upstream.status,
       contentType: upstream.headers.get("content-type"),
@@ -72,7 +74,7 @@ Deno.serve(async (req) => {
           ? Object.keys(parsed as Record<string, unknown>)
           : null,
       sample: text.slice(0, 400),
-    });
+    }));
 
     return new Response(
       JSON.stringify({

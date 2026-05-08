@@ -15,6 +15,8 @@
  */
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
+import { sanitizeForLog } from "./sanitize.ts";
+
 export interface Logger {
   requestId: string;
   debug: (message: string, extra?: unknown) => void;
@@ -36,13 +38,13 @@ function newRequestId(): string {
 function serializeExtra(extra: unknown): unknown {
   if (extra === undefined || extra === null) return undefined;
   if (extra instanceof Error) {
-    return {
+    return sanitizeForLog({
       name: extra.name,
       message: extra.message,
       stack: extra.stack,
-    };
+    });
   }
-  return extra;
+  return sanitizeForLog(extra);
 }
 
 export function createLogger(

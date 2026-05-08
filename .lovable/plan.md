@@ -14,8 +14,12 @@
 - ✅ **M-03** `InutilizacaoDrawer` já valida `motivo.length >= 15` client-side antes de habilitar o botão (verificado).
 - ⏳ **2.1 / 2.5 / 2.6** — pendentes (paginação server-side, throttle DistDFe, checagem `nfe_distribuicao` no `useNFeXmlImport`).
 
-**Fase 3 — Médios / Mobile / Banco (dívida técnica registrada)**
-- Itens detalhados na seção "Dívida técnica" abaixo. Não há nada pendente nas Fases 1 e 2 além dos três itens 2.x explicitados.
+**Fase 3 — Médios (parcial — esta sessão)**
+- ✅ **EF-03** `sanitizeForLog` em `_shared/sanitize.ts` aplicado via `createLogger` (extra é sempre serializado sanitizado). `consultadanfe-proxy` (único console.log direto) também migrado.
+- ✅ **M-01** Action `health` do `sefaz-proxy` agora oculta `hasPfxPassword` para usuários sem `faturamento_fiscal:admin_fiscal` (helper novo `hasAnyPermission`).
+- ✅ **M-02** `lerConfigFiscalEmpresa` falha explicitamente com mensagem orientando `/fiscal/configuracao` quando CRT/ambiente ausentes (sem mais defaults silenciosos `crt='1'`/`ambiente='2'`).
+- ✅ **2.6** `useNFeXmlImport` faz cross-check com `nfe_distribuicao` (status_manifestacao/data_manifestacao); toast informativo + campo `distdfeRef` no resultado.
+- Demais itens de Fase 3 detalhados na seção "Dívida técnica" abaixo.
 
 ---
 
@@ -38,24 +42,13 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - `supabase/functions/sefaz-distdfe/index.ts`: antes de cada `consultar-chave`/`consultar-nsu`, chama a RPC; se `false`, devolve `429 { error: 'rate_limited', janela_seg, max }`. Bypass para SERVICE_ROLE (cron) permanece.
 - **Pronto quando:** 19ª chamada na mesma hora retorna 429; cron continua funcionando.
 
-**2.6 — `useNFeXmlImport` checa `nfe_distribuicao` antes de aplicar (A-07)** · 🟡 Médio · ~2h
-- `src/pages/fiscal/hooks/useNFeXmlImport.ts`: após `verificarDuplicidadeChave` e antes de retornar `NFeXmlImportResult`, fazer `supabase.from('nfe_distribuicao').select('id, ciencia_em, status').eq('chave_acesso', nfe.chaveAcesso).maybeSingle()`.
-- Se existir registro com ciência: `toast.info("XML já recebido por DistDFe em <data>. Use o caminho automático para evitar duplicidade.")` + adicionar campo opcional `distdfeRef` no `NFeXmlImportResult` para o caller exibir CTA.
-- **Pronto quando:** XML manual cuja chave já está em `nfe_distribuicao` aciona toast informativo; importação prossegue (não bloqueia).
+**2.6 — `useNFeXmlImport` checa `nfe_distribuicao` antes de aplicar (A-07)** · ✅ entregue · usa `data_manifestacao`/`status_manifestacao` (schema real) e expõe `distdfeRef` no `NFeXmlImportResult`.
 
 #### Bloco B — Segurança e robustez (Fase 3)
 
-**EF-03 — Sanitização de logs nas edge functions** · 🟡 Médio · ~3h
-- Criar `supabase/functions/_shared/sanitize.ts` com `sanitizeForLog(payload)` removendo: `pfxBase64`, `pfxPassword`, `password`, `Authorization`, `apikey`, `x-pfx-*`, conteúdo de XML assinado (`<Signature>...</Signature>`).
-- Aplicar em todos `console.log/error` de `sefaz-proxy`, `sefaz-distdfe`, `process-distdfe-cron`, `consultadanfe-proxy`.
-- **Pronto quando:** `supabase functions logs sefaz-proxy` não exibe segredo nenhum em runs com PFX.
-
-**M-01 — `health` oculta `hasPfxPassword` para não-admins** · 🟢 Baixo · ~30min
-- `sefaz-proxy/index.ts` action `health`: usar `requireAnyPermission(userId, [{resource:'faturamento_fiscal', action:'admin_fiscal'}])` para decidir se inclui `hasPfxPassword` e `pfxExpiraEm` no response.
-- **Pronto quando:** usuário com apenas `visualizar` recebe `health` sem campos sensíveis.
-
-**M-02 — `lerConfigFiscalEmpresa` falha explicitamente sem `crt`/`ambiente`** · 🟢 Baixo · ~30min
-- `src/services/fiscal/sefaz.service.ts`: se `crt` ou `ambiente` ausentes, `throw new Error("Configuração fiscal incompleta: defina CRT e ambiente em /fiscal/configuracao antes de transmitir.")` em vez de aplicar defaults silenciosos.
+**EF-03 — Sanitização de logs nas edge functions** · ✅ entregue · `_shared/sanitize.ts` + integração no `createLogger`.
+**M-01 — `health` oculta `hasPfxPassword` para não-admins** · ✅ entregue · gating via `hasAnyPermission`.
+**M-02 — `lerConfigFiscalEmpresa` falha explicitamente** · ✅ entregue · sem mais defaults silenciosos.
 
 **M-05 — `CertificadoValidadeAlert` global em `AppLayout`** · 🟡 Médio · ~2h
 - Mover componente de `Fiscal.tsx` para `src/components/layout/AppLayout.tsx`, exibido apenas quando `pfxExpiraEm <= 30 dias` e usuário tem `faturamento_fiscal:visualizar`. Dismiss persistido em `user_preferences`.
@@ -80,9 +73,9 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 
 1. [ ] **2.1** RPCs `listar_notas_fiscais_ids` + `kpis_fiscal` + hook `useNotasFiscaisPaged` + refactor `Fiscal.tsx`.
 2. [ ] **2.5** Migration `sefaz_consulta_log` + RPC throttle + integração em `sefaz-distdfe`.
-3. [ ] **2.6** Cross-check `nfe_distribuicao` em `useNFeXmlImport` com toast informativo.
-4. [ ] **EF-03** `sanitizeForLog` aplicado em todas edge functions fiscais.
-5. [ ] **M-01 + M-02 + M-05** Hardening de pequenos vazamentos e UX do certificado.
+3. [x] **2.6** Cross-check `nfe_distribuicao` em `useNFeXmlImport` com toast informativo.
+4. [x] **EF-03** `sanitizeForLog` aplicado em todas edge functions fiscais.
+5. [x] **M-01 + M-02** Hardening de pequenos vazamentos. Resta **M-05** (CertificadoValidadeAlert global no AppLayout).
 6. [ ] **BK-01/02/03** Auditoria das 3 RPCs fiscais críticas (`SECURITY DEFINER`, `search_path`, permissões).
 7. [ ] **EF-04** Fila de retry para emissões com timeout SEFAZ.
 8. [ ] **M-04 + D-01 + D-02** Performance KPIs, deprecação do modal e abas em ConfiguracaoFiscal.

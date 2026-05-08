@@ -79,6 +79,14 @@ export interface NFeXmlImportResult {
   traducao: TraducaoLinha[];
   /** true se TODOS os itens caíram em "OK" (sem pendência) — drawer pode ser opcional. */
   traducaoOk: boolean;
+  /** Se a chave já consta em `nfe_distribuicao` (caminho automático já recebeu),
+   *  carrega referência para o caller exibir CTA "Abrir caminho automático". */
+  distdfeRef?: {
+    id: string;
+    chave_acesso: string;
+    data_manifestacao: string | null;
+    status_manifestacao: string | null;
+  } | null;
 }
 
 export interface UseNFeXmlImportArgs {
@@ -111,6 +119,26 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
             `XML já importado (NF ${ref}, status: ${statusInfo}). Importação abortada.`,
           );
           return null;
+        }
+      }
+
+      // Cross-check com o caminho automático (DistDFe). Não bloqueia, apenas
+      // informa para o usuário não importar manualmente algo já recebido.
+      let distdfeRef: NFeXmlImportResult["distdfeRef"] = null;
+      if (nfe.chaveAcesso) {
+        const { data: dist } = await supabase
+          .from("nfe_distribuicao")
+          .select("id, chave_acesso, data_manifestacao, status_manifestacao")
+          .eq("chave_acesso", nfe.chaveAcesso)
+          .maybeSingle();
+        if (dist) {
+          distdfeRef = dist as NonNullable<NFeXmlImportResult["distdfeRef"]>;
+          const dataCiencia = dist.data_manifestacao
+            ? new Date(dist.data_manifestacao).toLocaleDateString("pt-BR")
+            : "data desconhecida";
+          toast.info(
+            `Esta chave já foi recebida pelo DistDFe (${dataCiencia}). Considere usar o caminho automático para evitar divergências.`,
+          );
         }
       }
 
@@ -241,7 +269,7 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
       const unmatchedItemsCount = items.filter((i) => !i.produto_id).length;
       const traducaoOk = traducao.every((t) => !t.pendente);
 
-      return { nfe, fornecedorId, items, fiscalMap, unmatchedItemsCount, traducao, traducaoOk };
+      return { nfe, fornecedorId, items, fiscalMap, unmatchedItemsCount, traducao, traducaoOk, distdfeRef };
     },
     [fornecedores, produtos],
   );
