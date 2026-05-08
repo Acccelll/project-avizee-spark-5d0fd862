@@ -144,6 +144,14 @@ const DashboardContent = () => {
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
 
+  // Compact currency for accordion summaries (e.g. "R$ 12k").
+  const fmtK = (n: number): string => {
+    const sign = n < 0 ? '-' : '';
+    const abs = Math.abs(n);
+    if (abs >= 1000) return `${sign}R$ ${Math.round(abs / 1000)}k`;
+    return `${sign}R$ ${abs.toFixed(0)}`;
+  };
+
   // ---------------------------------------------------------------------------
   // Renderers map — a função de cada widget é renderizada de acordo com a
   // ordem persistida em `prefs.order`. Isso faz com que reorder no menu
