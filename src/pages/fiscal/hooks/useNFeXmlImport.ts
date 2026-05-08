@@ -84,8 +84,8 @@ export interface NFeXmlImportResult {
   distdfeRef?: {
     id: string;
     chave_acesso: string;
-    ciencia_em: string | null;
-    status: string | null;
+    data_manifestacao: string | null;
+    status_manifestacao: string | null;
   } | null;
 }
 
@@ -128,13 +128,13 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
       if (nfe.chaveAcesso) {
         const { data: dist } = await supabase
           .from("nfe_distribuicao")
-          .select("id, chave_acesso, ciencia_em, status")
+          .select("id, chave_acesso, data_manifestacao, status_manifestacao")
           .eq("chave_acesso", nfe.chaveAcesso)
           .maybeSingle();
         if (dist) {
           distdfeRef = dist as NonNullable<NFeXmlImportResult["distdfeRef"]>;
-          const dataCiencia = dist.ciencia_em
-            ? new Date(dist.ciencia_em).toLocaleDateString("pt-BR")
+          const dataCiencia = dist.data_manifestacao
+            ? new Date(dist.data_manifestacao).toLocaleDateString("pt-BR")
             : "data desconhecida";
           toast.info(
             `Esta chave já foi recebida pelo DistDFe (${dataCiencia}). Considere usar o caminho automático para evitar divergências.`,
