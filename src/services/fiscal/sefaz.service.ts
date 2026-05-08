@@ -31,14 +31,47 @@ export async function registrarRetornoSefaz(params: {
   if (error) throw error;
 }
 
+export interface DuplicidadeChaveInfo {
+  id: string;
+  numero: string | null;
+  serie: string | null;
+  status: string | null;
+  status_sefaz: string | null;
+}
+
+/**
+ * Verifica se a chave de acesso já existe em `notas_fiscais` e devolve
+ * o contexto da NF encontrada (id, numero, serie, status, status_sefaz)
+ * para que o caller mostre uma mensagem precisa.
+ *
+ * Quando `ignorarCanceladas=true`, NFs com status ERP `cancelada` ou
+ * status SEFAZ `cancelada_sefaz`/`inutilizada` são ignoradas — útil para
+ * permitir reimportação após cancelamento. Default `false` (qualquer
+ * registro com a mesma chave é considerado duplicidade).
+ */
 export async function verificarDuplicidadeChave(
   chaveAcesso: string,
-): Promise<boolean> {
-  if (!chaveAcesso || chaveAcesso.length < 44) return false;
-  const { data } = await supabase
+  options?: { ignorarCanceladas?: boolean },
+): Promise<DuplicidadeChaveInfo | null> {
+  if (!chaveAcesso || chaveAcesso.length < 44) return null;
+  const { data, error } = await supabase
     .from("notas_fiscais")
-    .select("id")
+    .select("id, numero, serie, status, status_sefaz")
     .eq("chave_acesso", chaveAcesso)
-    .limit(1);
-  return (data?.length || 0) > 0;
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  if (options?.ignorarCanceladas) {
+    const erpCanc = data.status === "cancelada";
+    const sefazCanc =
+      data.status_sefaz === "cancelada_sefaz" || data.status_sefaz === "inutilizada";
+    if (erpCanc || sefazCanc) return null;
+  }
+  return {
+    id: data.id,
+    numero: data.numero ?? null,
+    serie: data.serie ?? null,
+    status: data.status ?? null,
+    status_sefaz: data.status_sefaz ?? null,
+  };
 }
