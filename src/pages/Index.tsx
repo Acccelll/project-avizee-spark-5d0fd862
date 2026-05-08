@@ -383,7 +383,25 @@ const DashboardContent = () => {
   const FULL_WIDTH = new Set<WidgetId>(["kpis", "operational", "alertas"]);
 
   // Constrói as linhas conforme prefs.order respeitando os pares.
-  const visibleOrder = prefs.order.filter((id) => isVisible(id));
+  const baseVisibleOrder = prefs.order.filter((id) => isVisible(id));
+  // No mobile, sobrescrevemos a ordem para uma sequência operacional fixa
+  // (KPIs → exceções → alertas → financeiro → vendas → pendências → comercial → estoque → logística → fiscal).
+  // Pares caem para 1 coluna automaticamente em <lg, então renderizar em sequência funciona.
+  const MOBILE_ORDER: WidgetId[] = [
+    'kpis',
+    'operational',
+    'alertas',
+    'financeiro',
+    'vendas_chart',
+    'pendencias',
+    'comercial',
+    'estoque',
+    'logistica',
+    'fiscal',
+  ];
+  const visibleOrder = isMobile
+    ? MOBILE_ORDER.filter((id) => baseVisibleOrder.includes(id))
+    : baseVisibleOrder;
   const rows: Array<{ key: string; items: WidgetId[]; pair: boolean }> = [];
   let i = 0;
   while (i < visibleOrder.length) {
