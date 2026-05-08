@@ -30,11 +30,13 @@ import {
   type AuditDup,
 } from "@/services/auditDups.service";
 import { AlertTriangle, RefreshCw, Trash2, ShieldCheck, ScanSearch } from "lucide-react";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 type StatusTab = "pendente" | "removido" | "mantido";
 
 export default function AuditDuplicidades() {
   const [tab, setTab] = useState<StatusTab>("pendente");
+  const { isAdmin } = useIsAdmin();
   const [data, setData] = useState<AuditDup[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
