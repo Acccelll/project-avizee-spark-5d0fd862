@@ -29,12 +29,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 
 #### Bloco A — Performance e idempotência (Fase 2 residual)
 
-**2.1 — Paginação server-side em `Fiscal.tsx` (A-01)** · 🟠 Alto · ~1d
-- Migration: RPC `listar_notas_fiscais_ids(p_filtros jsonb, p_offset int, p_limit int)` retornando `(ids uuid[], total bigint)`. Filtros: `periodo_de/ate`, `tipo`, `status` (ERP), `status_sefaz`, `modelo`, `serie`, `cliente_id`, `fornecedor_id`, `busca` (numero/chave/razao). `SECURITY DEFINER`, `SET search_path = public`, RLS por `auth.uid()` via `has_role`.
-- Migration: RPC `kpis_fiscal(p_periodo_de date, p_periodo_ate date)` agregando `vw_fiscal_kpis` server-side.
-- Hook novo `src/pages/fiscal/hooks/useNotasFiscaisPaged.ts` (espelha `useFinanceiroLancamentosPaged`): chama RPC de IDs → reidrata via `from('notas_fiscais').select(... relacionais ...).in('id', ids)`.
-- `Fiscal.tsx`: trocar `useSupabaseCrud` por hook paginado, mover filtros do client para `p_filtros`, KPIs do `useFiscalKpis` para a RPC nova.
-- **Pronto quando:** lista carrega em <500 ms com 50k notas; sem `select('*')` cliente; KPIs idem.
+**2.1 — Paginação server-side em `Fiscal.tsx` (A-01)** · ✅ entregue · RPC `listar_notas_fiscais_ids(p_date_from, p_date_to, p_tipos, p_status, p_status_sefaz, p_modelos, p_origens, p_fornecedores, p_clientes, p_search, p_order_by, p_ascending, p_offset, p_limit)` (STABLE, `search_path=public`) + índices (`ativo+data_emissao desc`, `status`, `status_sefaz`, `fornecedor_id`, `cliente_id`). Hook `useNotasFiscaisPaged` (mesmo padrão de `useFinanceiroLancamentosPaged` — RPC de IDs → reidrata `notas_fiscais` com joins via `IN`). `Fiscal.tsx` substitui `useSupabaseCrud` por hook paginado + `serverPagination` no `DataTable`; KPIs continuam via `kpis_fiscal`.
 
 **2.5 — Throttle DistDFe server-side (EF-02)** · 🟠 Alto · ~4h
 - ✅ entregue · Tabela `sefaz_consulta_log` (RLS on, sem policies — só service_role acessa) + RPC `sefaz_consulta_pode_disparar(cnpj, action, janela_seg=3600, max=18)` `SECURITY DEFINER` com `search_path=public`. `sefaz-distdfe` chama a RPC antes de montar o SOAP; resposta `429 { codigoTransporte: 'RATE_LIMITED', janelaSeg, max }` quando estourado. SERVICE_ROLE (cron `process-distdfe-cron`) continua bypass via `user.isService`.
