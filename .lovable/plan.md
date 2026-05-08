@@ -1,136 +1,124 @@
-# Onda 14 — Refino do grid de Produtos
+## Onda 15 — Refinos do Drawer "Detalhes do Produto"
 
-Foco em revisar a tela `/produtos` segundo o feedback de UI/UX. Sem migração de stack, sem refator de queries, mantendo o pattern canônico (`ModulePage` + `AdvancedFilterBar` + `DataTable`).
+Foco: reduzir fragmentação no topo, dar profundidade real às abas, melhorar estados vazios, adicionar contadores/indicadores nas abas e uma faixa de "saúde cadastral". Sem mexer no schema do banco.
 
-Os ajustes foram organizados por prioridade. Itens de baixa prioridade (modo de densidade, hover ações rápidas, ordenação visual) ficam fora desta onda.
+Escopo de arquivos
+- `src/components/views/ProdutoView.tsx` (principal — ~95% das mudanças)
+- `src/components/ui/DrawerHeaderShell.tsx` (ajuste fino do close — opcional)
+- `src/components/views/RelationalDrawerStack.tsx` (ajuste do `X` se necessário)
+- `src/components/precos/PrecosEspeciaisTab.tsx` (apenas estado vazio)
 
----
+### P1 — Faixa de saúde cadastral/operacional (alta)
+Logo acima dos KPIs, adicionar um `HealthStrip` compacto, só renderizado quando houver alertas:
 
-## Backend (uma migration nova)
+- estoque baixo / sem estoque / não controla
+- sem fornecedor vinculado
+- fiscal incompleto (NCM/CST/CFOP) com contagem do que falta
+- preço de venda zerado
+- custo ausente (afeta margem)
 
-### M1. RPC `produtos_estoque_summary`
-Função SECURITY DEFINER (search_path = public) que retorna contagem global de produtos com problema de estoque, respeitando `ativo = true`:
+Cada item: chip clicável com cor semântica (warning/destructive) e action label ("Completar dados fiscais", "Vincular fornecedor", etc.) que troca para a aba alvo via `setActiveTab`.
+Estado tudo OK → não renderiza nada (não polui).
 
-```sql
-returns table(criticos int, zerados int, abaixo_minimo int)
--- criticos: estoque_minimo > 0 AND estoque_atual <= estoque_minimo AND estoque_atual > 0
--- zerados:  estoque_atual <= 0
--- abaixo_minimo: criticos + zerados (campo derivado para o KPI)
+### P2 — Cabeçalho mais "calmo" (alta)
+O `DrawerHeaderShell` já tem 3 zonas; refinos:
+
+1. **Close button mais discreto**: trocar `variant="ghost" size="icon" h-7 w-7` por `h-6 w-6 text-muted-foreground hover:text-foreground` em `RelationalDrawerStack.tsx`. Remover qualquer ring forte de focus (manter `focus-visible:ring-1`).
+2. **Identidade integrada ao header**: passar `breadcrumb` apenas como `Cadastros › Produtos` (sem repetir SKU). O SKU/código vão para o `meta` do `RecordIdentityCard` (já está). Remover duplicação `Cód:` quando `codigo_interno === sku`.
+3. **Ações alinhadas**: agrupar Editar / Excluir e adicionar menu **Mais** (`DropdownMenu`) com ações secundárias: **Duplicar produto**, **Ajustar estoque** (abre `EstoqueMovimentacaoDrawer`), **Inativar/Reativar**. "Excluir definitivamente" só para admin, dentro do menu Mais.
+
+### P3 — Contadores e indicadores nas abas (alta)
+Em `TabsList`, cada `TabsTrigger` recebe sufixo discreto:
+
+- `Compras` → `(N)` quando há fornecedores (verde se principal definido)
+- `Vendas` → `(N)` quando há histórico
+- `Fiscal` → `!` (warning) se incompleto
+- `Espec.` → `(N)` quando há regras
+- `Estoque` → `!` (destructive) se abaixo do mínimo
+
+Padrão visual: `<span className="ml-1 text-[10px] text-muted-foreground">{n}</span>` ou variante warning/destructive.
+
+### P4 — Aba Geral em grupos visuais (média)
+Trocar o grid plano por dois cards/sections:
+
+- **Identificação**: SKU, Código interno, Classificação, Tipo (composto/simples), Status (ativo)
+- **Operacional**: Unidade, Grupo, Peso, Variações
+
+Cada grupo com `SectionTitle` e mini-card (`rounded-lg border bg-card p-3`). Campos vazios viram "Peso não informado" (em `text-muted-foreground italic`) em vez de `—` cru.
+
+Composição (quando `eh_composto`) permanece em bloco próprio, mas com title via `SectionTitle`.
+
+### P5 — Aba Compras: estado vazio acionável (alta)
+Substituir o `DetailEmpty` atual por estado com CTA:
+
+```
+ShoppingCart icon
+"Nenhum fornecedor vinculado"
+"Vincule fornecedores para registrar custo de compra, código do fornecedor e lead time."
+[Vincular fornecedor] → navega para /produtos?editId=ID&tab=fornecedores
 ```
 
-Permissão: `grant execute to authenticated`. RLS dos `produtos` continua valendo via SECURITY INVOKER seria ideal — porém para count agregado SECURITY DEFINER é aceitável aqui (não vaza linhas). Comentar no SQL.
+`DetailEmpty` já aceita action via prop? Se não, adicionar `action?: ReactNode` ao `DetailEmpty`. Verificar antes; se ainda não existir, estender `src/components/ui/DetailStates.tsx`.
 
-Sub-tarefa: atualizar `src/integrations/supabase/types.ts` é automático via gen.
+### P6 — Aba Preço com profundidade real (alta)
+Hoje é só "resumo estendido". Adicionar:
 
----
+- Linha **Markup** (lado da Margem): `markup = (venda/custo - 1)*100` apresentado como ratio também (ex: 1.85x).
+- **Origem do preço**: ler `selected.origem_preco` se existir, senão "Preço manual" (consultar `Tables<"produtos">` para ver campos disponíveis — pode ser apenas "Definido em cadastro").
+- **Última atualização**: `formatDate(selected.updated_at)` com tooltip "Última edição do cadastro do produto".
+- **Custo médio (compras)** vs **Custo cadastrado**: se diferirem, mostrar diff e CTA "Atualizar custo".
+- **Lucro bruto unitário** + **Lucro bruto total estimado em estoque** (`lucroBruto * estoque_atual`).
 
-## Alta prioridade
+Layout: card principal com Custo/Margem/Markup/Venda + sub-card "Análise" com lucro/origem/atualização.
 
-### P1. Substituir KPI "Abaixo do Mínimo (página)" por valor global
-Arquivo: `src/pages/Produtos.tsx`.
+### P7 — Aba Fiscal com criticidade real (alta)
+- Quando incompleto: faixa `bg-warning/5 border-warning/20` no topo da aba com ícone, **lista do que falta** (`Faltam: NCM, CST`) e CTA `[Completar dados fiscais]` → `navigate('/produtos?editId=ID&tab=fiscal')`.
+- Cards individuais (NCM/CST/CFOP) ganham borda warning quando vazios; mantém verde sutil quando preenchido (border-success/20).
+- Quando completo: badge verde "Cadastro Completo" mantém-se, sem faixa adicional.
 
-- Trocar `criticos = criticosNaPagina` por chamada à RPC nova: `useQuery(['produtos','estoque-summary'], () => supabase.rpc('produtos_estoque_summary'))`.
-- KPI passa a se chamar **"Abaixo do mínimo"** (sem sufixo "(página)"), valor = `abaixo_minimo` global.
-- Quando o usuário clicar, aplicar `setEstoqueFilters(["critico","zerado"])` (já existe).
-- Manter `criticosNaPagina` como microtexto no rodapé do `AdvancedFilterBar` ("Nesta página: 28 abaixo do mínimo") quando o KPI estiver ativo, para reforçar o que está visível.
+### P8 — Aba Espec. (Preços Especiais): estado vazio rico (média)
+Em `PrecosEspeciaisTab`, melhorar empty state:
 
-### P2. Compactar a faixa de KPIs (mais grid, menos hero)
-Arquivo: `src/pages/Produtos.tsx` (passar `density="compact"` aos `SummaryCard`).
+```
+"Nenhuma regra de preço especial definida"
+"Crie regras por cliente, grupo, condição comercial ou período."
+[Adicionar regra] (CTA já existente, mas integrar ao empty)
+```
 
-- Os 4 cards continuam, mas usam `density="compact"` (já existe no `SummaryCard` — usado no Dashboard).
-- Manter ícones, valores, ações de filtro.
+Mover botão "Adicionar" para ficar alinhado com o título da seção quando há regras; quando vazio, o CTA aparece dentro do empty state.
 
-### P3. Card ativo quando ele filtra a tabela
-Arquivos: `src/pages/Produtos.tsx`, `src/components/SummaryCard.tsx` (nova prop `active?: boolean`).
+### P9 — Aba Vendas: lista escaneável (média)
+Reorganizar cada item em 2 linhas com hierarquia clara:
 
-- Adicionar `active?: boolean` no `SummaryCard` que aplica `ring-2 ring-primary/40 bg-primary/5` quando `true`.
-- No Produtos, calcular `active` para "Produtos" (`tipoItemFilters[0]==='produto'`), "Insumos" (`tipoItemFilters[0]==='insumo'`), "Abaixo do mínimo" (`estoqueFilters` contém critico/zerado).
-- Quando `active`, o `subtitle` muda para "Filtro ativo · clique para limpar" e o `onClick` limpa em vez de aplicar.
+```
+Linha 1: Cliente (link) ............ Total (R$ X,XX, font-mono semibold)
+Linha 2: NF nº · data · Qtd × valor unitário
+```
 
-### P4. Coluna Produto: integrar variação/SKU/código interno
-Arquivo: `src/pages/Produtos.tsx` (renderer da coluna `nome`).
+Cliente vira a "âncora" visual. NF (`RelationalLink`) e data ficam menores na segunda linha. Adicionar mini-resumo "Total no período" no rodapé da lista (sum de todos os totais).
 
-- Render principal da linha:
-  ```
-  AGULHA DESCARTÁVEL - 100 UN
-  SKU AG001 · Interno PRD000044 · Var. 13×45
-  ```
-- `nome` ganha mais peso (`text-sm font-medium`); abaixo, em uma linha de metadados (`text-[11px] text-muted-foreground`), aparecem SKU, código interno e a primeira variação (com `+N` se houver mais).
-- Coluna "Variações" continua existindo, porém marcada `hidden: true` por padrão — o usuário pode reabrir via "Colunas" se quiser ver todas as tags. (Opcional: remover, mas hidden preserva escolha do usuário no `useDataTablePrefs`.)
-- Coluna "Cód. Interno" também passa a `hidden: true` (já fica visível dentro da célula Produto).
+### P10 — Aba Estoque (refino menor)
+Adicionar abaixo dos cards Estoque Atual / Mínimo:
+- **Reservado** (se houver campo `estoque_reservado`)
+- **Disponível** = atual − reservado
 
-### P5. Variações com cor neutra (não vermelha/rosa)
-Arquivo: `src/pages/Produtos.tsx` (renderer atual usa `bg-primary/10 text-primary border-primary/20` — em alguns temas o `--primary` puxa para vinho, aparentando rosa/erro).
+Se campos não existirem no schema, pular silenciosamente.
 
-- Trocar pelo token neutro: `bg-muted text-muted-foreground border-border` (chip cinza). Variações não têm semântica positiva/negativa.
-- Reservar tons quentes apenas para alertas reais (sem estoque, abaixo do mínimo, margem negativa).
+### Detalhes técnicos
 
-### P6. Margem com estados explícitos
-Arquivo: `src/pages/Produtos.tsx` (renderer de `margem`).
+- **State de aba ativa**: hoje `defaultValue="geral"`. Migrar para `useState` controlado para que P1 (HealthStrip) consiga `setActiveTab`.
+- **HealthStrip**: novo componente local em `ProdutoView.tsx` (não promover a `src/components/ui` ainda — esperar segundo uso).
+- **`DetailEmpty` com action**: verificar `src/components/ui/DetailStates.tsx`. Se não suportar, adicionar prop `action?: ReactNode` opcional.
+- **Indicadores nas tabs**: simples spans com `aria-label` para leitores de tela ("Fiscal incompleto").
+- **Markup formula**: `markup = custo > 0 ? (venda/custo - 1) * 100 : null`. Já equivale à margem aqui (estamos calculando margem sobre custo). Renomear corretamente: o cálculo atual (`(venda/custo - 1) * 100`) é **markup**, não margem. Margem seria `(venda - custo)/venda`. Adicionar **ambos** para clareza, com tooltips explicativos.
+- **Preservar comportamento existente**: nenhum hook removido, nenhum service alterado, nenhum schema mudado.
 
-- Lógica atual mostra `—` quando custo=0 e `+R$ 0,00` que parece dado válido. Substituir por:
-  - Custo ausente (custo=0): `<StatusBadge status="pendente" label="Sem custo" />` + microtexto cinza.
-  - Venda ausente (venda=0): `<StatusBadge status="pendente" label="Sem preço" />`.
-  - Custo > 0 e venda > 0:
-    - margem positiva → `text-success` + valor R$ acrescido.
-    - margem negativa → `text-destructive` + label "Margem negativa".
-  - Suprimir o `+R$ 0,00` quando custo ou venda for 0.
+### Ordem de execução
+1. P2 (header) + P3 (contadores nas tabs) — wins visuais imediatos.
+2. P1 (HealthStrip) + tab controlada.
+3. P5, P7, P8 (estados vazios + fiscal incompleto).
+4. P4 (Geral em grupos).
+5. P6 (Preço com profundidade) + P9 (Vendas).
+6. P10 (Estoque refino).
 
-### P7. Estados de estoque diferenciados na coluna
-Arquivo: `src/pages/Produtos.tsx` + `situacaoEstoqueConfig`.
-
-- Hoje "critico" e "zerado" usam o mesmo `cancelado` (vermelho). Separar:
-  - `zerado` → `cancelado` (vermelho) — "Sem estoque"
-  - `critico` → `pendente` (laranja) — "Abaixo do mínimo" (já existia "atencao", mas aqui o fluxo muda: critico vira laranja, atencao some como badge dedicado)
-  - `atencao` → texto warning sem badge (mantém legibilidade, reduz ruído)
-  - `normal` → sem badge
-
-### P8. Ler estoque "não controla" como cinza neutro
-Mesma config: quando `estoque_minimo === 0 AND estoque_atual === 0`, retornar nova situação `nao_controla` com badge cinza "Não controla" e cor neutra. Atualizar `getSituacaoEstoque` e options do filtro Estoque (`Sem estoque / Abaixo do mínimo / Em atenção / Normal / Não controla`).
-
----
-
-## Média prioridade
-
-### P9. Toolbar coesa: registros e botões na mesma linha
-Arquivo: `src/components/AdvancedFilterBar.tsx` (verificar layout) + `src/pages/Produtos.tsx`.
-
-- Hoje o `AdvancedFilterBar` mostra `count` e os botões de coluna/exportar ficam na `DataTable`, criando 2 áreas separadas. Revisar para que, em desktop, o slot de count + ações fique alinhado à direita dos filtros (mesma row).
-- Investigar se o `AdvancedFilterBar` aceita `actionsSlot`. Se não, adicionar prop `rightSlot?: ReactNode` e mover Colunas/Exportar para lá em desktop. **Subordinado**: se o componente é usado em vários módulos, fazer prop opcional para não regredir.
-- Adicionar botão "Limpar filtros" visível quando `prodActiveFilters.length > 0` (já existe via `onClearAll` mas precisa estar evidente — incluir na barra de chips ativos).
-
-### P10. SKU vs Código Interno: tooltips esclarecedores
-Arquivo: `src/pages/Produtos.tsx` (cabeçalhos das colunas).
-
-- A coluna `sku` recebe `headerTooltip="SKU — código comercial (catálogo, vendas)"`.
-- A coluna `codigo_interno` recebe `headerTooltip="Código Interno — sequencial do ERP (PRD/INS)"`.
-- Verificar se `DataTable` suporta `headerTooltip`; se não, adicionar prop opcional na definição de coluna.
-
-### P11. Largura priorizada
-Arquivo: `src/pages/Produtos.tsx`.
-
-- Adicionar `width: "minmax(260px, 2fr)"` (ou equivalente) na coluna `nome` para garantir mais espaço.
-- Reduzir colunas numéricas (UN, Estoque, Venda, Custo, Margem, Status) com `width` menor. Verificar se `DataTable` suporta `width` nas columns; senão, propor via `className` no `<th>`.
-
----
-
-## Baixa prioridade (fora desta onda)
-
-- Modo de densidade (compacto/confortável/detalhado) — exigiria refator no `DataTable`.
-- Hover quick-actions na linha — exigiria reorganizar a ColumnActions.
-- Sticky header customizado (já existe parcial).
-- Click duplo / clique-na-linha para abrir — atualmente já há `onView`, mantemos.
-
----
-
-## Arquivos esperados
-- `supabase/migrations/<ts>_produtos_estoque_summary.sql` (nova RPC).
-- `src/pages/Produtos.tsx` (KPIs, coluna Produto, margem, estoque, variação, ativo card).
-- `src/components/SummaryCard.tsx` (nova prop `active`).
-- `src/components/AdvancedFilterBar.tsx` (prop `rightSlot` + chip "Limpar filtros" mais visível, se possível).
-- `src/components/DataTable.tsx` apenas se necessário (`headerTooltip`, `width` por coluna). Se já existirem, não tocar.
-
-## Validação
-- `/produtos` em 1366×768: KPIs compactos, "Abaixo do mínimo" mostrando o total real (sem "(página)"), card ativo com ring quando filtro aplicado, coluna Produto com SKU/Interno/Variação na própria célula, badges de variação cinza, margem com estado "Sem custo/Sem preço", toolbar com Colunas/Exportar à direita.
-- `/produtos` em 390×844 mobile: cards continuam compactos (já cardificados pelo Module/SummaryCard), tabela renderiza no modo mobile (já tem `mobilePrimary`/`mobileCard`).
-- Sem regressão em outros módulos que usam `AdvancedFilterBar` ou `SummaryCard`.
+Sem migrações de banco. Sem mudanças em `produtos.service.ts` (a menos que P10 precise de `estoque_reservado` — verificado em runtime).

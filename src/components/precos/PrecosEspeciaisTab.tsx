@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { notifyError } from "@/utils/errorMessages";
 import { formatVariacoesSuffix } from "@/utils/cadastros";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import {
   listPrecosEspeciais,
   listClientesAtivosBasic,
@@ -195,9 +196,18 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
 
       <div className="space-y-2">
         {items.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6 border border-dashed rounded-lg">
-            Nenhuma regra de preço especial definida.
-          </p>
+          !showAdd && !editingId ? (
+            <DetailEmpty
+              icon={Tag}
+              title="Nenhuma regra de preço especial definida"
+              message="Crie regras por cliente, produto, condição comercial ou período de vigência para personalizar preços."
+              action={
+                <Button size="sm" onClick={() => setShowAdd(true)} className="h-8 gap-1">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar regra
+                </Button>
+              }
+            />
+          ) : null
         ) : (
           items.map((item) => (
             <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">

@@ -5,6 +5,7 @@ import { fetchProdutoDetalhes, deleteProduto } from "@/services/produtos.service
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, Layers, DollarSign } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -57,6 +58,7 @@ export function ProdutoView({ id }: Props) {
   const navigate = useNavigate();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("geral");
   const { canHardDelete: isAdmin } = useCanHardDelete();
   const { pushView, clearStack } = useRelationalNavigation();
   const { run, locked } = useDetailActions();
@@ -111,6 +113,12 @@ export function ProdutoView({ id }: Props) {
   const custoCompostoView = composicao.reduce((s, c) => s + c.quantidade * (c.preco_custo || 0), 0);
   const estoqueValor = selected ? (selected.estoque_atual || 0) * (selected.preco_custo || 0) : 0;
 
+  const custoNum = Number(selected?.preco_custo || 0);
+  const vendaNum = Number(selected?.preco_venda || 0);
+  const markupPct = custoNum > 0 ? ((vendaNum / custoNum) - 1) * 100 : null;
+  const margemSobreVendaPct = vendaNum > 0 ? ((vendaNum - custoNum) / vendaNum) * 100 : null;
+  const lucroEmEstoque = lucroBruto * Number(selected?.estoque_atual || 0);
+
   // KPIs Compras
   const totalComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0), 0);
   const valorComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
@@ -125,14 +133,36 @@ export function ProdutoView({ id }: Props) {
     : 0;
 
   const estoqueBaixo = selected ? Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0 : false;
+  const naoControlaEstoque = selected ? Number(selected.estoque_minimo || 0) === 0 && Number(selected.estoque_atual || 0) === 0 : false;
+  const semEstoque = selected ? Number(selected.estoque_atual || 0) === 0 && Number(selected.estoque_minimo || 0) > 0 : false;
+  const reservado = Number((selected as { estoque_reservado?: number | null } | null)?.estoque_reservado || 0);
+  const disponivel = Number(selected?.estoque_atual || 0) - reservado;
   const fiscalCompleto = !!(selected?.ncm && selected?.cst && selected?.cfop_padrao);
+  const fiscalFaltantes: string[] = selected
+    ? ([!selected.ncm && "NCM", !selected.cst && "CST", !selected.cfop_padrao && "CFOP"].filter(Boolean) as string[])
+    : [];
+  const semVenda = selected ? Number(selected.preco_venda || 0) === 0 : false;
+  const semCusto = selected ? Number(selected.preco_custo || 0) === 0 : false;
   const fornecedorPrincipal = fornecedoresProd.find((f) => f.eh_principal);
   const ultimaEntrada = movimentos.find((m) => m.tipo === 'entrada');
   const ultimaSaida = movimentos.find((m) => m.tipo === 'saida');
 
+  const fornecedoresCount = fornecedoresProd.length;
+  const vendasCount = historicoVendas.length;
+
+  type HealthAlert = { id: string; label: string; tone: "warning" | "destructive"; tab: string };
+  const healthAlerts: HealthAlert[] = selected ? ([
+    semEstoque && { id: "sem-estoque", label: "Sem estoque", tone: "destructive" as const, tab: "estoque" },
+    !semEstoque && estoqueBaixo && { id: "abaixo-min", label: "Estoque abaixo do mínimo", tone: "warning" as const, tab: "estoque" },
+    fornecedoresCount === 0 && { id: "sem-fornecedor", label: "Sem fornecedor vinculado", tone: "warning" as const, tab: "compras" },
+    !fiscalCompleto && { id: "fiscal-inc", label: `Fiscal incompleto · faltam ${fiscalFaltantes.join(", ")}`, tone: "warning" as const, tab: "fiscal" },
+    semVenda && { id: "sem-venda", label: "Preço de venda zerado", tone: "destructive" as const, tab: "preco" },
+    semCusto && !semVenda && { id: "sem-custo", label: "Custo ausente — afeta margem", tone: "warning" as const, tab: "preco" },
+  ].filter(Boolean) as HealthAlert[]) : [];
+
   // ── PUBLISH DRAWER SLOTS (header padronizado via DrawerHeaderShell) ──
   usePublishDrawerSlots(`produto:${id}`, {
-    breadcrumb: selected?.sku ? `Produto · ${selected.sku}` : undefined,
+    breadcrumb: "Cadastros › Produtos",
     summary: selected ? (
       <RecordIdentityCard
         icon={Package}
@@ -143,6 +173,7 @@ export function ProdutoView({ id }: Props) {
             {selected.sku && selected.sku !== selected.codigo_interno && (
               <span className="font-mono">SKU: {selected.sku}</span>
             )}
+            <span className="text-muted-foreground/70">· atualizado {formatDate(selected.updated_at)}</span>
           </>
         }
         badges={
@@ -209,6 +240,28 @@ export function ProdutoView({ id }: Props) {
 
   return (
     <div className="space-y-5">
+      {healthAlerts.length > 0 && (
+        <div className="flex flex-wrap gap-2" role="region" aria-label="Alertas do produto">
+          {healthAlerts.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setActiveTab(a.tab)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                a.tone === "destructive"
+                  ? "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                  : "border-warning/30 bg-warning/5 text-warning hover:bg-warning/10",
+              )}
+              aria-label={`${a.label} — abrir aba`}
+            >
+              <AlertTriangle className="h-3 w-3" />
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <DrawerSummaryCard label="Venda" value={formatCurrency(selected.preco_venda)} align="center" />
@@ -227,70 +280,80 @@ export function ProdutoView({ id }: Props) {
         />
         <DrawerSummaryCard
           label="Estoque"
-          value={`${selected.estoque_atual ?? 0} ${selected.unidade_medida}`}
-          tone={estoqueBaixo ? "destructive" : "neutral"}
-          hint={estoqueBaixo ? "Abaixo do mínimo" : undefined}
+          value={naoControlaEstoque ? "—" : `${selected.estoque_atual ?? 0} ${selected.unidade_medida || ""}`}
+          tone={semEstoque || estoqueBaixo ? "destructive" : "neutral"}
+          hint={naoControlaEstoque ? "Não controla" : semEstoque ? "Sem estoque" : estoqueBaixo ? "Abaixo do mínimo" : undefined}
           align="center"
         />
       </div>
 
-      <Tabs defaultValue="geral" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full grid grid-cols-7">
           <TabsTrigger value="geral" className="text-xs px-0.5">Geral</TabsTrigger>
-          <TabsTrigger value="compras" className="text-xs px-0.5">Compras</TabsTrigger>
-          <TabsTrigger value="preco" className="text-xs px-0.5">Preço</TabsTrigger>
-          <TabsTrigger value="estoque" className="text-xs px-0.5">Estoque</TabsTrigger>
-          <TabsTrigger value="fiscal" className="text-xs px-0.5">Fiscal</TabsTrigger>
+          <TabsTrigger value="compras" className="text-xs px-0.5">
+            Compras{fornecedoresCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({fornecedoresCount})</span>}
+          </TabsTrigger>
+          <TabsTrigger value="preco" className="text-xs px-0.5">
+            Preço{(semVenda || semCusto) && <span className="ml-1 text-[10px] text-warning" aria-label="Preço incompleto">!</span>}
+          </TabsTrigger>
+          <TabsTrigger value="estoque" className="text-xs px-0.5">
+            Estoque{(estoqueBaixo || semEstoque) && <span className="ml-1 text-[10px] text-destructive" aria-label="Estoque crítico">!</span>}
+          </TabsTrigger>
+          <TabsTrigger value="fiscal" className="text-xs px-0.5">
+            Fiscal{!fiscalCompleto && <span className="ml-1 text-[10px] text-warning" aria-label="Fiscal incompleto">!</span>}
+          </TabsTrigger>
           <TabsTrigger value="precos" className="text-xs px-0.5">Espec.</TabsTrigger>
-          <TabsTrigger value="vendas" className="text-xs px-0.5">Vendas</TabsTrigger>
+          <TabsTrigger value="vendas" className="text-xs px-0.5">
+            Vendas{vendasCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({vendasCount})</span>}
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab: Geral */}
         <TabsContent value="geral" className="space-y-3 mt-3">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">SKU</span>
-              <p className="font-mono text-sm">{selected.sku || "—"}</p>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Código</span>
-              <p className="font-mono text-sm">{selected.codigo_interno || "—"}</p>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Unidade</span>
-              <p className="text-sm">{selected.unidade_medida}</p>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Peso</span>
-              <p className="font-mono text-sm">{selected.peso ? `${selected.peso} kg` : "—"}</p>
-            </div>
-            {grupoNome && (
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Grupo</span>
-                <p className="text-sm">{grupoNome}</p>
-              </div>
-            )}
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Tipo</span>
-              <p className="text-sm">{selected.eh_composto ? "Composto" : "Simples"}</p>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Classificação</span>
-            <p className="text-sm capitalize">{selected.tipo_item || "produto"}</p>
+          <div className="rounded-lg border bg-card p-3 space-y-2.5">
+            <SectionTitle>Identificação</SectionTitle>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+              <FieldItem label="SKU" mono value={selected.sku} />
+              <FieldItem label="Código interno" mono value={selected.codigo_interno} />
+              <FieldItem label="Classificação" value={selected.tipo_item || "produto"} capitalize />
+              <FieldItem label="Tipo" value={selected.eh_composto ? "Composto" : "Simples"} />
             </div>
           </div>
+
+          <div className="rounded-lg border bg-card p-3 space-y-2.5">
+            <SectionTitle>Operacional</SectionTitle>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+              <FieldItem label="Unidade" value={selected.unidade_medida} />
+              <FieldItem label="Grupo" value={grupoNome} emptyText="Sem grupo" />
+              <FieldItem
+                label="Peso"
+                mono
+                value={selected.peso ? `${selected.peso} kg` : null}
+                emptyText="Peso não informado"
+              />
+              <FieldItem
+                label="Variações"
+                value={(() => {
+                  const raw = (selected as { variacoes?: string[] | null }).variacoes;
+                  return Array.isArray(raw) && raw.length > 0 ? `${raw.length} variação(ões)` : null;
+                })()}
+                emptyText="Sem variações"
+              />
+            </div>
+          </div>
+
           {(() => {
             const raw = (selected as { variacoes?: string[] | null }).variacoes;
             const items: string[] = Array.isArray(raw) ? raw : [];
             if (items.length === 0) return null;
             return (
-              <div className="pt-1 border-t">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Variações</span>
-                <div className="flex flex-wrap gap-1 mt-1">
+              <div className="rounded-lg border bg-card p-3 space-y-2">
+                <SectionTitle>Variações cadastradas</SectionTitle>
+                <div className="flex flex-wrap gap-1">
                   {items.map((v, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/20 font-medium"
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground border border-border font-medium"
                     >
                       {v}
                     </span>
@@ -300,9 +363,9 @@ export function ProdutoView({ id }: Props) {
             );
           })()}
           {selected.descricao && (
-            <div className="pt-1 border-t">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Descrição</span>
-              <p className="text-sm mt-0.5 text-foreground/80">{selected.descricao}</p>
+            <div className="rounded-lg border bg-card p-3 space-y-1.5">
+              <SectionTitle>Descrição</SectionTitle>
+              <p className="text-sm text-foreground/80 whitespace-pre-line">{selected.descricao}</p>
             </div>
           )}
           {selected.eh_composto && composicao.length > 0 && (
@@ -337,7 +400,23 @@ export function ProdutoView({ id }: Props) {
             <ShoppingCart className="w-3.5 h-3.5" /> Fornecedores Vinculados
           </h4>
           {fornecedoresProd.length === 0 ? (
-            <DetailEmpty icon={ShoppingCart} title="Nenhum fornecedor vinculado" message="Nenhum fornecedor vinculado a este produto" />
+            <DetailEmpty
+              icon={ShoppingCart}
+              title="Nenhum fornecedor vinculado"
+              message="Vincule fornecedores para registrar custo de compra, código do fornecedor e lead time."
+              action={
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    navigate(`/produtos?editId=${id}`);
+                    window.setTimeout(() => clearStack(), 0);
+                  }}
+                  className="h-8 gap-1"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" /> Vincular fornecedor
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-2">
             {fornecedoresProd.map((f, idx: number) => (
@@ -413,20 +492,38 @@ export function ProdutoView({ id }: Props) {
         {/* Tab: Preço */}
         <TabsContent value="preco" className="space-y-3 mt-3">
           <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Custo</span>
                 <p className="font-mono font-semibold text-lg">{formatCurrency(selected.preco_custo || 0)}</p>
+                {semCusto && <p className="text-[10px] text-warning mt-0.5">Sem custo</p>}
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Margem</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider block cursor-help">Markup</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Markup = (venda / custo − 1) × 100. Calculado sobre o custo.</TooltipContent>
+                </Tooltip>
+                <p className={cn("font-mono font-semibold text-lg", markupPct == null ? "" : markupPct > 0 ? "text-success" : markupPct < 0 ? "text-destructive" : "")}>
+                  {markupPct == null ? "—" : `${markupPct.toFixed(1)}%`}
+                </p>
+              </div>
+              <div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider block cursor-help">Margem s/ venda</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Margem = (venda − custo) / venda × 100. Calculada sobre o preço de venda.</TooltipContent>
+                </Tooltip>
                 <p className={`font-mono font-semibold text-lg ${selectedMargem > 0 ? "text-success" : selectedMargem < 0 ? "text-destructive" : ""}`}>
-                  {(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
+                  {margemSobreVendaPct == null ? "—" : `${margemSobreVendaPct.toFixed(1)}%`}
                 </p>
               </div>
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Venda</span>
                 <p className="font-mono font-semibold text-lg text-primary">{formatCurrency(selected.preco_venda)}</p>
+                {semVenda && <p className="text-[10px] text-warning mt-0.5">Não definido</p>}
               </div>
             </div>
             <div className="border-t pt-3 space-y-2">
@@ -434,12 +531,33 @@ export function ProdutoView({ id }: Props) {
                 <span className="text-muted-foreground text-xs">Lucro Bruto</span>
                 <span className={`font-mono font-semibold text-sm ${lucroBruto > 0 ? "text-primary" : "text-destructive"}`}>{formatCurrency(lucroBruto)}</span>
               </div>
+              {Number(selected.estoque_atual || 0) > 0 && lucroBruto !== 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground text-xs">Lucro estimado em estoque</span>
+                  <span className="font-mono text-xs">{formatCurrency(lucroEmEstoque)}</span>
+                </div>
+              )}
               {fornecedorPrincipal?.preco_compra != null && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground text-xs">Últ. Custo (Fornec. Principal)</span>
                   <span className="font-mono text-xs">{formatCurrency(fornecedorPrincipal.preco_compra)}</span>
                 </div>
               )}
+              {custoMedioCompras > 0 && Math.abs(custoMedioCompras - custoNum) > 0.01 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground text-xs">Custo médio das compras</span>
+                  <span className="font-mono text-xs">
+                    {formatCurrency(custoMedioCompras)}
+                    <span className={cn("ml-1 text-[10px]", custoMedioCompras > custoNum ? "text-warning" : "text-success")}>
+                      ({custoMedioCompras > custoNum ? "+" : ""}{((custoMedioCompras - custoNum) / (custoNum || 1) * 100).toFixed(1)}%)
+                    </span>
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground text-xs">Última atualização</span>
+                <span className="font-mono text-xs text-muted-foreground">{formatDate(selected.updated_at)}</span>
+              </div>
             </div>
           </div>
         </TabsContent>
@@ -464,6 +582,20 @@ export function ProdutoView({ id }: Props) {
               <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
             </div>
           </div>
+          {reservado > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Reservado</p>
+                <p className="text-xl font-bold font-mono">{reservado}</p>
+                <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Disponível</p>
+                <p className={cn("text-xl font-bold font-mono", disponivel < 0 && "text-destructive")}>{disponivel}</p>
+                <p className="text-[10px] text-muted-foreground">{selected.unidade_medida}</p>
+              </div>
+            </div>
+          )}
           {estoqueValor > 0 && (
             <div className="rounded-lg border bg-card p-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -520,6 +652,28 @@ export function ProdutoView({ id }: Props) {
 
         {/* Tab: Fiscal */}
         <TabsContent value="fiscal" className="space-y-3 mt-3">
+          {!fiscalCompleto && (
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-warning">Dados fiscais incompletos</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Faltam: <strong className="text-foreground">{fiscalFaltantes.join(", ")}</strong>. Sem esses dados, a emissão fiscal pode ser bloqueada.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1 text-xs border-warning/40 text-warning hover:bg-warning/10"
+                onClick={() => {
+                  navigate(`/produtos?editId=${id}`);
+                  window.setTimeout(() => clearStack(), 0);
+                }}
+              >
+                Completar dados
+              </Button>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Dados Fiscais</h4>
             {fiscalCompleto ? (
@@ -528,20 +682,20 @@ export function ProdutoView({ id }: Props) {
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[10px] text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full font-medium">
-                <AlertTriangle className="h-2.5 w-2.5" /> Cadastro Incompleto
+                <AlertTriangle className="h-2.5 w-2.5" /> {fiscalFaltantes.length} pendência(s)
               </span>
             )}
           </div>
           <div className="space-y-2">
-            <div className="rounded-lg border bg-card p-3">
+            <div className={cn("rounded-lg border bg-card p-3", !selected.ncm && "border-warning/30")}>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">NCM</p>
               <p className="font-mono text-sm font-medium">{selected.ncm || <span className="text-muted-foreground text-xs italic">Não informado</span>}</p>
             </div>
-            <div className="rounded-lg border bg-card p-3">
+            <div className={cn("rounded-lg border bg-card p-3", !selected.cst && "border-warning/30")}>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">CST</p>
               <p className="font-mono text-sm font-medium">{selected.cst || <span className="text-muted-foreground text-xs italic">Não informado</span>}</p>
             </div>
-            <div className="rounded-lg border bg-card p-3">
+            <div className={cn("rounded-lg border bg-card p-3", !selected.cfop_padrao && "border-warning/30")}>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">CFOP Padrão</p>
               <p className="font-mono text-sm font-medium">{selected.cfop_padrao || <span className="text-muted-foreground text-xs italic">Não informado</span>}</p>
             </div>
@@ -577,26 +731,42 @@ export function ProdutoView({ id }: Props) {
                 {historicoVendas.map((h, idx: number) => {
                   const qtd = Number(h.quantidade || 0);
                   const vu = Number(h.valor_unitario || 0);
+                  const total = qtd * vu;
                   return (
-                    <div key={idx} className="text-sm py-1.5 border-b last:border-b-0">
-                      <div className="flex justify-between items-center">
-                        <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
-                        <span className="text-[10px] text-muted-foreground">{formatDate(h.notas_fiscais?.data_emissao)}</span>
-                      </div>
-                      <div className="flex justify-between text-[10px] mt-1">
+                    <div key={idx} className="rounded-lg border bg-card hover:bg-muted/30 transition-colors p-2.5 space-y-1">
+                      <div className="flex justify-between items-center gap-2">
                         {h.notas_fiscais?.clientes ? (
-                          <RelationalLink onClick={() => pushView("cliente", h.notas_fiscais?.clientes?.id)} className="truncate max-w-[180px] text-xs">
+                          <RelationalLink
+                            onClick={() => pushView("cliente", h.notas_fiscais?.clientes?.id)}
+                            className="truncate text-sm font-medium flex-1 min-w-0"
+                          >
                             {h.notas_fiscais.clientes.nome_razao_social}
                           </RelationalLink>
                         ) : (
-                          <span className="truncate max-w-[180px] text-muted-foreground">—</span>
+                          <span className="truncate text-sm text-muted-foreground flex-1 min-w-0">—</span>
                         )}
-                        <span className="font-mono">Qtd: {qtd} × {formatCurrency(vu)} = <span className="font-semibold">{formatCurrency(qtd * vu)}</span></span>
+                        <span className="font-mono font-semibold text-sm shrink-0">{formatCurrency(total)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-[11px]">
+                            NF {h.notas_fiscais?.numero}
+                          </RelationalLink>
+                          <span>·</span>
+                          <span>{formatDate(h.notas_fiscais?.data_emissao)}</span>
+                        </div>
+                        <span className="font-mono">{qtd} × {formatCurrency(vu)}</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
+              {valorVendido > 0 && (
+                <div className="flex justify-between items-center pt-2 border-t text-xs">
+                  <span className="text-muted-foreground">Total no período</span>
+                  <span className="font-mono font-semibold">{formatCurrency(valorVendido)}</span>
+                </div>
+              )}
             </>
           )}
         </TabsContent>
@@ -643,6 +813,27 @@ export function ProdutoView({ id }: Props) {
         ]}
         onDeleted={() => clearStack()}
       />
+    </div>
+  );
+}
+
+interface FieldItemProps {
+  label: string;
+  value: string | number | null | undefined;
+  emptyText?: string;
+  mono?: boolean;
+  capitalize?: boolean;
+}
+function FieldItem({ label, value, emptyText = "—", mono, capitalize }: FieldItemProps) {
+  const isEmpty = value === null || value === undefined || value === "";
+  return (
+    <div>
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
+      {isEmpty ? (
+        <p className="text-sm text-muted-foreground italic">{emptyText}</p>
+      ) : (
+        <p className={cn("text-sm", mono && "font-mono", capitalize && "capitalize")}>{value}</p>
+      )}
     </div>
   );
 }
