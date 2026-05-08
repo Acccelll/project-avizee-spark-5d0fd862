@@ -652,6 +652,28 @@ export function ProdutoView({ id }: Props) {
 
         {/* Tab: Fiscal */}
         <TabsContent value="fiscal" className="space-y-3 mt-3">
+          {!fiscalCompleto && (
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-warning">Dados fiscais incompletos</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Faltam: <strong className="text-foreground">{fiscalFaltantes.join(", ")}</strong>. Sem esses dados, a emissão fiscal pode ser bloqueada.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1 text-xs border-warning/40 text-warning hover:bg-warning/10"
+                onClick={() => {
+                  navigate(`/produtos?editId=${id}`);
+                  window.setTimeout(() => clearStack(), 0);
+                }}
+              >
+                Completar dados
+              </Button>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Dados Fiscais</h4>
             {fiscalCompleto ? (
@@ -660,20 +682,20 @@ export function ProdutoView({ id }: Props) {
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[10px] text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full font-medium">
-                <AlertTriangle className="h-2.5 w-2.5" /> Cadastro Incompleto
+                <AlertTriangle className="h-2.5 w-2.5" /> {fiscalFaltantes.length} pendência(s)
               </span>
             )}
           </div>
           <div className="space-y-2">
-            <div className="rounded-lg border bg-card p-3">
+            <div className={cn("rounded-lg border bg-card p-3", !selected.ncm && "border-warning/30")}>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">NCM</p>
               <p className="font-mono text-sm font-medium">{selected.ncm || <span className="text-muted-foreground text-xs italic">Não informado</span>}</p>
             </div>
-            <div className="rounded-lg border bg-card p-3">
+            <div className={cn("rounded-lg border bg-card p-3", !selected.cst && "border-warning/30")}>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">CST</p>
               <p className="font-mono text-sm font-medium">{selected.cst || <span className="text-muted-foreground text-xs italic">Não informado</span>}</p>
             </div>
-            <div className="rounded-lg border bg-card p-3">
+            <div className={cn("rounded-lg border bg-card p-3", !selected.cfop_padrao && "border-warning/30")}>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">CFOP Padrão</p>
               <p className="font-mono text-sm font-medium">{selected.cfop_padrao || <span className="text-muted-foreground text-xs italic">Não informado</span>}</p>
             </div>
