@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -20,6 +20,7 @@ import { Package, Archive, AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
 import { parseVariacoes } from "@/utils/cadastros";
+import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
 
 type TipoItem = "produto" | "insumo";
 
@@ -176,20 +177,37 @@ const Produtos = () => {
   });
   const grupos = grupoLookup ?? [];
 
-  const openCreate = () => navigate("/produtos/novo");
-  const openEdit = (p: Produto) => navigate(`/produtos/${p.id}/editar`);
-  const openView = (p: Produto) => pushView("produto", p.id);
+  // Modal de formulário (canônico — alinhado com Clientes/Fornecedores).
+  const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [formProdutoId, setFormProdutoId] = useState<string | undefined>(undefined);
 
-  // Suporte ao deep-link legado (?editId=) e ao atalho ?new=1.
+  const openCreate = () => { setFormMode("create"); setFormProdutoId(undefined); setFormOpen(true); };
+  const openEdit = (p: Produto) => { setFormMode("edit"); setFormProdutoId(p.id); setFormOpen(true); };
+  const openView = (p: Produto) => pushView("produto", p.id);
+  const closeForm = () => setFormOpen(false);
+  const handleSaved = () => { fetchData?.(); };
+
+  // Suporte ao deep-link legado (?editId=, ?new=1) e às rotas redirecionadas
+  // /produtos/novo e /produtos/:id/editar (agora abrem modal).
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const editId = (location.state as { editId?: string } | null)?.editId || params.get("editId");
     if (editId) {
-      navigate(`/produtos/${editId}/editar`, { replace: true });
+      setFormMode("edit");
+      setFormProdutoId(editId);
+      setFormOpen(true);
+      // Limpa o query param para não reabrir após fechar.
+      params.delete("editId");
+      navigate({ pathname: "/produtos", search: params.toString() }, { replace: true });
       return;
     }
     if (params.get("new") === "1") {
-      navigate("/produtos/novo", { replace: true });
+      setFormMode("create");
+      setFormProdutoId(undefined);
+      setFormOpen(true);
+      params.delete("new");
+      navigate({ pathname: "/produtos", search: params.toString() }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot
   }, [location.search, location.state]);
