@@ -427,6 +427,7 @@ const Produtos = () => {
     { label: "Abaixo do mínimo", value: "critico" },
     { label: "Em atenção", value: "atencao" },
     { label: "Normal", value: "normal" },
+    { label: "Não controla", value: "nao_controla" },
   ];
   const grupoOptions: MultiSelectOption[] = [
     ...grupos.map(g => ({ label: g.nome, value: g.id })),
