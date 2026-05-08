@@ -84,3 +84,27 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - `supabase--linter` após cada migration (zero `warn`/`error`).
 - Smoke contra `sefaz-proxy`/`sefaz-distdfe` com tokens admin × leitura-only.
 - `scripts/lint-touch-targets.mjs` verde antes de fechar Bloco D.
+
+---
+
+## Onda 9 — Hardening Relatórios / Workbook / Apresentação (em curso)
+
+### 9.1 Críticos — CONCLUÍDO
+- [x] **C-01/DP-01/DP-04** Helper `fetchAllPages` + paginação universal nos 6 loaders (`financeiro, comercial, compras, estoque, cadastros, divergencias`). Hard cap 50k.
+- [x] **C-02** `vencido` removido como status persistido em `loaders/financeiro` (queries `.in()` e `isOpen`); status efetivo derivado de `atraso > 0`.
+- [x] **C-03** Migration backfill `apresentacao_comentarios.tags_json.tags`; fallback substring `'indispon'` removido de `ApresentacaoGerencial`.
+- [x] **C-04** `formatRegistry` canônico + `formatValue` por registry (sem heurística `key.includes`).
+
+### 9.2 Performance/Resiliência — pendente
+- [ ] A-01 caps explícitos no Workbook (top N parametrizável + nota visual).
+- [ ] A-04 AbortController real em `gerarWorkbook` / `gerarApresentacao`.
+- [ ] A-05 helper `fromUntyped<T>` consolidando `(supabase as any).from(...)`.
+- [ ] A-06 feedback de migração local→DB em `useRelatoriosFavoritos`.
+
+### 9.3 UX/Mobile — pendente
+- [ ] A-07/A-03/M-04 RelatorioChart topN, derivações no loader, busca por keyword no catálogo.
+- [ ] M-01/02/03/05/06 staleTime por tipo, badge "atualizando", chip regime DRE, validação modo fechado, bloqueio aprovação sem comentários.
+- [ ] MB-03/04/05 chart min-h, DreTable mobile cards, progresso de export.
+
+### 9.4 Refatorações — pendente
+- [ ] D-01 decompor `Relatorios.tsx`. M-07 auditar `apresentacao-cadencia-runner`. DP-03/05 EXPLAIN views + N+1.
