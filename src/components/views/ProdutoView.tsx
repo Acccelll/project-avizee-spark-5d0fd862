@@ -325,35 +325,37 @@ export function ProdutoView({ id }: Props) {
           tone={selectedMargem > 0 ? "success" : selectedMargem < 0 ? "destructive" : "neutral"}
           align="center"
         />
-        <DrawerSummaryCard
-          label="Estoque"
-          value={naoControlaEstoque ? "—" : `${selected.estoque_atual ?? 0} ${selected.unidade_medida || ""}`}
-          tone={semEstoque || estoqueBaixo ? "destructive" : "neutral"}
-          hint={naoControlaEstoque ? "Não controla" : semEstoque ? "Sem estoque" : estoqueBaixo ? "Abaixo do mínimo" : undefined}
-          align="center"
-        />
+        <div className="col-span-2 sm:col-span-1">
+          <DrawerSummaryCard
+            label="Estoque"
+            value={naoControlaEstoque ? "—" : `${selected.estoque_atual ?? 0} ${selected.unidade_medida || ""}`}
+            tone={semEstoque || estoqueBaixo ? "destructive" : "neutral"}
+            hint={naoControlaEstoque ? "Não controla" : semEstoque ? "Sem estoque" : estoqueBaixo ? "Abaixo do mínimo" : undefined}
+            align="center"
+          />
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full grid grid-cols-7">
-          <TabsTrigger value="geral" className="text-xs px-0.5">Geral</TabsTrigger>
-          <TabsTrigger value="compras" className="text-xs px-0.5">
+        <TabsListScrollable>
+          <TabsTrigger value="geral" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">Geral</TabsTrigger>
+          <TabsTrigger value="compras" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Compras{fornecedoresCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({fornecedoresCount})</span>}
           </TabsTrigger>
-          <TabsTrigger value="preco" className="text-xs px-0.5">
+          <TabsTrigger value="preco" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Preço{(semVenda || semCusto) && <span className="ml-1 text-[10px] text-warning" aria-label="Preço incompleto">!</span>}
           </TabsTrigger>
-          <TabsTrigger value="estoque" className="text-xs px-0.5">
+          <TabsTrigger value="estoque" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Estoque{(estoqueBaixo || semEstoque) && <span className="ml-1 text-[10px] text-destructive" aria-label="Estoque crítico">!</span>}
           </TabsTrigger>
-          <TabsTrigger value="fiscal" className="text-xs px-0.5">
+          <TabsTrigger value="fiscal" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Fiscal{!fiscalCompleto && <span className="ml-1 text-[10px] text-warning" aria-label="Fiscal incompleto">!</span>}
           </TabsTrigger>
-          <TabsTrigger value="precos" className="text-xs px-0.5">Espec.</TabsTrigger>
-          <TabsTrigger value="vendas" className="text-xs px-0.5">
+          <TabsTrigger value="precos" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">Espec.</TabsTrigger>
+          <TabsTrigger value="vendas" className="text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink">
             Vendas{vendasCount > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({vendasCount})</span>}
           </TabsTrigger>
-        </TabsList>
+        </TabsListScrollable>
 
         {/* Tab: Geral */}
         <TabsContent value="geral" className="space-y-3 mt-3">
