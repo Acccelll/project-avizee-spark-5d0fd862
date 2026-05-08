@@ -74,3 +74,13 @@ Foco em segurança real do `social-sync`, completar a cobertura do HelpRegistry 
 - Frontend: ~4 ajustes pontuais (`social.service`, `socialAnalytics`, `SocialDashboardTab`, `SocialAlertasTab`, `CoachTour`).
 - Help: 4 novas entries + 2 tours adicionados (lote 3) + bumps de `version` + `data-help-id` nas páginas Social/Faturamento/Migração/DistDFe.
 - Docs: atualização breve de `mem://features/modulo-social-infraestrutura.md` com a regra "social-sync exige JWT + ownership; mock só com flag explícita".
+
+---
+
+## Onda 10 — Status: implementada
+
+- **Bloco 1 (Hardening social-sync):** edge function reescrita com `requireAnyPermission(social:sincronizar)` via `_shared/permissions.ts`, validação de ownership em `social_contas`, e fim do mock silencioso (`TOKEN_NOT_CONFIGURED` 422; mock só com `?mock=1` + env `SOCIAL_SYNC_ALLOW_MOCK=true`). `sincronizarSocial` no service propaga mensagem amigável quando o token está ausente.
+- **Bloco 2 (HelpRegistry):** novas entries `socialHelp`, `faturamentoHelp`, `migracaoDadosHelp`, `fiscalDistdfeHelp` em `src/help/registry.ts`. Tours adicionados a `/administracao` e `/auditoria`. `data-help-id` em `Social.tsx` (`social.tabs`, `social.connectBtn`, `social.syncBtn`). Bumps de `version`.
+- **Bloco 3 (Bugs):** `listarAlertas` filtra por `resolvido`; `calculateTrend` com thresholds calibrados; `SocialDashboardTab` com `EmptyState`; `relatoriosHelp.summary` sem "comissões".
+- **Bloco 4 (CoachTour):** `console.warn` em DEV quando anchor com `target` não-vazio não é resolvido.
+- **Memória:** `mem://features/modulo-social-infraestrutura.md` atualizada.
