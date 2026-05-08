@@ -199,7 +199,8 @@ export default function AuditDuplicidades() {
               size="sm"
               variant="outline"
               className="h-7 text-xs"
-              disabled={(r.ids_a_remover as string[] | null)?.length === 0}
+              disabled={!isAdmin || (r.ids_a_remover as string[] | null)?.length === 0}
+              title={!isAdmin ? "Apenas administradores podem mesclar duplicidades" : undefined}
               onClick={() => setPurgeTarget(r)}
             >
               <Trash2 className="w-3 h-3 mr-1" />
@@ -209,6 +210,8 @@ export default function AuditDuplicidades() {
               size="sm"
               variant="ghost"
               className="h-7 text-xs"
+              disabled={!isAdmin}
+              title={!isAdmin ? "Apenas administradores podem marcar duplicidades" : undefined}
               onClick={() => setManterTarget(r)}
             >
               <ShieldCheck className="w-3 h-3 mr-1" />
