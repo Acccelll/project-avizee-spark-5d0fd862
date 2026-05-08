@@ -1303,7 +1303,7 @@ const Clientes = () => {
                   rows={5} maxLength={MAX_OBSERVACOES_LENGTH}
                   value={obsParts.user}
                   onChange={(e) => updateForm({ observacoes: joinObservacoes(obsParts.meta, e.target.value) })}
-                  placeholder="Informações relevantes sobre o cliente: preferências, restrições, histórico de relacionamento..."
+                  placeholder={isMobile ? "Notas internas..." : "Informações relevantes sobre o cliente: preferências, restrições, histórico de relacionamento..."}
                 />
                 <p className="text-xs text-muted-foreground mt-1 text-right">{obsParts.user.length}/{MAX_OBSERVACOES_LENGTH}</p>
               </div>
