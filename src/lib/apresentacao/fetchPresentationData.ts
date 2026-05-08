@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { fromUntyped } from '@/lib/supabase/fromUntyped';
 import type { ApresentacaoDataBundle, ApresentacaoModoGeracao, SlideCodigo } from '@/types/apresentacao';
 import { APRESENTACAO_SLIDES_MAP } from './slideDefinitions';
 
@@ -10,8 +11,9 @@ import { APRESENTACAO_SLIDES_MAP } from './slideDefinitions';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as any;
+// Onda 9.2 (A-05) — supabase mantido para storage; queries via fromUntyped.
+const sb = { from: (name: string) => fromUntyped(name) };
+void supabase;
 
 async function viewByComp(name: string, iniYM: string, fimYM: string) {
   try {

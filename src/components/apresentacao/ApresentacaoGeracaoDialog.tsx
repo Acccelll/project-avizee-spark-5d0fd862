@@ -46,9 +46,11 @@ interface Props {
     exigirRevisao: boolean;
   }) => Promise<void>;
   isGenerating: boolean;
+  /** Onda 9.2 (A-04) — cancela a geração em andamento. */
+  onCancel?: () => void;
 }
 
-export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGerar, isGenerating }: Props) {
+export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGerar, isGenerating, onCancel }: Props) {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '');
@@ -207,7 +209,11 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
           </div>
         </div>
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating} className="w-full sm:w-auto">Cancelar</Button>
+          {isGenerating && onCancel ? (
+            <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">Cancelar geração</Button>
+          ) : (
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating} className="w-full sm:w-auto">Fechar</Button>
+          )}
           <Button disabled={isGenerating || !templateId} className="w-full sm:w-auto" onClick={() => onGerar({ templateId, competenciaInicial, competenciaFinal, modoGeracao, slideConfig, exigirRevisao })}>
             {isGenerating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando...</> : 'Gerar apresentação'}
           </Button>

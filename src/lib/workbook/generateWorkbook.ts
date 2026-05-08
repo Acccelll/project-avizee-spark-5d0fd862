@@ -14,6 +14,7 @@ import { buildVisualSheets } from './buildVisualSheets';
 import { VISUAL_SHEET_NAMES, RAW_SHEET_NAMES } from './templateMap';
 import { hashParametros } from './utils';
 import type { WorkbookParametros } from '@/types/workbook';
+import type { WorkbookCaps } from './fetchWorkbookData';
 // V2 — abas analíticas modulares
 import { buildCapa } from './sheets/capa';
 import { buildDre } from './sheets/dre';
@@ -26,6 +27,10 @@ import {
 export interface GenerateWorkbookOptions {
   parametros: WorkbookParametros;
   geracaoId: string;
+  /** Onda 9.2 (A-04) — aborta a geração antes da próxima etapa custosa. */
+  signal?: AbortSignal;
+  /** Onda 9.2 (A-01) — caps explícitos override default. */
+  caps?: WorkbookCaps;
 }
 
 // Template is served from /public so the path is stable across dev and prod
@@ -83,7 +88,7 @@ async function loadTemplate(): Promise<ExcelJS.Workbook> {
 }
 
 export async function generateWorkbook(options: GenerateWorkbookOptions): Promise<Blob> {
-  const { parametros, geracaoId } = options;
+  const { parametros, geracaoId, signal, caps } = options;
   const { competenciaInicial, competenciaFinal, modoGeracao, abasSelecionadas } = parametros;
 
   // Se nada selecionado → tudo (compatibilidade retroativa)
@@ -91,13 +96,16 @@ export async function generateWorkbook(options: GenerateWorkbookOptions): Promis
   const incluir = (g: string) => selecionados.has(g);
 
   // 1. Load template
+  signal?.throwIfAborted?.();
   const workbook = await loadTemplate();
   workbook.creator = 'ERP AviZee';
   workbook.lastModifiedBy = 'Workbook Gerencial';
   workbook.modified = new Date();
 
   // 2. Fetch data using appropriate mode
-  const data = await fetchWorkbookData(competenciaInicial, competenciaFinal, modoGeracao);
+  signal?.throwIfAborted?.();
+  const data = await fetchWorkbookData(competenciaInicial, competenciaFinal, modoGeracao, signal, caps);
+  signal?.throwIfAborted?.();
 
   // 3. Fill RAW sheets
   fillRawSheets(workbook, data, parametros, geracaoId);
@@ -206,6 +214,7 @@ export async function generateWorkbook(options: GenerateWorkbookOptions): Promis
   }
 
   // 6. Export
+  signal?.throwIfAborted?.();
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

@@ -6,6 +6,30 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { WorkbookModoGeracao } from '@/types/workbook';
 import { fetchFolhaPagamentoRange, fetchEmpresaConfigBrand } from '@/services/workbook';
+import { fromUntyped } from '@/lib/supabase/fromUntyped';
+
+/**
+ * Onda 9.2 (A-01) — Caps explícitos para listagens "top N" no Workbook.
+ * Cada cap é parametrizável via `WorkbookCaps` ao chamar `fetchWorkbookData`.
+ * Mantemos defaults conservadores (compat com o comportamento anterior).
+ */
+export interface WorkbookCaps {
+  vendasClienteAbc?: number;
+  estoqueGiro?: number;
+  estoqueCritico?: number;
+}
+export const WORKBOOK_CAPS_DEFAULT: Required<WorkbookCaps> = {
+  vendasClienteAbc: 50,
+  estoqueGiro: 100,
+  estoqueCritico: 100,
+};
+
+/** Snapshot dos caps efetivamente aplicados — usado para anotação visual. */
+export interface WorkbookCapsApplied {
+  vendasClienteAbc: { cap: number; reached: boolean };
+  estoqueGiro: { cap: number; reached: boolean };
+  estoqueCritico: { cap: number; reached: boolean };
+}
 
 /**
  * As views `vw_workbook_*` ainda não estão refletidas em
@@ -14,8 +38,10 @@ import { fetchFolhaPagamentoRange, fetchEmpresaConfigBrand } from '@/services/wo
  * builder do supabase-js. Os rows continuam sendo normalizados via
  * `Record<string, unknown>` nos mapeadores abaixo, mantendo runtime safety.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as unknown as { from: (name: string) => any };
+// Onda 9.2 (A-05): centralizado em fromUntyped().
+const sb = { from: (name: string) => fromUntyped(name) };
+// Mantemos `supabase` importado para chamadas tipadas (`storage`, etc.) em outros pontos.
+void supabase;
 
 export interface WorkbookRawData {
   receita: Array<{ competencia: string; total_receita: number; total_recebido: number; quantidade: number }>;
@@ -40,6 +66,8 @@ export interface WorkbookRawData {
   fiscal: Array<{ competencia: string; tipo: string; qtd_confirmadas: number; qtd_canceladas: number; qtd_rascunho: number; valor_confirmado: number; icms: number; pis: number; cofins: number; ipi: number }>;
   budget: Array<{ competencia: string; categoria: string; centro_custo_id: string | null; valor: number }>;
   empresa: { razao_social: string; nome_fantasia: string; cnpj: string; logo_url: string | null } | null;
+  /** Onda 9.2 (A-01) — caps efetivos aplicados nesta extração. */
+  capsApplied?: WorkbookCapsApplied;
 }
 
 export async function fetchWorkbookData(
@@ -47,6 +75,7 @@ export async function fetchWorkbookData(
   competenciaFinal: string,
   modoGeracao: WorkbookModoGeracao,
   signal?: AbortSignal,
+  caps: WorkbookCaps = {},
 ): Promise<WorkbookRawData> {
   signal?.throwIfAborted?.();
   if (modoGeracao === 'fechado') {
@@ -54,12 +83,13 @@ export async function fetchWorkbookData(
     signal?.throwIfAborted?.();
     return r;
   }
-  const r = await fetchDynamicModeData(competenciaInicial, competenciaFinal);
+  const r = await fetchDynamicModeData(competenciaInicial, competenciaFinal, caps);
   signal?.throwIfAborted?.();
   return r;
 }
 
-async function fetchDynamicModeData(compIni: string, compFim: string): Promise<WorkbookRawData> {
+async function fetchDynamicModeData(compIni: string, compFim: string, capsInput: WorkbookCaps = {}): Promise<WorkbookRawData> {
+  const caps = { ...WORKBOOK_CAPS_DEFAULT, ...capsInput };
   // Normalize competencia range (YYYY-MM)
   const iniYM = compIni.slice(0, 7);
   const fimYM = compFim.slice(0, 7);
@@ -88,12 +118,12 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
         sb.from('vw_workbook_dre_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
         sb.from('vw_workbook_caixa_evolutivo').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
         sb.from('vw_workbook_vendas_vendedor').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-        sb.from('vw_workbook_vendas_cliente_abc').select('*').limit(50),
+        sb.from('vw_workbook_vendas_cliente_abc').select('*').limit(caps.vendasClienteAbc),
         sb.from('vw_workbook_vendas_regiao').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
         sb.from('vw_workbook_orcamentos_funil').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
         sb.from('vw_workbook_compras_fornecedor').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-        sb.from('vw_workbook_estoque_giro').select('*').order('valor_estoque', { ascending: false }).limit(100),
-        sb.from('vw_workbook_estoque_critico').select('*').order('deficit', { ascending: false }).limit(100),
+        sb.from('vw_workbook_estoque_giro').select('*').order('valor_estoque', { ascending: false }).limit(caps.estoqueGiro),
+        sb.from('vw_workbook_estoque_critico').select('*').order('deficit', { ascending: false }).limit(caps.estoqueCritico),
         sb.from('vw_workbook_logistica_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
         sb.from('vw_workbook_fiscal_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
         sb.from('budgets_mensais').select('competencia, categoria, centro_custo_id, valor').gte('competencia', `${iniYM}-01`).lte('competencia', `${fimYM}-31`),
@@ -243,6 +273,11 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     receita, despesa, faturamento, fopag, caixa, estoque, agingCR, agingCP,
     dre, caixaEvolutivo, vendasVendedor, vendasClienteAbc, vendasRegiao, orcamentosFunil,
     comprasFornecedor, estoqueGiro, estoqueCritico, logistica, fiscal, budget, empresa,
+    capsApplied: {
+      vendasClienteAbc: { cap: caps.vendasClienteAbc, reached: vendasClienteAbc.length >= caps.vendasClienteAbc },
+      estoqueGiro: { cap: caps.estoqueGiro, reached: estoqueGiro.length >= caps.estoqueGiro },
+      estoqueCritico: { cap: caps.estoqueCritico, reached: estoqueCritico.length >= caps.estoqueCritico },
+    },
   };
 }
 

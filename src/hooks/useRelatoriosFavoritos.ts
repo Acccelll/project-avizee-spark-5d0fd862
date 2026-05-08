@@ -114,6 +114,16 @@ export function useRelatoriosFavoritos() {
           );
           if (!insertErr && inserted) {
             remote.push(...inserted.map(rowToFavorito));
+            // Onda 9.2 (A-06) — feedback explícito após migração local→DB.
+            const n = inserted.length;
+            toast.success(
+              n === 1
+                ? '1 favorito de Relatórios migrado da máquina para a sua conta.'
+                : `${n} favoritos de Relatórios migrados da máquina para a sua conta.`,
+            );
+          } else if (insertErr) {
+            console.error('[useRelatoriosFavoritos] migration insert error', insertErr);
+            toast.warning('Não foi possível migrar todos os favoritos locais. Eles continuam disponíveis nesta máquina.');
           }
         }
         // Clear local cache after the attempt to avoid repeated migration loops

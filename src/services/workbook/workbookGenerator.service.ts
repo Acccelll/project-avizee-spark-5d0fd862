@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { WorkbookTemplate, WorkbookGeracao, FechamentoMensal, WorkbookParametros } from '@/types/workbook';
 import { hashParametros } from '@/lib/workbook/utils';
+import { fromUntyped } from '@/lib/supabase/fromUntyped';
+import type { WorkbookCaps } from '@/lib/workbook/fetchWorkbookData';
 import { logger } from "@/lib/logger";
 
 /**
@@ -13,9 +15,7 @@ async function loadGenerateWorkbook() {
 }
 
 export async function listarTemplates(): Promise<WorkbookTemplate[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('workbook_templates')
+  const { data, error } = await fromUntyped('workbook_templates')
     .select('*')
     .eq('ativo', true)
     .order('nome');
@@ -24,9 +24,7 @@ export async function listarTemplates(): Promise<WorkbookTemplate[]> {
 }
 
 export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('workbook_geracoes')
+  const { data, error } = await fromUntyped('workbook_geracoes')
     .select('*, workbook_templates(nome, versao)')
     .order('created_at', { ascending: false })
     .limit(50);
@@ -35,9 +33,7 @@ export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
 }
 
 export async function listarFechamentos(): Promise<FechamentoMensal[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('fechamentos_mensais')
+  const { data, error } = await fromUntyped('fechamentos_mensais')
     .select('*')
     .order('competencia', { ascending: false });
   if (error) throw error;
@@ -49,14 +45,13 @@ export async function listarFechamentos(): Promise<FechamentoMensal[]> {
  */
 export async function gerarWorkbook(
   parametros: WorkbookParametros,
-  userId: string | undefined
+  userId: string | undefined,
+  options: { signal?: AbortSignal; caps?: WorkbookCaps } = {},
 ): Promise<{ blob: Blob; geracaoId: string }> {
   const hash = hashParametros(parametros as unknown as Record<string, unknown>);
 
   // Create generation record with status 'gerando'
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: geracao, error: geracaoError } = await (supabase as any)
-    .from('workbook_geracoes')
+  const { data: geracao, error: geracaoError } = await fromUntyped('workbook_geracoes')
     .insert({
       template_id: parametros.templateId,
       competencia_inicial: parametros.competenciaInicial,
@@ -75,7 +70,12 @@ export async function gerarWorkbook(
   try {
     // Generate the workbook blob
     const generateWorkbook = await loadGenerateWorkbook();
-    const blob = await generateWorkbook({ parametros, geracaoId: geracao.id });
+    const blob = await generateWorkbook({
+      parametros,
+      geracaoId: geracao.id,
+      signal: options.signal,
+      caps: options.caps,
+    });
 
     // Try to save artifact to storage
     let arquivoPath: string | null = null;
@@ -100,9 +100,7 @@ export async function gerarWorkbook(
     }
 
     // Update generation record with success
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
-      .from('workbook_geracoes')
+    await fromUntyped('workbook_geracoes')
       .update({
         status: 'concluido',
         arquivo_path: arquivoPath,
@@ -112,13 +110,12 @@ export async function gerarWorkbook(
 
     return { blob, geracaoId: geracao.id };
   } catch (err) {
+    const isAbort = err instanceof DOMException && err.name === 'AbortError';
     // Update generation record with error
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
-      .from('workbook_geracoes')
+    await fromUntyped('workbook_geracoes')
       .update({
-        status: 'erro',
-        observacoes: err instanceof Error ? err.message : String(err),
+        status: isAbort ? 'cancelado' : 'erro',
+        observacoes: isAbort ? 'Geração cancelada pelo usuário.' : (err instanceof Error ? err.message : String(err)),
         updated_at: new Date().toISOString(),
       })
       .eq('id', geracao.id);
