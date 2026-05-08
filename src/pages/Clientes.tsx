@@ -1112,21 +1112,12 @@ const Clientes = () => {
                     value={form.forma_pagamento_id || "nenhuma"}
                     onValueChange={(v) => updateForm({ forma_pagamento_id: v === "nenhuma" ? "" : v })}
                   >
-                    <SelectTrigger><SelectValue placeholder="Não definida" /></SelectTrigger>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Não definida" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="nenhuma">Não definida</SelectItem>
                       {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.id}>{fp.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    onClick={() => setQuickAddFormaPagOpen(true)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" /> Cadastrar nova forma
-                  </Button>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
@@ -1145,7 +1136,7 @@ const Clientes = () => {
                   />
                   {formErrors.prazo_padrao && <p className="text-xs text-destructive">{formErrors.prazo_padrao}</p>}
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 col-span-2 md:col-span-1">
                   <div className="flex items-center gap-1">
                     <Label>Prazo Preferencial (dias)</Label>
                     <Tooltip>
@@ -1158,9 +1149,7 @@ const Clientes = () => {
                   <Input type="number" min={0} max={MAX_PAYMENT_DAYS} value={form.prazo_preferencial}
                     onChange={(e) => updateForm({ prazo_preferencial: Number(e.target.value) })} />
                 </div>
-              </div>
-              <div className="mb-4">
-                <div className="rounded-md border bg-muted/20 px-4 py-3 space-y-1.5">
+                <div className="space-y-1.5 col-span-2">
                   <div className="flex items-center gap-1">
                     <Label>Limite de Crédito (R$)</Label>
                     <Tooltip>
@@ -1173,9 +1162,19 @@ const Clientes = () => {
                   <Input
                     type="number" step="0.01" min={0} placeholder="0,00" value={form.limite_credito}
                     onChange={(e) => updateForm({ limite_credito: Number(e.target.value) })}
-                    className={`max-w-xs ${formErrors.limite_credito ? "border-destructive" : ""}`}
+                    className={formErrors.limite_credito ? "border-destructive" : ""}
                   />
                   {formErrors.limite_credito && <p className="text-xs text-destructive">{formErrors.limite_credito}</p>}
+                </div>
+                <div className="space-y-1.5 col-span-2 flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuickAddFormaPagOpen(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Cadastrar nova forma de pagamento
+                  </Button>
                 </div>
               </div>
 
@@ -1231,6 +1230,13 @@ const Clientes = () => {
                 </div>
               ) : <div className="mb-4" />}
 
+              <div className="flex items-center gap-2 pt-3 pb-1 border-t">
+                <Truck className="w-4 h-4 text-primary/70" />
+                <h3 className="font-semibold text-sm">Logística Comercial</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Transportadoras preferenciais usadas em remessas para este cliente.
+              </p>
               {mode === "create" ? (
                 <div className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-2.5 border border-dashed text-xs text-muted-foreground">
                   <Truck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
