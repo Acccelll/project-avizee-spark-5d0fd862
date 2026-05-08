@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Calendar, MoreVertical, Clock } from "lucide-react";
+import { ChevronLeft, Calendar, MoreVertical, Clock, RefreshCcw } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
@@ -35,6 +35,10 @@ export interface ReportHeaderProps {
   periodAxisLabel?: string;
   /** Timestamp (ms) da última atualização dos dados — fonte: react-query `dataUpdatedAt`. */
   updatedAt?: number;
+  /** Onda 9.4 (M-02) — true quando há refetch em andamento (cache em background). */
+  isRefreshing?: boolean;
+  /** Onda 9.4 (M-03) — quando relatório é DRE, exibe chip do regime (caixa/competência). */
+  dreRegime?: 'caixa' | 'competencia';
   /** Callback para o botão Voltar. */
   onBack: () => void;
   /** Ações secundárias (refresh, salvar/carregar). Renderizadas à direita. */
@@ -50,6 +54,8 @@ export function ReportHeader({
   recordCount,
   periodAxisLabel,
   updatedAt,
+  isRefreshing,
+  dreRegime,
   onBack,
   actions,
 }: ReportHeaderProps) {
@@ -96,6 +102,20 @@ export function ReportHeader({
           <h2 className="text-lg font-semibold text-foreground leading-tight truncate">
             {title}
           </h2>
+          {(isRefreshing || dreRegime) && (
+            <div className="mt-1 flex items-center gap-1.5">
+              {dreRegime && (
+                <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                  Regime: {dreRegime === 'caixa' ? 'Caixa' : 'Competência'}
+                </Badge>
+              )}
+              {isRefreshing && (
+                <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-normal gap-1">
+                  <RefreshCcw className="h-2.5 w-2.5 animate-spin" /> atualizando
+                </Badge>
+              )}
+            </div>
+          )}
           {periodLabel && (
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3 flex-shrink-0" />
@@ -159,7 +179,19 @@ export function ReportHeader({
       {/* Linha 2: título + descrição + ações secundárias */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-semibold text-foreground leading-tight">{title}</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-xl font-semibold text-foreground leading-tight">{title}</h2>
+            {dreRegime && (
+              <Badge variant="outline" className="text-xs font-normal">
+                Regime: {dreRegime === 'caixa' ? 'Caixa' : 'Competência'}
+              </Badge>
+            )}
+            {isRefreshing && (
+              <Badge variant="secondary" className="text-xs font-normal gap-1">
+                <RefreshCcw className="h-3 w-3 animate-spin" /> atualizando
+              </Badge>
+            )}
+          </div>
           {description && (
             <p className="text-sm text-muted-foreground mt-1">{description}</p>
           )}
