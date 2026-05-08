@@ -492,20 +492,38 @@ export function ProdutoView({ id }: Props) {
         {/* Tab: Preço */}
         <TabsContent value="preco" className="space-y-3 mt-3">
           <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Custo</span>
                 <p className="font-mono font-semibold text-lg">{formatCurrency(selected.preco_custo || 0)}</p>
+                {semCusto && <p className="text-[10px] text-warning mt-0.5">Sem custo</p>}
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Margem</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider block cursor-help">Markup</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Markup = (venda / custo − 1) × 100. Calculado sobre o custo.</TooltipContent>
+                </Tooltip>
+                <p className={cn("font-mono font-semibold text-lg", markupPct == null ? "" : markupPct > 0 ? "text-success" : markupPct < 0 ? "text-destructive" : "")}>
+                  {markupPct == null ? "—" : `${markupPct.toFixed(1)}%`}
+                </p>
+              </div>
+              <div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider block cursor-help">Margem s/ venda</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Margem = (venda − custo) / venda × 100. Calculada sobre o preço de venda.</TooltipContent>
+                </Tooltip>
                 <p className={`font-mono font-semibold text-lg ${selectedMargem > 0 ? "text-success" : selectedMargem < 0 ? "text-destructive" : ""}`}>
-                  {(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
+                  {margemSobreVendaPct == null ? "—" : `${margemSobreVendaPct.toFixed(1)}%`}
                 </p>
               </div>
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Venda</span>
                 <p className="font-mono font-semibold text-lg text-primary">{formatCurrency(selected.preco_venda)}</p>
+                {semVenda && <p className="text-[10px] text-warning mt-0.5">Não definido</p>}
               </div>
             </div>
             <div className="border-t pt-3 space-y-2">
@@ -513,12 +531,33 @@ export function ProdutoView({ id }: Props) {
                 <span className="text-muted-foreground text-xs">Lucro Bruto</span>
                 <span className={`font-mono font-semibold text-sm ${lucroBruto > 0 ? "text-primary" : "text-destructive"}`}>{formatCurrency(lucroBruto)}</span>
               </div>
+              {Number(selected.estoque_atual || 0) > 0 && lucroBruto !== 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground text-xs">Lucro estimado em estoque</span>
+                  <span className="font-mono text-xs">{formatCurrency(lucroEmEstoque)}</span>
+                </div>
+              )}
               {fornecedorPrincipal?.preco_compra != null && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground text-xs">Últ. Custo (Fornec. Principal)</span>
                   <span className="font-mono text-xs">{formatCurrency(fornecedorPrincipal.preco_compra)}</span>
                 </div>
               )}
+              {custoMedioCompras > 0 && Math.abs(custoMedioCompras - custoNum) > 0.01 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground text-xs">Custo médio das compras</span>
+                  <span className="font-mono text-xs">
+                    {formatCurrency(custoMedioCompras)}
+                    <span className={cn("ml-1 text-[10px]", custoMedioCompras > custoNum ? "text-warning" : "text-success")}>
+                      ({custoMedioCompras > custoNum ? "+" : ""}{((custoMedioCompras - custoNum) / (custoNum || 1) * 100).toFixed(1)}%)
+                    </span>
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground text-xs">Última atualização</span>
+                <span className="font-mono text-xs text-muted-foreground">{formatDate(selected.updated_at)}</span>
+              </div>
             </div>
           </div>
         </TabsContent>
