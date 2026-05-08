@@ -18,7 +18,7 @@ interface MobileQuickAddFABProps {
 export function MobileQuickAddFAB({
   onClick,
   label = "Novo",
-  bottomOffset = "9.25rem",
+  bottomOffset = "5.25rem",
   className,
 }: MobileQuickAddFABProps) {
   const isMobile = useIsMobile();
