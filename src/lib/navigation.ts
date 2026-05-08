@@ -198,7 +198,11 @@ export const navSections: NavSection[] = [
       {
         title: 'Documentos fiscais',
         items: [
-          { title: 'Faturamento', path: '/faturamento', icon: Receipt, badge: 'Em breve', disabled: true, keywords: ['emissor', 'sebrae', 'painel', 'sefaz', 'wizard', 'kpi', 'em breve'] },
+          { title: 'Faturamento', path: '/faturamento', icon: Receipt, keywords: ['emissor', 'wizard', 'kpi', 'hub', 'sefaz'] },
+          { title: 'Emitir NF-e', path: '/faturamento/emitir', icon: Receipt, keywords: ['emissao', 'wizard', 'sefaz', 'nfe'] },
+          { title: 'Backlog faturamento', path: '/faturamento/backlog', icon: Receipt, keywords: ['pendente', 'pedidos', 'aprovado', 'fila', 'sla'] },
+          { title: 'Consulta documentos', path: '/faturamento/documentos', icon: FileSearch, keywords: ['busca', 'chave', 'cliente', 'historico'] },
+          { title: 'Cadastros fiscais', path: '/faturamento/cadastros', icon: FolderCog, keywords: ['empresa', 'certificado', 'ambiente', 'sefaz'] },
           { title: 'Dashboard Fiscal', path: '/fiscal/dashboard', icon: BarChart3, keywords: ['indicadores', 'kpi', 'icms', 'apuracao', 'distdfe', 'painel'] },
           { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: Receipt, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
           { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: Receipt, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
