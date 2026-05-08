@@ -700,6 +700,8 @@ export function DataTable<T extends Record<string, any>>({
         onItemClick={onRowClick ?? onView ?? onEdit}
         actionsInline={mobileInlineActions}
         primaryAction={mobilePrimaryAction}
+        hideIdentifier={mobileHideIdentifier}
+        labeledDetails={mobileLabeledDetails}
         statusBadge={
           statusCol
             ? (item) =>
