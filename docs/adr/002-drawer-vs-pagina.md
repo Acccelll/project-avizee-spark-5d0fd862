@@ -19,6 +19,16 @@ o que prejudica consistência visual e contexto de navegação.
 - Drawers cross-módulo em mobile usam variante bottom-sheet (`Sheet` com
   `side="bottom"`).
 
+### Exceção (Onda 11): Produtos como modal XL
+
+`Produtos` originalmente seguia a regra "form com itens dinâmicos vai para
+página". Por decisão de produto na Onda 11 (consistência com Clientes/
+Fornecedores), o cadastro passou a ser exibido em **modal XL**
+(`ProdutoFormModal`, `max-w-5xl` desktop / full-screen mobile) que embute o
+`ProdutoForm` em modo `embedded`. Composição e fornecedores continuam dentro
+das abas do form. As rotas `/produtos/novo` e `/produtos/:id/editar`
+permanecem como redirects para `/produtos?new=1` / `?editId=:id`.
+
 ## Consequências
 
 - A regra é validada na revisão de PR; novos forms com itens dinâmicos não

@@ -28,10 +28,15 @@ type: design
   drawer abre para visualizar; "Editar" navega para `/{modulo}/:id`.
   Aceitável — drawer mantém stack relacional para visualização cruzada;
   edição séria de itens vai para página.
-- **Produtos** (desde C-01/MB-01/D-01): visualização via `ViewDrawerV2`
-  (`pushView("produto", id)`); criação/edição em página dedicada
-  `/produtos/novo` e `/produtos/:id/editar` (`src/pages/produtos/ProdutoForm.tsx`).
-  Justificativa: composição e fornecedores são tabelas editáveis dentro do form.
+- **Produtos** (Onda 11): visualização via `ViewDrawerV2`
+  (`pushView("produto", id)`); criação/edição via `ProdutoFormModal`
+  (`src/pages/produtos/ProdutoFormModal.tsx`) — modal XL (`max-w-5xl`,
+  `max-h-[92dvh]`) com fallback full-screen em mobile, abrindo o
+  `ProdutoForm` em modo `embedded`. As rotas legadas `/produtos/novo` e
+  `/produtos/:id/editar` permanecem como **redirects** para
+  `/produtos?new=1` / `/produtos?editId=:id` (preserva deep-links).
+  Exceção justificada à regra geral "form com itens dinâmicos vai para
+  página": o usuário priorizou consistência do padrão de cadastros.
 
 ## Regras de implementação
 
