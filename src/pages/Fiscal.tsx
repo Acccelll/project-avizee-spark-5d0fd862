@@ -171,11 +171,11 @@ const Fiscal = () => {
     const end = new Date(y, m, 0).toISOString().slice(0, 10);
     return { column: "data_emissao", from: start, to: end };
   }, [emissaoMesState]);
-  const { data, loading, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
-    table: "notas_fiscais",
-    select: "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)",
-    dateRange: emissaoDateRange,
-  });
+  // Paginação server-side (Onda 8 / item 2.1). Substitui o `useSupabaseCrud`
+  // que carregava até 1000 notas no cliente. Filtros e ordenação delegados à
+  // RPC `listar_notas_fiscais_ids`; KPIs continuam via `kpis_fiscal`.
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
   const fornecedoresCrud = useSupabaseCrud<FornecedorRef>({ table: "fornecedores" });
   const clientesCrud = useSupabaseCrud<ClienteRef>({ table: "clientes" });
   const produtosCrud = useSupabaseCrud<ProdutoRef>({ table: "produtos" });
