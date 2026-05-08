@@ -922,30 +922,3 @@ function FieldItem({ label, value, emptyText = "Não informado", mono, capitaliz
   );
 }
 
-/**
- * TabsListScrollable — no mobile vira lista horizontal com scroll suave;
- * no sm+ mantém o grid de 7 colunas. Faz auto-scroll para a aba ativa.
- */
-function TabsListScrollable({ children }: { children: React.ReactNode }) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const observer = new MutationObserver(() => {
-      const active = wrapper.querySelector<HTMLElement>('[data-state="active"]');
-      if (active) active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
-    });
-    observer.observe(wrapper, { attributes: true, subtree: true, attributeFilter: ["data-state"] });
-    // scroll inicial
-    const active = wrapper.querySelector<HTMLElement>('[data-state="active"]');
-    if (active) active.scrollIntoView({ inline: "center", block: "nearest" });
-    return () => observer.disconnect();
-  }, []);
-  return (
-    <div ref={wrapperRef} className="-mx-3 sm:mx-0 overflow-x-auto scrollbar-none">
-      <TabsList className="inline-flex w-max gap-1 px-3 h-auto sm:h-10 sm:px-0 sm:w-full sm:grid sm:grid-cols-7">
-        {children}
-      </TabsList>
-    </div>
-  );
-}
