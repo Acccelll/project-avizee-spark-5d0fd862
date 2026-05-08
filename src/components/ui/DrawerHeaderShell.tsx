@@ -61,14 +61,14 @@ export function DrawerHeaderShell({
       )}
     >
       {/* Zona 1 — Header global */}
-      <div className="px-4 sm:px-6 pt-3 pb-2">
+      <div className="px-3 sm:px-6 pt-2 pb-1.5 sm:pt-3 sm:pb-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="text-base sm:text-lg font-semibold leading-tight text-foreground truncate">
               {title}
             </h2>
             {hasBreadcrumbRow && (
-              <div className="mt-0.5 flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+              <div className="mt-0.5 hidden sm:flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
                 {breadcrumb && (
                   <span className="truncate">{breadcrumb}</span>
                 )}
@@ -77,6 +77,14 @@ export function DrawerHeaderShell({
                     {counter.index + 1} de {counter.total}
                   </span>
                 )}
+              </div>
+            )}
+            {/* Counter compacto no mobile só quando há mais de 1 drawer */}
+            {counter && counter.total > 1 && (
+              <div className="mt-0.5 sm:hidden">
+                <span className="inline-flex items-center rounded-full border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {counter.index + 1} de {counter.total}
+                </span>
               </div>
             )}
           </div>
@@ -100,7 +108,7 @@ export function DrawerHeaderShell({
 
       {/* Zona 3 — Ações do registro */}
       {recordActions && (
-        <div className="px-4 sm:px-6 py-2 border-t bg-card flex items-center justify-end gap-1.5 flex-wrap">
+        <div className="px-3 sm:px-6 py-2 border-t bg-card flex items-center justify-between sm:justify-end gap-1.5 flex-wrap">
           {recordActions}
         </div>
       )}
