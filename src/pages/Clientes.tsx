@@ -384,7 +384,7 @@ const Clientes = () => {
           {c.cpf_cnpj ? cpfCnpjMask(c.cpf_cnpj) : "—"}
         </span>
       ) },
-    { key: "tipo_pessoa", label: "Tipo",
+    { key: "tipo_pessoa", mobileCard: true, label: "Tipo",
       render: (c: Cliente) => {
         const isPf = c.tipo_pessoa === "F";
         return (
@@ -431,7 +431,7 @@ const Clientes = () => {
         );
       },
     },
-    { key: "prazo_padrao", label: "Prazo Pgto.",
+    { key: "prazo_padrao", mobileCard: true, label: "Prazo Pgto.",
       render: (c: Cliente) => c.prazo_padrao
         ? <span className="text-xs font-medium"><span className="tabular-nums">{c.prazo_padrao}</span> dias</span>
         : <span className="text-muted-foreground text-xs">Sem prazo</span> },
@@ -547,6 +547,7 @@ const Clientes = () => {
           <>
             <SummaryCard
               title="Total de Clientes"
+              shortTitle="Total"
               value={totalRegistros}
               icon={Users}
               onClick={() => clearFilters(["tipo", "grupo", "ativo", "cadastro"])}
@@ -560,23 +561,22 @@ const Clientes = () => {
               onClick={() => setAtivoFilters(ativoOnly ? [] : ["ativo"])}
               active={ativoOnly}
             />
-            <div className="hidden md:contents">
-              <SummaryCard
-                title="Inativos"
-                value={Math.max(0, totalRegistros - summaryAtivos)}
-                icon={User2}
-                onClick={() => setAtivoFilters(inativoOnly ? [] : ["inativo"])}
-                active={inativoOnly}
-              />
-              <SummaryCard
-                title="Incompletos (página)"
-                value={summaryIncompletosPagina}
-                icon={AlertTriangle}
-                variant="warning"
-                onClick={() => setCadastroFilters(isIncompletoActive ? [] : ["incompleto"])}
-                active={isIncompletoActive}
-              />
-            </div>
+            <SummaryCard
+              title="Inativos"
+              value={Math.max(0, totalRegistros - summaryAtivos)}
+              icon={User2}
+              onClick={() => setAtivoFilters(inativoOnly ? [] : ["inativo"])}
+              active={inativoOnly}
+            />
+            <SummaryCard
+              title="Incompletos (página)"
+              shortTitle="Incompletos"
+              value={summaryIncompletosPagina}
+              icon={AlertTriangle}
+              variant="warning"
+              onClick={() => setCadastroFilters(isIncompletoActive ? [] : ["incompleto"])}
+              active={isIncompletoActive}
+            />
           </>
         }
       >
@@ -584,7 +584,7 @@ const Clientes = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nome, CNPJ, e-mail ou cidade..."
+          searchPlaceholder={isMobile ? "Buscar cliente..." : "Buscar por nome, CNPJ, e-mail ou cidade..."}
           activeFilters={cliActiveFilters}
           onRemoveFilter={handleRemoveCliFilter}
           onClearAll={() => clearFilters(["tipo", "grupo", "ativo", "cadastro"])}
@@ -598,7 +598,7 @@ const Clientes = () => {
         </div>
 
         <PullToRefresh onRefresh={fetchData}>
-          <div data-help-id="clientes.tabela">
+          <div data-help-id="clientes.tabela" className="pb-32 md:pb-0">
           <DataTable
             columns={columns}
             data={filteredData}
@@ -611,6 +611,7 @@ const Clientes = () => {
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
             mobileStatusKey="ativo"
+            mobileLabeledDetails
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
             serverSortKey={sort.sortKey}
