@@ -310,50 +310,50 @@ export function ProdutoView({ id }: Props) {
 
         {/* Tab: Geral */}
         <TabsContent value="geral" className="space-y-3 mt-3">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">SKU</span>
-              <p className="font-mono text-sm">{selected.sku || "—"}</p>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Código</span>
-              <p className="font-mono text-sm">{selected.codigo_interno || "—"}</p>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Unidade</span>
-              <p className="text-sm">{selected.unidade_medida}</p>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Peso</span>
-              <p className="font-mono text-sm">{selected.peso ? `${selected.peso} kg` : "—"}</p>
-            </div>
-            {grupoNome && (
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Grupo</span>
-                <p className="text-sm">{grupoNome}</p>
-              </div>
-            )}
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Tipo</span>
-              <p className="text-sm">{selected.eh_composto ? "Composto" : "Simples"}</p>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Classificação</span>
-            <p className="text-sm capitalize">{selected.tipo_item || "produto"}</p>
+          <div className="rounded-lg border bg-card p-3 space-y-2.5">
+            <SectionTitle>Identificação</SectionTitle>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+              <FieldItem label="SKU" mono value={selected.sku} />
+              <FieldItem label="Código interno" mono value={selected.codigo_interno} />
+              <FieldItem label="Classificação" value={selected.tipo_item || "produto"} capitalize />
+              <FieldItem label="Tipo" value={selected.eh_composto ? "Composto" : "Simples"} />
             </div>
           </div>
+
+          <div className="rounded-lg border bg-card p-3 space-y-2.5">
+            <SectionTitle>Operacional</SectionTitle>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+              <FieldItem label="Unidade" value={selected.unidade_medida} />
+              <FieldItem label="Grupo" value={grupoNome} emptyText="Sem grupo" />
+              <FieldItem
+                label="Peso"
+                mono
+                value={selected.peso ? `${selected.peso} kg` : null}
+                emptyText="Peso não informado"
+              />
+              <FieldItem
+                label="Variações"
+                value={(() => {
+                  const raw = (selected as { variacoes?: string[] | null }).variacoes;
+                  return Array.isArray(raw) && raw.length > 0 ? `${raw.length} variação(ões)` : null;
+                })()}
+                emptyText="Sem variações"
+              />
+            </div>
+          </div>
+
           {(() => {
             const raw = (selected as { variacoes?: string[] | null }).variacoes;
             const items: string[] = Array.isArray(raw) ? raw : [];
             if (items.length === 0) return null;
             return (
-              <div className="pt-1 border-t">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Variações</span>
-                <div className="flex flex-wrap gap-1 mt-1">
+              <div className="rounded-lg border bg-card p-3 space-y-2">
+                <SectionTitle>Variações cadastradas</SectionTitle>
+                <div className="flex flex-wrap gap-1">
                   {items.map((v, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/20 font-medium"
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground border border-border font-medium"
                     >
                       {v}
                     </span>
@@ -363,9 +363,9 @@ export function ProdutoView({ id }: Props) {
             );
           })()}
           {selected.descricao && (
-            <div className="pt-1 border-t">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Descrição</span>
-              <p className="text-sm mt-0.5 text-foreground/80">{selected.descricao}</p>
+            <div className="rounded-lg border bg-card p-3 space-y-1.5">
+              <SectionTitle>Descrição</SectionTitle>
+              <p className="text-sm text-foreground/80 whitespace-pre-line">{selected.descricao}</p>
             </div>
           )}
           {selected.eh_composto && composicao.length > 0 && (
