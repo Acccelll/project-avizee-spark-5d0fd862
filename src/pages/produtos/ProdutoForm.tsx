@@ -475,7 +475,7 @@ export default function ProdutoForm({
   const formBody = (
     <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto">
+            <TabsList className="mb-4 w-full justify-start overflow-x-auto sticky top-0 z-10 bg-background">
               <TabsTrigger value="dados-gerais" className="gap-1.5"><Package className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
               <TabsTrigger value="estoque" className="gap-1.5"><Archive className="h-3.5 w-3.5" />Estoque</TabsTrigger>
               <TabsTrigger value="fiscal" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Fiscal</TabsTrigger>
@@ -484,7 +484,7 @@ export default function ProdutoForm({
             </TabsList>
 
             {/* DADOS GERAIS */}
-            <TabsContent value="dados-gerais" className="space-y-4 mt-0">
+            <TabsContent value="dados-gerais" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3 pt-1">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Identificação</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
