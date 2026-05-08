@@ -136,6 +136,9 @@ export default function Auditoria() {
       targetUserId: targetUserId === "todos" ? null : targetUserId,
       ipAddress: ipAddress || null,
       registroId: registroId || null,
+      // Criticidade resolvida no servidor — antes era filtrada apenas sobre
+      // a página atual, escondendo eventos críticos das próximas páginas.
+      criticidade: (criticidade as "todas" | "alta" | "media" | "baixa") || "todas",
       page,
     });
 
@@ -159,14 +162,11 @@ export default function Auditoria() {
     return profileMap.get(userId) ?? null;
   }
 
-  // Filtro client-side adicional: criticidade + busca textual (na página)
+  // Filtro client-side: apenas busca textual sobre a página atual.
+  // Criticidade agora é server-side (ver `useAdminAuditUnificada`).
   const visibleRows = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     return rows.filter((r) => {
-      if (criticidade !== "todas") {
-        const crit = getCriticality({ acao: r.tipo_acao, entidade: r.entidade });
-        if (crit !== criticidade) return false;
-      }
       if (!q) return true;
       const ator = getProfile(r.ator_id);
       const alvo = getProfile(r.target_user_id);
@@ -189,7 +189,7 @@ export default function Auditoria() {
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [rows, searchTerm, criticidade, profileMap]);
+  }, [rows, searchTerm, profileMap]);
 
   // KPIs (página atual)
   const kpis = useMemo(() => {
