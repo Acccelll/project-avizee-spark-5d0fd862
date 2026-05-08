@@ -3,8 +3,6 @@ import type React from 'react';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Input } from '@/components/ui/input';
 import { PreviewModal } from '@/components/ui/PreviewModal';
 import type { FiltrosRelatorioState } from '@/pages/relatorios/components/Filtros/FiltrosRelatorio';
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
@@ -16,6 +14,7 @@ import { RelatorioKpiGrid } from '@/pages/relatorios/components/RelatorioKpiGrid
 import { RelatorioFiltrosBar } from '@/pages/relatorios/components/RelatorioFiltrosBar';
 import { RelatorioMobileToolbar } from '@/pages/relatorios/components/RelatorioMobileToolbar';
 import { RelatorioBody } from '@/pages/relatorios/components/RelatorioBody';
+import { RelatorioHeaderActions } from '@/pages/relatorios/components/RelatorioHeaderActions';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import {
   useRelatoriosFiltrosData,
@@ -30,8 +29,7 @@ import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterCh
 import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDrillDown';
 import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { cn } from '@/lib/utils';
-import { BookmarkPlus, BookOpen, Hash, Trash2, RefreshCcw } from 'lucide-react';
+import { Hash } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
@@ -79,8 +77,6 @@ export default function Relatorios() {
     void setHiddenKeys(value);
   };
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [saveNameOpen, setSaveNameOpen] = useState(false);
-  const [saveName, setSaveName] = useState('');
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [tableExpanded, setTableExpanded] = useState(false);
 
@@ -249,22 +245,6 @@ export default function Relatorios() {
     dataFim,
   });
 
-  const handleSalvarFavorito = async () => {
-    const name = saveName.trim();
-    if (!name) return;
-    const saved = await salvarFavorito(name, searchParams);
-    setSaveName('');
-    setSaveNameOpen(false);
-    // Failure toasts (duplicate / network) are emitted inside the hook so we
-    // only surface success here.
-    if (saved) toast.success(`Configuração "${name}" salva com sucesso!`);
-  };
-
-  const handleCarregarFavorito = (params: string) => {
-    setSearchParams(new URLSearchParams(params));
-    toast.success('Favorito aplicado aos filtros atuais.');
-  };
-
   const handleChartDrillDown = (point: { name: string; value: number }) => {
     if (!tipo) return;
     const drillMap: Partial<Record<TipoRelatorio, TipoRelatorio>> = {
@@ -317,63 +297,16 @@ export default function Relatorios() {
   const activeFiltersCount = activeFilterChips.length;
 
   // ── Header secondary actions (Atualizar + Salvar/Carregar favoritos) ─────
+  // 9.5 — D-01: extraído para `RelatorioHeaderActions`.
   const headerActions = (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => refetch()}
-        className="gap-1.5"
-        disabled={isLoading}
-        aria-label="Atualizar dados do relatório"
-      >
-        <RefreshCcw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
-        Atualizar
-      </Button>
-      <Popover open={saveNameOpen} onOpenChange={setSaveNameOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1.5" aria-label="Salvar configuração de filtros">
-            <BookmarkPlus className="h-3.5 w-3.5" />
-            Salvar favorito
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-64 p-3 space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Salvar configuração atual</p>
-          <Input
-            placeholder="Nome da configuração"
-            value={saveName}
-            onChange={(e) => setSaveName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSalvarFavorito(); }}
-            className="h-8 text-sm"
-            autoFocus
-          />
-          <Button size="sm" className="w-full" onClick={handleSalvarFavorito} disabled={!saveName.trim()}>Salvar</Button>
-        </PopoverContent>
-      </Popover>
-      {favoritos.length > 0 && (
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5" aria-label="Carregar configuração favorita">
-              <BookOpen className="h-3.5 w-3.5" />
-              Aplicar favorito
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-72 p-3">
-            <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Favoritos salvos</p>
-            <div className="space-y-1 max-h-60 overflow-y-auto">
-              {favoritos.map((fav) => (
-                <div key={fav.id} className="flex items-center justify-between rounded-md hover:bg-muted/50 px-2 py-1.5 gap-2">
-                  <button className="flex-1 text-left text-sm truncate" onClick={() => handleCarregarFavorito(fav.params)}>{fav.nome}</button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" aria-label={`Remover favorito "${fav.nome}"`} onClick={() => { removerFavorito(fav.id); toast.success(`"${fav.nome}" removido.`); }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-    </>
+    <RelatorioHeaderActions
+      isLoading={isLoading}
+      onRefetch={() => refetch()}
+      favoritos={favoritos}
+      onSalvar={(name) => salvarFavorito(name, searchParams)}
+      onAplicar={(params) => setSearchParams(new URLSearchParams(params))}
+      onRemover={removerFavorito}
+    />
   );
 
   return (
