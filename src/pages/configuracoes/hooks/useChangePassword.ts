@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { notifyError } from '@/utils/errorMessages';
-import { getPasswordCriteriaWithMatch, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
+import { getPasswordCriteriaWithMatch, getPasswordStrength, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 import {
   verifyPasswordReauth,
   updateUserPassword,
@@ -37,12 +37,20 @@ export function useChangePassword() {
 
   const change = async () => {
     const criteria = getPasswordCriteriaWithMatch(newPassword, confirmPassword);
-    const [lengthOk, caseOk, digitOk, matchOk] = criteria.map((c) => c.met);
+    // Lookup por chave: a lista inclui o critério visual `special` que
+    // não entra na validação dura, então destructuring posicional quebraria.
+    const get = (k: string) => criteria.find((c) => c.key === k)?.met ?? false;
+    const lengthOk = get('length');
+    const caseOk = get('case');
+    const digitOk = get('digit');
+    const matchOk = get('match');
+    const strength = getPasswordStrength(newPassword);
     const next: PasswordErrors = {};
     if (!currentPassword) next.current = 'Informe a senha atual';
     if (!newPassword || !lengthOk) next.new = `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`;
     else if (!caseOk) next.new = 'Use letras maiúsculas e minúsculas';
     else if (!digitOk) next.new = 'Inclua ao menos um número';
+    else if (strength.level < 2) next.new = 'Senha muito fraca — combine maiúsculas, minúsculas, números e mais caracteres.';
     if (newPassword && confirmPassword && !matchOk) next.confirm = 'As senhas não coincidem';
     if (Object.keys(next).length > 0) {
       setErrors(next);
