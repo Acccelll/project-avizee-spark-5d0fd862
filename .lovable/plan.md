@@ -75,7 +75,7 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 2. [ ] **2.5** Migration `sefaz_consulta_log` + RPC throttle + integração em `sefaz-distdfe`.
 3. [x] **2.6** Cross-check `nfe_distribuicao` em `useNFeXmlImport` com toast informativo.
 4. [x] **EF-03** `sanitizeForLog` aplicado em todas edge functions fiscais.
-5. [x] **M-01 + M-02** Hardening de pequenos vazamentos. Resta **M-05** (CertificadoValidadeAlert global no AppLayout).
+5. [x] **M-01 + M-02 + M-05** Hardening de pequenos vazamentos e alerta global de certificado em `AppLayout`.
 6. [ ] **BK-01/02/03** Auditoria das 3 RPCs fiscais críticas (`SECURITY DEFINER`, `search_path`, permissões).
 7. [ ] **EF-04** Fila de retry para emissões com timeout SEFAZ.
 8. [ ] **M-04 + D-01 + D-02** Performance KPIs, deprecação do modal e abas em ConfiguracaoFiscal.
