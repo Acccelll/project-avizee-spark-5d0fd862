@@ -15,9 +15,11 @@ export function QuickActions() {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-card rounded-xl border p-4 h-full">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">Ações Rápidas</h3>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="bg-card rounded-xl border p-3">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Ações Rápidas
+      </h3>
+      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
         {quickActions.map((action) => {
           const Icon = ICONS[action.id] ?? FileText;
           return (
@@ -25,12 +27,13 @@ export function QuickActions() {
               key={action.id}
               onClick={() => navigate(action.path)}
               aria-label={action.description}
-              className="flex flex-col items-start gap-1.5 rounded-lg border border-border/60 bg-background p-2.5 text-left transition-colors hover:bg-muted/40 hover:border-primary/30 active:scale-[0.98]"
+              title={action.description}
+              className="flex h-16 flex-col items-center justify-center gap-1 rounded-lg border border-border/60 bg-background px-1.5 py-2 text-center transition-colors hover:bg-muted/40 hover:border-primary/30 active:scale-[0.98]"
             >
-              <div className="rounded-md bg-primary/10 p-1.5">
-                <Icon className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <span className="text-xs font-medium leading-tight text-foreground">{action.title}</span>
+              <Icon className="h-4 w-4 text-primary" />
+              <span className="text-[11px] font-medium leading-tight text-foreground line-clamp-2">
+                {action.title}
+              </span>
             </button>
           );
         })}
