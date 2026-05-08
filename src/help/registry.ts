@@ -29,6 +29,10 @@ import {
   auditoriaHelp,
   configuracoesHelp,
 } from './entries/lote3';
+import { socialHelp } from './entries/social';
+import { faturamentoHelp } from './entries/faturamento';
+import { migracaoDadosHelp } from './entries/migracaoDados';
+import { fiscalDistdfeHelp } from './entries/fiscalDistdfe';
 
 /**
  * Registry central da ajuda. Mapeia rotas → conteúdo do manual e do tour.
@@ -65,6 +69,12 @@ export const HELP_REGISTRY: Record<string, HelpEntry> = {
   '/administracao': administracaoHelp,
   '/auditoria': auditoriaHelp,
   '/configuracoes': configuracoesHelp,
+
+  // Onda 10 — cobertura de módulos visíveis sem ajuda contextual
+  '/social': socialHelp,
+  '/faturamento': faturamentoHelp,
+  '/migracao-dados': migracaoDadosHelp,
+  '/fiscal/distdfe-historico': fiscalDistdfeHelp,
 };
 
 /**

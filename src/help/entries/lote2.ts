@@ -222,7 +222,7 @@ export const fluxoCaixaHelp: HelpEntry = {
 export const relatoriosHelp: HelpEntry = {
   route: '/relatorios',
   title: 'Relatórios',
-  summary: 'Relatórios analíticos exportáveis (PDF/Excel) por módulo: vendas, financeiro, estoque, fiscal, compras, comissões.',
+  summary: 'Relatórios analíticos exportáveis (PDF/Excel) por módulo: vendas, financeiro, estoque, fiscal e compras.',
   sections: [
     {
       heading: 'Catálogo',

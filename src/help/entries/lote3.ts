@@ -197,7 +197,24 @@ export const administracaoHelp: HelpEntry = {
     { label: 'Auditoria', to: '/auditoria' },
     { label: 'Configurações pessoais', to: '/configuracoes' },
   ],
-  version: 2,
+  tour: [
+    {
+      target: 'administracao.tabs',
+      title: 'Áreas da administração',
+      body: 'Cada aba é uma área isolada: Empresa, Usuários, Fiscal, E-mail, Webhooks, Backup, etc. Mudanças aqui afetam todos os usuários e ficam em Auditoria com diff antes/depois.',
+    },
+    {
+      target: '',
+      title: 'Usuários e permissões granulares',
+      body: 'Em Usuários você cria contas, revoga sessões e atribui permissões granulares por módulo. Permissões em user_permissions vencem sobre o papel quando há revogação explícita.',
+    },
+    {
+      target: '',
+      title: 'Certificado A1 e fiscal',
+      body: 'Em Fiscal, faça upload do certificado .pfx (a senha vai para o Vault). Configure série, ambiente e CFOPs padrão antes da primeira emissão de NF-e.',
+    },
+  ],
+  version: 3,
 };
 
 export const auditoriaHelp: HelpEntry = {
@@ -226,7 +243,24 @@ export const auditoriaHelp: HelpEntry = {
       body: 'Auditoria é retida indefinidamente por padrão. Configurações de purga por antiguidade só são aplicáveis com aprovação do compliance.',
     },
   ],
-  version: 2,
+  tour: [
+    {
+      target: 'auditoria.filtros',
+      title: 'Filtros de auditoria',
+      body: 'Filtre por usuário, módulo, tipo de ação, período e severidade. O filtro de criticidade é aplicado no servidor — cobre todas as páginas, não só a atual.',
+    },
+    {
+      target: 'auditoria.tabela',
+      title: 'Lista de eventos',
+      body: 'Cada linha mostra ator, ação, módulo e timestamp. Clique para ver o diff campo-a-campo do antes/depois.',
+    },
+    {
+      target: '',
+      title: 'Imutabilidade',
+      body: 'Eventos de auditoria não podem ser editados nem excluídos — nem por administradores. Garantia de conformidade fiscal e societária.',
+    },
+  ],
+  version: 3,
 };
 
 export const configuracoesHelp: HelpEntry = {

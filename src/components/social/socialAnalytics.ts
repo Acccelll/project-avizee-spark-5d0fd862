@@ -17,10 +17,14 @@ export function calculateContentDistribution(posts: SocialPost[]): Array<{ tipo:
 }
 
 export function calculateTrend(dashboard: SocialDashboardConsolidado): 'alta' | 'estavel' | 'queda' {
-  const seguidores = dashboard.comparativo.reduce((acc, item) => acc + Number(item.seguidores_novos || 0), 0);
-  const engajamento = dashboard.comparativo.reduce((acc, item) => acc + Number(item.taxa_engajamento_media || 0), 0);
-  if (seguidores > 0 && engajamento > 0) return 'alta';
-  if (seguidores < 0 || engajamento < 0.5) return 'queda';
+  const itens = dashboard.comparativo;
+  const seguidores = itens.reduce((acc, item) => acc + Number(item.seguidores_novos || 0), 0);
+  const engajamentoMedio = itens.length
+    ? itens.reduce((acc, item) => acc + Number(item.taxa_engajamento_media || 0), 0) / itens.length
+    : 0;
+  // Thresholds calibrados para evitar "alta" com crescimento marginal.
+  if (seguidores >= 10 && engajamentoMedio >= 2) return 'alta';
+  if (seguidores < 0 || engajamentoMedio < 1) return 'queda';
   return 'estavel';
 }
 

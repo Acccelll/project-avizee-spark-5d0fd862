@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate, formatNumber } from '@/lib/format';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { SocialPost } from '@/types/social';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Plug } from 'lucide-react';
 
 interface Props {
   historicoComparativo: Array<{ plataforma: string; seguidores_novos: number; taxa_engajamento_media: number }>;
@@ -23,6 +25,21 @@ export function SocialDashboardTab({
   contentDistribution,
   trendLabel,
 }: Props) {
+  // Sem contas conectadas / sem dados no período → CTA dedicado em vez de zeros.
+  if (!historicoComparativo.length) {
+    return (
+      <Card>
+        <CardContent className="py-2">
+          <EmptyState
+            variant="firstUse"
+            icon={Plug}
+            title="Conecte uma conta para ver métricas"
+            description="Sem contas conectadas, o dashboard fica vazio. Vá para a aba Contas conectadas e conecte um perfil do Instagram ou LinkedIn."
+          />
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <div className="space-y-4">
       <div className="grid lg:grid-cols-3 gap-4">
