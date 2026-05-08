@@ -13,23 +13,24 @@ import {
   type RelatorioResultado,
   type RawComprasItem,
 } from "@/services/relatorios/lib/shared";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
 export async function loadCompras(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("compras")
-    .select("id, fornecedor_id, numero, data_compra, data_entrega_prevista, data_entrega_real, valor_total, status, fornecedores(nome_razao_social)")
-    .eq("ativo", true)
-    .order("data_compra", { ascending: false });
-
-  query = withDateRange(query, "data_compra", filtros);
-  if (filtros.fornecedorIds?.length) query = query.in('fornecedor_id', filtros.fornecedorIds);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages<RawComprasItem & { id?: string; fornecedor_id?: string | null }>(() => {
+    let q = supabase
+      .from("compras")
+      .select("id, fornecedor_id, numero, data_compra, data_entrega_prevista, data_entrega_real, valor_total, status, fornecedores(nome_razao_social)")
+      .eq("ativo", true)
+      .order("data_compra", { ascending: false });
+    q = withDateRange(q, "data_compra", filtros);
+    if (filtros.fornecedorIds?.length) q = q.in('fornecedor_id', filtros.fornecedorIds);
+    return q;
+  });
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  const rows = (data || []).map((raw: RawComprasItem & { id?: string; fornecedor_id?: string | null }) => {
+  const rows = data.map((raw) => {
     const item = raw;
     const prevista = item.data_entrega_prevista ? new Date(item.data_entrega_prevista) : null;
     const entregaReal = item.data_entrega_real;
@@ -81,22 +82,19 @@ export async function loadCompras(filtros: FiltroRelatorio): Promise<RelatorioRe
  * e filtra pelo período da `data_emissao`.
  */
 export async function loadNfeEntrada(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("nfe_distribuicao")
-    .select(
-      "id, chave_acesso, numero, serie, data_emissao, valor_total, valor_icms, valor_ipi, status_manifestacao, processado, xml_importado, fornecedor_id, cnpj_emitente, nome_emitente, fornecedores(nome_razao_social)",
-    )
-    .order("data_emissao", { ascending: false });
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("nfe_distribuicao")
+      .select(
+        "id, chave_acesso, numero, serie, data_emissao, valor_total, valor_icms, valor_ipi, status_manifestacao, processado, xml_importado, fornecedor_id, cnpj_emitente, nome_emitente, fornecedores(nome_razao_social)",
+      )
+      .order("data_emissao", { ascending: false });
+    q = withDateRange(q, "data_emissao", filtros);
+    if (filtros.fornecedorIds?.length) q = q.in("fornecedor_id", filtros.fornecedorIds);
+    return q;
+  });
 
-  query = withDateRange(query, "data_emissao", filtros);
-  if (filtros.fornecedorIds?.length) {
-    query = query.in("fornecedor_id", filtros.fornecedorIds);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const rows = (data || []).map((raw) => {
+  const rows = data.map((raw) => {
     const item = raw as {
       id: string;
       chave_acesso: string;
@@ -173,21 +171,23 @@ export async function loadNfeEntrada(filtros: FiltroRelatorio): Promise<Relatori
 }
 
 export async function loadComprasFornecedor(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("compras")
-    .select("fornecedor_id, valor_total, fornecedores(nome_razao_social, cpf_cnpj)")
-    .eq("ativo", true);
-  query = withDateRange(query, "data_compra", filtros);
-  if (filtros.fornecedorIds?.length) query = query.in('fornecedor_id', filtros.fornecedorIds);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("compras")
+      .select("fornecedor_id, valor_total, fornecedores(nome_razao_social, cpf_cnpj)")
+      .eq("ativo", true)
+      .order("data_compra", { ascending: false });
+    q = withDateRange(q, "data_compra", filtros);
+    if (filtros.fornecedorIds?.length) q = q.in('fornecedor_id', filtros.fornecedorIds);
+    return q;
+  });
 
   const map = new Map<string, { fornecedorId: string | null; fornecedor: string; cnpj: string; total: number; qtd: number }>();
-  for (const c of data || []) {
+  for (const c of data as Record<string, unknown>[]) {
     const f = c.fornecedores as { nome_razao_social: string; cpf_cnpj: string | null } | null;
     const nome = f?.nome_razao_social || "Sem fornecedor";
-    const key = ((c as Record<string, unknown>).fornecedor_id as string | null) || nome;
-    const existing = map.get(key) || { fornecedorId: ((c as Record<string, unknown>).fornecedor_id as string | null), fornecedor: nome, cnpj: f?.cpf_cnpj || "-", total: 0, qtd: 0 };
+    const key = (c.fornecedor_id as string | null) || nome;
+    const existing = map.get(key) || { fornecedorId: (c.fornecedor_id as string | null), fornecedor: nome, cnpj: f?.cpf_cnpj || "-", total: 0, qtd: 0 };
     existing.total += Number(c.valor_total || 0);
     existing.qtd += 1;
     map.set(key, existing);
