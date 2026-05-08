@@ -1,101 +1,136 @@
-# Onda 13 — Dashboard Mobile UI/UX
+# Onda 14 — Refino do grid de Produtos
 
-Foco em quatro problemas reais detectados no `/` em viewport <768px:
-1. KPIs em carrossel horizontal causam overflow/scroll lateral.
-2. Blocos colapsáveis renderizam dois cabeçalhos (o do `MobileCollapsibleBlock` + o título interno do bloco).
-3. `BackToTopButton` disputa espaço visual com `MobileBottomNav` e com FABs de outras telas.
-4. Lista de pendências e resumos dos accordions ainda parecem desktop em telas estreitas.
+Foco em revisar a tela `/produtos` segundo o feedback de UI/UX. Sem migração de stack, sem refator de queries, mantendo o pattern canônico (`ModulePage` + `AdvancedFilterBar` + `DataTable`).
 
-Sem mudanças de queries, RPCs, KPIs, layout customizável ou rotas.
+Os ajustes foram organizados por prioridade. Itens de baixa prioridade (modo de densidade, hover ações rápidas, ordenação visual) ficam fora desta onda.
 
 ---
 
-## P1. Eliminar overflow horizontal dos KPIs e exceções operacionais
-Arquivo: `src/pages/Index.tsx` (renderers `kpis` e `operational`).
+## Backend (uma migration nova)
 
-- Trocar o carrossel `-mx-4 flex snap-x ... overflow-x-auto` por **grid 2 colunas no mobile** (`grid grid-cols-2 gap-2 sm:grid-cols-3`) para os 5 KPIs principais. Em 5 cards, fica 2/2/1.
-- Para `operationalCards` (4 cards), usar `grid-cols-2 sm:grid-cols-4`.
-- Remover `min-w-[78%]` / `min-w-[60%]` e classes de snap.
-- `SummaryCard` mantém `density="compact"`; nenhum ajuste no componente.
-- Sub-tarefa: validar visualmente no preview (1150px e 375px) que não há barra de scroll horizontal e que cada card respeita o container.
+### M1. RPC `produtos_estoque_summary`
+Função SECURITY DEFINER (search_path = public) que retorna contagem global de produtos com problema de estoque, respeitando `ativo = true`:
 
-## P2. Remover cabeçalho duplicado nos blocos expandidos
-Arquivos: `FinanceiroBlock.tsx`, `ComercialBlock.tsx`, `EstoqueBlock.tsx`, `LogisticaBlock.tsx`, `FiscalBlock.tsx`, `MobileCollapsibleBlock.tsx`.
+```sql
+returns table(criticos int, zerados int, abaixo_minimo int)
+-- criticos: estoque_minimo > 0 AND estoque_atual <= estoque_minimo AND estoque_atual > 0
+-- zerados:  estoque_atual <= 0
+-- abaixo_minimo: criticos + zerados (campo derivado para o KPI)
+```
 
-- O `MobileCollapsibleBlock` já mostra ícone + título + summary + chevron na barra colapsável. Quando o bloco está aberto, o body renderiza um segundo `<h3>` com mesmo ícone/título.
-- Estratégia: introduzir prop `hideInternalHeader?: boolean` (default `false`) em cada um dos 5 blocos. O `MobileCollapsibleBlock` passa `hideInternalHeader` automaticamente para os filhos via `cloneElement` ou — mais simples — recebe um novo prop `hideChildHeaderOnMobile` e o body envolve `<div className="[&>div>div:first-child:has(h3)]:md:flex [&>div>div:first-child:has(h3)]:hidden">` .
-  - **Caminho preferido**: cada bloco (Financeiro/Comercial/Estoque/Logística/Fiscal) recebe a prop `hideHeaderOnMobile` e, quando `true`, renderiza `<div className="hidden md:flex ...">` no `<h3>` raiz, mantendo apenas o "Abrir módulo →" como CTA reposicionado num footer compacto. Quem decide passar o prop é `Index.tsx` (já dentro de `MobileCollapsibleBlock`, então o cabeçalho duplicado some no mobile e segue normal no desktop).
-- Mantém-se o `ScopeBadge` migrado para um chip pequeno no rodapé do body do bloco, junto ao CTA, para não perder o contexto de janela.
+Permissão: `grant execute to authenticated`. RLS dos `produtos` continua valendo via SECURITY INVOKER seria ideal — porém para count agregado SECURITY DEFINER é aceitável aqui (não vaza linhas). Comentar no SQL.
 
-## P3. Resumos de accordion mais informativos
-Arquivo: `src/pages/Index.tsx` (apenas o argumento `summary={...}` de cada `MobileCollapsibleBlock`).
+Sub-tarefa: atualizar `src/integrations/supabase/types.ts` é automático via gen.
 
-- Financeiro: `Saldo R$ 12k · 3 vencidos` (incluir contas vencidas se >0 e formatar saldo via `formatCurrency` curto).
-- Comercial: `R$ X faturado · 4 pedidos · 7 orç` (priorizar faturamento do mês).
-- Estoque: quando crítico → `5 críticos · R$ Yk parado`; quando ok → `1.234 ativos · R$ Yk`.
-- Logística: `2 atrasadas · 5 a chegar` ou `Sem atrasos · 5 a chegar`.
-- Fiscal: `3 pendentes · 12 emitidas`.
-- Aumentar `max-w-[140px]` do summary para `max-w-[180px]` no `MobileCollapsibleBlock` e usar `text-right` para ficar próximo do chevron.
+---
 
-## P4. Reordenar blocos no mobile (sem afetar desktop)
-Arquivo: `src/pages/Index.tsx`.
+## Alta prioridade
 
-- Quando `isMobile`, sobrescrever a ordem de renderização para a sequência sugerida pelo usuário:
+### P1. Substituir KPI "Abaixo do Mínimo (página)" por valor global
+Arquivo: `src/pages/Produtos.tsx`.
+
+- Trocar `criticos = criticosNaPagina` por chamada à RPC nova: `useQuery(['produtos','estoque-summary'], () => supabase.rpc('produtos_estoque_summary'))`.
+- KPI passa a se chamar **"Abaixo do mínimo"** (sem sufixo "(página)"), valor = `abaixo_minimo` global.
+- Quando o usuário clicar, aplicar `setEstoqueFilters(["critico","zerado"])` (já existe).
+- Manter `criticosNaPagina` como microtexto no rodapé do `AdvancedFilterBar` ("Nesta página: 28 abaixo do mínimo") quando o KPI estiver ativo, para reforçar o que está visível.
+
+### P2. Compactar a faixa de KPIs (mais grid, menos hero)
+Arquivo: `src/pages/Produtos.tsx` (passar `density="compact"` aos `SummaryCard`).
+
+- Os 4 cards continuam, mas usam `density="compact"` (já existe no `SummaryCard` — usado no Dashboard).
+- Manter ícones, valores, ações de filtro.
+
+### P3. Card ativo quando ele filtra a tabela
+Arquivos: `src/pages/Produtos.tsx`, `src/components/SummaryCard.tsx` (nova prop `active?: boolean`).
+
+- Adicionar `active?: boolean` no `SummaryCard` que aplica `ring-2 ring-primary/40 bg-primary/5` quando `true`.
+- No Produtos, calcular `active` para "Produtos" (`tipoItemFilters[0]==='produto'`), "Insumos" (`tipoItemFilters[0]==='insumo'`), "Abaixo do mínimo" (`estoqueFilters` contém critico/zerado).
+- Quando `active`, o `subtitle` muda para "Filtro ativo · clique para limpar" e o `onClick` limpa em vez de aplicar.
+
+### P4. Coluna Produto: integrar variação/SKU/código interno
+Arquivo: `src/pages/Produtos.tsx` (renderer da coluna `nome`).
+
+- Render principal da linha:
   ```
-  kpis → operational → alertas → financeiro → vendas_chart → pendencias → comercial → estoque → logistica → fiscal
+  AGULHA DESCARTÁVEL - 100 UN
+  SKU AG001 · Interno PRD000044 · Var. 13×45
   ```
-- Implementação: aplicar um `mobileOrder` derivado de `visibleOrder` reposicionando esses 4 blocos antes da renderização. Ainda respeitando `prefs.hidden`. Nenhuma mudança em `useDashboardLayout`.
-- Pares (`grid lg:grid-cols-2`) já caem para `grid-cols-1` no mobile, então a sequência é simplesmente "um em cima do outro".
+- `nome` ganha mais peso (`text-sm font-medium`); abaixo, em uma linha de metadados (`text-[11px] text-muted-foreground`), aparecem SKU, código interno e a primeira variação (com `+N` se houver mais).
+- Coluna "Variações" continua existindo, porém marcada `hidden: true` por padrão — o usuário pode reabrir via "Colunas" se quiser ver todas as tags. (Opcional: remover, mas hidden preserva escolha do usuário no `useDataTablePrefs`.)
+- Coluna "Cód. Interno" também passa a `hidden: true` (já fica visível dentro da célula Produto).
 
-## P5. BackToTop e botões flutuantes
-Arquivos: `src/components/dashboard/BackToTopButton.tsx`.
+### P5. Variações com cor neutra (não vermelha/rosa)
+Arquivo: `src/pages/Produtos.tsx` (renderer atual usa `bg-primary/10 text-primary border-primary/20` — em alguns temas o `--primary` puxa para vinho, aparentando rosa/erro).
 
-- Subir o offset para `bottom: calc(4.5rem + env(safe-area-inset-bottom))` (logo acima da `MobileBottomNav`, sem deixar gap exagerado).
-- Reduzir o tamanho para `h-10 w-10` e usar `variant="outline"` com `bg-background/95 backdrop-blur` — fica menos competitivo com FABs primários (Clientes/Fornecedores usam `MobileQuickAddFAB` de 14×14 à direita; o BackToTop fica à esquerda e mais discreto).
-- Aumentar `threshold` de 600 para 900 para reduzir aparições em scrolls curtos.
+- Trocar pelo token neutro: `bg-muted text-muted-foreground border-border` (chip cinza). Variações não têm semântica positiva/negativa.
+- Reservar tons quentes apenas para alertas reais (sem estoque, abaixo do mínimo, margem negativa).
 
-## P6. Header mobile: reforçar contexto
-Arquivo: `src/components/dashboard/MobileDashboardHeader.tsx`.
+### P6. Margem com estados explícitos
+Arquivo: `src/pages/Produtos.tsx` (renderer de `margem`).
 
-- Acrescentar segunda linha (12px) abaixo do botão de período mostrando: `Atualizado às HH:MM` em `text-[11px] text-muted-foreground`. Hoje só aparece no `aria-label`.
-- Adicionar microcopy `· toque para trocar` ao lado de `periodLabels[period]` apenas na primeira sessão (sem persistência — manter simples: sempre mostrar "· trocar" como dica visual em `text-muted-foreground`).
-- Greeting block (em `Index.tsx`) já está bom — apenas reduzir `mb-3` para `mb-2` no mobile.
+- Lógica atual mostra `—` quando custo=0 e `+R$ 0,00` que parece dado válido. Substituir por:
+  - Custo ausente (custo=0): `<StatusBadge status="pendente" label="Sem custo" />` + microtexto cinza.
+  - Venda ausente (venda=0): `<StatusBadge status="pendente" label="Sem preço" />`.
+  - Custo > 0 e venda > 0:
+    - margem positiva → `text-success` + valor R$ acrescido.
+    - margem negativa → `text-destructive` + label "Margem negativa".
+  - Suprimir o `+R$ 0,00` quando custo ou venda for 0.
 
-## P7. Lista de Pendências adaptada a mobile
-Arquivo: `src/components/dashboard/PendenciasList.tsx`.
+### P7. Estados de estoque diferenciados na coluna
+Arquivo: `src/pages/Produtos.tsx` + `situacaoEstoqueConfig`.
 
-- Linha atual tem 5 elementos competindo por largura: bullet, pessoa+data+plano, valor, botão eye. Em <375px o `truncate` corta tudo.
-- Refatorar a linha em layout 2-andares no mobile (md+ mantém 1 linha):
-  - Linha superior: pessoa (negrito) + valor à direita.
-  - Linha inferior: bullet de status + "Vencido em DD/MM" ou data + chip pequeno do plano de contas.
-  - Botão "Eye" vira tap-area no card inteiro (`role="button"`, navega para `/financeiro/:id`); ícone `ChevronRight` substitui o eye no canto.
-- Aumentar `min-h-[44px]` para `min-h-[56px]` no mobile, para o tap target inteiro.
+- Hoje "critico" e "zerado" usam o mesmo `cancelado` (vermelho). Separar:
+  - `zerado` → `cancelado` (vermelho) — "Sem estoque"
+  - `critico` → `pendente` (laranja) — "Abaixo do mínimo" (já existia "atencao", mas aqui o fluxo muda: critico vira laranja, atencao some como badge dedicado)
+  - `atencao` → texto warning sem badge (mantém legibilidade, reduz ruído)
+  - `normal` → sem badge
 
-## P8. Espaçamentos verticais
-Arquivos: `src/pages/Index.tsx`, `src/components/dashboard/DashboardCard.tsx` (se necessário).
+### P8. Ler estoque "não controla" como cinza neutro
+Mesma config: quando `estoque_minimo === 0 AND estoque_atual === 0`, retornar nova situação `nao_controla` com badge cinza "Não controla" e cor neutra. Atualizar `getSituacaoEstoque` e options do filtro Estoque (`Sem estoque / Abaixo do mínimo / Em atenção / Normal / Não controla`).
 
-- `<div className="space-y-4">` que envolve as rows → `space-y-3 md:space-y-4`.
-- `MobileCollapsibleBlock` body: `border-t` mantido, mas remover o duplo padding (atualmente o body do bloco usa `px-4 pt-4 pb-2` — quando `hideHeaderOnMobile=true` o `pt-4` precisa virar `pt-3`).
+---
 
-## Fora de escopo
-- `useDashboardLayout` (ordem persistida do desktop continua intacta).
-- Queries, RPCs, mudanças nos KPIs financeiros/operacionais.
-- `FluxoCaixaChart` (mantém comportamento atual; mobile já mostra apenas o atalho).
-- Personalização do menu (botão "Personalizar" continua só no desktop).
-- Bottom nav e qualquer FAB de outras rotas.
+## Média prioridade
+
+### P9. Toolbar coesa: registros e botões na mesma linha
+Arquivo: `src/components/AdvancedFilterBar.tsx` (verificar layout) + `src/pages/Produtos.tsx`.
+
+- Hoje o `AdvancedFilterBar` mostra `count` e os botões de coluna/exportar ficam na `DataTable`, criando 2 áreas separadas. Revisar para que, em desktop, o slot de count + ações fique alinhado à direita dos filtros (mesma row).
+- Investigar se o `AdvancedFilterBar` aceita `actionsSlot`. Se não, adicionar prop `rightSlot?: ReactNode` e mover Colunas/Exportar para lá em desktop. **Subordinado**: se o componente é usado em vários módulos, fazer prop opcional para não regredir.
+- Adicionar botão "Limpar filtros" visível quando `prodActiveFilters.length > 0` (já existe via `onClearAll` mas precisa estar evidente — incluir na barra de chips ativos).
+
+### P10. SKU vs Código Interno: tooltips esclarecedores
+Arquivo: `src/pages/Produtos.tsx` (cabeçalhos das colunas).
+
+- A coluna `sku` recebe `headerTooltip="SKU — código comercial (catálogo, vendas)"`.
+- A coluna `codigo_interno` recebe `headerTooltip="Código Interno — sequencial do ERP (PRD/INS)"`.
+- Verificar se `DataTable` suporta `headerTooltip`; se não, adicionar prop opcional na definição de coluna.
+
+### P11. Largura priorizada
+Arquivo: `src/pages/Produtos.tsx`.
+
+- Adicionar `width: "minmax(260px, 2fr)"` (ou equivalente) na coluna `nome` para garantir mais espaço.
+- Reduzir colunas numéricas (UN, Estoque, Venda, Custo, Margem, Status) com `width` menor. Verificar se `DataTable` suporta `width` nas columns; senão, propor via `className` no `<th>`.
+
+---
+
+## Baixa prioridade (fora desta onda)
+
+- Modo de densidade (compacto/confortável/detalhado) — exigiria refator no `DataTable`.
+- Hover quick-actions na linha — exigiria reorganizar a ColumnActions.
+- Sticky header customizado (já existe parcial).
+- Click duplo / clique-na-linha para abrir — atualmente já há `onView`, mantemos.
+
+---
 
 ## Arquivos esperados
-- `src/pages/Index.tsx`
-- `src/components/dashboard/MobileCollapsibleBlock.tsx`
-- `src/components/dashboard/MobileDashboardHeader.tsx`
-- `src/components/dashboard/BackToTopButton.tsx`
-- `src/components/dashboard/PendenciasList.tsx`
-- `src/components/dashboard/FinanceiroBlock.tsx`
-- `src/components/dashboard/ComercialBlock.tsx`
-- `src/components/dashboard/EstoqueBlock.tsx`
-- `src/components/dashboard/LogisticaBlock.tsx`
-- `src/components/dashboard/FiscalBlock.tsx`
+- `supabase/migrations/<ts>_produtos_estoque_summary.sql` (nova RPC).
+- `src/pages/Produtos.tsx` (KPIs, coluna Produto, margem, estoque, variação, ativo card).
+- `src/components/SummaryCard.tsx` (nova prop `active`).
+- `src/components/AdvancedFilterBar.tsx` (prop `rightSlot` + chip "Limpar filtros" mais visível, se possível).
+- `src/components/DataTable.tsx` apenas se necessário (`headerTooltip`, `width` por coluna). Se já existirem, não tocar.
 
 ## Validação
-- Preview em 375px e 414px: nenhum scroll horizontal; cabeçalhos não duplicados; resumos legíveis; pendências com 2 andares.
-- Preview em 1150px (atual): zero regressão visual nos blocos (a prop `hideHeaderOnMobile` só atua quando `isMobile`).
+- `/produtos` em 1366×768: KPIs compactos, "Abaixo do mínimo" mostrando o total real (sem "(página)"), card ativo com ring quando filtro aplicado, coluna Produto com SKU/Interno/Variação na própria célula, badges de variação cinza, margem com estado "Sem custo/Sem preço", toolbar com Colunas/Exportar à direita.
+- `/produtos` em 390×844 mobile: cards continuam compactos (já cardificados pelo Module/SummaryCard), tabela renderiza no modo mobile (já tem `mobilePrimary`/`mobileCard`).
+- Sem regressão em outros módulos que usam `AdvancedFilterBar` ou `SummaryCard`.
