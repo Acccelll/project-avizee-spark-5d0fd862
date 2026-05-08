@@ -755,15 +755,18 @@ export default function ProdutoForm({
                     </div>
                   );
                 })()}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label>Estoque Mínimo</Label>
                     <Input type="number" min="0" value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} />
                     {Number(form.estoque_minimo) === 0 && (
-                      <p className="text-xs text-warning flex items-start gap-1">
-                        <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                        <span>Sem estoque mínimo definido. Defina um valor para que o sistema alerte quando o produto precisar de reposição.</span>
-                      </p>
+                      <div className="rounded-lg border border-warning/30 bg-warning/5 p-2.5 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-warning">Sem estoque mínimo definido.</span>{" "}
+                          Defina um valor para que o sistema alerte quando o produto precisar de reposição.
+                        </p>
+                      </div>
                     )}
                   </div>
                   <div className="space-y-2">
