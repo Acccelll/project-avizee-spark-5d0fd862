@@ -733,6 +733,12 @@ export default function OrcamentoForm() {
           await deleteOrcamentoDraft(user.id, draftKey);
         } catch {/* ignore */}
       }
+      // Invalida caches para que a lista (Orcamentos) e dashboard reflitam
+      // a inclusão/edição sem F5. Inclui também filtros server-side.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["orcamentos"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+      ]);
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
         description: `Registro ${payload.numero} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
