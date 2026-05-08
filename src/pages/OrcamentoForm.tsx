@@ -795,6 +795,7 @@ export default function OrcamentoForm() {
         itens: itemsPayload,
       });
 
+      await queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
       toast.success(`Duplicado: ${payload.numero}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
