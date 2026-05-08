@@ -552,6 +552,8 @@ const Produtos = () => {
             onDelete={canExcluir ? (p) => remove(p.id) : undefined}
             deleteBehavior="soft"
             mobileIdentifierKey="sku"
+            mobileHideIdentifier
+            mobileLabeledDetails
             mobileStatusKey="ativo"
             serverPagination={{ page, setPage, totalCount, hasMore }}
             onServerSort={sort.onChange}
