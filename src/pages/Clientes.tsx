@@ -813,8 +813,8 @@ const Clientes = () => {
 
             {/* DADOS GERAIS */}
             <TabsContent value="dados-gerais" className="space-y-4 mt-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <div className="col-span-2 md:col-span-1 space-y-1.5">
                   <Label>Tipo de Pessoa</Label>
                   <Select
                     value={form.tipo_pessoa}
@@ -830,7 +830,7 @@ const Clientes = () => {
                     <p className="text-[11px] text-muted-foreground">Detectado automaticamente pelo documento.</p>
                   )}
                 </div>
-                <div className="space-y-1.5">
+                <div className="col-span-2 md:col-span-1 space-y-1.5">
                   <div className="flex items-center gap-1">
                     <Label>CPF/CNPJ</Label>
                     {form.tipo_pessoa === "J" && (
@@ -846,6 +846,7 @@ const Clientes = () => {
                     <MaskedInput
                       mask="cpf_cnpj"
                       value={form.cpf_cnpj}
+                      className="flex-1"
                       onChange={(v) => {
                         const digits = (v || "").replace(/\D/g, "");
                         const patch: Partial<ClienteFormData> = { cpf_cnpj: v };
