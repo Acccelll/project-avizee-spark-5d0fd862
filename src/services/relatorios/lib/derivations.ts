@@ -10,13 +10,15 @@ import { reportConfigs } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import type { RelatorioResultado, TipoRelatorio } from '@/services/relatorios.service';
 
+export type KpiVariant = 'danger' | 'default' | 'info' | 'success' | 'warning';
+
 export interface KpiCardData {
   key: string;
   title: string;
   value: string;
   rawValue: number | null;
   variation: string;
-  variant?: string;
+  variant?: KpiVariant;
   format: 'currency' | 'percent' | 'number';
 }
 
@@ -49,7 +51,7 @@ export function buildKpiCards(
       value,
       rawValue: raw == null ? null : raw,
       variation: def.variation || '',
-      variant: def.variant,
+      variant: def.variant as KpiVariant | undefined,
       format: fmt,
     };
   });
