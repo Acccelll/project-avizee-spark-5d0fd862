@@ -136,6 +136,12 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
 
   const fb = fallbackEndereco;
 
+  const openCreateEndereco = () => {
+    setForm({ ...emptyEnderecoForm, principal: enderecos.length === 0 });
+    setEditId(null);
+    setDialogOpen(true);
+  };
+
   return (
     <>
       <div className="flex items-center justify-between pb-2">
@@ -146,11 +152,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
         </div>
         <Button
           type="button" size="sm" variant="outline" className="gap-1.5 h-8"
-          onClick={() => {
-            setForm({ ...emptyEnderecoForm, principal: enderecos.length === 0 });
-            setEditId(null);
-            setDialogOpen(true);
-          }}
+          onClick={openCreateEndereco}
         >
           <Plus className="h-3.5 w-3.5" /> Incluir
         </Button>
@@ -176,7 +178,13 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
               <p>{[fb.cidade, fb.uf].filter(Boolean).join("/")} {fb.cep ? `(${fb.cep})` : ""}</p>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">Clique em <strong>Incluir</strong> para adicionar um endereço de entrega alternativo.</p>
+          <Button
+            type="button"
+            onClick={openCreateEndereco}
+            className="w-full sm:w-auto gap-1.5"
+          >
+            <Plus className="h-4 w-4" /> Incluir endereço de entrega
+          </Button>
         </div>
       ) : (
         <div className="space-y-1">
