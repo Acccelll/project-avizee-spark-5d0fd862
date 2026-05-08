@@ -936,9 +936,16 @@ export default function ProdutoForm({
             {/* OBSERVAÇÕES */}
             <TabsContent value="observacoes" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
-                <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição / Observações</h3>
+                <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição comercial</h3>
+                <p className="text-xs text-muted-foreground">Texto exibido em orçamentos, pedidos e catálogos.</p>
                 <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  placeholder="Descrição detalhada, características ou observações internas do produto..." rows={3} />
+                  placeholder="Características, especificações técnicas, conteúdo da embalagem…" rows={4} />
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                <p className="text-sm font-medium">Observação interna</p>
+                <p className="text-xs text-muted-foreground">
+                  Para anotações internas que não devem aparecer em documentos comerciais, use o campo <strong>Observação</strong> dentro do orçamento ou pedido.
+                </p>
               </div>
             </TabsContent>
           </Tabs>
