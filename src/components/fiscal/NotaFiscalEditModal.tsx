@@ -163,6 +163,13 @@ ReadField.displayName = "ReadField";
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
+/**
+ * @deprecated Componente legado mantido apenas para o fluxo desktop em
+ * `Fiscal.tsx`. Novos callers devem usar a página dedicada `/fiscal/:id/editar`
+ * (atualmente o caminho mobile já navega para essa rota). Será removido após
+ * a migração completa do desktop para a página — D-01 da Onda 8 do plano
+ * fiscal. Não importe este modal em features novas.
+ */
 export function NotaFiscalEditModal({
   open,
   onClose,
