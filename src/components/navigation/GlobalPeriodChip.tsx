@@ -1,4 +1,5 @@
 import { useContext } from "react";
+import { useLocation } from "react-router-dom";
 import { CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -34,7 +35,10 @@ export function GlobalPeriodChip({ className }: { className?: string }) {
   // useContext direto.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ctx = useSafeGlobalPeriod();
-  if (!ctx) return null;
+  const location = useLocation();
+  // Esconder no Dashboard (`/`): a tela já tem seu próprio seletor de período
+  // (DashboardHeader/MobileDashboardHeader). Evita dois controles redundantes.
+  if (!ctx || location.pathname === "/") return null;
 
   const {
     period,

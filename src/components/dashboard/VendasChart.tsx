@@ -2,6 +2,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -67,10 +69,17 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
         monthMap.set(month, (monthMap.get(month) ?? 0) + Number(row.valor_total || 0));
       }
 
-      const sorted = Array.from(monthMap.entries()).sort(([a], [b]) => a.localeCompare(b));
-      return sorted.map(([month, valor]) => ({
+      // Sempre devolve 6 meses (atual + 5 anteriores), preenchendo zeros para
+      // garantir um eixo X estável e leitura visual previsível.
+      const today = new Date();
+      const months: string[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+      return months.map((month) => ({
         mes: parseMonth(month).label,
-        valor,
+        valor: monthMap.get(month) ?? 0,
         rawDate: month,
       }));
     },
@@ -102,13 +111,14 @@ interface RechartsClickPayload {
     );
   }
 
-  if (data.length === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        Sem dados de faturamento para exibir.
-      </p>
-    );
-  }
+  const total = data.reduce((acc, p) => acc + p.valor, 0);
+  const melhor = data.reduce<VendasPoint | null>((best, p) => (!best || p.valor > best.valor ? p : best), null);
+  const currentRaw = (() => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`;
+  })();
+  const compactCurrency = (v: number) =>
+    v >= 1000 ? `R$ ${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : `R$ ${v.toFixed(0)}`;
 
   return (
     <figure
@@ -116,16 +126,28 @@ interface RechartsClickPayload {
       aria-label="Gráfico de barras de faturamento mensal dos últimos 6 meses. Clique em uma barra para detalhar o relatório de vendas."
       className="flex flex-col h-full"
     >
-      <h3 className="mb-3 font-semibold text-foreground text-sm shrink-0">
-        Faturamento — últimos 6 meses
-        <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(janela fixa)</span>
-      </h3>
+      <div className="mb-2 shrink-0 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <h3 className="font-semibold text-foreground text-sm">
+          Faturamento — últimos 6 meses
+          <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(janela fixa)</span>
+        </h3>
+        <span className="text-[11px] text-muted-foreground">
+          Total: <strong className="font-semibold text-foreground mono">{formatCurrency(total)}</strong>
+          {melhor && melhor.valor > 0 && (
+            <>
+              {' · '}Melhor mês:{' '}
+              <strong className="font-semibold text-foreground">{melhor.mes}</strong>
+            </>
+          )}
+        </span>
+      </div>
       <div className="flex-1 min-h-0">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
           onClick={handleBarClick}
           style={{ cursor: 'pointer' }}
+          margin={{ top: 18, right: 8, left: 0, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
           <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
@@ -136,10 +158,27 @@ interface RechartsClickPayload {
           />
           <Bar
             dataKey="valor"
-            fill="hsl(var(--primary))"
             radius={[4, 4, 0, 0]}
             maxBarSize={48}
-          />
+          >
+            {data.map((p) => (
+              <Cell
+                key={p.rawDate}
+                fill={
+                  p.rawDate === currentRaw
+                    ? 'hsl(var(--primary))'
+                    : 'hsl(var(--primary) / 0.5)'
+                }
+              />
+            ))}
+            <LabelList
+              dataKey="valor"
+              position="top"
+              className="hidden md:block"
+              formatter={(v: number) => (v > 0 ? compactCurrency(v) : '')}
+              style={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
       </div>

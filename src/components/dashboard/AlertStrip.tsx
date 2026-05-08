@@ -3,21 +3,20 @@ import {
   AlertTriangle,
   FileText,
   Receipt,
+  TrendingDown,
+  Truck,
+  ShoppingCart,
 } from 'lucide-react';
 import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 
-interface AlertItem {
-  id: string;
-  label: string;
-  count: number;
-  icon: typeof AlertTriangle;
-  severity: 'error' | 'warning' | 'info';
-  href: string;
-}
+type Severity = 'error' | 'warning' | 'info';
 
 interface AlertStripProps {
   titulosVencidos: number;
   notasPendentes: number;
+  saldoProjetado?: number;
+  comprasAtrasadas?: number;
+  remessasAtrasadas?: number;
 }
 
 const severityStyles = {
@@ -41,11 +40,22 @@ const severityStyles = {
 export function AlertStrip({
   titulosVencidos,
   notasPendentes,
+  saldoProjetado,
+  comprasAtrasadas = 0,
+  remessasAtrasadas = 0,
 }: AlertStripProps) {
   const navigate = useNavigate();
 
-  const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 } as const;
-  const items = [
+  const SEVERITY_ORDER: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
+  const rawItems: Array<{
+    id: string;
+    label: string;
+    count: number | string;
+    icon: typeof AlertTriangle;
+    severity: Severity;
+    href: string;
+    show: boolean;
+  }> = [
     {
       id: 'vencidos',
       label: 'Títulos vencidos',
@@ -53,6 +63,34 @@ export function AlertStrip({
       icon: Receipt,
       severity: 'error',
       href: buildDrilldownUrl({ kind: 'financeiro:vencidos' }),
+      show: titulosVencidos > 0,
+    },
+    {
+      id: 'saldo',
+      label: 'Saldo projetado negativo',
+      count: '!',
+      icon: TrendingDown,
+      severity: 'error',
+      href: buildDrilldownUrl({ kind: 'financeiro:saldo' }),
+      show: typeof saldoProjetado === 'number' && saldoProjetado < 0,
+    },
+    {
+      id: 'compras',
+      label: 'Compras atrasadas',
+      count: comprasAtrasadas,
+      icon: ShoppingCart,
+      severity: 'warning',
+      href: buildDrilldownUrl({ kind: 'compras:atrasadas' }),
+      show: comprasAtrasadas > 0,
+    },
+    {
+      id: 'remessas',
+      label: 'Remessas atrasadas',
+      count: remessasAtrasadas,
+      icon: Truck,
+      severity: 'warning',
+      href: buildDrilldownUrl({ kind: 'logistica:remessas-atrasadas' }),
+      show: remessasAtrasadas > 0,
     },
     {
       id: 'notas',
@@ -61,10 +99,15 @@ export function AlertStrip({
       icon: FileText,
       severity: notasPendentes > 5 ? 'warning' : 'info',
       href: buildDrilldownUrl({ kind: 'fiscal:rascunho' }),
+      show: notasPendentes > 0,
     },
-  ]
-    .filter((item) => item.count > 0)
-    .sort((a, b) => SEVERITY_ORDER[a.severity as keyof typeof SEVERITY_ORDER] - SEVERITY_ORDER[b.severity as keyof typeof SEVERITY_ORDER]);
+  ];
+
+  const items = rawItems
+    .filter((item) => item.show)
+    .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+
+  const hasCritical = items.some((i) => i.severity === 'error');
 
   if (items.length === 0) {
     return (
@@ -76,10 +119,23 @@ export function AlertStrip({
   }
 
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5">
+    <div
+      className={
+        'rounded-lg border px-3 py-2.5 ' +
+        (hasCritical
+          ? 'border-destructive/30 bg-destructive/5'
+          : 'border-border/60 bg-muted/10')
+      }
+    >
       <div className="flex items-center gap-2 md:flex-wrap overflow-x-auto md:overflow-visible -mx-1 px-1 snap-x snap-mandatory md:snap-none scrollbar-thin">
-        <span className="mr-1 hidden md:inline text-xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
-          Alertas
+        <span
+          className={
+            'mr-1 hidden md:inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider shrink-0 ' +
+            (hasCritical ? 'text-destructive' : 'text-muted-foreground')
+          }
+        >
+          {hasCritical && <AlertTriangle className="h-3 w-3" />}
+          {hasCritical ? 'Crítico' : 'Alertas'}
         </span>
         {items.map((item) => {
           const styles = severityStyles[item.severity];

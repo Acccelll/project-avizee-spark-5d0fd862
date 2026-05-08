@@ -1,51 +1,116 @@
-## Refatoração de Produtos para Modal/Drawer (item pendente da Onda 11)
+## Objetivo
+Reduzir ruído visual e tornar o primeiro scroll do Dashboard objetivo (“o que exige minha atenção agora?”), mantendo o stack atual (React + Tailwind + Recharts + provider único de período).
 
-### Contexto e tradeoff
+Escopo: somente camada de apresentação (`src/pages/Index.tsx`, `src/components/dashboard/*`, `src/contexts/DashboardPeriodContext.tsx`). Nada de regra de negócio, RPC ou schema.
 
-O `ProdutoForm` atual tem **927 linhas**, com 5 abas (Dados Gerais, Estoque, Fiscal, Compras, Observações), tabelas dinâmicas (composição e fornecedores), 2 dialogs auxiliares (Nova UM, Editar Sigla) e validações. Existe ADR e memória explícita (`mem://produto/quando-drawer-quando-pagina`, `docs/adr/002-drawer-vs-pagina.md`) afirmando que **forms com itens dinâmicos devem ser página dedicada** — Produtos é citado como "outlier justificado" exatamente por composição e fornecedores.
+---
 
-Você aprovou opção (c) — todos como modal. Para honrar a decisão **e** preservar usabilidade, proponho a seguinte abordagem cirúrgica:
+## Prioridade Alta
 
-### Abordagem: Modal "XL" reutilizando ProdutoForm como conteúdo
+### P1. Período: provider único e rótulo explícito
+- Remover o `<DashboardPeriodProvider>` duplicado em `src/pages/Index.tsx` (o `AppLayout` já monta `GlobalPeriodProvider`, que é alias).
+- `Index.tsx` passa a exportar diretamente `DashboardContent` (ou renomear para `Dashboard`).
+- No mobile, manter **apenas** o `MobileDashboardHeader` (com seletor de período + refresh) e **esconder** o `GlobalPeriodChip` quando a rota for `/` (raiz Dashboard). O chip continua sendo a fonte global nas demais rotas.
+- Ajustar `DashboardHeader.tsx`: o texto do topo deixa de dizer “Últimos 30 dias: 08 abr – 08 mai” e passa a “**Período base** · 08 abr – 08 mai” com tooltip “Aplicado aos blocos sensíveis ao período. Estoque e Fiscal seguem janelas próprias.”
+- `ScopeBadge` ganha variante `subtle` (texto cinza, sem fundo), usada nos blocos cuja janela = período base; janelas divergentes (`snapshot`, `fixed-window`) mantêm o badge atual.
 
-Em vez de reescrever o form do zero, vou:
+### P2. Linhas pareadas sem esticar
+- Em `Index.tsx`, na renderização das `rows.pair`:
+  ```
+  className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start"
+  ```
+- Remover `h-full`/`flex-1` do `QuickActions`, `EstoqueBlock` e `LogisticaBlock` quando renderizados em par (cada bloco define sua própria altura intrínseca).
 
-1. **Extrair o corpo do `ProdutoForm`** para um componente reutilizável `ProdutoFormBody` (mesmas abas, mesma lógica, mesmos dialogs internos), exportando `header/footer` separadamente.
-2. **Criar `ProdutoFormModal`** baseado no padrão `FormModal` (Dialog em desktop, bottom-sheet full-screen em mobile) com tamanho `xl` + altura ampliada (`max-h-[92dvh]`), usando o `ProdutoFormBody`.
-3. **Atualizar `Produtos.tsx`** para abrir o modal em vez de navegar (`openCreate`/`openEdit` setam estado local).
-4. **Manter as rotas** `/produtos/novo` e `/produtos/:id/editar` como **shims** que redirecionam para `/produtos?new=1` ou `/produtos?editId=:id` — preserva deep-links existentes (e-mails, favoritos, navegação cross-módulo via `pushView`/`useEditDeepLink`).
-5. **Atualizar memória e ADR** removendo Produtos da lista de outliers e documentando a nova exceção (modal XL para forms com itens dinâmicos quando o usuário priorizou consistência sobre profundidade de edição).
+### P3. `QuickActions` compacto
+- Reduzir para grid 3×2 com botões ~64px de altura, padding menor e título dentro do header.
+- Manter visível no desktop, mas com `lg:max-w-sm` quando pareado com o Financeiro — Financeiro ocupa a coluna larga do par via `lg:grid-cols-[2fr_1fr]` na linha `finRow`.
 
-### Mudanças por arquivo
+### P4. Estado vazio inteligente do Estoque
+Quando `itensBaixoMinimo.length === 0`, renderizar versão compacta:
+- KPIs já existentes (Produtos ativos, Valor em estoque).
+- Lista substituída por linha única em verde: “Estoque dentro dos níveis mínimos.”
+- Footer com até 3 mini-stats opcionais (já calculáveis a partir de `stats`): produtos ativos, sem custo, sem mínimo configurado. Se algum dado não estiver disponível ainda, omitir o stat (sem placeholder).
+- Card encolhe naturalmente (sem `flex-1` na seção da lista).
+
+### P5. Reordenar pesos visuais
+Nova ordem default em `useDashboardLayout` (apenas `defaultOrder`, sem migração — usuários que customizaram seguem com seu layout):
 
 ```text
-src/pages/produtos/ProdutoForm.tsx
-  → continua existindo como página (usado pela rota legada via redirect),
-    mas a maior parte da lógica é extraída para ProdutoFormBody.
-src/pages/produtos/ProdutoFormBody.tsx     [novo]
-  → todo o JSX/estado/handlers atuais; recebe props { mode, id, onSaved, onCancel, onDirtyChange }.
-src/pages/produtos/ProdutoFormModal.tsx    [novo]
-  → wrapper FormModal-like (max-w-5xl, max-h-[92dvh]) que monta ProdutoFormBody.
-src/pages/Produtos.tsx
-  → estado local { open, editingId }; openCreate/openEdit alteram estado em vez de navigate;
-    handler do useEditDeepLink redireciona ?editId=/?new=1 para abrir modal direto.
-src/routes/cadastros.routes.tsx
-  → /produtos/novo e /produtos/:id/editar passam a ser <Navigate to="/produtos?..." replace />.
-.lovable/memory/produto/quando-drawer-quando-pagina.md
-docs/adr/002-drawer-vs-pagina.md
-  → atualizar nota sobre Produtos.
+kpis
+operational
+alertas
+financeiro + acoes_rapidas       (linha 2fr/1fr)
+pendencias + fiscal              (linha pareada — operacional acionável)
+comercial + estoque              (linha pareada)
+logistica + vendas_chart         (linha pareada)
 ```
 
-### Riscos e mitigações
+Pendências sobe acima do gráfico de vendas; Fiscal ganha companhia de Pendências (operacional acionável). Manter os pares no `PAIR_GROUPS`.
 
-- **Tamanho do form em mobile** → `FormModal` já vai full-screen em `max-sm`. Mantemos `aria-busy`, validação por aba, toast de erro nas abas com pendência.
-- **Composição/Fornecedores em diálogo** → permanecem; o modal mantém scroll interno. Se ficar apertado, abas continuam separando concerns.
-- **Deep-links existentes** → preservados via redirect 1:1 (rota antiga → query string).
-- **Cache invalidation** → `onSaved` no body chama `queryClient.invalidateQueries(["produtos"])` exatamente como hoje.
+---
 
-### Fora do escopo
+## Prioridade Média
 
-- Não toco em validações, schemas, lógica de SKU/codigo_interno, composição, fornecedores nem dialogs internos.
-- Não removo `ProdutoForm.tsx` (mantido como entrypoint legado para o redirect funcionar via lazy route).
+### P6. Gráfico financeiro mais legível
+`FluxoCaixaChart` (embedded) ganha:
+- Toggle “Realizado / Previsto” (default: Realizado = Recebido vs Pago).
+- Cabeçalho com mini-resumo: “Realizado no período · +R$ X recebidos · −R$ Y pagos · Saldo R$ Z”.
+- Eixo X com `tickFormatter` curto (`dd/MM`) e `interval="preserveStartEnd"`.
+- Aumentar altura para `h-[240px]` e `margin={{ top: 16, right: 8, left: 0, bottom: 0 }}`.
 
-Posso seguir com essa execução?
+### P7. `VendasChart` — sempre 6 meses + cabeçalho com total
+- Pré-preencher os 6 meses (atual + 5 anteriores) com 0 quando ausentes em `monthMap`.
+- Cabeçalho: “Faturamento — últimos 6 meses · Total: R$ X · Melhor mês: abr/26”.
+- `<LabelList>` no topo das barras (formatado em `R$ Xk`) quando largura ≥ md.
+- Destacar mês atual (fill `hsl(var(--primary))`, demais `hsl(var(--primary)/0.5)`) via `Cell`.
+
+### P8. Alertas por severidade
+`AlertStrip` evolui para:
+- Agrupar em três níveis: **Crítico** (vencidos, saldo negativo, certificado a vencer), **Atenção** (notas pendentes, compras atrasadas, remessas atrasadas), **Informativo** (sem alerta).
+- Receber novos props vindos de `useDashboardData` que já existem (`comprasAtrasadasCount`, `remessasAtrasadas`, `saldoProjetado`). Incluir certificado **somente** se já houver fonte exposta no `stats`; caso contrário, omitir (não inventar dado).
+- Quando há ao menos 1 alerta crítico, faixa muda para fundo `bg-destructive/5` + borda `border-destructive/30`; senão segue neutra.
+
+---
+
+## Prioridade Baixa
+
+### P9. Refinos
+- Skeleton específico para Financeiro (KPIs + barra cinza no lugar do gráfico) e para Estoque/Logística (header + 3 linhas).
+- Microcopy do greeting: omitir frase “Sem vencimentos para hoje.” quando também não há backlog (evita linha redundante).
+- Tooltip do `ScopeBadge` revisado para distinguir “Período base” × “Janela fixa” × “Snapshot” em uma frase.
+
+---
+
+## Detalhes técnicos por arquivo
+
+- `src/contexts/DashboardPeriodContext.tsx` — sem mudanças funcionais; apenas garantir que continua sendo o único provider montado (via `AppLayout`).
+- `src/pages/Index.tsx`
+  - Remover wrapper `Dashboard = () => <Provider>...`. Exportar `Dashboard` direto.
+  - Ajustar grid das linhas pareadas (`items-start`) e adicionar exceção `lg:grid-cols-[2fr_1fr]` quando `row.key === 'pair-financeiro-acoes_rapidas'`.
+  - Ajustar `defaultOrder` em `useDashboardLayout` (mantendo `WidgetId` existente).
+- `src/components/AppLayout.tsx` — sem mudança (provider já está aqui).
+- `src/components/navigation/GlobalPeriodChip.tsx` — aceitar prop `hideOnRoutes?: string[]` ou usar `useLocation` para esconder em `/`.
+- `src/components/dashboard/DashboardHeader.tsx` — texto “Período base”, badge sutil.
+- `src/components/dashboard/ScopeBadge.tsx` — adicionar `variant: 'default' | 'subtle'`.
+- `src/components/dashboard/QuickActions.tsx` — densidade reduzida, sem `h-full`.
+- `src/components/dashboard/EstoqueBlock.tsx` — branch compacto quando vazio; remover `flex-1` da seção da lista.
+- `src/components/dashboard/LogisticaBlock.tsx` — idem (compacto sem alertas).
+- `src/components/dashboard/AlertStrip.tsx` — receber novos props, agrupar por severidade, mudar visual quando crítico.
+- `src/components/dashboard/FluxoCaixaChart.tsx` — toggle, cabeçalho, eixo, altura.
+- `src/components/dashboard/VendasChart.tsx` — preencher 6 meses, total, label nas barras, destaque mês atual.
+- `docs/dashboard-modelo.md` — atualizar tabela e regra do badge sutil.
+
+---
+
+## Fora de escopo
+
+- Não alterar queries/`useDashboardData`, RPCs nem cálculo de KPIs.
+- Não migrar layout salvo dos usuários (apenas `defaultOrder`).
+- Não criar novos widgets nem novas fontes de dados.
+- Sem mexer em rotas, autenticação ou mobile fora do Dashboard.
+
+---
+
+## Validação
+- Smoke test existente (`src/test/smoke/dashboard.smoke.test.tsx`) deve continuar passando.
+- Conferir manualmente: desktop largo, mobile (390×844), modo customizado de layout reorganizado pelo usuário (par quebrado vira full-width, comportamento já implementado).
