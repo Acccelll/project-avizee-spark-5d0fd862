@@ -4243,6 +4243,73 @@ export type Database = {
           },
         ]
       }
+      nfe_emissao_pendente: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          max_tentativas: number
+          nota_fiscal_id: string
+          payload: Json
+          protocolo: string | null
+          proxima_tentativa: string
+          status: string
+          tentativas: number
+          ultimo_erro: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          max_tentativas?: number
+          nota_fiscal_id: string
+          payload: Json
+          protocolo?: string | null
+          proxima_tentativa?: string
+          status?: string
+          tentativas?: number
+          ultimo_erro?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          max_tentativas?: number
+          nota_fiscal_id?: string
+          payload?: Json
+          protocolo?: string | null
+          proxima_tentativa?: string
+          status?: string
+          tentativas?: number
+          ultimo_erro?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_emissao_pendente_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_emissao_pendente_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "nfe_emissao_pendente_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+        ]
+      }
       nota_fiscal_anexos: {
         Row: {
           caminho_storage: string | null
@@ -9537,6 +9604,38 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      nfe_emissao_pendente_concluir: {
+        Args: {
+          p_erro?: string
+          p_id: string
+          p_protocolo?: string
+          p_sucesso: boolean
+        }
+        Returns: undefined
+      }
+      nfe_emissao_pendente_listar_proximo_lote: {
+        Args: { p_limit?: number }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          id: string
+          max_tentativas: number
+          nota_fiscal_id: string
+          payload: Json
+          protocolo: string | null
+          proxima_tentativa: string
+          status: string
+          tentativas: number
+          ultimo_erro: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "nfe_emissao_pendente"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       normalizar_descricao: { Args: { p: string }; Returns: string }
       normalize_text_match: { Args: { p_input: string }; Returns: string }
