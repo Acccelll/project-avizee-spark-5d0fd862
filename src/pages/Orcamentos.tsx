@@ -67,8 +67,8 @@ const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado", "expirado"];
 const PROXIMA_VENCER_DIAS = 7;
 
 const historicoOptions: { label: string; value: string }[] = [
-  { label: "Excluir históricos", value: "excluir" },
-  { label: "Apenas históricos", value: "apenas" },
+  { label: "Excluir legados", value: "excluir" },
+  { label: "Apenas legados", value: "apenas" },
   { label: "Todos", value: "todos" },
 ];
 

@@ -67,7 +67,7 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .gte("data_orcamento", dateFrom)
           .lte("data_orcamento", dateTo)
           .order("created_at", { ascending: false })
-          .limit(6),
+          .limit(5),
         // Preview list (capped at 15) for the UI detail view.
         supabase
           .from("ordens_venda")

@@ -75,7 +75,7 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
           </div>
         ) : (
           <div className="space-y-1 max-h-[160px] overflow-y-auto">
-            {itensBaixoMinimo.slice(0, 6).map((p) => {
+            {itensBaixoMinimo.slice(0, 5).map((p) => {
               const pct = p.estoque_minimo > 0 ? (p.estoque_atual ?? 0) / p.estoque_minimo : 0;
               const isZero = (p.estoque_atual ?? 0) <= 0;
               return (
