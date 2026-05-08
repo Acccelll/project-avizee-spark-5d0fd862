@@ -295,6 +295,9 @@ const Clientes = () => {
   const openCreate = () => {
     setMode("create"); setForm({ ...emptyCliente }); setSelected(null); setIsDirty(false);
     setEnderecosCount(0); setComunicacoesCount(0);
+    tipoPessoaTouched.current = false;
+    setCepStatus(null);
+    setPaisEditavel(false);
     setModalOpen(true);
   };
 
@@ -316,6 +319,9 @@ const Clientes = () => {
     });
     setIsDirty(false);
     setEnderecosCount(0); setComunicacoesCount(0);
+    tipoPessoaTouched.current = true; // edição: usuário já decidiu o tipo
+    setCepStatus(null);
+    setPaisEditavel(false);
     setModalOpen(true);
   };
 
