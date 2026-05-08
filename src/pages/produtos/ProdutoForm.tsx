@@ -685,13 +685,41 @@ export default function ProdutoForm({
             <TabsContent value="estoque" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><Archive className="w-4 h-4" /> Suprimentos e Logística</h3>
+                {mode === "edit" && editingProduct && (() => {
+                  const atual = Number(editingProduct.estoque_atual ?? 0);
+                  const reservado = Number(((editingProduct as unknown) as { estoque_reservado?: number | null }).estoque_reservado ?? 0);
+                  const disponivel = atual - reservado;
+                  const min = Number(editingProduct.estoque_minimo ?? 0);
+                  const controla = !(atual === 0 && min === 0);
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="rounded-lg border bg-muted/20 p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estoque atual</p>
+                        <p className="font-mono font-semibold text-sm">{atual} {editingProduct.unidade_medida}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Reservado</p>
+                        <p className="font-mono font-semibold text-sm">{reservado} {editingProduct.unidade_medida}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Disponível</p>
+                        <p className={`font-mono font-semibold text-sm ${disponivel < 0 ? "text-destructive" : ""}`}>{disponivel} {editingProduct.unidade_medida}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Controla estoque?</p>
+                        <p className="font-semibold text-sm">{controla ? "Sim" : "Não"}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Estoque Mínimo</Label>
                     <Input type="number" min="0" value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} />
                     {Number(form.estoque_minimo) === 0 && (
-                      <p className="text-xs text-warning flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> Sem estoque mínimo definido — produto sem controle de reposição.
+                      <p className="text-xs text-warning flex items-start gap-1">
+                        <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                        <span>Sem estoque mínimo definido. Defina um valor para que o sistema alerte quando o produto precisar de reposição.</span>
                       </p>
                     )}
                   </div>
