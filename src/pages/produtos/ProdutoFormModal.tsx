@@ -40,7 +40,7 @@ export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved }: Pr
       <Dialog open={open} onOpenChange={closeOnly(handleClose)}>
         <DialogContent
           className={[
-            "sm:max-w-5xl max-h-[92dvh] overflow-hidden p-0 flex flex-col",
+            "sm:max-w-5xl sm:max-h-[92dvh] overflow-hidden p-0 flex flex-col",
             "max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-0 max-sm:m-0 max-sm:max-h-none max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-x-0",
             "[&>[aria-hidden='true']:first-child]:max-sm:hidden",
           ].join(" ")}
@@ -49,7 +49,7 @@ export function ProdutoFormModal({ open, mode, produtoId, onClose, onSaved }: Pr
             <DialogTitle>{mode === "create" ? "Novo Produto" : "Editar Produto"}</DialogTitle>
             <DialogDescription>Formulário de cadastro de produto.</DialogDescription>
           </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-hidden px-6 py-4">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 py-4">
             {open && (
               <ProdutoForm
                 embedded
