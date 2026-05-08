@@ -808,8 +808,11 @@ export default function ProdutoForm({
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Preço de Compra</Label>
-                        <Input type="number" step="0.01" min="0" className="h-9" value={forn.preco_compra}
-                          onChange={(e) => updateFornecedor(idx, "preco_compra", Number(e.target.value))} />
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                          <Input type="number" step="0.01" min="0" className="h-9 pl-9" value={forn.preco_compra}
+                            onChange={(e) => updateFornecedor(idx, "preco_compra", Number(e.target.value))} />
+                        </div>
                       </div>
                     </div>
                   </div>
