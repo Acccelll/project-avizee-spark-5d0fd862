@@ -123,6 +123,7 @@ const Clientes = () => {
       tipo: { type: "stringArray" },
       grupo: { type: "stringArray" },
       ativo: { type: "stringArray" },
+      cadastro: { type: "stringArray" },
     },
   });
   const searchTerm = filterValue.q;
@@ -133,6 +134,8 @@ const Clientes = () => {
   const setGrupoFilters = (v: string[]) => setFilter({ grupo: v });
   const ativoFilters = filterValue.ativo;
   const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
+  const cadastroFilters = filterValue.cadastro;
+  const setCadastroFilters = (v: string[]) => setFilter({ cadastro: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
