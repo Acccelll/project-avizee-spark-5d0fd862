@@ -373,23 +373,21 @@ const Produtos = () => {
     )},
   ];
 
-  // KPIs: total/produtos/insumos vêm de count() server-side; "criticos" só
-  // pode ser calculado sobre a página atual (depende de runtime). Marcamos
-  // o card com sufixo "(página)" para sinalizar.
-  const criticosNaPagina = useMemo(
-    () =>
-      data.filter((p) => {
-        const s = getSituacaoEstoque(p);
-        return s === "critico" || s === "zerado";
-      }).length,
-    [data],
-  );
+  // KPIs: total/produtos/insumos vêm de count() server-side. "criticos" agora
+  // vem da RPC `produtos_estoque_summary` — valor global, não da página.
   const kpis = {
     total: totalCount ?? data.length,
     produtos: totalProdutos ?? 0,
     insumos: totalInsumos ?? 0,
-    criticos: criticosNaPagina,
+    criticos: estoqueSummary?.abaixo_minimo ?? 0,
   };
+
+  // Estado "ativo" dos cards quando filtram a tabela (feedback visual).
+  const isProdutosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "produto";
+  const isInsumosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "insumo";
+  const isCriticosActive = estoqueFilters.length > 0
+    && estoqueFilters.every((f) => f === "critico" || f === "zerado")
+    && (estoqueFilters.includes("critico") || estoqueFilters.includes("zerado"));
 
   const prodActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
