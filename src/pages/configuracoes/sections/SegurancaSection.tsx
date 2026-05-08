@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useChangePassword } from '../hooks/useChangePassword';
-import { getPasswordCriteria, getPasswordStrength } from '../utils/passwordPolicy';
+import { getPasswordCriteriaWithMatch, getPasswordStrength } from '@/lib/passwordPolicy';
 
 export function SegurancaSection() {
   const { user } = useAuth();
@@ -27,9 +27,12 @@ export function SegurancaSection() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const pwdStrength = getPasswordStrength(cp.newPassword);
-  const pwdCriteria = getPasswordCriteria(cp.newPassword, cp.confirmPassword);
+  const pwdCriteria = getPasswordCriteriaWithMatch(cp.newPassword, cp.confirmPassword);
   const allCriteriaMet = pwdCriteria.every((c) => c.met);
-  const canSubmit = !!cp.currentPassword && allCriteriaMet;
+  // Bloqueia submit em senhas com força "Fraca" (level 1) — alinhado com
+  // `validatePassword` em Login/Signup/Reset.
+  const strongEnough = pwdStrength.level >= 2;
+  const canSubmit = !!cp.currentPassword && allCriteriaMet && strongEnough;
 
   return (
     <div className="space-y-6">
