@@ -165,15 +165,15 @@ const Fiscal = () => {
   // Supabase trabalhe sobre o conjunto já filtrado (Sprint 7.3 #11).
   const [emissaoMesState, setEmissaoMesState] = useState<string>("");
   const emissaoDateRange = useMemo(() => {
-    if (!emissaoMesState) return undefined;
+    if (!emissaoMesState) return null;
     const start = `${emissaoMesState}-01`;
     const [y, m] = emissaoMesState.split("-").map(Number);
     const end = new Date(y, m, 0).toISOString().slice(0, 10);
-    return { column: "data_emissao", from: start, to: end };
+    return { from: start, to: end };
   }, [emissaoMesState]);
   // Paginação server-side (Onda 8 / item 2.1). Substitui o `useSupabaseCrud`
-  // que carregava até 1000 notas no cliente. Filtros e ordenação delegados à
-  // RPC `listar_notas_fiscais_ids`; KPIs continuam via `kpis_fiscal`.
+  // que carregava até 1000 notas no cliente. Filtros, ordenação e busca
+  // delegados à RPC `listar_notas_fiscais_ids`; KPIs continuam via `kpis_fiscal`.
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
   const fornecedoresCrud = useSupabaseCrud<FornecedorRef>({ table: "fornecedores" });
