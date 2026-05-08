@@ -75,9 +75,9 @@ export function AdvancedFilterBar({
           )}
         </Badge>
       ))}
-      {onClearAll && activeFilters.length > 1 && (
+      {onClearAll && activeFilters.length >= 1 && (
         <Button variant="ghost" size="sm" onClick={onClearAll} className="h-6 px-2 text-xs text-muted-foreground">
-          Limpar todos
+          Limpar filtros
         </Button>
       )}
     </div>

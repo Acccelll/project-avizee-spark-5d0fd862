@@ -30,6 +30,11 @@ export interface SummaryCardProps {
    * font sizes — ideal for dashboard KPI rows where vertical space is limited.
    */
   density?: 'default' | 'compact';
+  /**
+   * When true, renders an "active" affordance (ring + tinted bg) signalling
+   * that this card is currently filtering the connected list.
+   */
+  active?: boolean;
 }
 
 const variantStyles: Record<string, { border: string; iconBg: string; iconColor: string }> = {
@@ -58,6 +63,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
       meta,
       realizado,
       density = 'default',
+      active = false,
       'aria-label': ariaLabel,
     },
     ref,
@@ -94,6 +100,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
           isCompact && '!p-3',
           styles.border,
           onClick && 'cursor-pointer hover:border-primary/30 active:scale-[0.98]',
+          active && 'ring-2 ring-primary/40 bg-primary/5 border-primary/30',
           className
         )}
         onClick={onClick}

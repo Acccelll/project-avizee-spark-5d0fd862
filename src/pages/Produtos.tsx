@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/format";
 import { useCan } from "@/hooks/useCan";
 import { parseVariacoes } from "@/utils/cadastros";
 import { ProdutoFormModal } from "@/pages/produtos/ProdutoFormModal";
+import { supabase } from "@/integrations/supabase/client";
 
 type TipoItem = "produto" | "insumo";
 
@@ -34,11 +35,13 @@ interface Produto {
 
 type ProdutoTableRow = Produto & { display_codigo: string; display_sku_secundario: string | null };
 
-type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado";
+type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado" | "nao_controla";
 
 function getSituacaoEstoque(p: { estoque_atual?: number | null; estoque_minimo?: number | null }): SituacaoEstoque {
   const atual = Number(p.estoque_atual || 0);
   const minimo = Number(p.estoque_minimo || 0);
+  // Sem mínimo configurado e estoque zero → "não controla" (cinza, neutro).
+  if (minimo <= 0 && atual <= 0) return "nao_controla";
   if (atual <= 0) return "zerado";
   if (minimo > 0 && atual <= minimo) return "critico";
   if (minimo > 0 && atual <= minimo * 1.2) return "atencao";
@@ -46,10 +49,11 @@ function getSituacaoEstoque(p: { estoque_atual?: number | null; estoque_minimo?:
 }
 
 const situacaoEstoqueConfig: Record<SituacaoEstoque, { label: string; statusBadge: string; textClass: string }> = {
-  normal:  { label: "Normal",            statusBadge: "confirmado", textClass: "text-foreground"  },
-  atencao: { label: "Em atenção",         statusBadge: "pendente",   textClass: "text-warning"     },
-  critico: { label: "Abaixo do mínimo",  statusBadge: "cancelado",  textClass: "text-destructive" },
-  zerado:  { label: "Sem estoque",       statusBadge: "cancelado",  textClass: "text-destructive" },
+  normal:       { label: "Normal",           statusBadge: "confirmado", textClass: "text-foreground"      },
+  atencao:      { label: "Em atenção",       statusBadge: "pendente",   textClass: "text-warning"         },
+  critico:      { label: "Abaixo do mínimo", statusBadge: "pendente",   textClass: "text-warning"         },
+  zerado:       { label: "Sem estoque",      statusBadge: "cancelado",  textClass: "text-destructive"     },
+  nao_controla: { label: "Não controla",     statusBadge: "rascunho",   textClass: "text-muted-foreground" },
 };
 
 function compactProductCode(value: string | null | undefined): string {
@@ -168,6 +172,21 @@ const Produtos = () => {
   // KPIs precisam de counts globais (data agora é só a página corrente).
   const totalProdutos = useTableCount("produtos", { tipo_item: "produto" }).data ?? null;
   const totalInsumos = useTableCount("produtos", { tipo_item: "insumo" }).data ?? null;
+  // Conta global de itens com problema de estoque (RPC) — substitui o "(página)".
+  const { data: estoqueSummary } = useQuery({
+    queryKey: ["produtos", "estoque-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("produtos_estoque_summary");
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        criticos: Number(row?.criticos ?? 0),
+        zerados: Number(row?.zerados ?? 0),
+        abaixo_minimo: Number(row?.abaixo_minimo ?? 0),
+      };
+    },
+    staleTime: 60_000,
+  });
   const { pushView } = useRelationalNavigation();
 
   const { data: grupoLookup } = useQuery({
@@ -235,18 +254,38 @@ const Produtos = () => {
 
   const columns = [
     { key: "sku", label: "SKU", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
-      <span className="font-mono text-xs font-medium" title="SKU — código comercial canônico">{p.sku || "—"}</span>
+      <span className="font-mono text-xs font-medium" title="SKU — código comercial (catálogo, vendas)">{p.sku || "—"}</span>
     )},
-    { key: "codigo_interno", label: "Cód. Interno", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
+    // Cód. Interno passa a ser metadado dentro da célula Produto. Mantida
+    // como coluna oculta para usuários que quiserem reativá-la em "Colunas".
+    { key: "codigo_interno", label: "Cód. Interno", sortable: true, serverSortable: true, hidden: true, render: (p: ProdutoTableRow) => (
       <span className="font-mono text-xs text-muted-foreground" title="Código Interno (ERP) — sequencial PRD/INS">{p.codigo_interno || "—"}</span>
     )},
-    { key: "nome", mobilePrimary: true, label: "Produto", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => (
-      <div><span className="font-medium text-sm">{p.nome}</span></div>
-    )},
+    { key: "nome", mobilePrimary: true, label: "Produto", sortable: true, serverSortable: true, render: (p: ProdutoTableRow) => {
+      const variacoes: string[] = Array.isArray(p.variacoes) ? p.variacoes : [];
+      const primeiraVar = variacoes[0];
+      const restantes = Math.max(0, variacoes.length - 1);
+      const meta: string[] = [];
+      if (p.sku) meta.push(`SKU ${p.sku}`);
+      if (p.codigo_interno && p.codigo_interno !== p.sku) meta.push(`Interno ${p.codigo_interno}`);
+      if (primeiraVar) meta.push(`Var. ${primeiraVar}${restantes > 0 ? ` +${restantes}` : ""}`);
+      return (
+        <div className="min-w-0">
+          <span className="font-medium text-sm leading-snug block truncate">{p.nome}</span>
+          {meta.length > 0 && (
+            <span className="text-[11px] text-muted-foreground font-mono block truncate" title={meta.join(" · ")}>
+              {meta.join(" · ")}
+            </span>
+          )}
+        </div>
+      );
+    }},
     { key: "unidade_medida", label: "UN", render: (p: Produto) => (
       <span className="text-xs text-muted-foreground">{p.unidade_medida || "UN"}</span>
     )},
-    { key: "variacoes", label: "Variações", render: (p: Produto) => {
+    // Coluna "Variações" desativada por padrão (a primeira variação já aparece na célula Produto).
+    // Reativável via "Colunas" para quem precisa ver todas as tags.
+    { key: "variacoes", label: "Variações", hidden: true, render: (p: Produto) => {
       const items: string[] = Array.isArray(p.variacoes) ? p.variacoes : [];
       if (items.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
       const visiveis = items.slice(0, 2);
@@ -254,7 +293,7 @@ const Produtos = () => {
       return (
         <div className="flex flex-wrap items-center gap-1" title={items.join(", ")}>
           {visiveis.map((v, i) => (
-            <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20 font-medium">{v}</span>
+            <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground border border-border font-medium">{v}</span>
           ))}
           {restantes > 0 && <span className="text-[10px] text-muted-foreground">+{restantes}</span>}
         </div>
@@ -272,7 +311,9 @@ const Produtos = () => {
           {Number(p.estoque_minimo) > 0 && (
             <p className="text-[10px] text-muted-foreground font-mono leading-none">mín: {p.estoque_minimo}</p>
           )}
-          {situacao !== "normal" && (
+          {/* Mantemos badge apenas para estados acionáveis (zerado, crítico, não controla).
+              "atencao" só usa cor no número para reduzir ruído visual. */}
+          {(situacao === "zerado" || situacao === "critico" || situacao === "nao_controla") && (
             <StatusBadge status={cfg.statusBadge} label={cfg.label} className="text-[10px] px-1.5 h-4 mt-0.5" />
           )}
         </div>
@@ -286,14 +327,38 @@ const Produtos = () => {
     )},
     { key: "margem", label: "Margem", render: (p: Produto) => {
       const custo = Number(p.preco_custo || 0);
-      const venda = Number(p.preco_venda);
-      const margem = custo > 0 ? (venda / custo - 1) * 100 : 0;
+      const venda = Number(p.preco_venda || 0);
+      // Estados explícitos para evitar "+R$ 0,00" enganoso.
+      if (custo <= 0 && venda <= 0) {
+        return <span className="text-[11px] text-muted-foreground italic">sem preço/custo</span>;
+      }
+      if (custo <= 0) {
+        return (
+          <div className="flex flex-col gap-0.5">
+            <StatusBadge status="pendente" label="Sem custo" className="text-[10px] px-1.5 h-4 w-fit" />
+            <span className="text-[10px] text-muted-foreground">não calculável</span>
+          </div>
+        );
+      }
+      if (venda <= 0) {
+        return (
+          <div className="flex flex-col gap-0.5">
+            <StatusBadge status="pendente" label="Sem preço" className="text-[10px] px-1.5 h-4 w-fit" />
+            <span className="text-[10px] text-muted-foreground">não calculável</span>
+          </div>
+        );
+      }
+      const margem = (venda / custo - 1) * 100;
+      const negativa = margem < 0;
+      const lucro = venda - custo;
       return (
         <div className="flex flex-col">
-          <span className={`font-mono text-xs ${margem > 0 ? "text-success" : margem < 0 ? "text-destructive" : ""}`}>
-            {custo > 0 ? `${margem.toFixed(1)}%` : "—"}
+          <span className={`font-mono text-xs font-semibold ${negativa ? "text-destructive" : "text-success"}`}>
+            {margem.toFixed(1)}%
           </span>
-          <span className="text-[10px] text-muted-foreground font-mono">+{formatCurrency(venda - custo)}</span>
+          <span className={`text-[10px] font-mono ${negativa ? "text-destructive/80" : "text-muted-foreground"}`}>
+            {negativa ? "" : "+"}{formatCurrency(lucro)}
+          </span>
         </div>
       );
     }},
@@ -308,23 +373,21 @@ const Produtos = () => {
     )},
   ];
 
-  // KPIs: total/produtos/insumos vêm de count() server-side; "criticos" só
-  // pode ser calculado sobre a página atual (depende de runtime). Marcamos
-  // o card com sufixo "(página)" para sinalizar.
-  const criticosNaPagina = useMemo(
-    () =>
-      data.filter((p) => {
-        const s = getSituacaoEstoque(p);
-        return s === "critico" || s === "zerado";
-      }).length,
-    [data],
-  );
+  // KPIs: total/produtos/insumos vêm de count() server-side. "criticos" agora
+  // vem da RPC `produtos_estoque_summary` — valor global, não da página.
   const kpis = {
     total: totalCount ?? data.length,
     produtos: totalProdutos ?? 0,
     insumos: totalInsumos ?? 0,
-    criticos: criticosNaPagina,
+    criticos: estoqueSummary?.abaixo_minimo ?? 0,
   };
+
+  // Estado "ativo" dos cards quando filtram a tabela (feedback visual).
+  const isProdutosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "produto";
+  const isInsumosActive = tipoItemFilters.length === 1 && tipoItemFilters[0] === "insumo";
+  const isCriticosActive = estoqueFilters.length > 0
+    && estoqueFilters.every((f) => f === "critico" || f === "zerado")
+    && (estoqueFilters.includes("critico") || estoqueFilters.includes("zerado"));
 
   const prodActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -364,6 +427,7 @@ const Produtos = () => {
     { label: "Abaixo do mínimo", value: "critico" },
     { label: "Em atenção", value: "atencao" },
     { label: "Normal", value: "normal" },
+    { label: "Não controla", value: "nao_controla" },
   ];
   const grupoOptions: MultiSelectOption[] = [
     ...grupos.map(g => ({ label: g.nome, value: g.id })),
@@ -379,17 +443,79 @@ const Produtos = () => {
       addButtonHelpId="produtos.novoBtn"
       summaryCards={
         <>
-          <SummaryCard title="Total de Itens" value={kpis.total} icon={Package} variant="info" />
-          <SummaryCard title="Produtos" value={kpis.produtos} icon={Package} variant="default"
-            onClick={kpis.produtos > 0 ? () => setTipoItemFilters(["produto"]) : undefined}
-            subtitle={kpis.produtos > 0 ? "Clique para filtrar" : undefined} />
-          <SummaryCard title="Insumos" value={kpis.insumos} icon={Archive} variant="default"
-            onClick={kpis.insumos > 0 ? () => setTipoItemFilters(["insumo"]) : undefined}
-            subtitle={kpis.insumos > 0 ? "Clique para filtrar" : undefined} />
-          <SummaryCard title="Abaixo do Mínimo (página)" value={kpis.criticos} icon={AlertCircle}
+          <SummaryCard
+            title="Total de Itens"
+            value={kpis.total}
+            icon={Package}
+            variant="info"
+            density="compact"
+          />
+          <SummaryCard
+            title="Produtos"
+            value={kpis.produtos}
+            icon={Package}
+            variant="default"
+            density="compact"
+            active={isProdutosActive}
+            onClick={
+              isProdutosActive
+                ? () => setTipoItemFilters([])
+                : kpis.produtos > 0
+                ? () => setTipoItemFilters(["produto"])
+                : undefined
+            }
+            subtitle={
+              isProdutosActive
+                ? "Filtro ativo · clique para limpar"
+                : kpis.produtos > 0
+                ? "Clique para filtrar"
+                : undefined
+            }
+          />
+          <SummaryCard
+            title="Insumos"
+            value={kpis.insumos}
+            icon={Archive}
+            variant="default"
+            density="compact"
+            active={isInsumosActive}
+            onClick={
+              isInsumosActive
+                ? () => setTipoItemFilters([])
+                : kpis.insumos > 0
+                ? () => setTipoItemFilters(["insumo"])
+                : undefined
+            }
+            subtitle={
+              isInsumosActive
+                ? "Filtro ativo · clique para limpar"
+                : kpis.insumos > 0
+                ? "Clique para filtrar"
+                : undefined
+            }
+          />
+          <SummaryCard
+            title="Abaixo do mínimo"
+            value={kpis.criticos}
+            icon={AlertCircle}
             variant={kpis.criticos > 0 ? "danger" : "default"}
-            onClick={kpis.criticos > 0 ? () => setEstoqueFilters(["critico", "zerado"]) : undefined}
-            subtitle={kpis.criticos > 0 ? "Clique para filtrar" : undefined} />
+            density="compact"
+            active={isCriticosActive}
+            onClick={
+              isCriticosActive
+                ? () => setEstoqueFilters([])
+                : kpis.criticos > 0
+                ? () => setEstoqueFilters(["critico", "zerado"])
+                : undefined
+            }
+            subtitle={
+              isCriticosActive
+                ? "Filtro ativo · clique para limpar"
+                : kpis.criticos > 0
+                ? "Clique para filtrar"
+                : undefined
+            }
+          />
         </>
       }
     >
