@@ -303,7 +303,10 @@ export default function Relatorios() {
       isLoading={isLoading}
       onRefetch={() => refetch()}
       favoritos={favoritos}
-      onSalvar={(name) => salvarFavorito(name, searchParams)}
+      onSalvar={async (name) => {
+        const r = await salvarFavorito(name, searchParams);
+        return !!r;
+      }}
       onAplicar={(params) => setSearchParams(new URLSearchParams(params))}
       onRemover={removerFavorito}
     />
