@@ -15,7 +15,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageShell } from "@/components/PageShell";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +28,7 @@ import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import {
   Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart,
-  AlertCircle, CheckCircle2, AlignLeft, Tag, Wand2, Pencil, Save,
+  AlertCircle, AlertTriangle, CheckCircle2, AlignLeft, Tag, Wand2, Pencil, Save,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -425,23 +424,24 @@ export default function ProdutoForm({
   const titleText = mode === "create" ? "Novo Produto" : "Editar Produto";
 
   const headerTitle = (
-          <span className="flex items-center gap-2">
-            <span>{titleText}</span>
-            {mode === "edit" && editingProduct && (
-              <span className="font-mono text-sm text-muted-foreground">
-                {editingProduct.codigo_interno || editingProduct.sku || ""}
-              </span>
-            )}
-          </span>
+    <div className="flex flex-col min-w-0">
+      <span className="text-sm text-muted-foreground font-medium leading-tight">{titleText}</span>
+      {mode === "edit" && editingProduct && (
+        <span className="text-base sm:text-lg font-semibold leading-tight truncate">
+          {editingProduct.nome || "—"}
+          {editingProduct.codigo_interno && (
+            <span className="ml-2 font-mono text-xs text-muted-foreground">{editingProduct.codigo_interno}</span>
+          )}
+        </span>
+      )}
+    </div>
   );
   const headerSubtitle =
     mode === "edit" && editingProduct
-            ? <>Atualizado em {editingProduct.updated_at ? formatDate(editingProduct.updated_at) : "—"}</>
+      ? <>Atualizado em {editingProduct.updated_at ? formatDate(editingProduct.updated_at) : "—"}</>
       : "Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar.";
-  const headerBadge =
-    mode === "edit" && editingProduct ? (
-      <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} />
-    ) : undefined;
+  // Status agora é controlado exclusivamente pelo toggle nas headerActions
+  const headerBadge = undefined;
   const headerActions = (
           <div className="flex items-center gap-2">
             {mode === "edit" && editingProduct && (
@@ -475,7 +475,7 @@ export default function ProdutoForm({
   const formBody = (
     <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto">
+            <TabsList className="mb-4 w-full justify-start overflow-x-auto sticky top-0 z-10 bg-background">
               <TabsTrigger value="dados-gerais" className="gap-1.5"><Package className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
               <TabsTrigger value="estoque" className="gap-1.5"><Archive className="h-3.5 w-3.5" />Estoque</TabsTrigger>
               <TabsTrigger value="fiscal" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Fiscal</TabsTrigger>
@@ -484,7 +484,7 @@ export default function ProdutoForm({
             </TabsList>
 
             {/* DADOS GERAIS */}
-            <TabsContent value="dados-gerais" className="space-y-4 mt-0">
+            <TabsContent value="dados-gerais" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3 pt-1">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Identificação</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -494,7 +494,7 @@ export default function ProdutoForm({
                     {formErrors.nome && <p className="text-xs text-destructive">{formErrors.nome}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label className="flex items-center gap-1">SKU <span className="text-muted-foreground font-normal text-xs">(referência externa)</span></Label>
+                    <Label className="flex items-center gap-1">SKU comercial <span className="text-muted-foreground font-normal text-xs">(código de venda)</span></Label>
                     <div className="flex gap-1.5">
                       <Input
                         value={form.sku}
@@ -506,7 +506,7 @@ export default function ProdutoForm({
                         })()}
                       />
                       <Button type="button" variant="outline" size="icon" className="shrink-0 h-9 w-9"
-                        title="Gerar próximo SKU pela sigla do grupo" aria-label="Gerar próximo SKU"
+                        title="Gerar SKU automaticamente pela sigla do grupo" aria-label="Gerar SKU automaticamente"
                         disabled={!form.grupo_id || !grupos.find(g => g.id === form.grupo_id)?.sigla}
                         onClick={async () => {
                           try {
@@ -527,7 +527,7 @@ export default function ProdutoForm({
                   <div className="space-y-2">
                     <Label className="flex items-center gap-1">
                       Código Interno (ERP)
-                      <span className="text-muted-foreground font-normal text-xs">(gerado automaticamente — PRD/INS)</span>
+                      <span className="text-muted-foreground font-normal text-xs">(sequencial — gerado automaticamente)</span>
                     </Label>
                     <Input value={form.codigo_interno} readOnly disabled
                       className="font-mono bg-muted/40"
@@ -583,8 +583,19 @@ export default function ProdutoForm({
                       </Button>
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Classificação</Label>
+                    <Select value={form.tipo_item || "produto"} onValueChange={(v) => setForm({ ...form, tipo_item: v as TipoItem })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="produto">Produto</SelectItem>
+                        <SelectItem value="insumo">Insumo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg bg-muted/40 border">
+                <div className="p-3 rounded-lg bg-muted/40 border space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Tipo de composição</Label>
                   <div className="flex items-center gap-3">
                     <span className={`text-sm ${!form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Simples</span>
                     <Switch checked={form.eh_composto}
@@ -600,22 +611,12 @@ export default function ProdutoForm({
                         setForm({ ...form, eh_composto: v }); if (!v) setEditComposicao([]);
                       }} />
                     <span className={`text-sm ${form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Composto</span>
-                    <span className="text-xs text-muted-foreground ml-1">
-                      {form.eh_composto
-                        ? "Custo calculado automaticamente pela composição de componentes."
-                        : "Produto com custo definido manualmente."}
-                    </span>
                   </div>
-                  <div className="flex items-center gap-2 ml-auto">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Classificação</Label>
-                    <Select value={form.tipo_item || "produto"} onValueChange={(v) => setForm({ ...form, tipo_item: v as TipoItem })}>
-                      <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="produto">Produto</SelectItem>
-                        <SelectItem value="insumo">Insumo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {form.eh_composto
+                      ? "Custo calculado pelos componentes."
+                      : "Custo informado manualmente."}
+                  </p>
                 </div>
               </div>
 
@@ -625,7 +626,10 @@ export default function ProdutoForm({
                   {!form.eh_composto ? (
                     <div className="space-y-2">
                       <Label>Preço de Custo</Label>
-                      <Input type="number" step="0.01" min="0" value={form.preco_custo} onChange={(e) => setForm({ ...form, preco_custo: Number(e.target.value) })} />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                        <Input type="number" step="0.01" min="0" className="pl-9" value={form.preco_custo} onChange={(e) => setForm({ ...form, preco_custo: Number(e.target.value) })} />
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -637,7 +641,10 @@ export default function ProdutoForm({
                   )}
                   <div className="space-y-2">
                     <Label>Preço de Venda {form.tipo_item !== 'insumo' ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal text-xs">(opcional para insumo)</span>}</Label>
-                    <Input type="number" step="0.01" min="0" value={form.preco_venda} onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })} />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                      <Input type="number" step="0.01" min="0" className="pl-9" value={form.preco_venda} onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })} />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Lucro Bruto</Label>
@@ -648,7 +655,7 @@ export default function ProdutoForm({
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Margem</Label>
                     <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${margemPercent >= 0 ? "text-success bg-success/10" : "text-destructive bg-destructive/5"}`}>
-                      {custoParaCalculo > 0 ? `${margemPercent.toFixed(1)}%` : "—"}
+                      {custoParaCalculo > 0 ? `${margemPercent.toFixed(1).replace(".", ",")}%` : "—"}
                     </div>
                   </div>
                 </div>
@@ -675,16 +682,44 @@ export default function ProdutoForm({
             </TabsContent>
 
             {/* ESTOQUE */}
-            <TabsContent value="estoque" className="space-y-4 mt-0">
+            <TabsContent value="estoque" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><Archive className="w-4 h-4" /> Suprimentos e Logística</h3>
+                {mode === "edit" && editingProduct && (() => {
+                  const atual = Number(editingProduct.estoque_atual ?? 0);
+                  const reservado = Number(((editingProduct as unknown) as { estoque_reservado?: number | null }).estoque_reservado ?? 0);
+                  const disponivel = atual - reservado;
+                  const min = Number(editingProduct.estoque_minimo ?? 0);
+                  const controla = !(atual === 0 && min === 0);
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="rounded-lg border bg-muted/20 p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Estoque atual</p>
+                        <p className="font-mono font-semibold text-sm">{atual} {editingProduct.unidade_medida}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Reservado</p>
+                        <p className="font-mono font-semibold text-sm">{reservado} {editingProduct.unidade_medida}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Disponível</p>
+                        <p className={`font-mono font-semibold text-sm ${disponivel < 0 ? "text-destructive" : ""}`}>{disponivel} {editingProduct.unidade_medida}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Controla estoque?</p>
+                        <p className="font-semibold text-sm">{controla ? "Sim" : "Não"}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Estoque Mínimo</Label>
                     <Input type="number" min="0" value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} />
                     {Number(form.estoque_minimo) === 0 && (
-                      <p className="text-xs text-warning flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> Sem estoque mínimo definido — produto sem controle de reposição.
+                      <p className="text-xs text-warning flex items-start gap-1">
+                        <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                        <span>Sem estoque mínimo definido. Defina um valor para que o sistema alerte quando o produto precisar de reposição.</span>
                       </p>
                     )}
                   </div>
@@ -697,7 +732,24 @@ export default function ProdutoForm({
             </TabsContent>
 
             {/* FISCAL */}
-            <TabsContent value="fiscal" className="space-y-4 mt-0">
+            <TabsContent value="fiscal" className="space-y-4 mt-0 min-h-[420px]">
+              {!fiscalCompleto && (() => {
+                const faltantes = [!form.ncm && "NCM", !form.cst && "CST", !form.cfop_padrao && "CFOP"].filter(Boolean) as string[];
+                return (
+                  <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-3">
+                    <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-warning">Cadastro fiscal incompleto</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Preencha NCM, CST e CFOP padrão para evitar bloqueios em notas fiscais.
+                        {faltantes.length > 0 && (
+                          <> Faltam: <strong className="text-foreground">{faltantes.join(", ")}</strong>.</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <FileText className="w-4 h-4" /> Dados Fiscais
@@ -732,7 +784,7 @@ export default function ProdutoForm({
                           const result = await buscarNcm(form.ncm || '');
                           if (result) setForm({ ...form, ncm: result.codigo });
                         }}>
-                        {ncmLoading ? '...' : 'Verificar'}
+                       {ncmLoading ? '...' : 'Verificar NCM'}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">4–8 dígitos. Verifique na tabela TIPI da Receita Federal.</p>
@@ -742,7 +794,7 @@ export default function ProdutoForm({
             </TabsContent>
 
             {/* COMPRAS */}
-            <TabsContent value="compras" className="space-y-4 mt-0">
+            <TabsContent value="compras" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-sm flex items-center gap-2"><ShoppingCart className="w-4 h-4" /> Compras / Fornecedores</h3>
@@ -751,7 +803,16 @@ export default function ProdutoForm({
                   </Button>
                 </div>
                 {editFornecedores.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum fornecedor vinculado. Clique em "+ Fornecedor" para adicionar.</p>
+                  <div className="rounded-lg border border-dashed bg-muted/20 p-6 flex flex-col items-center justify-center text-center space-y-2">
+                    <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-sm font-medium">Nenhum fornecedor vinculado</p>
+                    <p className="text-xs text-muted-foreground max-w-md">
+                      Vincule fornecedores para registrar código do fornecedor, custo de compra, prazo e histórico de aquisição.
+                    </p>
+                    <Button type="button" size="sm" variant="outline" onClick={addFornecedor} className="gap-1 mt-1">
+                      <Plus className="w-3.5 h-3.5" /> Vincular fornecedor
+                    </Button>
+                  </div>
                 )}
                 {editFornecedores.map((forn, idx) => (
                   <div key={idx} className="border rounded-lg p-3 space-y-3 bg-muted/20">
@@ -801,8 +862,11 @@ export default function ProdutoForm({
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Preço de Compra</Label>
-                        <Input type="number" step="0.01" min="0" className="h-9" value={forn.preco_compra}
-                          onChange={(e) => updateFornecedor(idx, "preco_compra", Number(e.target.value))} />
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                          <Input type="number" step="0.01" min="0" className="h-9 pl-9" value={forn.preco_compra}
+                            onChange={(e) => updateFornecedor(idx, "preco_compra", Number(e.target.value))} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -870,11 +934,18 @@ export default function ProdutoForm({
             </TabsContent>
 
             {/* OBSERVAÇÕES */}
-            <TabsContent value="observacoes" className="space-y-4 mt-0">
+            <TabsContent value="observacoes" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3">
-                <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição / Observações</h3>
+                <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição comercial</h3>
+                <p className="text-xs text-muted-foreground">Texto exibido em orçamentos, pedidos e catálogos.</p>
                 <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  placeholder="Descrição detalhada, características ou observações internas do produto..." rows={3} />
+                  placeholder="Características, especificações técnicas, conteúdo da embalagem…" rows={4} />
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                <p className="text-sm font-medium">Observação interna</p>
+                <p className="text-xs text-muted-foreground">
+                  Para anotações internas que não devem aparecer em documentos comerciais, use o campo <strong>Observação</strong> dentro do orçamento ou pedido.
+                </p>
               </div>
             </TabsContent>
           </Tabs>

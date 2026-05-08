@@ -1,100 +1,134 @@
 
-# Onda 17 — Drawer de Produtos: refino mobile
+# Onda 18 — Tela de edição/cadastro de Produtos
 
-Foco exclusivo em UI/UX no mobile (≤ md). Sem mudanças de regra de negócio. Desktop mantém o comportamento atual.
+Foco em UI/UX do `ProdutoForm` dentro do `ProdutoFormModal`. Sem mudanças de regra de negócio, schema ou serviços.
 
-## 1. Drawer full-screen no mobile (alta)
+Arquivos: `src/pages/produtos/ProdutoForm.tsx`, `src/pages/produtos/ProdutoFormModal.tsx`.
 
-`src/components/views/RelationalDrawerStack.tsx`
+## 1. Cabeçalho — nome do produto + status sem duplicidade (alta)
 
-- `SheetContent`:
-  - `w-full sm:max-w-xl` → `w-screen h-[100dvh] sm:h-auto sm:max-w-xl rounded-none sm:rounded-l-lg`
-  - Empilhamento (`translateX -8px`) só a partir de `sm`: aplicar inline style apenas quando `window.innerWidth >= 640` (ou via CSS responsivo). No mobile, todos os drawers ocupam tela cheia.
-  - Sombra/borda lateral apenas `sm`+ (no mobile não há "espaço escuro ao redor").
-- Padding do conteúdo: `px-4 sm:px-6 py-4` → `px-3 sm:px-6 pt-3 pb-24 sm:pb-4` (folga p/ o FAB Atalhos).
+`ProdutoForm.tsx` linhas 425–473.
 
-## 2. Header mais leve no mobile (média)
+- `headerTitle` em modo `edit`: passa a mostrar o **nome do produto** + código.
+  - Linha 1: `Editar Produto`
+  - Linha 2 (subtítulo): `<NOME> · <codigo_interno>` (mono no código). O `headerSubtitle` mantém "Atualizado em …" como terceira linha menor.
+- `headerBadge` em modo `edit`: **remover** o `StatusBadge` (já há toggle nas ações). Em `create`, badge segue inexistente.
+- Manter o toggle Ativo/Inativo nas `headerActions` como controle único de status.
 
-`src/components/ui/DrawerHeaderShell.tsx`
+## 2. Modal com altura mínima estável (alta)
 
-- Esconder breadcrumb e contador `1 de N` no mobile quando `total === 1`: classes `hidden sm:flex` na linha de breadcrumb. Quando `total > 1`, mantém apenas o counter compacto.
-- Reduzir paddings no mobile: `pt-3 pb-2 px-4` → `pt-2 pb-1.5 px-3 sm:pt-3 sm:pb-2 sm:px-6`.
-- Zona "ações do registro": `justify-end` → `justify-between sm:justify-end` para que `Editar` (esquerda) e `Excluir` (direita) usem toda a largura no mobile e não pareçam "soltos".
+`ProdutoFormModal.tsx` linha 43.
 
-`src/components/views/ProdutoView.tsx` (slot `actions`)
+- `sm:max-h-[92dvh]` → adicionar `sm:min-h-[80dvh]` para evitar "pulo" ao trocar de aba com pouco conteúdo. Em mobile permanece full-screen.
+- `ProdutoForm.tsx`: dentro de `Tabs`, envolver os `TabsContent` em `<div className="min-h-[420px]">` para garantir piso vertical visual.
 
-- No mobile, exibir somente **Editar** como botão primário sólido (`flex-1`) + **menu kebab** (`MoreVertical`) com Excluir / Excluir definitivamente. No `sm`+ manter o layout atual (botões inline).
-- Implementar via `hidden sm:inline-flex` / `sm:hidden` — sem novo componente.
+## 3. Tabs/footer fixos (média, dentro do modal)
 
-## 3. KPIs reorganizados no mobile (média)
+- Mover a `TabsList` para `sticky top-0 z-10 bg-background` dentro do modal.
+- Footer Salvar permanece como `headerActions` (já visível no topo). Em mobile, considerar duplicar o `Salvar` num footer sticky inferior — **fora de escopo** por já existir no header.
 
-`ProdutoView.tsx` — grid de KPIs (linhas 266–288)
+## 4. Identificação — clarificar SKU vs Código interno (alta)
 
-- `grid-cols-2 sm:grid-cols-5` mantém-se, mas:
-  - Card "Estoque" recebe `col-span-2 sm:col-span-1` para ocupar largura total na 3ª linha do mobile.
-  - Ordem: Venda, Custo, Lucro, Margem, Estoque (full-width).
+Linhas 497, 528.
 
-## 4. Tabs horizontais scrolláveis (alta)
+- Trocar label "SKU (referência externa)" → **"SKU comercial"** com hint inline `Código de venda do produto`.
+- Manter "Código Interno (ERP)" mas hint mais curto: `Sequencial — gerado automaticamente`.
+- Tooltip do botão Wand2: trocar `title` para `Gerar SKU automaticamente pela sigla do grupo`. Quando desabilitado por falta de sigla, manter já-existente texto "Defina uma sigla no grupo…" (linha 524).
 
-`ProdutoView.tsx` (linhas 290–309)
+## 5. Reorganizar bloco "Simples/Composto" + Classificação (média)
 
-- Trocar `TabsList className="w-full grid grid-cols-7"` por:
-  - Wrapper: `<div className="-mx-3 sm:mx-0 overflow-x-auto scrollbar-none">`
-  - `TabsList`: `inline-flex w-max gap-1 px-3 sm:px-0 sm:w-full sm:grid sm:grid-cols-7`
-  - Cada `TabsTrigger`: `text-xs px-3 py-1.5 sm:px-0.5 shrink-0 sm:shrink` (target ≥ 40px no mobile).
-- Garantir que a aba ativa fica visível: ao mudar `activeTab`, scroll horizontal para o gatilho ativo (`scrollIntoView({ inline: "center", block: "nearest" })`). Implementar via `useEffect` lendo `[data-state=active]` dentro do wrapper.
+Linhas 587–619.
 
-## 5. Aba Compras / Espec. — empty states acionáveis (alta)
-
-Já há CTA em "Vincular fornecedor" (compras) e em `PrecosEspeciaisTab` (Espec.). Refinar copy:
-
-- Compras: subtítulo já é bom; apenas trocar título do `h4` superior para esconder no estado vazio (evitar duplicar contexto).
-- Espec.: garantir que o estado vazio do `PrecosEspeciaisTab` traga texto explicativo: "Crie regras por cliente, grupo comercial ou período promocional." + exemplos curtos (3 bullets) + CTA "Adicionar regra". Verificar `PrecosEspeciaisTab.tsx` (já tocado em ondas anteriores) e ajustar somente o empty state se ainda estiver minimalista.
-
-## 6. Aba Estoque — mais conteúdo (alta)
-
-`ProdutoView.tsx` (linhas 566–650)
-
-- Adicionar card compacto "Controla estoque?" (Sim/Não) baseado em `naoControlaEstoque`.
-- Quando não houver `ultimaEntrada` nem `ultimaSaida`, exibir linha discreta "Sem movimentações registradas".
-- Se `selected.estoque_minimo > 0` e `estoque_atual > 0`, mostrar barra de progresso simples (`atual / (mínimo * 2)`) abaixo dos cards principais para visualizar margem de segurança.
-
-## 7. Aba Geral — campos vazios (baixa)
-
-`FieldItem` (linha 827) — substituir default `emptyText = "—"` por `"Não informado"`. Verificar nenhum local ainda dependa do hífen literal.
-
-## 8. Aba Vendas — leitura em 3 linhas (média)
-
-`ProdutoView.tsx` (linhas 730–763)
-
-- Refatorar item para 3 linhas em mobile:
-  - Linha 1: Cliente (esquerda, truncate) · Total (direita, font-mono semibold).
-  - Linha 2: NF nº · Data.
-  - Linha 3: `qtd × valor unitário` (texto menor, muted).
-- Em `sm:`+ pode permanecer no layout atual (2 linhas).
-- Destacar "Margem Méd." em `text-destructive` quando negativa (já é, manter) e adicionar `font-bold`.
-
-## 9. Badge "Contraste OK" (baixa)
-
-`src/components/accessibility/ContrastDevTool.tsx`
-
-- Já é gated por `import.meta.env.DEV`. Para evitar competir com o conteúdo no mobile:
-  - Adicionar `hidden sm:block` no wrapper fixo, ou
-  - Reduzir para um ponto pequeno (`w-2 h-2 rounded-full bg-success`) e expandir só ao hover/click.
-- Escolher: `hidden sm:block` (mais simples; mantém ferramenta para auditoria desktop em dev).
-
-## Arquivos afetados
+- Mover **Classificação (Produto/Insumo)** para o grid de Identificação (junto a Grupo/Unidade), como `Select` em coluna própria. Ajustar `md:grid-cols-3` para acomodar (ex.: nova linha ou `md:grid-cols-4` no segundo bloco).
+- Manter o bloco "Simples / Composto" mas reescrever o título e a explicação:
 
 ```text
-src/components/views/RelationalDrawerStack.tsx
-src/components/ui/DrawerHeaderShell.tsx
-src/components/views/ProdutoView.tsx
-src/components/precos/PrecosEspeciaisTab.tsx        (apenas refino do empty state se necessário)
-src/components/accessibility/ContrastDevTool.tsx
+Tipo de composição
+[Simples] [toggle] [Composto]
+
+Custo informado manualmente.        ← quando Simples
+Custo calculado pelos componentes.  ← quando Composto
 ```
+
+  - Mostrar somente a frase referente ao modo ativo (não as duas).
+  - Título "Tipo de composição" com `Label` + `text-xs text-muted-foreground` para contexto.
+
+## 6. Padronizar moeda nos inputs e displays (alta)
+
+Inputs `Preço de Custo` (628), `Preço de Venda` (640), `Preço de Compra` (804) hoje são `<input type="number">` cru.
+
+- Manter `type="number"` (preserva semântica/teclado), mas adicionar **prefixo "R$"** visual via wrapper `relative`:
+  - `<div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span><Input className="pl-9 ..." ... /></div>`.
+- Displays `Lucro Bruto` (645) e `Margem` (651): já usam `formatCurrency` e `%.toFixed(1)`. Trocar `toFixed(1)` por substituição manual `.replace(".", ",")` para virar `41,6%` (vírgula). Garantir consistência com `formatCurrency` (que já usa pt-BR).
+- Display do `custoComposto` (634): já usa `formatCurrency` — ok.
+
+## 7. Aba Estoque — mais contexto (média)
+
+Linhas 678–697.
+
+- Adicionar campos read-only quando em modo `edit` (dados vindos de `editingProduct`):
+  - `Estoque atual` (read-only, mono)
+  - `Estoque reservado` (se `editingProduct.estoque_reservado != null`)
+  - `Estoque disponível` (calculado: atual − reservado)
+  - `Controla estoque?` derivado (`Não` se atual=0 e mínimo=0, senão `Sim`) — apenas exibição.
+- Reescrever microcopy do alerta (linha 686–688):
+
+```text
+Sem estoque mínimo definido.
+Defina um estoque mínimo para que o sistema alerte quando o produto precisar de reposição.
+```
+
+- Em `create`, exibir apenas `Estoque mínimo` + `Peso unitário` (sem dados read-only).
+
+## 8. Aba Fiscal — alerta de pendência + microcopy (média)
+
+Linhas 700–741.
+
+- No topo da aba Fiscal, quando `!fiscalCompleto`, renderizar bloco de alerta:
+
+```text
+[!] Cadastro fiscal incompleto
+Preencha NCM, CST e CFOP padrão para evitar bloqueios em notas fiscais.
+Faltam: NCM, CST, CFOP.
+```
+
+  - `border-warning/30 bg-warning/5`, ícone `AlertTriangle`.
+  - Lista dinâmica dos faltantes (reusar lógica `[!ncm && "NCM", ...].filter(Boolean)`).
+- Botão "Verificar" do NCM: trocar texto para **"Verificar NCM"** e tooltip `Consultar descrição na tabela TIPI`.
+
+## 9. Aba Compras — empty state acionável (média)
+
+Linhas 753–755.
+
+- Substituir `<p>` simples por bloco com:
+  - Ícone `ShoppingCart` discreto.
+  - Título: "Nenhum fornecedor vinculado".
+  - Texto: "Vincule fornecedores para registrar código do fornecedor, custo de compra, prazo e histórico de aquisição."
+  - CTA primário: o próprio botão "+ Fornecedor" (já existe no header da aba) reforçado com botão secundário no centro do empty state que dispara `addFornecedor()`.
+
+## 10. Aba Observações — separar comercial vs interna (baixa)
+
+Linhas 873–879.
+
+- Manter o campo `descricao` como **"Descrição comercial"** com hint: `Texto exibido em orçamentos, pedidos e catálogos.`
+- **Não criar campo novo** (sem schema change). Adicionar bloco informativo discreto:
+
+```text
+Observação interna
+Para anotações internas que não devem aparecer em documentos comerciais, use o campo Observação dentro de pedidos/orçamentos.
+```
+
+  Para evitar confusão futura, marcar como nota explicativa (sem novo input agora).
+
+## Detalhes técnicos
+
+- Sem alteração no schema do produto. Todos os novos campos da aba Estoque são read-only e usam `editingProduct.*`.
+- Manter o comportamento atual de `useEditDirtyForm` e `submit`.
+- Não alterar a ordem de tab (`dados-gerais`, `estoque`, `fiscal`, `compras`, `observacoes`).
 
 ## Fora de escopo
 
-- Mudar a estrutura de `RelationalDrawerStack` para `Drawer` (vaul) no mobile — manteremos `Sheet` apenas com `h-[100dvh]` para reduzir risco.
-- Reordenação semântica das abas.
-- Persistência de `activeTab` por produto.
+- Criar componente `MoneyInput` reutilizável (item 6 fica inline com prefixo "R$").
+- Criar coluna `observacao_interna` no schema.
+- Editar a aba Estoque para permitir movimentações (continua via aba Estoque do drawer + módulo dedicado).
+- Persistência de aba ativa entre aberturas.
