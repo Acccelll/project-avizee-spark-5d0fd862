@@ -403,36 +403,43 @@ const DashboardContent = () => {
         />
       )}
 
-      <div className="mb-3 rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5 md:mb-4 md:py-3">
-        <p className="text-sm font-medium text-foreground">
-          {greeting}, {profile?.nome?.split(" ")[0] || "time"}.
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-          {(vencimentosHoje.receber > 0 || vencimentosHoje.pagar > 0) ? (
-            <button
-              type="button"
-              onClick={() => navigate(`/financeiro?venc=hoje`)}
-              className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
-            >
-              {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
-            </button>
-          ) : (
-            formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)
-          )}
-          {backlogOVsCount > 0 && (
-            <>
-              {" · "}
-              <button
-                type="button"
-                onClick={() => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" }))}
-                className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
-              >
-                {backlogOVsCount} pedido{backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.
-              </button>
-            </>
-          )}
-        </p>
-      </div>
+      {(() => {
+        const temVencimentos = vencimentosHoje.receber > 0 || vencimentosHoje.pagar > 0;
+        const temBacklog = backlogOVsCount > 0;
+        const temAlgo = temVencimentos || temBacklog;
+        return (
+          <div className="mb-3 rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5 md:mb-4 md:py-3">
+            <p className="text-sm font-medium text-foreground">
+              {greeting}, {profile?.nome?.split(" ")[0] || "time"}.
+            </p>
+            {temAlgo && (
+              <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                {temVencimentos && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/financeiro?venc=hoje`)}
+                    className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
+                  >
+                    {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
+                  </button>
+                )}
+                {temBacklog && (
+                  <>
+                    {temVencimentos && " · "}
+                    <button
+                      type="button"
+                      onClick={() => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" }))}
+                      className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
+                    >
+                      {backlogOVsCount} pedido{backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.
+                    </button>
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="space-y-4">
         {rows.map((row) => {

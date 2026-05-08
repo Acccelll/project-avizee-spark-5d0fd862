@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +24,7 @@ interface FluxoCaixaChartProps {
 }
 
 export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
+  const [view, setView] = useState<'realizado' | 'previsto'>('realizado');
   const { data = [], isLoading: loading } = useQuery<ChartPoint[]>({
     queryKey: ['dashboard', 'fluxo-caixa-6m'],
     queryFn: async () => {
@@ -86,6 +88,8 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
     staleTime: 2 * 60 * 1000,
   });
 
+  const showRealizado = view === 'realizado';
+  const showPrevisto = view === 'previsto';
   const chartContent = (
     <>
       <defs>
@@ -114,10 +118,18 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
         ]}
         contentStyle={{ fontSize: 12, borderRadius: 8 }}
       />
-      <Area type="monotone" dataKey="entradas_real" stroke="hsl(142 76% 36%)" fill="url(#colorEntradas)" strokeWidth={2} />
-      <Area type="monotone" dataKey="saidas_real" stroke="hsl(0 84% 60%)" fill="url(#colorSaidas)" strokeWidth={2} />
-      <Area type="monotone" dataKey="entradas_prev" stroke="hsl(142 76% 36%)" fill="none" strokeDasharray="5 3" strokeWidth={1.5} opacity={0.6} />
-      <Area type="monotone" dataKey="saidas_prev" stroke="hsl(0 84% 60%)" fill="none" strokeDasharray="5 3" strokeWidth={1.5} opacity={0.6} />
+      {showRealizado && (
+        <>
+          <Area type="monotone" dataKey="entradas_real" stroke="hsl(142 76% 36%)" fill="url(#colorEntradas)" strokeWidth={2} />
+          <Area type="monotone" dataKey="saidas_real" stroke="hsl(0 84% 60%)" fill="url(#colorSaidas)" strokeWidth={2} />
+        </>
+      )}
+      {showPrevisto && (
+        <>
+          <Area type="monotone" dataKey="entradas_prev" stroke="hsl(142 76% 36%)" fill="url(#colorEntradas)" strokeWidth={2} strokeDasharray="5 3" />
+          <Area type="monotone" dataKey="saidas_prev" stroke="hsl(0 84% 60%)" fill="url(#colorSaidas)" strokeWidth={2} strokeDasharray="5 3" />
+        </>
+      )}
     </>
   );
 
@@ -156,23 +168,72 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
   }
 
   if (embedded) {
+    const totals = data.reduce(
+      (acc, p) => {
+        acc.recR += p.entradas_real;
+        acc.pagR += p.saidas_real;
+        acc.recP += p.entradas_prev;
+        acc.pagP += p.saidas_prev;
+        return acc;
+      },
+      { recR: 0, pagR: 0, recP: 0, pagP: 0 },
+    );
+    const saldoR = totals.recR - totals.pagR;
+    const saldoP = totals.recP - totals.pagP;
     return (
       <div
         className="flex flex-col h-full"
         role="img"
         aria-label="Gráfico de fluxo de caixa — realizados vs previstos (6 meses)"
       >
-        <p className="text-xs font-semibold text-foreground mb-1.5 shrink-0">Fluxo de Caixa — Realizados vs Previstos</p>
+        <div className="mb-1.5 shrink-0 flex items-center justify-between gap-2 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground">Fluxo de Caixa</p>
+            <p className="text-[10px] text-muted-foreground mono truncate">
+              {showRealizado
+                ? `+${formatCurrency(totals.recR)} · −${formatCurrency(totals.pagR)} · Saldo ${formatCurrency(saldoR)}`
+                : `+${formatCurrency(totals.recP)} · −${formatCurrency(totals.pagP)} · Saldo ${formatCurrency(saldoP)}`}
+            </p>
+          </div>
+          <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5 text-[10px]">
+            <button
+              type="button"
+              onClick={() => setView('realizado')}
+              className={
+                'px-2 py-0.5 rounded-sm transition-colors ' +
+                (showRealizado ? 'bg-background text-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground')
+              }
+              aria-pressed={showRealizado}
+            >
+              Realizado
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('previsto')}
+              className={
+                'px-2 py-0.5 rounded-sm transition-colors ' +
+                (showPrevisto ? 'bg-background text-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground')
+              }
+              aria-pressed={showPrevisto}
+            >
+              Previsto
+            </button>
+          </div>
+        </div>
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data}>{chartContent}</AreaChart>
+            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>{chartContent}</AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex gap-4 mt-1.5 text-[10px] text-muted-foreground flex-wrap shrink-0">
-          <span className="flex items-center gap-1"><span className="w-2.5 h-0.5 bg-[hsl(142_76%_36%)] inline-block" />Recebido</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-0.5 bg-[hsl(0_84%_60%)] inline-block" />Pago</span>
-          <span className="flex items-center gap-1 opacity-60"><span className="w-2.5 border-t border-dashed border-[hsl(142_76%_36%)] inline-block" />Prev. receber</span>
-          <span className="flex items-center gap-1 opacity-60"><span className="w-2.5 border-t border-dashed border-[hsl(0_84%_60%)] inline-block" />Prev. pagar</span>
+        <div className="flex gap-3 mt-1.5 text-[10px] text-muted-foreground shrink-0">
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-0.5 bg-[hsl(142_76%_36%)] inline-block" />
+            {showRealizado ? 'Recebido' : 'A receber'}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-0.5 bg-[hsl(0_84%_60%)] inline-block" />
+            {showRealizado ? 'Pago' : 'A pagar'}
+          </span>
         </div>
         {/* Accessible data table for screen readers */}
         <div className="sr-only">
