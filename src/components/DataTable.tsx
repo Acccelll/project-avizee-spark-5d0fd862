@@ -986,16 +986,45 @@ export function DataTable<T extends Record<string, any>>({
                     <tr className="border-b bg-muted/70 backdrop-blur">
                       {hasActions && <th className="px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>}
                       {selectable && <th className="w-10 px-3 py-2.5"><Checkbox checked={pagedData.length > 0 && pagedData.every((item) => selectedIds.includes(item.id))} onCheckedChange={toggleSelectAll} /></th>}
-                       {visibleColumns.map((col) => {
-                         const sortableHere = serverPagination
-                           ? !!col.serverSortable
-                           : col.sortable !== false;
-                         return (
-                           <th key={col.key} className={cn('px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', sortableHere && 'cursor-pointer hover:text-foreground transition-colors')} onClick={() => sortableHere && handleSort(col.key)}>
-                             <div className="flex items-center gap-1.5">{col.label}{sortableHere && <SortIcon colKey={col.key} />}</div>
-                           </th>
-                         );
-                       })}
+                       {canReorder ? (
+                         <DndContext
+                           sensors={dndSensors}
+                           collisionDetection={closestCenter}
+                           onDragEnd={handleColumnDragEnd}
+                         >
+                           <SortableContext
+                             items={visibleColumns.map((c) => c.key)}
+                             strategy={horizontalListSortingStrategy}
+                           >
+                             {visibleColumns.map((col) => {
+                               const sortableHere = serverPagination
+                                 ? !!col.serverSortable
+                                 : col.sortable !== false;
+                               return (
+                                 <SortableHeaderCell
+                                   key={col.key}
+                                   colKey={col.key}
+                                   label={col.label}
+                                   sortable={sortableHere}
+                                   onSort={() => sortableHere && handleSort(col.key)}
+                                   sortIcon={sortableHere ? <SortIcon colKey={col.key} /> : null}
+                                 />
+                               );
+                             })}
+                           </SortableContext>
+                         </DndContext>
+                       ) : (
+                         visibleColumns.map((col) => {
+                           const sortableHere = serverPagination
+                             ? !!col.serverSortable
+                             : col.sortable !== false;
+                           return (
+                             <th key={col.key} className={cn('px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', sortableHere && 'cursor-pointer hover:text-foreground transition-colors')} onClick={() => sortableHere && handleSort(col.key)}>
+                               <div className="flex items-center gap-1.5">{col.label}{sortableHere && <SortIcon colKey={col.key} />}</div>
+                             </th>
+                           );
+                         })
+                       )}
                     </tr>
                   </thead>
                   <VirtualizedOrPlainTbody
