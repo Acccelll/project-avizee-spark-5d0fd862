@@ -36,6 +36,7 @@ import { PerfisCatalogoSection } from "@/pages/admin/sections/PerfisCatalogoSect
 import { SaudeSistemaSection } from "@/pages/admin/sections/SaudeSistemaSection";
 import { WebhooksSection } from "@/pages/admin/sections/WebhooksSection";
 import { EmpresasSection } from "@/pages/admin/sections/EmpresasSection";
+import { RequireStrictAdmin } from "@/components/admin/RequireStrictAdmin";
 
 /** Seções renderizadas internamente (não inclui atalhos externos). */
 const VALID_SECTION_KEYS = new Set([
