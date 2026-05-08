@@ -71,3 +71,20 @@ export async function requireAnyPermission(
     );
   }
 }
+
+/**
+ * Versão não-throw: retorna `true` se o usuário tem ao menos uma das permissões
+ * (ou é admin global). Útil para gating de campos sensíveis em respostas
+ * (ex.: ocultar `hasPfxPassword` no `health` para não-admins).
+ */
+export async function hasAnyPermission(
+  userId: string,
+  allowed: PermissionRequirement[],
+): Promise<boolean> {
+  try {
+    await requireAnyPermission(userId, allowed);
+    return true;
+  } catch {
+    return false;
+  }
+}
