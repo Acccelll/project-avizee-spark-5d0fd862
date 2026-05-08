@@ -733,6 +733,23 @@ export default function ProdutoForm({
 
             {/* FISCAL */}
             <TabsContent value="fiscal" className="space-y-4 mt-0 min-h-[420px]">
+              {!fiscalCompleto && (() => {
+                const faltantes = [!form.ncm && "NCM", !form.cst && "CST", !form.cfop_padrao && "CFOP"].filter(Boolean) as string[];
+                return (
+                  <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-3">
+                    <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-warning">Cadastro fiscal incompleto</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Preencha NCM, CST e CFOP padrão para evitar bloqueios em notas fiscais.
+                        {faltantes.length > 0 && (
+                          <> Faltam: <strong className="text-foreground">{faltantes.join(", ")}</strong>.</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <FileText className="w-4 h-4" /> Dados Fiscais
@@ -767,7 +784,7 @@ export default function ProdutoForm({
                           const result = await buscarNcm(form.ncm || '');
                           if (result) setForm({ ...form, ncm: result.codigo });
                         }}>
-                        {ncmLoading ? '...' : 'Verificar'}
+                       {ncmLoading ? '...' : 'Verificar NCM'}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">4–8 dígitos. Verifique na tabela TIPI da Receita Federal.</p>
