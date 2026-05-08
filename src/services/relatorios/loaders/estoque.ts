@@ -19,18 +19,20 @@ import {
   type RawMargemProdutoItem,
   type RawEstoqueMinimoItem,
 } from "@/services/relatorios/lib/shared";
+import { fetchAllPages } from "@/services/relatorios/lib/fetchAllPages";
 
 export async function loadEstoque(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("produtos")
-    .select("id, sku, codigo_interno, nome, variacoes, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
-    .eq("ativo", true)
-    .order("nome");
-  if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("produtos")
+      .select("id, sku, codigo_interno, nome, variacoes, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
+      .eq("ativo", true)
+      .order("nome");
+    if (filtros.grupoProdutoIds?.length) q = q.in('grupo_id', filtros.grupoProdutoIds);
+    return q;
+  });
 
-  const rows = (data || []).map((item: Record<string, unknown>) => {
+  const rows = data.map((item: Record<string, unknown>) => {
     const custo = Number(item.preco_custo || 0);
     const venda = Number(item.preco_venda || 0);
     const qty = Number(item.estoque_atual || 0);
@@ -81,13 +83,7 @@ export async function loadEstoque(filtros: FiltroRelatorio): Promise<RelatorioRe
 }
 
 export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("estoque_movimentos")
-    .select("produto_id, tipo, quantidade, saldo_anterior, saldo_atual, documento_tipo, motivo, created_at, produtos(nome, sku, codigo_interno)")
-    .order("created_at", { ascending: false });
-
-  query = withDateRange(query, "created_at", filtros);
-
+  let produtoIds: string[] | null = null;
   if (filtros.grupoProdutoIds?.length) {
     const { data: prods, error: prodErr } = await supabase
       .from('produtos')
@@ -95,7 +91,7 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
       .in('grupo_id', filtros.grupoProdutoIds)
       .limit(10000);
     if (prodErr) throw prodErr;
-    const produtoIds = (prods ?? []).map((p) => p.id);
+    produtoIds = (prods ?? []).map((p) => p.id);
     if (!produtoIds.length) {
       return {
         title: "Movimentos de estoque",
@@ -112,13 +108,19 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
         },
       };
     }
-    query = query.in('produto_id', produtoIds);
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages<Record<string, unknown>>(() => {
+    let q = supabase
+      .from("estoque_movimentos")
+      .select("produto_id, tipo, quantidade, saldo_anterior, saldo_atual, documento_tipo, motivo, created_at, produtos(nome, sku, codigo_interno)")
+      .order("created_at", { ascending: false });
+    q = withDateRange(q, "created_at", filtros);
+    if (produtoIds) q = q.in('produto_id', produtoIds);
+    return q;
+  });
 
-  const rows = (data || []).map((item: Record<string, unknown>) => {
+  const rows = data.map((item: Record<string, unknown>) => {
     const tipo = (item.tipo || (item as Record<string, unknown>).tipo_movimento || '-') as string;
     const meta = resolveStatus(movimentoEstoqueStatusMap, tipo);
     return {
@@ -173,16 +175,17 @@ export async function loadMovimentosEstoque(filtros: FiltroRelatorio): Promise<R
 }
 
 export async function loadMargemProdutos(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("produtos")
-    .select("id, sku, codigo_interno, nome, variacoes, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
-    .eq("ativo", true)
-    .order("nome");
-  if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages<RawMargemProdutoItem & { id?: string }>(() => {
+    let q = supabase
+      .from("produtos")
+      .select("id, sku, codigo_interno, nome, variacoes, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
+      .eq("ativo", true)
+      .order("nome");
+    if (filtros.grupoProdutoIds?.length) q = q.in('grupo_id', filtros.grupoProdutoIds);
+    return q;
+  });
 
-  const rows = (data || []).map((raw: RawMargemProdutoItem & { id?: string }) => {
+  const rows = data.map((raw) => {
     const item = raw;
     const custo = Number(item.preco_custo || 0);
     const venda = Number(item.preco_venda || 0);
@@ -220,18 +223,19 @@ export async function loadMargemProdutos(filtros: FiltroRelatorio): Promise<Rela
 }
 
 export async function loadEstoqueMinimo(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
-  let query = supabase
-    .from("produtos")
-    .select("id, sku, codigo_interno, nome, variacoes, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
-    .eq("ativo", true)
-    .order("nome");
-  if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages<RawEstoqueMinimoItem & { id?: string }>(() => {
+    let q = supabase
+      .from("produtos")
+      .select("id, sku, codigo_interno, nome, variacoes, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
+      .eq("ativo", true)
+      .order("nome");
+    if (filtros.grupoProdutoIds?.length) q = q.in('grupo_id', filtros.grupoProdutoIds);
+    return q;
+  });
 
-  const rows = (data || [])
-    .filter((p: RawEstoqueMinimoItem) => Number(p.estoque_atual || 0) <= Number(p.estoque_minimo || 0) && Number(p.estoque_minimo || 0) > 0)
-    .map((raw: RawEstoqueMinimoItem & { id?: string }) => {
+  const rows = data
+    .filter((p) => Number(p.estoque_atual || 0) <= Number(p.estoque_minimo || 0) && Number(p.estoque_minimo || 0) > 0)
+    .map((raw) => {
       const p = raw;
       const atual = Number(p.estoque_atual || 0);
       const min = Number(p.estoque_minimo || 0);
