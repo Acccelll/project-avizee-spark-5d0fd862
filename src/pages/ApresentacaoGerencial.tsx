@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,6 +38,7 @@ export default function ApresentacaoGerencial() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedGeracaoId, setSelectedGeracaoId] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const canVisualizar = can('apresentacao:visualizar');
   const canGerar = can('apresentacao:gerar');
@@ -71,7 +72,12 @@ export default function ApresentacaoGerencial() {
   }, [comentarios]);
 
   const gerarMutation = useMutation({
-    mutationFn: gerarApresentacao,
+    mutationFn: async (params: Parameters<typeof gerarApresentacao>[0]) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      return gerarApresentacao(params, undefined, { signal: controller.signal });
+    },
     onSuccess: ({ blob, geracaoId, aguardandoAprovacao }, variables) => {
       if (blob) downloadBlob(blob, `apresentacao_gerencial_${geracaoId.slice(0, 8)}.pptx`);
       toast.success(aguardandoAprovacao ? 'Rascunho criado. Envie para aprovação para gerar versão final.' : 'Apresentação gerada com sucesso.');
@@ -91,7 +97,12 @@ export default function ApresentacaoGerencial() {
       }).catch(() => undefined);
       void registrarTelemetriaSlides(enabledSlides, 'gerado', geracaoId).catch(() => undefined);
     },
-    onError: (err) => toast.error(`Falha ao gerar apresentação: ${err instanceof Error ? err.message : String(err)}`),
+    onError: (err) => {
+      const isAbort = err instanceof DOMException && err.name === 'AbortError';
+      if (isAbort) toast.info('Geração cancelada.');
+      else toast.error(`Falha ao gerar apresentação: ${err instanceof Error ? err.message : String(err)}`);
+      abortRef.current = null;
+    },
   });
 
   const aprovarMutation = useMutation({
@@ -237,6 +248,7 @@ export default function ApresentacaoGerencial() {
           onOpenChange={setDialogOpen}
           templates={templates}
           isGenerating={gerarMutation.isPending}
+          onCancel={() => abortRef.current?.abort()}
           onGerar={async (p) => {
             await gerarMutation.mutateAsync({
               templateId: p.templateId,
