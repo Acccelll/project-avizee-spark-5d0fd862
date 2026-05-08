@@ -62,7 +62,6 @@ import {
 } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
-import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { logger } from "@/lib/logger";
 import { QuickAddProductModal } from "@/components/QuickAddProductModal";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
