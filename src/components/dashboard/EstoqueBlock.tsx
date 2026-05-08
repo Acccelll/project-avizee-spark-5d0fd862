@@ -18,9 +18,10 @@ interface EstoqueBlockProps {
   itensBaixoMinimo: EstoqueBlockItem[];
   valorTotalEstoque: number;
   totalProdutosAtivos: number;
+  hideHeaderOnMobile?: boolean;
 }
 
-export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProdutosAtivos }: EstoqueBlockProps) {
+export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProdutosAtivos, hideHeaderOnMobile = false }: EstoqueBlockProps) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
 
@@ -29,7 +30,12 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
   return (
     <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
+      <div
+        className={
+          'items-center justify-between px-4 pt-4 pb-2 border-b border-border/60 ' +
+          (hideHeaderOnMobile ? 'hidden md:flex' : 'flex')
+        }
+      >
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <Package className="h-4 w-4 text-info" />
           Estoque
