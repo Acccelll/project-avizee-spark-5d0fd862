@@ -1121,7 +1121,6 @@ const Fiscal = () => {
             description="Vinculando NF de entrada deste pedido"
           />
         )}
-        <CertificadoValidadeAlert />
         <div data-help-id="fiscal.filtros">
         <AdvancedFilterBar
           searchValue={consultaSearch}
