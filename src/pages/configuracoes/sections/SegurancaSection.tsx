@@ -307,6 +307,25 @@ export function SegurancaSection() {
         </div>
       </div>
 
+      {/* 2FA — placeholder até a implementação real (Supabase MFA). */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            Autenticação em dois fatores
+            <EmBreve />
+          </CardTitle>
+          <CardDescription>
+            Camada extra de segurança usando aplicativo autenticador. Será habilitada em uma próxima atualização.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button size="sm" variant="outline" disabled>
+            Configurar autenticador
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Sticky save bar mobile — aparece quando há senha atual digitada */}
       {isMobile && cp.currentPassword && (
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]">
