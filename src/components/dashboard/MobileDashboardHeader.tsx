@@ -82,7 +82,7 @@ export function MobileDashboardHeader({
   };
 
   return (
-    <div className="-mx-4 mb-3 sticky top-0 z-30 border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div className="-mx-4 mb-2 sticky top-0 z-30 border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="flex items-center gap-2">
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerTrigger asChild>
@@ -94,6 +94,7 @@ export function MobileDashboardHeader({
             >
               <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="truncate font-medium">{periodLabels[period]}</span>
+              <span className="ml-auto text-[10px] text-muted-foreground">trocar</span>
             </Button>
           </DrawerTrigger>
           <DrawerContent className="max-h-[85vh] rounded-t-[20px]">
@@ -210,6 +211,11 @@ export function MobileDashboardHeader({
         )}
         {rightSlot}
       </div>
+      {lastUpdated && (
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          Atualizado às {lastUpdatedLabel}
+        </p>
+      )}
     </div>
   );
 }
