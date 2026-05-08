@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,7 +29,10 @@ import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import {
   Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart,
   AlertCircle, AlertTriangle, CheckCircle2, AlignLeft, Tag, Wand2, Pencil, Save,
+  X, MoreVertical,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { TabsListScrollable } from "@/components/ui/TabsListScrollable";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useNcmLookup } from "@/hooks/useNcmLookup";
@@ -425,14 +428,23 @@ export default function ProdutoForm({
 
   const headerTitle = (
     <div className="flex flex-col min-w-0">
-      <span className="text-sm text-muted-foreground font-medium leading-tight">{titleText}</span>
+      <span className="text-xs sm:text-sm text-muted-foreground font-medium leading-tight">{titleText}</span>
       {mode === "edit" && editingProduct && (
-        <span className="text-base sm:text-lg font-semibold leading-tight truncate">
-          {editingProduct.nome || "—"}
+        <>
+          <span className="text-base sm:text-lg font-semibold leading-tight truncate">
+            {editingProduct.nome || "—"}
+          </span>
           {editingProduct.codigo_interno && (
-            <span className="ml-2 font-mono text-xs text-muted-foreground">{editingProduct.codigo_interno}</span>
+            <span className="font-mono text-[11px] text-muted-foreground leading-tight sm:hidden">
+              {editingProduct.codigo_interno}
+            </span>
           )}
-        </span>
+          {editingProduct.codigo_interno && (
+            <span className="hidden sm:inline ml-0 font-mono text-xs text-muted-foreground">
+              {editingProduct.codigo_interno}
+            </span>
+          )}
+        </>
       )}
     </div>
   );
@@ -443,52 +455,84 @@ export default function ProdutoForm({
   // Status agora é controlado exclusivamente pelo toggle nas headerActions
   const headerBadge = undefined;
   const headerActions = (
-          <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2">
+      {mode === "edit" && editingProduct && (
+        <label className="flex items-center gap-2 text-xs">
+          <Switch
+            checked={form.ativo}
+            onCheckedChange={(v) => updateForm({ ativo: v })}
+            aria-label={form.ativo ? "Inativar produto" : "Reativar produto"}
+          />
+          <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
+        </label>
+      )}
+      {/* Ações secundárias visíveis em sm+; no mobile vão para o kebab */}
+      {mode === "edit" && editingProduct && (
+        <Button type="button" variant="ghost" size="sm" className="hidden sm:inline-flex h-8 px-2 text-xs"
+          onClick={() => pushView("produto", editingProduct.id)}>
+          Ver resumo
+        </Button>
+      )}
+      {mode === "create" && (
+        <Button type="button" variant="outline" onClick={handleSaveAndNew} disabled={saving} className="hidden sm:inline-flex">
+          Salvar e novo
+        </Button>
+      )}
+      {/* Kebab no mobile com ações secundárias */}
+      {(mode === "edit" || mode === "create") && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className="sm:hidden h-9 w-9" aria-label="Mais ações">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             {mode === "edit" && editingProduct && (
-              <>
-                <label className="flex items-center gap-2 text-xs">
-                  <Switch
-                    checked={form.ativo}
-                    onCheckedChange={(v) => updateForm({ ativo: v })}
-                    aria-label={form.ativo ? "Inativar produto" : "Reativar produto"}
-                  />
-                  <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
-                </label>
-                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs"
-                  onClick={() => pushView("produto", editingProduct.id)}>
-                  Ver resumo
-                </Button>
-              </>
+              <DropdownMenuItem onClick={() => pushView("produto", editingProduct.id)}>
+                Ver resumo
+              </DropdownMenuItem>
             )}
             {mode === "create" && (
-              <Button type="button" variant="outline" onClick={handleSaveAndNew} disabled={saving}>
+              <DropdownMenuItem onClick={handleSaveAndNew} disabled={saving}>
                 Salvar e novo
-              </Button>
+              </DropdownMenuItem>
             )}
-            <Button type="submit" form="produto-form" disabled={saving} className="gap-2">
-              <Save className="h-4 w-4" />
-              {saving ? "Salvando..." : "Salvar"}
-            </Button>
-          </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      {/* Salvar visível somente em sm+; no mobile usamos footer sticky */}
+      <Button type="submit" form="produto-form" disabled={saving} className="hidden sm:inline-flex gap-2">
+        <Save className="h-4 w-4" />
+        {saving ? "Salvando..." : "Salvar"}
+      </Button>
+      {/* Botão X de fechar — só no mobile, no embedded */}
+      {embedded && (
+        <Button type="button" variant="ghost" size="icon" className="sm:hidden h-9 w-9" aria-label="Fechar" onClick={handleBack}>
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
   );
 
   const formBody = (
     <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
           <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto sticky top-0 z-10 bg-background">
-              <TabsTrigger value="dados-gerais" className="gap-1.5"><Package className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
-              <TabsTrigger value="estoque" className="gap-1.5"><Archive className="h-3.5 w-3.5" />Estoque</TabsTrigger>
-              <TabsTrigger value="fiscal" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Fiscal</TabsTrigger>
-              <TabsTrigger value="compras" className="gap-1.5"><ShoppingCart className="h-3.5 w-3.5" />Compras</TabsTrigger>
-              <TabsTrigger value="observacoes" className="gap-1.5"><AlignLeft className="h-3.5 w-3.5" />Obs.</TabsTrigger>
-            </TabsList>
+            <div className="sticky top-0 z-10 bg-background mb-3 sm:mb-4">
+              <TabsListScrollable cols={5}>
+                <TabsTrigger value="dados-gerais" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><Package className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
+                <TabsTrigger value="estoque" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><Archive className="h-3.5 w-3.5" />Estoque</TabsTrigger>
+                <TabsTrigger value="fiscal" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><FileText className="h-3.5 w-3.5" />Fiscal</TabsTrigger>
+                <TabsTrigger value="compras" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><ShoppingCart className="h-3.5 w-3.5" />Compras</TabsTrigger>
+                <TabsTrigger value="observacoes" className="gap-1.5 px-4 h-10 text-sm sm:text-xs sm:px-2 sm:h-9 shrink-0 sm:shrink"><AlignLeft className="h-3.5 w-3.5" />Obs.</TabsTrigger>
+              </TabsListScrollable>
+            </div>
 
             {/* DADOS GERAIS */}
             <TabsContent value="dados-gerais" className="space-y-4 mt-0 min-h-[420px]">
               <div className="space-y-3 pt-1">
                 <h3 className="font-semibold text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Identificação</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="col-span-2 space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="sm:col-span-2 space-y-2">
                     <Label>Nome *</Label>
                     <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required placeholder="Nome do produto" />
                     {formErrors.nome && <p className="text-xs text-destructive">{formErrors.nome}</p>}
@@ -521,7 +565,7 @@ export default function ProdutoForm({
                     {skuChecking && form.sku && <p className="text-xs text-muted-foreground">Verificando SKU...</p>}
                     {!skuChecking && skuUnico === false && <p className="text-xs text-destructive">SKU já cadastrado em outro produto.</p>}
                     {form.grupo_id && !grupos.find(g => g.id === form.grupo_id)?.sigla && (
-                      <p className="text-[11px] text-muted-foreground">Defina uma sigla no grupo para gerar SKU automático (ex.: AG, SR).</p>
+                      <p className="text-[11px] text-muted-foreground">Defina sigla no grupo para gerar SKU automático.</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -622,7 +666,7 @@ export default function ProdutoForm({
 
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2 border-t pt-3"><TrendingUp className="w-4 h-4" /> Comercial</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {!form.eh_composto ? (
                     <div className="space-y-2">
                       <Label>Preço de Custo</Label>
@@ -667,8 +711,7 @@ export default function ProdutoForm({
                   <Input value={form.variacoes_texto} onChange={(e) => setForm({ ...form, variacoes_texto: e.target.value })}
                     placeholder="Ex: Azul, Vermelho, Verde, P, M, G" />
                   <p className="text-xs text-muted-foreground">
-                    Separe as variações por vírgula. Exemplo: <em>Azul, Vermelho, 100ml, 200ml</em>.
-                    As variações ficam disponíveis para uso no orçamento.
+                    Separe por vírgula. Ex.: <em>Azul, Vermelho, P, M, G</em>.
                   </p>
                   {form.variacoes_texto && (
                     <div className="flex flex-wrap gap-1.5 pt-1">
@@ -712,15 +755,18 @@ export default function ProdutoForm({
                     </div>
                   );
                 })()}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label>Estoque Mínimo</Label>
                     <Input type="number" min="0" value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} />
                     {Number(form.estoque_minimo) === 0 && (
-                      <p className="text-xs text-warning flex items-start gap-1">
-                        <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                        <span>Sem estoque mínimo definido. Defina um valor para que o sistema alerte quando o produto precisar de reposição.</span>
-                      </p>
+                      <div className="rounded-lg border border-warning/30 bg-warning/5 p-2.5 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-warning">Sem estoque mínimo definido.</span>{" "}
+                          Defina um valor para que o sistema alerte quando o produto precisar de reposição.
+                        </p>
+                      </div>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -757,20 +803,20 @@ export default function ProdutoForm({
                     <span className="ml-1 text-xs text-success font-normal flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Completo</span>
                   )}
                 </h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label>CST</Label>
                     <FiscalAutocomplete data={cstIcmsCodes} value={form.cst} onChange={(v) => setForm({ ...form, cst: v })} placeholder="Ex: 000" />
-                    <p className="text-xs text-muted-foreground">Código de Situação Tributária do ICMS.</p>
+                    <p className="text-xs text-muted-foreground">Situação tributária do ICMS.</p>
                   </div>
                   <div className="space-y-2">
                     <Label>CFOP Padrão</Label>
                     <FiscalAutocomplete data={cfopCodes} value={form.cfop_padrao} onChange={(v) => setForm({ ...form, cfop_padrao: v })} placeholder="Ex: 5102" />
-                    <p className="text-xs text-muted-foreground">Código Fiscal de Operações e Prestações.</p>
+                    <p className="text-xs text-muted-foreground">Código fiscal de operações.</p>
                   </div>
                   <div className="space-y-2">
                     <Label>NCM</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Input value={form.ncm || ''} onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '').slice(0, 8);
                           setForm({ ...form, ncm: val });
@@ -778,7 +824,7 @@ export default function ProdutoForm({
                         placeholder="Ex: 84713012"
                         className={`flex-1 font-mono ${form.ncm && (form.ncm.length < 4 || form.ncm.length > 8) ? "border-destructive" : ""}`}
                         maxLength={8} />
-                      <Button type="button" variant="outline" size="sm" className="shrink-0 text-xs"
+                      <Button type="button" variant="outline" size="sm" className="shrink-0 text-xs w-full sm:w-auto"
                         disabled={ncmLoading || (form.ncm || '').replace(/\D/g, '').length < 4}
                         onClick={async () => {
                           const result = await buscarNcm(form.ncm || '');
@@ -787,7 +833,7 @@ export default function ProdutoForm({
                        {ncmLoading ? '...' : 'Verificar NCM'}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">4–8 dígitos. Verifique na tabela TIPI da Receita Federal.</p>
+                    <p className="text-xs text-muted-foreground">4–8 dígitos (tabela TIPI).</p>
                   </div>
                 </div>
               </div>
@@ -803,8 +849,8 @@ export default function ProdutoForm({
                   </Button>
                 </div>
                 {editFornecedores.length === 0 && (
-                  <div className="rounded-lg border border-dashed bg-muted/20 p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+                  <div className="rounded-lg border border-dashed bg-muted/20 p-4 sm:p-6 flex flex-col items-center justify-center text-center space-y-2">
+                    <ShoppingCart className="h-7 w-7 sm:h-6 sm:w-6 text-muted-foreground" />
                     <p className="text-sm font-medium">Nenhum fornecedor vinculado</p>
                     <p className="text-xs text-muted-foreground max-w-md">
                       Vincule fornecedores para registrar código do fornecedor, custo de compra, prazo e histórico de aquisição.
@@ -816,7 +862,7 @@ export default function ProdutoForm({
                 )}
                 {editFornecedores.map((forn, idx) => (
                   <div key={idx} className="border rounded-lg p-3 space-y-3 bg-muted/20">
-                    <div className="flex items-end gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-3">
                       <div className="flex-1 space-y-1">
                         <Label className="text-xs">Fornecedor *</Label>
                         <Select value={forn.fornecedor_id} onValueChange={(v) => updateFornecedor(idx, "fornecedor_id", v)}>
@@ -826,15 +872,17 @@ export default function ProdutoForm({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="flex items-center gap-2 pb-1">
-                        <Switch checked={forn.eh_principal} onCheckedChange={() => setPrincipalFornecedor(idx)} />
-                        <Label className="text-xs cursor-pointer whitespace-nowrap">Principal</Label>
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:pb-1">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={forn.eh_principal} onCheckedChange={() => setPrincipalFornecedor(idx)} />
+                          <Label className="text-xs cursor-pointer whitespace-nowrap">Principal</Label>
+                        </div>
+                        <Button type="button" size="icon" variant="ghost" aria-label="Remover fornecedor" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeFornecedor(idx)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
-                      <Button type="button" size="icon" variant="ghost" aria-label="Remover fornecedor" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeFornecedor(idx)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Cód. Fornecedor (De/Para)</Label>
                         <Input className="h-9 font-mono" value={forn.referencia_fornecedor} onChange={(e) => updateFornecedor(idx, "referencia_fornecedor", e.target.value)} placeholder="Ex: REF-ABC" />
@@ -884,23 +932,28 @@ export default function ProdutoForm({
                   {editComposicao.map((comp, idx) => {
                     const prod = produtosLookup.find((p) => p.id === comp.produto_filho_id);
                     return (
-                      <div key={idx} className="grid grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
-                        <div className="space-y-1"><Label className="text-xs">Produto</Label>
-                          <ProductAutocomplete products={produtosDisponiveis} value={comp.produto_filho_id}
-                            onChange={(v) => updateComponent(idx, "produto_filho_id", v)} placeholder="Buscar produto..." />
+                      <div key={idx} className="space-y-1">
+                        <div className="grid grid-cols-[1fr_72px_40px] sm:grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
+                          <div className="space-y-1"><Label className="text-xs">Produto</Label>
+                            <ProductAutocomplete products={produtosDisponiveis} value={comp.produto_filho_id}
+                              onChange={(v) => updateComponent(idx, "produto_filho_id", v)} placeholder="Buscar produto..." />
+                          </div>
+                          <div className="space-y-1"><Label className="text-xs">Qtd</Label>
+                            <Input type="number" min={0.01} step="0.01" value={comp.quantidade}
+                              onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" />
+                          </div>
+                          <div className="hidden sm:block space-y-1"><Label className="text-xs">Custo</Label>
+                            <p className="h-9 flex items-center text-xs font-mono text-muted-foreground">
+                              {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
+                            </p>
+                          </div>
+                          <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <div className="space-y-1"><Label className="text-xs">Qtd</Label>
-                          <Input type="number" min={0.01} step="0.01" value={comp.quantidade}
-                            onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" />
-                        </div>
-                        <div className="space-y-1"><Label className="text-xs">Custo</Label>
-                          <p className="h-9 flex items-center text-xs font-mono text-muted-foreground">
-                            {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
-                          </p>
-                        </div>
-                        <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <p className="sm:hidden text-[11px] text-muted-foreground font-mono pl-1">
+                          Custo: {prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}
+                        </p>
                       </div>
                     );
                   })}
@@ -939,7 +992,8 @@ export default function ProdutoForm({
                 <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição comercial</h3>
                 <p className="text-xs text-muted-foreground">Texto exibido em orçamentos, pedidos e catálogos.</p>
                 <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  placeholder="Características, especificações técnicas, conteúdo da embalagem…" rows={4} />
+                  placeholder="Características, especificações técnicas, conteúdo da embalagem…"
+                  rows={5} className="min-h-[140px]" />
               </div>
               <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
                 <p className="text-sm font-medium">Observação interna</p>
@@ -1038,18 +1092,28 @@ export default function ProdutoForm({
   if (embedded) {
     return (
       <div className="flex flex-col h-full min-h-0">
-        <div className="shrink-0 border-b bg-background/95 px-1 pb-3 mb-3 flex items-start justify-between gap-3 flex-wrap">
+        <div className="shrink-0 border-b bg-background/95 px-1 pb-2 sm:pb-3 mb-2 sm:mb-3 flex items-start justify-between gap-2 sm:gap-3 flex-wrap">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               {headerTitle}
               {headerBadge}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{headerSubtitle}</p>
+            <p className="hidden sm:block text-xs text-muted-foreground mt-0.5">{headerSubtitle}</p>
           </div>
           <div className="shrink-0">{headerActions}</div>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
           {formBody}
+        </div>
+        {/* Footer sticky com Salvar/Cancelar — apenas mobile */}
+        <div className="sm:hidden sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-background/95 backdrop-blur border-t flex gap-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+          <Button type="button" variant="outline" className="flex-1" onClick={handleBack} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="produto-form" className="flex-1 gap-2" disabled={saving}>
+            <Save className="h-4 w-4" />
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
         </div>
         {auxDialogs}
       </div>

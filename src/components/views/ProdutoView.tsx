@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tables } from "@/integrations/supabase/types";
 import { fetchProdutoDetalhes, deleteProduto } from "@/services/produtos.service";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { TabsListScrollable } from "@/components/ui/TabsListScrollable";
 import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, Layers, DollarSign, MoreVertical } from "lucide-react";
 import {
   DropdownMenu,
@@ -921,30 +922,3 @@ function FieldItem({ label, value, emptyText = "Não informado", mono, capitaliz
   );
 }
 
-/**
- * TabsListScrollable — no mobile vira lista horizontal com scroll suave;
- * no sm+ mantém o grid de 7 colunas. Faz auto-scroll para a aba ativa.
- */
-function TabsListScrollable({ children }: { children: React.ReactNode }) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const observer = new MutationObserver(() => {
-      const active = wrapper.querySelector<HTMLElement>('[data-state="active"]');
-      if (active) active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
-    });
-    observer.observe(wrapper, { attributes: true, subtree: true, attributeFilter: ["data-state"] });
-    // scroll inicial
-    const active = wrapper.querySelector<HTMLElement>('[data-state="active"]');
-    if (active) active.scrollIntoView({ inline: "center", block: "nearest" });
-    return () => observer.disconnect();
-  }, []);
-  return (
-    <div ref={wrapperRef} className="-mx-3 sm:mx-0 overflow-x-auto scrollbar-none">
-      <TabsList className="inline-flex w-max gap-1 px-3 h-auto sm:h-10 sm:px-0 sm:w-full sm:grid sm:grid-cols-7">
-        {children}
-      </TabsList>
-    </div>
-  );
-}
