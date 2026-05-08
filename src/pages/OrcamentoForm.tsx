@@ -277,6 +277,7 @@ export default function OrcamentoForm() {
   const [freteLarguraCm, setFreteLarguraCm] = useState<number>(10);
   const [freteComprimentoCm, setFreteComprimentoCm] = useState<number>(30);
   const [pesoEmbalagemTotal, setPesoEmbalagemTotal] = useState<number>(0);
+  const [pesoTotalOverride, setPesoTotalOverride] = useState<number | null>(null);
 
   const [scenarioConfig, setScenarioConfig] = useState<RentabilidadeScenarioConfig>({
     freteSimulado: 0,
@@ -296,7 +297,8 @@ export default function OrcamentoForm() {
   const valorSimulado = Math.max(0, valorTotal - simDescontoGeral + simFreteSeguro);
   const quantidadeTotal = items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
   const pesoTotalItens = items.reduce((sum, i) => sum + (i.peso_total || 0), 0);
-  const pesoTotal = pesoTotalItens + (pesoEmbalagemTotal || 0);
+  const pesoTotalCalculado = pesoTotalItens + (pesoEmbalagemTotal || 0);
+  const pesoTotal = pesoTotalOverride !== null ? pesoTotalOverride : pesoTotalCalculado;
   const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
 
   const productCostMap = useMemo(() => {
