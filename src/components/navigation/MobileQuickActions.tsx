@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react';
+import { Zap, X } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
@@ -21,12 +21,12 @@ export function MobileQuickActions() {
     <Drawer>
       <DrawerTrigger asChild>
         <Button
-          size="icon"
-          className="fixed right-4 z-40 h-14 w-14 rounded-full shadow-xl md:hidden"
+          className="fixed right-4 z-40 flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-full p-0 shadow-xl md:hidden"
           style={{ bottom: 'calc(5.8rem + env(safe-area-inset-bottom))' }}
           aria-label="Atalhos rápidos"
         >
-          <Plus className="h-5 w-5" />
+          <Zap className="h-5 w-5" />
+          <span className="text-[9px] font-medium leading-none tracking-tight">Atalhos</span>
         </Button>
       </DrawerTrigger>
       <DrawerContent className="max-h-[70vh] rounded-t-[20px] md:hidden">
