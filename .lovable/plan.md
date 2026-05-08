@@ -96,10 +96,15 @@ Ordenado por prioridade de execução. Cada item já tem escopo, arquivos-alvo e
 - [x] **C-04** `formatRegistry` canônico + `formatValue` por registry (sem heurística `key.includes`).
 
 ### 9.2 Performance/Resiliência — pendente
-- [ ] A-01 caps explícitos no Workbook (top N parametrizável + nota visual).
-- [ ] A-04 AbortController real em `gerarWorkbook` / `gerarApresentacao`.
-- [ ] A-05 helper `fromUntyped<T>` consolidando `(supabase as any).from(...)`.
-- [ ] A-06 feedback de migração local→DB em `useRelatoriosFavoritos`.
+### 9.2 Performance/Resiliência — CONCLUÍDO
+- [x] **A-01** Caps explícitos no Workbook (`WorkbookCaps` parametrizáveis + `WORKBOOK_CAPS_DEFAULT`). `fetchWorkbookData` retorna `capsApplied` por listagem; `00_Capa` mostra nota visual com cap atingido.
+- [x] **A-04** `AbortController` real:
+  - `generateWorkbook` aceita `signal`; threading para `fetchWorkbookData` (que já honrava); cada etapa custosa (template, fetch, write) faz `signal.throwIfAborted()`.
+  - `gerarWorkbook` service propaga signal e marca status `cancelado` quando aborta.
+  - `WorkbookGerencial.tsx` mantém `abortRef` por mutation; `WorkbookGeracaoDialog` ganha botão "Cancelar geração" quando `isGenerating`.
+  - Mesma estrutura espelhada em `gerarApresentacao` + `ApresentacaoGeracaoDialog` + `ApresentacaoGerencial.tsx`.
+- [x] **A-05** Helper `src/lib/supabase/fromUntyped.ts` (também exportado como `sbu`) consolida o cast `(supabase as any).from(...)`. Migrado em `workbookGenerator.service.ts`, `fetchWorkbookData.ts`, `apresentacaoService.ts` e `fetchPresentationData.ts`. `supabase` segue importado para chamadas de `storage`.
+- [x] **A-06** `useRelatoriosFavoritos` agora emite toast explícito (`success` ou `warning`) quando a migração local→DB ocorre, evitando a sensação de "favoritos sumiram".
 
 ### 9.3 UX/Mobile — pendente
 - [ ] A-07/A-03/M-04 RelatorioChart topN, derivações no loader, busca por keyword no catálogo.
