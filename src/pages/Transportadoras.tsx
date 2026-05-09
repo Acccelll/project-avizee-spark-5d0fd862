@@ -12,7 +12,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, FileText, Loader2, Users, UserCheck, UserX, Plus } from "lucide-react";
+import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -39,6 +39,7 @@ import { MaskedInput } from "@/components/ui/MaskedInput";
 import { SummaryCard } from "@/components/SummaryCard";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { formatDate } from "@/lib/format";
+import { cpfCnpjMask, phoneMask } from "@/utils/masks";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { notifyError } from "@/utils/errorMessages";
@@ -337,10 +338,10 @@ export default function Transportadoras() {
       key: "cpf_cnpj", label: "CPF/CNPJ",
       render: (t: Transportadora) => (
         <div className="flex items-center gap-1.5">
-          <span className={`text-[10px] font-semibold ${t.tipo_pessoa === "F" ? "text-info" : "text-muted-foreground"}`}>
+          <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-semibold">
             {t.tipo_pessoa === "F" ? "PF" : "PJ"}
-          </span>
-          <span className="font-mono text-xs">{t.cpf_cnpj || "—"}</span>
+          </Badge>
+          <span className="font-mono text-xs">{t.cpf_cnpj ? cpfCnpjMask(t.cpf_cnpj) : "—"}</span>
         </div>
       ),
     },
@@ -350,8 +351,18 @@ export default function Transportadoras() {
         if (!t.telefone && !t.email) return <span className="text-muted-foreground text-xs">—</span>;
         return (
           <div className="text-xs space-y-0.5">
-            {t.telefone && <p className="font-medium tabular-nums">{t.telefone}</p>}
-            {t.email && <p className="text-muted-foreground truncate max-w-xs">{t.email}</p>}
+            {t.telefone && (
+              <p className="flex items-center gap-1.5 font-medium tabular-nums">
+                <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                <span>{phoneMask(t.telefone)}</span>
+              </p>
+            )}
+            {t.email && (
+              <p className="flex items-center gap-1.5 text-muted-foreground">
+                <Mail className="h-3 w-3 shrink-0" />
+                <span className="truncate max-w-xs">{t.email}</span>
+              </p>
+            )}
           </div>
         );
       },
@@ -369,17 +380,24 @@ export default function Transportadoras() {
       render: (t: Transportadora) => {
         const label = MODALIDADE_LABEL[t.modalidade] || t.modalidade;
         if (!label) return <span className="text-muted-foreground text-xs">—</span>;
-        return <span className="text-xs font-medium">{label}</span>;
+        return <Badge variant="outline" className="text-xs font-medium">{label}</Badge>;
       },
     },
     {
       key: "prazo_medio", label: "Prazo Médio",
       render: (t: Transportadora) => t.prazo_medio
         ? <span className="font-mono text-xs font-medium">{t.prazo_medio}d</span>
-        : <span className="text-muted-foreground text-xs">—</span>,
+        : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-muted-foreground text-xs italic">Não definido</span>
+            </TooltipTrigger>
+            <TooltipContent>Prazo médio ainda não cadastrado</TooltipContent>
+          </Tooltip>
+        ),
     },
     { key: "ativo",
-      mobileCard: true, label: "Status", hidden: true, render: (t: Transportadora) => <StatusBadge status={t.ativo ? "ativo" : "inativo"} /> },
+      mobileCard: true, label: "Status", render: (t: Transportadora) => <StatusBadge status={t.ativo ? "ativo" : "inativo"} /> },
   ];
 
   const ativoOptions: MultiSelectOption[] = [
@@ -414,6 +432,8 @@ export default function Transportadoras() {
   };
 
   const summaryAtivos = useMemo(() => data.filter(t => t.ativo).length, [data]);
+  const summarySemPrazo = useMemo(() => data.filter(t => !t.prazo_medio).length, [data]);
+  const summarySemContato = useMemo(() => data.filter(t => !t.telefone && !t.email).length, [data]);
 
   return (
     <><ModulePage
@@ -425,7 +445,8 @@ export default function Transportadoras() {
           <>
             <SummaryCard title="Total" value={data.length} icon={Truck} />
             <SummaryCard title="Ativas" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativas" value={data.length - summaryAtivos} icon={UserX} />
+            <SummaryCard title="Sem prazo médio" value={summarySemPrazo} icon={Clock} variant={summarySemPrazo > 0 ? "warning" : "default"} />
+            <SummaryCard title="Sem contato" value={summarySemContato} icon={PhoneOff} variant={summarySemContato > 0 ? "warning" : "default"} />
           </>
         }
       >
