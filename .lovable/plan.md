@@ -63,3 +63,7 @@ Escopo: apenas `src/pages/Transportadoras.tsx` (e, se necessário, `MaskedInput`
 - Imports adicionais previstos: `useNavigate` (react-router-dom), `Star`/`StarOff`, `ExternalLink` de lucide-react, `cpfCnpjMask`/`phoneMask` (já importados).
 - Sem mudanças em RLS, edge functions ou tipos do Supabase.
 - Atualizar `.lovable/plan.md` com a Onda 33 e listar Onda 34 (prazo estruturado) como follow-up.
+## Onda 34 (follow-up) — Prazo estruturado de entrega
+- Migração: prazo_medio_min int, prazo_medio_max int, prazo_medio_unidade ('dias_uteis'|'dias_corridos').
+- Backfill parsing dos textos atuais (regex '(\d+)(?:\s*-\s*(\d+))?').
+- Atualizar UI/relatórios/remessas para usar campos numéricos.
