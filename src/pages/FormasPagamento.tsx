@@ -327,8 +327,8 @@ export default function FormasPagamento() {
           <>
             <SummaryCard title="Total" value={String(data.length)} icon={CreditCard} />
             <SummaryCard title="Ativas" value={String(summaryAtivos)} icon={CheckCircle} variant="success" />
-            <SummaryCard title="Inativas" value={String(data.length - summaryAtivos)} icon={Ban} />
-            <SummaryCard title="Geram Financeiro" value={String(summaryGeraFin)} icon={Wallet} variant="info" />
+            <SummaryCard title="Parceladas" value={String(summaryParceladas)} icon={CalendarDays} />
+            <SummaryCard title="Criam lançamentos" value={String(summaryGeraFin)} icon={Wallet} variant="info" />
           </>
         }
       >
