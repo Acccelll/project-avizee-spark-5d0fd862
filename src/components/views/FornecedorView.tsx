@@ -213,25 +213,40 @@ export function FornecedorView({ id }: Props) {
       <DrawerSummaryGrid cols={4}>
         <DrawerSummaryCard
           label="Prazo Médio"
-          value={prazoMedio ? `${prazoMedio} dias` : "—"}
-          hint={prazoMedioFonte || undefined}
+          value={prazoMedio ? `${prazoMedio} dias` : "Sem dados"}
+          hint={prazoMedio ? prazoMedioFonte || undefined : "sem lead time nem prazo padrão"}
         />
         <DrawerSummaryCard
           label="Saldo Aberto"
           value={formatCurrency(totalAberto)}
           tone={totalAberto > 0 ? "destructive" : "neutral"}
+          hint={totalAberto === 0 ? "nenhum título em aberto" : undefined}
         />
-        <DrawerSummaryCard label="Vol. Compras" value={formatCurrency(volumeTotal)} />
-        <DrawerSummaryCard label="Última Compra" value={ultCompra ? formatDate(ultCompra) : "—"} mono={false} />
+        <DrawerSummaryCard
+          label="Vol. Compras"
+          value={formatCurrency(volumeTotal)}
+          hint={compras.length === 0 ? "nenhuma compra registrada" : undefined}
+        />
+        <DrawerSummaryCard
+          label="Última Compra"
+          value={ultCompra ? formatDate(ultCompra) : "Sem compras"}
+          mono={false}
+        />
       </DrawerSummaryGrid>
 
       <Tabs defaultValue="geral" className="w-full">
         <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="geral" className="text-xs px-1">Geral</TabsTrigger>
-          <TabsTrigger value="compras" className="text-xs px-1">Compras</TabsTrigger>
-          <TabsTrigger value="financeiro" className="text-xs px-1">Financ.</TabsTrigger>
-          <TabsTrigger value="produtos" className="text-xs px-1">Produtos</TabsTrigger>
-          <TabsTrigger value="relacionamento" className="text-xs px-1">Relac.</TabsTrigger>
+          <TabsTrigger value="compras" className="text-xs px-1">
+            Compras{compras.length > 0 ? ` (${compras.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="financeiro" className="text-xs px-1">
+            Financ.{financeiro.length > 0 ? ` (${financeiro.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="produtos" className="text-xs px-1">
+            Produtos{produtos.length > 0 ? ` (${produtos.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="relacionamento" className="text-xs px-1">Relacion.</TabsTrigger>
         </TabsList>
 
         {/* TAB: GERAL */}
@@ -239,21 +254,28 @@ export function FornecedorView({ id }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
             <div className="space-y-4">
               <div className="space-y-2">
-                <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><Building2 className="h-3 w-3" /> Dados Fiscais</h4>
-                <p><span className="text-muted-foreground">CNPJ/CPF:</span> {selected.cpf_cnpj || "—"}</p>
+                <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><Building2 className="h-3 w-3" /> Identificação Fiscal</h4>
+                <p><span className="text-muted-foreground">{tipoEffective === "J" ? "CNPJ" : tipoEffective === "F" ? "CPF" : "CNPJ/CPF"}:</span> <span className="font-mono">{docFmt || "—"}</span></p>
                 {selected.inscricao_estadual && <p><span className="text-muted-foreground">Insc. Estadual:</span> {selected.inscricao_estadual}</p>}
-                <p><span className="text-muted-foreground">Tipo:</span> {selected.tipo_pessoa === "J" ? "Pessoa Jurídica" : "Pessoa Física"}</p>
+                <p>
+                  <span className="text-muted-foreground">Tipo:</span> {tipoLabel}
+                  {docDivergente && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-warning">
+                      <AlertTriangle className="h-3 w-3" /> divergente do documento
+                    </span>
+                  )}
+                </p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><Mail className="h-3 w-3" /> Contato</h4>
+                <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><Mail className="h-3 w-3" /> Contato Principal</h4>
                 <p><span className="text-muted-foreground">Email:</span> {selected.email || "—"}</p>
-                <p><span className="text-muted-foreground">Telefone:</span> {selected.telefone || "—"}</p>
-                {selected.celular && <p><span className="text-muted-foreground">Celular:</span> {selected.celular}</p>}
+                <p><span className="text-muted-foreground">Telefone:</span> {selected.telefone ? phoneMask(selected.telefone) : "—"}</p>
+                {selected.celular && <p><span className="text-muted-foreground">Celular:</span> {phoneMask(selected.celular)}</p>}
                 {selected.contato && <p><span className="text-muted-foreground">Responsável:</span> {selected.contato}</p>}
               </div>
               <div className="space-y-2">
                 <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><CreditCard className="h-3 w-3" /> Condições</h4>
-                <p><span className="text-muted-foreground">Prazo Padrão:</span> {selected.prazo_padrao ? `${selected.prazo_padrao} dias` : "—"}</p>
+                <p><span className="text-muted-foreground">Prazo Padrão:</span> {selected.prazo_padrao ? `${selected.prazo_padrao} dias` : "Não definido"}</p>
               </div>
             </div>
             <div className="space-y-4">
@@ -265,7 +287,7 @@ export function FornecedorView({ id }: Props) {
                   {(selected.bairro || selected.cidade || selected.uf) && (
                     <><br />{[selected.bairro, [selected.cidade, selected.uf].filter(Boolean).join("/")].filter(Boolean).join(" — ")}</>
                   )}
-                  {selected.cep && <><br />CEP: {selected.cep}</>}
+                  {selected.cep && <><br />CEP: {cepMask(selected.cep)}</>}
                 </p>
               </div>
             </div>
