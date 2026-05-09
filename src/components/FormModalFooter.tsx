@@ -46,7 +46,10 @@ export function FormModalFooter({
   className,
 }: FormModalFooterProps) {
   const label = primaryLabel ?? (mode === "create" ? "Salvar" : "Salvar Alterações");
-  const primaryDisabled = saving || disabled;
+  const noChanges = mode === "edit" && !isDirty && !disabled;
+  const primaryDisabled = saving || disabled || noChanges;
+  const effectiveDisabledReason =
+    disabledReason ?? (noChanges ? "Sem alterações para salvar" : undefined);
   const showSaveAndNew = mode === "create" && !!onSaveAndNew;
 
   const hasStatus = (isDirty && !saving) || saving;
@@ -94,7 +97,7 @@ export function FormModalFooter({
             variant="secondary"
             onClick={onSaveAndNew}
             disabled={primaryDisabled}
-            title={primaryDisabled && disabledReason ? disabledReason : undefined}
+            title={primaryDisabled ? effectiveDisabledReason : undefined}
             className="max-sm:w-full max-sm:h-11"
           >
             {saveAndNewLabel}
@@ -105,7 +108,7 @@ export function FormModalFooter({
           form={formId}
           onClick={submitAsForm ? undefined : onSubmit}
           disabled={primaryDisabled}
-          title={primaryDisabled && disabledReason ? disabledReason : undefined}
+          title={primaryDisabled ? effectiveDisabledReason : undefined}
           className="max-sm:w-full max-sm:h-11"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}

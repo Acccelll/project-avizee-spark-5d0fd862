@@ -403,7 +403,7 @@ export default function FormasPagamento() {
           />
         }
       >
-        <form id="forma-pgto-form" onSubmit={handleSubmit} className="space-y-6">
+        <form id="forma-pgto-form" onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
 
           {/* ── BLOCO 1: IDENTIFICAÇÃO DA REGRA ───────────────────────── */}
           <div>
@@ -425,7 +425,7 @@ export default function FormasPagamento() {
                 />
                 <p className="text-xs text-muted-foreground">Como aparecerá em clientes, orçamentos e pedidos.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Meio de pagamento</Label>
                   <Select value={form.tipo} onValueChange={(v) => updateForm({ tipo: v })}>
@@ -515,6 +515,7 @@ export default function FormasPagamento() {
                               className="w-28"
                               placeholder="0"
                               disabled={intervalos.length > 0}
+                              inputMode="numeric"
                             />
                             <span className="text-sm text-muted-foreground">dias</span>
                           </div>
@@ -539,7 +540,7 @@ export default function FormasPagamento() {
                             <ul className="rounded-md border divide-y bg-background">
                               {intervalos.map((d, idx) => (
                                 <li key={idx} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                                  <span className="text-muted-foreground text-xs font-medium w-20">Parcela {idx + 1}</span>
+                                  <span className="text-muted-foreground text-xs font-medium min-w-[3.5rem]">{idx + 1}ª</span>
                                   <div className="flex items-center gap-1.5 flex-1">
                                     <Input
                                       type="number"
@@ -550,7 +551,7 @@ export default function FormasPagamento() {
                                         next[idx] = Number(e.target.value);
                                         updateForm({ intervalos_dias: next });
                                       }}
-                                      className="w-24 h-8 text-sm"
+                                      className="w-24 h-9 sm:h-8 text-sm"
                                       inputMode="numeric"
                                     />
                                     <span className="text-xs text-muted-foreground">dias</span>
@@ -559,7 +560,7 @@ export default function FormasPagamento() {
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                    className="h-9 w-9 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-destructive"
                                     onClick={() => removeIntervalo(idx)}
                                     aria-label={`Remover parcela ${idx + 1}`}
                                   >
@@ -621,7 +622,7 @@ export default function FormasPagamento() {
                 <div className="space-y-1 flex-1">
                   <p className="text-sm font-medium">Gera Financeiro</p>
                   <p className="text-xs text-muted-foreground">
-                    Quando ativado, gera lançamentos financeiros automaticamente ao usar esta forma em pedidos e orçamentos.
+                    Ao usar esta forma em pedidos ou orçamentos, o sistema cria os lançamentos financeiros automaticamente.
                   </p>
                 </div>
                 <Switch
@@ -661,7 +662,7 @@ export default function FormasPagamento() {
               <h3 className="font-semibold text-sm">Observações</h3>
             </div>
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Notas internas sobre o uso desta forma de pagamento. Instruções, restrições ou acordos comerciais específicos.</p>
+              <p className="text-xs text-muted-foreground">Notas internas, restrições ou acordos comerciais.</p>
               <Textarea
                 value={form.observacoes}
                 onChange={(e) => updateForm({ observacoes: e.target.value })}
