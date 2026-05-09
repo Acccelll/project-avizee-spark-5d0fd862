@@ -125,6 +125,8 @@ const GruposEconomicos = () => {
     ascending: sort.ascending,
   });
   const totalAtivosGrupos = useTableCount("grupos_economicos", { ativo: true }).data ?? null;
+  const totalGruposGlobal = useTableCount("grupos_economicos").data ?? null;
+  const totalInativosGrupos = useTableCount("grupos_economicos", { ativo: false }).data ?? null;
 
   // Stable string keys derived from data - avoids infinite effect loops caused by
   // useSupabaseCrud returning a new [] reference on every render while loading.
@@ -323,13 +325,22 @@ const GruposEconomicos = () => {
       serverSortable: true,
       render: (g: GrupoEconomico) => {
         const matrizNome = g.empresa_matriz_id ? matrizNomeMap[g.empresa_matriz_id] : null;
+        const obsPreview = g.observacoes?.split("\n")[0]?.trim();
         return (
           <div>
             <p className="font-medium leading-tight">{g.nome}</p>
-            {matrizNome && (
+            {matrizNome ? (
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                 <Star className="h-2.5 w-2.5 text-primary/50 shrink-0" />
                 {matrizNome}
+              </p>
+            ) : obsPreview ? (
+              <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[280px]">
+                {obsPreview}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground/70 mt-0.5 italic">
+                Sem matriz definida
               </p>
             )}
           </div>
@@ -341,13 +352,17 @@ const GruposEconomicos = () => {
       label: "Clientes",
       render: (g: GrupoEconomico) => {
         const count = clienteCountMap[g.id] ?? 0;
-        return count > 0 ? (
-          <div className="flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="font-medium text-sm tabular-nums">{count}</span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground text-xs">—</span>
+        const label = count === 1 ? "1 cliente" : `${count} clientes`;
+        return (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); openView(g); }}
+            className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 -mx-1.5 hover:bg-muted/50 transition-colors ${count > 0 ? "" : "text-muted-foreground"}`}
+            aria-label={`Ver ${label} do grupo ${g.nome}`}
+          >
+            <Users className={`h-3.5 w-3.5 shrink-0 ${count > 0 ? "text-muted-foreground" : "text-muted-foreground/60"}`} />
+            <span className={`text-sm tabular-nums ${count > 0 ? "font-medium" : ""}`}>{label}</span>
+          </button>
         );
       },
     },
@@ -389,25 +404,29 @@ const GruposEconomicos = () => {
   }));
 
   const summaryAtivos = totalAtivosGrupos ?? 0;
+  const summaryInativos = totalInativosGrupos ?? 0;
   const totalRegistros = totalCount ?? data.length;
+  const totalRegistrosGlobal = totalGruposGlobal ?? totalRegistros;
+  // `clienteCountMap` é populado a partir de TODOS os clientes ativos com
+  // grupo vinculado (sem filtro de página), então a contagem é global.
   const summaryComClientes = useMemo(
-    () => data.filter((g) => (clienteCountMap[g.id] ?? 0) > 0).length,
-    [data, clienteCountMap],
+    () => Object.values(clienteCountMap).filter((n) => n > 0).length,
+    [clienteCountMap],
   );
 
   return (
     <><ModulePage
         title="Grupos Econômicos"
-        subtitle="Central de consulta e gestão de grupos econômicos"
+        subtitle="Consolide clientes relacionados em grupos para análises e condições comerciais."
         addLabel="Novo Grupo"
         onAdd={openCreate}
         count={totalRegistros}
         summaryCards={
           <>
-            <SummaryCard title="Total de Grupos" value={totalRegistros} icon={Building2} />
+            <SummaryCard title="Total de Grupos" value={totalRegistrosGlobal} icon={Building2} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={Building2} />
-            <SummaryCard title="Com Clientes (página)" value={summaryComClientes} icon={Users} />
+            <SummaryCard title="Inativos" value={summaryInativos} icon={Building2} />
+            <SummaryCard title="Com Clientes" value={summaryComClientes} icon={Users} />
           </>
         }
       >

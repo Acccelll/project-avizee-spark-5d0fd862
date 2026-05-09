@@ -1,67 +1,55 @@
-## Onda 38 — Editar Forma de Pagamento (mobile)
+## Onda 39 — Grid Grupos Econômicos
 
-Foco: ajustes de UI/UX no modal de edição em viewport ≤ `sm` (390px). Sem mudanças de schema, RLS, services ou regras de negócio. Arquivos afetados: `src/pages/FormasPagamento.tsx`, `src/components/FormModal.tsx` (1 linha), `src/components/FormModalFooter.tsx` (estado do botão primário).
+Foco: eliminar a inconsistência crítica entre os cards e a coluna Status, e tornar a tela mais relacional (clientes vinculados visíveis e clicáveis). Sem mudanças de schema, somente UI/leitura.
 
-### Alta prioridade
+### Diagnóstico
 
-1. **Chip do tipo (“PIX”) ocupando faixa inteira no topo**
-   - Causa: em `FormModal.tsx` (linha 105), o `identifier` recebe `max-sm:basis-full max-sm:w-full`, forçando quebra em linha cheia.
-   - Ação: remover `max-sm:basis-full max-sm:w-full` do span do `identifier`. O `flex-wrap` do header mantém comportamento desktop e permite que em mobile o chip apareça inline ao lado do título (`Editar Forma de Pagamento  [PIX]`). Afeta todos os modals que usam `identifier`, mas é melhoria consistente.
+Em `src/pages/GruposEconomicos.tsx`:
 
-2. **Botão "Salvar Alterações" sempre ativo**
-   - Causa: `FormModalFooter` só desabilita por `saving || disabled`; ignora `isDirty`.
-   - Ação: quando `mode === "edit"` e `isDirty === false` e `disabled` não foi explicitamente passado, desabilitar o botão primário com `disabledReason="Sem alterações para salvar"`. Em `mode === "create"` mantém comportamento atual (sempre habilitado, validação por `required`).
+- **Inconsistência Ativos/Inativos**: o card *Ativos* usa `useTableCount("grupos_economicos", { ativo: true })` (global), mas *Inativos* é calculado como `totalRegistros - summaryAtivos`. Quando há filtro de status ativo na URL, `totalCount` vem **filtrado** pelo server (`serverFilters`), enquanto `summaryAtivos` é **global** → contas batem em zero negativo / divergem do que a tabela mostra.
+- **"Com Clientes (página)"** depende só de `data` (página corrente), exatamente o anti-padrão já corrigido em outras telas.
+- **Coluna Clientes** mostra `—` quando count = 0; deveria mostrar "0 clientes" e ser clicável para abrir o drawer.
+- **Linha pobre de contexto**: nome isolado, sem fallback quando não há matriz/descrição.
 
-3. **Padding inferior do conteúdo em mobile (rodapé fixo)**
-   - Hoje `FormModal` aplica `max-sm:pb-24` no scroll-container. Com footer mobile (`py-2 + safe-area`) sobrando ~76–88px, fica justo para `Textarea` de Observações.
-   - Ação: aumentar para `max-sm:pb-32` (ou `max-sm:pb-[8.5rem]`) garantindo `altura do rodapé + safe-area + ~24px` de folga.
+### Mudanças (alta prioridade)
 
-4. **Estado “A prazo” validado no mobile**
-   - O fluxo já existe (RadioGroup → Prazo padrão + lista de parcelas + adder). Ajustes mobile para evitar apertamento na lista de parcelas (linhas 539–570):
-     - Item da parcela em `flex-col sm:flex-row` quando `max-sm`, ou simplificar: manter linha única mas reduzir label "Parcela N" para ícone numérico `1ª`/`2ª` e remover `w-20` fixo (passar para `min-w-[3.5rem]`).
-     - Input de dias `h-9` (touch-target ≥ 36px) em mobile, manter `h-8` em ≥ sm.
-     - Botão "Adicionar parcela" full-width mobile já está OK (`w-full sm:w-auto`).
-   - Resumo `"3 parcelas: 30 / 60 / 90 dias"` mantido.
-   - Sem alteração de business logic — apenas layout responsivo.
+1. **Cards 100% globais e consistentes** em `GruposEconomicos.tsx`:
+   - `Total de Grupos` → `useTableCount("grupos_economicos")` (sem filtros).
+   - `Ativos` → `useTableCount("grupos_economicos", { ativo: true })` (já existe).
+   - `Inativos` → `useTableCount("grupos_economicos", { ativo: false })` (novo, em vez de subtração).
+   - `Com Clientes` → derivado do mapa global de contagens de `clientes`. O `useEffect` atual já busca **todos** os clientes ativos com `grupo_economico_id`, então `Object.keys(clienteCountMap).length` é uma contagem global — basta renomear o card e remover o sufixo "(página)".
+   - Resultado: os 4 cards passam a ser independentes do filtro/paginação corrente, eliminando a divergência com o status da linha.
 
-### Média prioridade
+2. **Coluna Clientes** (`columns[1]`):
+   - Substituir o `—` por `"0 clientes"` em estado neutro (`text-muted-foreground`).
+   - Para count > 0, manter ícone + número e adicionar sufixo "cliente(s)".
+   - Tornar a célula clicável (`button` ou `RelationalLink`) que chama `openView(g)` e abre o drawer já na aba de empresas (envia query param `?tab=empresas` consumido por `GrupoEconomicoView` — pequeno ajuste no `Tabs defaultValue`).
 
-5. **Empilhar "Meio de pagamento" e "Status" em mobile**
-   - Linha 428: `grid grid-cols-2 gap-4` → `grid grid-cols-1 sm:grid-cols-2 gap-4`.
+3. **Linha mais informativa** em `columns[0]`:
+   - Quando não há matriz nem descrição, adicionar subtítulo discreto: `"Sem matriz definida"` em `text-xs text-muted-foreground`.
+   - Quando `g.observacoes` existir e não houver matriz, mostrar primeira linha truncada do observações como subtítulo alternativo.
 
-6. **Microcopy mais direto em "Gera Financeiro"**
-   - Linha 624: trocar para  
-     `"Ao usar esta forma em pedidos ou orçamentos, o sistema cria os lançamentos financeiros automaticamente."`
+### Mudanças (média prioridade)
 
-7. **"Observações" — texto auxiliar mais curto**
-   - Linha 664: trocar para `"Notas internas, restrições ou acordos comerciais."` (placeholder permanece como complemento).
+4. **Coluna "Atualizado em"** visível por padrão (hoje `hidden: true` em `created_at`):
+   - Renomear para "Cadastro" → manter; adicionar nova coluna `updated_at` (se existir no schema; se não, manter apenas `created_at` visível). Confirmar via `supabase--read_query` antes de implementar.
+   - Mostrar `formatDate` discreto (`text-xs text-muted-foreground`).
 
-8. **Compactar espaçamento entre seções em mobile**
-   - `<form className="space-y-6">` → `space-y-5 sm:space-y-6`. Reduz quebra visual após "Condição de Pagamento" e ajuda o início do card "Gera Financeiro" aparecer acima da dobra.
-
-### Baixa prioridade (incluso na mesma onda, custo zero)
-
-9. **Padronizar `inputMode="numeric"`** no input de "Prazo padrão" (linha 510-518) — já presente nos demais.
+5. **Microcopy**: `subtitle` da página → "Consolide clientes relacionados em grupos para análises e condições comerciais."
 
 ### Fora de escopo
 
-- Separação `meios_pagamento` × `condicoes_pagamento` (ADR 004).
-- Mudanças no `FormaPagamentoView` (drawer de visualização).
-- Persistência de feedback "Salvo com sucesso" além do toast atual (já coberto por `useSupabaseCrud`).
-- Contador de caracteres em Observações (campo `text` sem limite).
+- Coluna de faturamento por grupo (depende de agregado server-side, evolução futura).
+- Filtros "com/sem clientes" (baixa prioridade, deixar para quando houver volume).
+- Mudanças em `GrupoEconomicoView` além do `defaultValue` da Tabs aceitar query param.
+- Qualquer alteração de schema, RLS ou lógica de negócio.
 
-### QA manual
+### Arquivos afetados
 
-Em viewport 390×844:
-- [ ] Chip do tipo aparece inline ao lado do título, sem ocupar linha inteira.
-- [ ] Em "Editar" sem alterações, botão "Salvar Alterações" está desabilitado com tooltip; após qualquer mudança fica habilitado.
-- [ ] Em "Criar", botão sempre habilitado.
-- [ ] Textarea de Observações totalmente visível sem ser coberto pelo footer (scroll até o fim).
-- [ ] Cenários de "Condição de Pagamento": à vista, 30 dias, 30/60/90, e edição inline dos valores de parcelas existentes.
-- [ ] "Meio de pagamento" e "Status" empilhados em mobile, lado a lado em ≥640px.
+- `src/pages/GruposEconomicos.tsx` (cards, coluna clientes, coluna nome, microcopy).
+- `src/components/views/GrupoEconomicoView.tsx` (apenas para aceitar `defaultValue` dinâmico via search param `tab`).
 
-### Arquivos a editar
+### Verificação
 
-- `src/pages/FormasPagamento.tsx` (microcopy, grid responsivo, layout das parcelas, space-y).
-- `src/components/FormModal.tsx` (1 ajuste: remover `max-sm:basis-full max-sm:w-full` do identifier).
-- `src/components/FormModalFooter.tsx` (auto-desabilitar primário em `edit` quando `!isDirty`).
+- Confirmar via `read_query` que `useTableCount` retorna 1 para `{ativo:true}` quando há 1 grupo PLUMA ativo (validar a hipótese da divergência observada).
+- Inspeção visual no preview: cards batem com a tabela em qualquer combinação de filtro de status.
