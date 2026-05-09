@@ -217,6 +217,25 @@ export default function Transportadoras() {
     }
   };
 
+  const handleTogglePreferencial = async (
+    vinculoId: string,
+    atualPrioridade: number | null,
+    transportadoraId: string,
+  ) => {
+    try {
+      const novaPrioridade =
+        atualPrioridade === 1 ? editClientesVinculados.length + 1 : 1;
+      await setClienteTransportadoraPrioridade(vinculoId, novaPrioridade);
+      await loadEditClientes(transportadoraId);
+      toast.success(
+        novaPrioridade === 1 ? "Marcado como preferencial" : "Preferência removida",
+      );
+    } catch (err) {
+      console.error("[transportadoras] erro ao alterar prioridade:", err);
+      notifyError(err);
+    }
+  };
+
   const openCreate = () => { setMode("create"); setForm({...emptyForm}); setSelected(null); setModalCliCount(0); setModalRemCount(0); setModalOpen(true); };
   const openEdit = (t: Transportadora) => {
     setMode("edit"); setSelected(t);
