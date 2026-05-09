@@ -251,10 +251,13 @@ export default function FormasPagamento() {
       key: "tipo", label: "Tipo",
       render: (f: FormaPagamento) => {
         const Icon = tipoIcon[f.tipo] || HelpCircle;
+        const label =
+          tipoLabel[f.tipo] ||
+          (f.tipo ? f.tipo.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "—");
         return (
           <Badge variant="outline" className="gap-1 text-xs font-medium">
             <Icon className="w-3 h-3" />
-            {tipoLabel[f.tipo] || f.tipo}
+            {label}
           </Badge>
         );
       },
@@ -284,7 +287,7 @@ export default function FormasPagamento() {
       },
     },
     {
-      key: "gera_financeiro", label: "Financeiro",
+      key: "gera_financeiro", label: "Financeiro", mobileCard: true,
       render: (f: FormaPagamento) => (
         <TooltipProvider delayDuration={200}>
           <Tooltip>
