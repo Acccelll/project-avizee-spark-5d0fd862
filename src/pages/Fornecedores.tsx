@@ -568,8 +568,7 @@ const Fornecedores = () => {
         size="xl"
         mode={mode}
         createHint="Preencha razão social, CPF/CNPJ e contato principal. Demais dados podem ser complementados depois."
-        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
+        identifier={mode === "edit" && selected?.cpf_cnpj ? cpfCnpjMask(selected.cpf_cnpj) : undefined}
         headerActions={mode === "edit" && selected ? (
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
             <Switch
@@ -577,15 +576,14 @@ const Fornecedores = () => {
               onCheckedChange={(v) => updateForm({ ativo: v })}
               aria-label={form.ativo ? "Inativar fornecedor" : "Reativar fornecedor"}
             />
-            <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
+            <span className="font-medium">{form.ativo ? "Fornecedor ativo" : "Fornecedor inativo"}</span>
           </label>
         ) : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(selected.updated_at && selected.updated_at !== selected.created_at ? [{ icon: BadgeCheck, label: `Atualizado em ${formatDate(selected.updated_at)}` }] : []),
-          ...(form.prazo_padrao ? [{ icon: ShoppingCart, label: `Prazo padrão: ${form.prazo_padrao} dias` }] : []),
         ] : undefined}
-        isDirty={isDirty}
+        isDirty={false}
         footer={
           <FormModalFooter
             saving={saving}
@@ -597,6 +595,7 @@ const Fornecedores = () => {
             submitAsForm
             formId="fornecedor-form"
             mode={mode}
+            primaryLabel={mode === "create" ? "Criar Fornecedor" : undefined}
             onSaveAndNew={mode === "create" ? handleSaveAndNew : undefined}
           />
         }
@@ -605,10 +604,30 @@ const Fornecedores = () => {
 
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
-              <TabsTrigger value="dados-gerais" className="gap-1.5"><User2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
-              <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
-              <TabsTrigger value="endereco" className="gap-1.5"><MapPin className="h-3.5 w-3.5" />Endereço</TabsTrigger>
-              <TabsTrigger value="compras" className="gap-1.5"><ShoppingCart className="h-3.5 w-3.5" />Compras</TabsTrigger>
+              <TabsTrigger value="dados-gerais" className="gap-1.5">
+                <User2 className="h-3.5 w-3.5" />Dados Gerais
+                {(formErrors.cpf_cnpj || formErrors.nome_razao_social) && (
+                  <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="contatos" className="gap-1.5">
+                <Phone className="h-3.5 w-3.5" />Contatos
+                {(formErrors.email || formErrors.telefone || formErrors.celular) && (
+                  <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="endereco" className="gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />Endereço
+                {(formErrors.cep || formErrors.uf) && (
+                  <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="compras" className="gap-1.5">
+                <ShoppingCart className="h-3.5 w-3.5" />Compras
+                {formErrors.prazo_padrao && (
+                  <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
               <TabsTrigger value="observacoes" className="gap-1.5"><Handshake className="h-3.5 w-3.5" />Obs.</TabsTrigger>
             </TabsList>
 
@@ -618,9 +637,9 @@ const Fornecedores = () => {
             <User2 className="w-4 h-4 text-primary/70" />
             <h3 className="font-semibold text-sm">Identificação</h3>
             {form.cpf_cnpj && form.nome_razao_social.length >= MIN_NOME_RAZAO_SOCIAL_LENGTH && (
-              <span className="ml-auto flex items-center gap-1 text-xs text-success font-medium">
+              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Dados fiscais preenchidos
+                Dados principais preenchidos
               </span>
             )}
           </div>
@@ -637,7 +656,7 @@ const Fornecedores = () => {
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-1">
-                <Label>CPF/CNPJ</Label>
+                <Label>{form.tipo_pessoa === "J" ? "CNPJ" : "CPF"}</Label>
                 {form.tipo_pessoa === "J" && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -692,7 +711,7 @@ const Fornecedores = () => {
                 <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
               {form.tipo_pessoa === "J" && !formErrors.cpf_cnpj && (
-                <p className="text-xs text-muted-foreground">Consultar CNPJ preenche razão social, endereço e contato automaticamente.</p>
+                <p className="text-xs text-muted-foreground">Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis, sem sobrescrever campos já preenchidos.</p>
               )}
             </div>
             <div className="space-y-1.5">
