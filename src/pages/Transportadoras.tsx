@@ -568,7 +568,7 @@ export default function Transportadoras() {
             <TabsContent value="dados-gerais" className="space-y-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 md:col-span-1 space-y-2">
-              <Label>Tipo</Label>
+              <Label>Tipo de Pessoa</Label>
               <Select value={form.tipo_pessoa} onValueChange={(v) => setForm({ ...form, tipo_pessoa: v, cpf_cnpj: "" })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -581,29 +581,50 @@ export default function Transportadoras() {
               <Label>{form.tipo_pessoa === "F" ? "CPF" : "CNPJ"}</Label>
               <div className="flex gap-1">
                 <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
-                <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cnpjLoading || form.tipo_pessoa !== "J"}
-                  aria-label="Buscar CNPJ"
-                  title="Buscar dados pelo CNPJ e preencher automaticamente"
+                <Button
+                  type="button"
+                  variant="outline"
+                  size={isMobile ? "icon" : "default"}
+                  className="shrink-0 gap-1.5"
+                  disabled={cnpjLoading || form.tipo_pessoa !== "J"}
+                  aria-label="Consultar CNPJ"
+                  title="Consultar CNPJ e preencher dados automaticamente"
                   onClick={async () => {
+                    setCnpjJustFetched(false);
                     const result = await buscarCnpj(form.cpf_cnpj);
-                    if (result) setForm(prev => ({
-                      ...prev,
-                      nome_razao_social: result.razao_social || prev.nome_razao_social,
-                      nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
-                      email: result.email || prev.email,
-                      telefone: result.telefone || prev.telefone,
-                      cidade: result.municipio || prev.cidade,
-                      uf: result.uf || prev.uf,
-                    }));
+                    if (result) {
+                      setForm(prev => ({
+                        ...prev,
+                        nome_razao_social: result.razao_social || prev.nome_razao_social,
+                        nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
+                        email: result.email || prev.email,
+                        telefone: result.telefone || prev.telefone,
+                        cidade: result.municipio || prev.cidade,
+                        uf: result.uf || prev.uf,
+                      }));
+                      setCnpjJustFetched(true);
+                      setTimeout(() => setCnpjJustFetched(false), 4000);
+                    }
                   }}>
                   {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {!isMobile && <span>Consultar CNPJ</span>}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground leading-tight">
-                {form.tipo_pessoa === "F"
-                  ? "Informe o CPF do transportador autônomo."
-                  : "Informe o CNPJ e clique em buscar para preencher automaticamente."}
-              </p>
+              {cnpjLoading ? (
+                <p className="text-xs text-muted-foreground leading-tight flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Consultando Receita Federal...
+                </p>
+              ) : cnpjJustFetched ? (
+                <p className="text-xs text-success leading-tight flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Dados preenchidos automaticamente.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground leading-tight">
+                  {form.tipo_pessoa === "F"
+                    ? "Informe o CPF do transportador autônomo."
+                    : "Informe o CNPJ e clique em Consultar CNPJ para preencher automaticamente."}
+                </p>
+              )}
               {docChecking && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
@@ -622,7 +643,7 @@ export default function Transportadoras() {
               <Input value={form.nome_fantasia} onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })} placeholder="Nome comercial (se diferente da razão social)" />
             </div>
             <div className="col-span-2 md:col-span-3 space-y-2">
-              <Label>Status</Label>
+              <Label>Situação da transportadora</Label>
               <div className="flex items-center gap-3 h-9 px-3 rounded-md border bg-background">
                 <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
                 <span className="text-sm text-muted-foreground">{form.ativo ? "Ativo" : "Inativo"}</span>
