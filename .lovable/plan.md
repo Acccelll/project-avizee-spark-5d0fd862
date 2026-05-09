@@ -1,67 +1,44 @@
-# Onda 34 — Editar Transportadora (mobile)
+# Onda 35 — Grid Formas de Pagamento
 
-Refinos focados em UX mobile do `FormModal` em `src/pages/Transportadoras.tsx`. Sem mudanças de schema, sem mudanças de regra de negócio.
+Refinos no grid `/formas-pagamento` (`src/pages/FormasPagamento.tsx`). UI/labels apenas — sem mudança de schema.
+
+## Causa raiz observada
+O `tipoLabel` e `tipoIcon` estão **incompletos**: cobrem `pix/boleto/cartao/dinheiro/transferencia/outro/boleto_dda`, mas o `<Select>` do form grava também `cartao_credito`, `cartao_debito`, `cobranca_automatica`, `debito_automatico`, `outros`. Quando o tipo é um destes, o grid cai no fallback `tipoLabel[f.tipo] || f.tipo` e mostra o valor cru (`cartao_credito`, `outros`). Isso explica os itens 3 e 6 do feedback.
 
 ## Alta prioridade
 
-1. **CNPJ formatado em todas as exibições mobile**
-   - O header do `FormModal` já passa `cpfCnpjMask`, mas em mobile o `identifier` pode aparecer cru quando o form ainda está sendo digitado. Garantir que tanto o chip do header quanto a exibição na lista de Clientes Vinculados usem `cpfCnpjMask` (já parcialmente aplicado em `cv.clientes.cpf_cnpj`). Validar visualmente.
+1. **Mapas `tipoLabel` e `tipoIcon` completos**
+   - `tipoLabel`: incluir `cartao_credito → "Cartão de crédito"`, `cartao_debito → "Cartão de débito"`, `cobranca_automatica → "Cobrança automática"`, `debito_automatico → "Débito automático"`, `outros → "Outros"`. Padronizar `outro/outros` para "Outros".
+   - `tipoIcon`: mapear `cartao_credito`/`cartao_debito` → `CreditCard`, `cobranca_automatica`/`debito_automatico` → `ArrowLeftRight` (ou `Wallet`), `boleto_dda` → `FileText`, `outros`/`outro` → `HelpCircle`.
 
-2. **Abas com scroll horizontal limpo (padrão "tabs-mobile-scroll")**
-   - Substituir `<TabsList className="mb-4 w-full justify-start overflow-x-auto">` por composição canônica:
-     - `overflow-x-auto scrollbar-hide tabs-fade-mask`
-     - `Tabs` controlada (state `activeTab`) para auto-centralizar o trigger ativo via `scrollIntoView({ inline: "center" })` em `useEffect`.
-   - Encurtar rótulos no mobile (via `useIsMobile`):
-     - Dados Gerais → **Dados**
-     - Contatos → **Contatos**
-     - Operacional → **Operação**
-     - Endereço → **Endereço**
-     - Clientes → **Clientes**
-     - Obs. → **Obs.**
+2. **Coluna "Tipo" como badge consistente**
+   - Renderizar `<Badge variant="outline" className="gap-1 text-xs">{Icon}{tipoLabel[...]}</Badge>` (substitui o `<span>` solto). Mesmo ícone usado no nome → remover o ícone duplicado da coluna "Forma de Pagamento" para evitar repetição.
 
-3. **Botão "Consultar CNPJ" mais claro no mobile**
-   - Hoje em mobile fica só ícone ao lado do campo. Mover para **abaixo** do campo CNPJ quando `isMobile`, full-width, com label "Consultar CNPJ" + ícone.
-   - Microcopy auxiliar: encurtar para `"Consultar CNPJ para preencher automaticamente."`
+3. **Coluna "Prazo / Parcelas" → "Parcelamento" mais clara**
+   - Renomear cabeçalho para **"Parcelamento"**.
+   - Render:
+     - Sem intervalos e `prazo_dias === 0` → `"À vista"`.
+     - Sem intervalos e `prazo_dias > 0` → `"1 parcela · ${prazo_dias} dias"`.
+     - Com `intervalos_dias` (n itens) → linha 1: `"${n} parcelas"`, linha 2 (muted, font-mono): `"${intervalos.join("/")} dias"`.
+   - Mantém compacto, mas elimina ambiguidade do "30d" para 30/60/90 e cartão 3x.
 
-4. **Estruturar prazo médio (campo numérico simples)**
-   - Manter compatibilidade com string atual. Trocar input livre por:
-     - `Input type="number"` (inteiro, min=0), placeholder `"Ex.: 5"`, sufixo "dias úteis" mantido.
-     - Helper text: `"Use o prazo médio em dias úteis."`
-   - Não dividir em min/max nesta onda (escopo ainda compatível com migração futura).
+4. **Card "Geram Financeiro" → "Criam lançamentos"**
+   - Trocar título do `SummaryCard` para **"Criam lançamentos"**, manter ícone `Wallet`/variant `info`. Coluna do grid passa a se chamar **"Financeiro"** (header curto), badge segue "Sim/Não" + tooltip "Cria lançamento financeiro automaticamente em pedidos e notas".
 
-5. **Botão "Vincular" com estado claro**
-   - Já existe hint quando desabilitado. Reforçar no mobile:
-     - Quando nenhum cliente selecionado: variante `outline`, hint `"Selecione um cliente para vincular."` em destaque (cor `text-warning-foreground`).
-     - Quando cliente selecionado: variante `default` ativa.
+5. **Substituir card "Inativas" por "Parceladas"**
+   - Card "Inativas" some (a info já está embutida em "Total - Ativas" e como filtro). Novo card **"Parceladas"**: `data.filter(f => (f.intervalos_dias?.length ?? 0) > 1 || f.parcelas > 1).length`, ícone `CalendarDays`.
+   - Sequência final dos cards: **Total | Ativas | Parceladas | Criam lançamentos**.
 
 ## Média prioridade
 
-6. **Header mobile reorganizado em linhas**
-   - Aproveitar `meta` do `FormModal` para garantir quebra natural por `flex-wrap` (já existe). Ajustar `meta` para ordem: `[CNPJ via identifier] / status badge / Cadastro · Atualização / Modalidade · Cidade-UF`.
-
-7. **Status compacto na aba Dados Gerais**
-   - Trocar `Card` grande do toggle `ativo` por linha simples: `<div class="flex items-center justify-between py-2 border rounded-md px-3">Status <Switch/> Ativo</div>`.
-
-8. **Padding inferior do conteúdo**
-   - Já há `max-sm:pb-24` no `FormModal`; revisar se com footer atual último campo do Endereço fica visível. Se necessário, aumentar para `pb-28`.
-
-9. **Footer compacto no mobile**
-   - Em `FormModalFooter`: reduzir `h-11` para `h-10` no mobile e `gap-2` → `gap-1.5` quando `isMobile`. Pequeno ajuste para liberar área útil.
-
-10. **Máscara de telefone na aba Contatos**
-    - Aplicar `phoneMask` no `onChange` do campo telefone (hoje texto puro). Garantir reaplicação no carregamento (`phoneMask(t.telefone)`).
-
-## Baixa prioridade
-
-11. **Microcopy / placeholders curtos** no mobile (helper text das abas Operacional e Obs.).
-12. **Aba Obs.**: separar visualmente "Observações internas" de "Uso no Sistema" com `border-t pt-4 mt-4` e título h4.
+6. **Tooltip no badge "Sim/Não" da coluna Financeiro** com a frase do item 4.
+7. **Ordenação padrão** por `tipo` → `descricao` (alfabética dentro de cada tipo) — opcional via `defaultSort` se DataTable suportar; caso contrário, manter nome de coluna sortable e a ordem natural.
+8. **Mobile (`mobileCard`/`mobilePrimary`)** — garantir que o novo render de "Parcelamento" em duas linhas continue compacto no card mobile (pode ficar inline `n parcelas · 30/60/90d`).
 
 ## Fora de escopo
-- Validação de e-mail / campo WhatsApp separado (Onda 35).
-- Estrutura `prazo_min`/`prazo_max` em colunas (requer migração).
-- Ações por linha em Clientes Vinculados além do já existente (estrela/abrir/remover).
+- Coluna "Usada em" / "Último uso" / "Padrão" — exigem agregação extra ou flag em outras tabelas (Onda 36).
+- Refatorar o form de cadastro (já em estado bom; só consumir os mesmos `tipoLabel`/`tipoIcon` para consistência).
 
 ## Arquivos
-- `src/pages/Transportadoras.tsx` (principal)
-- `src/components/FormModalFooter.tsx` (apenas ajuste fino de altura mobile)
-- `.lovable/plan.md` (registrar Onda 34)
+- `src/pages/FormasPagamento.tsx` (única alteração)
+- `.lovable/plan.md` (registrar Onda 35)
