@@ -503,7 +503,7 @@ const Fornecedores = () => {
           searchPlaceholder="Razão social, CNPJ, e-mail ou cidade"
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
-          onClearAll={() => { clearFilters(); sort.reset?.(); }}
+          onClearAll={() => { clearFilters(); sort.onChange("nome_razao_social", "asc"); }}
           count={totalCount ?? filteredData.length}
         >
           <MultiSelect
