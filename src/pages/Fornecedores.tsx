@@ -478,7 +478,20 @@ const Fornecedores = () => {
             <SummaryCard title="Total de Fornecedores" value={totalRegistros} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
             <div className="hidden md:contents">
-              <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={UserX} />
+              <SummaryCard
+                title="Sem contato"
+                value={totalSemContato ?? 0}
+                icon={PhoneOff}
+                variant={(totalSemContato ?? 0) > 0 ? "warning" : "default"}
+              />
+            </div>
+            <div className="hidden lg:contents">
+              <SummaryCard
+                title="Cadastro incompleto"
+                value={totalIncompleto ?? 0}
+                icon={AlertCircle}
+                variant={(totalIncompleto ?? 0) > 0 ? "warning" : "default"}
+              />
             </div>
           </>
         }
@@ -487,10 +500,10 @@ const Fornecedores = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por razão social, CNPJ, e-mail ou cidade..."
+          searchPlaceholder="Razão social, CNPJ, e-mail ou cidade"
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
-          onClearAll={() => clearFilters()}
+          onClearAll={() => { clearFilters(); sort.reset?.(); }}
           count={totalCount ?? filteredData.length}
         >
           <MultiSelect
@@ -498,14 +511,14 @@ const Fornecedores = () => {
             selected={ativoFilters}
             onChange={setAtivoFilters}
             placeholder="Status"
-            className="w-full sm:w-[140px]"
+            className={FILTER_W_SM}
           />
           <MultiSelect
             options={tipoOptions}
             selected={tipoFilters}
             onChange={setTipoFilters}
-            placeholder="Tipos"
-            className="w-full sm:w-[150px]"
+            placeholder="Pessoa (PF/PJ)"
+            className={FILTER_W_MD}
           />
         </AdvancedFilterBar>
 
