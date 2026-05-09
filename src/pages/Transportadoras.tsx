@@ -800,24 +800,29 @@ export default function Transportadoras() {
             Vincule clientes a esta transportadora para facilitar o uso nos processos logísticos.
           </p>
           {/* Adicionar vínculo */}
-          <div className="flex gap-2 mb-3">
-            <Select value={vinculoClienteId} onValueChange={setVinculoClienteId}>
-              <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Selecionar cliente..." /></SelectTrigger>
-              <SelectContent>
-                {clientesList
-                   .filter(cl => !editClientesVinculados.some(cv => cv.cliente_id === cl.id))
-                  .map(cl => <SelectItem key={cl.id} value={cl.id}>{cl.nome_razao_social}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button" size="sm"
-              disabled={!vinculoClienteId || savingVinculoCliente}
-              onClick={() => selected && handleVincularCliente(selected.id)}
-              className="gap-1 h-9"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Vincular
-            </Button>
+          <div className="mb-3 space-y-1">
+            <div className="flex gap-2">
+              <Select value={vinculoClienteId} onValueChange={setVinculoClienteId}>
+                <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Selecionar cliente..." /></SelectTrigger>
+                <SelectContent>
+                  {clientesList
+                     .filter(cl => !editClientesVinculados.some(cv => cv.cliente_id === cl.id))
+                    .map(cl => <SelectItem key={cl.id} value={cl.id}>{cl.nome_razao_social}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button" size="sm" variant="default"
+                disabled={!vinculoClienteId || savingVinculoCliente}
+                onClick={() => selected && handleVincularCliente(selected.id)}
+                className="gap-1 h-9"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Vincular
+              </Button>
+            </div>
+            {!vinculoClienteId && (
+              <p className="text-[11px] text-muted-foreground">Selecione um cliente para habilitar o botão Vincular.</p>
+            )}
           </div>
           {loadingEditClientes ? (
             <div className="h-16 bg-muted/30 rounded-lg animate-pulse" />
@@ -829,25 +834,58 @@ export default function Transportadoras() {
           ) : (
             <div className="space-y-0.5">
               {editClientesVinculados.map((cv) => (
-                <div key={cv.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors border-b last:border-b-0 group">
+                <div key={cv.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors border-b last:border-b-0">
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    {cv.prioridade === 1 && <Star className="h-3 w-3 text-warning shrink-0" />}
-                    <div>
-                      <span className="text-xs font-medium text-foreground">{cv.clientes?.nome_razao_social}</span>
-                      {cv.clientes?.cpf_cnpj && <span className="ml-1.5 text-[10px] text-muted-foreground font-mono">{cv.clientes.cpf_cnpj}</span>}
+                    {cv.prioridade === 1 && <Star className="h-3 w-3 text-warning fill-warning shrink-0" aria-label="Preferencial" />}
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-foreground truncate">{cv.clientes?.nome_razao_social}</div>
+                      {cv.clientes?.cpf_cnpj && (
+                        <div className="text-[10px] text-muted-foreground font-mono">{cpfCnpjMask(cv.clientes.cpf_cnpj)}</div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {cv.modalidade && <span className="text-xs text-muted-foreground capitalize">{cv.modalidade}</span>}
-                    {cv.prazo_medio && <span className="text-xs text-muted-foreground font-mono">{cv.prazo_medio}d</span>}
-                    <Button
-                      type="button" size="icon" variant="ghost"
-                      className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label="Remover vínculo"
-                      onClick={() => selected && handleDesvincularCliente(cv.id, selected.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {cv.modalidade && <span className="text-xs text-muted-foreground capitalize mr-1">{cv.modalidade}</span>}
+                    {cv.prazo_medio && <span className="text-xs text-muted-foreground font-mono mr-1">{cv.prazo_medio}d</span>}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button" size="icon" variant="ghost"
+                          className="h-7 w-7"
+                          aria-label={cv.prioridade === 1 ? "Remover preferência" : "Marcar como preferencial"}
+                          onClick={() => selected && handleTogglePreferencial(cv.id, cv.prioridade, selected.id)}
+                        >
+                          <Star className={`h-3.5 w-3.5 ${cv.prioridade === 1 ? "text-warning fill-warning" : "text-muted-foreground"}`} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{cv.prioridade === 1 ? "Remover preferência" : "Marcar como preferencial"}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button" size="icon" variant="ghost"
+                          className="h-7 w-7"
+                          aria-label="Abrir cliente"
+                          onClick={() => navigate(`/clientes?editId=${cv.cliente_id}`)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Abrir cliente</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button" size="icon" variant="ghost"
+                          className="h-7 w-7 text-destructive"
+                          aria-label="Remover vínculo"
+                          onClick={() => selected && handleDesvincularCliente(cv.id, selected.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Remover vínculo</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               ))}
