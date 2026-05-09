@@ -258,6 +258,7 @@ const Fornecedores = () => {
     loadTokenRef.current += 1;
     setMode("create"); setForm({ ...emptyForm }); setSelected(null); setIsDirty(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
+    setActiveTab("dados-gerais");
     setModalOpen(true);
   };
   const openEdit = (f: Fornecedor) => {
@@ -275,6 +276,7 @@ const Fornecedores = () => {
     setIsDirty(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
     void loadFornContext(f.id, token);
+    setActiveTab("dados-gerais");
     setModalOpen(true);
   };
 
