@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
@@ -92,6 +93,7 @@ const GruposEconomicos = () => {
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [clienteCountMap, setClienteCountMap] = useState<Record<string, number>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
+  const navigate = useNavigate();
   const { can } = useCan();
   const canExcluir = can("clientes:excluir") || can("administracao:visualizar");
   const { pushView } = useRelationalNavigation();
@@ -480,16 +482,20 @@ const GruposEconomicos = () => {
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(!loadingSummary && modalEmpresas.length > 0 ? [{ icon: Users, label: `${modalEmpresas.length} empresa${modalEmpresas.length !== 1 ? "s" : ""}` }] : []),
+          ...(!loadingSummary && modalEmpresas.length === 0 ? [{ icon: Users, label: "Nenhuma empresa vinculada" }] : []),
+          ...(!loadingSummary && !form.empresa_matriz_id ? [{ icon: Star, label: "Sem matriz definida" }] : []),
         ] : undefined}
         headerActions={mode === "edit" && selected ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={handleViewFromEdit}>
-                <ExternalLink className="h-3 w-3" />Ver painel
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="text-xs">Fechar edição e abrir o painel completo</TooltipContent>
-          </Tooltip>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 text-xs gap-1"
+            onClick={handleViewFromEdit}
+            aria-label="Fechar edição e abrir o painel completo"
+          >
+            <ExternalLink className="h-3 w-3" />Ver painel
+          </Button>
         ) : undefined}
         isDirty={isDirty}
         footer={
@@ -545,7 +551,7 @@ const GruposEconomicos = () => {
             <h3 className="font-semibold text-sm">Empresa Matriz</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            A empresa matriz é a controladora principal do grupo. Sua definição facilita a consolidação de informações e aparece em destaque no painel do grupo.
+            Defina a empresa principal para destacá-la no painel consolidado.
           </p>
           <div className="mb-3 space-y-1.5">
             <div className="flex items-center gap-1">
@@ -588,9 +594,9 @@ const GruposEconomicos = () => {
               </span>
             </div>
           ) : (
-            <div className="mb-5 text-xs text-muted-foreground bg-muted/30 rounded-md px-3 py-2 border">
-              Sem empresa matriz definida. O grupo pode ser estruturado apenas com as empresas vinculadas.
-            </div>
+            <p className="mb-5 text-xs text-muted-foreground italic">
+              Matriz não definida. Opcional — o grupo pode funcionar apenas com empresas vinculadas.
+            </p>
           )}
 
           {/* ── BLOCO: ESTRUTURA DO GRUPO ── */}
@@ -598,7 +604,7 @@ const GruposEconomicos = () => {
             <Users className="w-4 h-4 text-primary/70" />
             <h3 className="font-semibold text-sm">Estrutura do Grupo</h3>
             {mode === "edit" && (
-              <span className="ml-auto text-[10px] text-muted-foreground uppercase tracking-wider">apenas leitura</span>
+              <span className="ml-auto text-[10px] text-muted-foreground">Somente leitura</span>
             )}
           </div>
           {mode === "create" ? (
@@ -612,12 +618,23 @@ const GruposEconomicos = () => {
           ) : loadingSummary ? (
             <div className="mb-5 h-[72px] rounded-lg bg-muted/30 animate-pulse" />
           ) : modalEmpresas.length === 0 ? (
-            <div className="mb-5 flex items-start gap-2 bg-muted/30 rounded-md px-3 py-2.5 text-xs text-muted-foreground border">
-              <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>
-                Nenhuma empresa vinculada ainda. Para vincular empresas, acesse o cadastro de{" "}
-                <strong className="text-foreground">Clientes</strong> e defina este grupo econômico em cada uma.
-              </span>
+            <div className="mb-5 flex items-start justify-between gap-3 bg-muted/30 rounded-md px-3 py-2.5 text-xs text-muted-foreground border">
+              <div className="flex items-start gap-2 min-w-0">
+                <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Nenhuma empresa vinculada. Vincule empresas pelo cadastro de{" "}
+                  <strong className="text-foreground">Clientes</strong>.
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-[11px] gap-1 shrink-0"
+                onClick={() => navigate("/clientes")}
+              >
+                <ExternalLink className="h-3 w-3" />Abrir clientes
+              </Button>
             </div>
           ) : (
             <div className="mb-5 space-y-0.5">
@@ -646,7 +663,7 @@ const GruposEconomicos = () => {
             <h3 className="font-semibold text-sm">Contexto / Observações</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Observações comerciais, financeiras e estruturais sobre o grupo.
+            Notas internas sobre o grupo.
           </p>
           <div className="mb-5 space-y-1.5">
             <div className="flex items-center gap-1">
@@ -663,7 +680,7 @@ const GruposEconomicos = () => {
             <Textarea
               value={form.observacoes}
               onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              placeholder="Registre informações relevantes sobre o grupo econômico: histórico, particularidades comerciais, condições especiais..."
+              placeholder="Histórico, condições comerciais, observações financeiras ou particularidades do grupo."
               className="min-h-[96px] resize-y"
               rows={4}
             />
@@ -675,7 +692,7 @@ const GruposEconomicos = () => {
               <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
                 <TrendingUp className="w-4 h-4 text-primary/70" />
                 <h3 className="font-semibold text-sm">Resumo Consolidado</h3>
-                <span className="ml-auto text-[10px] text-muted-foreground uppercase tracking-wider">apenas leitura</span>
+                <span className="ml-auto text-[10px] text-muted-foreground">Somente leitura</span>
               </div>
               {loadingSummary ? (
                 <div className="mb-5 h-[76px] rounded-lg bg-muted/30 animate-pulse" />
