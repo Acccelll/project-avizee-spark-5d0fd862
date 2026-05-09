@@ -531,27 +531,49 @@ const GruposEconomicos = () => {
       <FormModal
         open={modalOpen}
         onClose={handleCancel}
-        title={mode === "create" ? "Novo Grupo Econômico" : "Editar Grupo Econômico"}
+        title={mode === "create" ? "Novo Grupo" : "Editar Grupo"}
         size="lg"
         mode={mode}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
-        meta={mode === "edit" && selected ? [
-          ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
-          ...(!loadingSummary && modalEmpresas.length > 0 ? [{ icon: Users, label: `${modalEmpresas.length} empresa${modalEmpresas.length !== 1 ? "s" : ""}` }] : []),
-          ...(!loadingSummary && modalEmpresas.length === 0 ? [{ icon: Users, label: "Nenhuma empresa vinculada" }] : []),
-          ...(!loadingSummary && !form.empresa_matriz_id ? [{ icon: Star, label: "Sem matriz definida" }] : []),
-        ] : undefined}
+        meta={mode === "edit" && selected ? (() => {
+          const items: { icon: typeof Calendar; label: string }[] = [];
+          if (selected.created_at) items.push({ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` });
+          if (!loadingSummary) {
+            if (modalEmpresas.length > 0) {
+              items.push({ icon: Users, label: `${modalEmpresas.length} empresa${modalEmpresas.length !== 1 ? "s" : ""}` });
+            } else {
+              const partes = [
+                modalEmpresas.length === 0 ? "Sem empresa" : null,
+                !form.empresa_matriz_id ? "Sem matriz" : null,
+              ].filter(Boolean).join(" · ");
+              if (partes) items.push({ icon: Info, label: partes });
+            }
+          }
+          return items;
+        })() : undefined}
         headerActions={mode === "edit" && selected ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 px-2.5 text-xs gap-1"
-            onClick={handleViewFromEdit}
-            aria-label="Fechar edição e abrir o painel completo"
-          >
-            <ExternalLink className="h-3 w-3" />Ver painel
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="hidden sm:inline-flex h-7 px-2.5 text-xs gap-1"
+              onClick={handleViewFromEdit}
+              aria-label="Fechar edição e abrir o painel completo"
+            >
+              <ExternalLink className="h-3 w-3" />Ver painel
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="sm:hidden h-7 px-1.5 text-[11px] gap-1 text-muted-foreground"
+              onClick={handleViewFromEdit}
+              aria-label="Fechar edição e abrir o painel completo"
+            >
+              <ExternalLink className="h-3 w-3" />Painel
+            </Button>
+          </>
         ) : undefined}
         isDirty={isDirty}
         footer={
@@ -564,18 +586,29 @@ const GruposEconomicos = () => {
             mode={mode}
             disabled={!form.nome.trim() || form.nome.trim().length < 2}
             disabledReason="Nome do grupo deve ter pelo menos 2 caracteres"
+            cancelAsLink
           />
         }
       >
         <form id="grupo-economico-form" onSubmit={handleSubmit} className="space-y-0">
           {/* ── BLOCO 1: IDENTIFICAÇÃO DO GRUPO ── */}
-          <div className="flex items-center gap-2 pb-3 border-b mb-3">
-            <Building2 className="w-4 h-4 text-primary/70" />
-            <h3 className="font-semibold text-sm">Identificação do Grupo</h3>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            Defina como o grupo será identificado no sistema. O nome é usado para consolidar dados comerciais e financeiros das empresas vinculadas.
-          </p>
+          <MobileSection
+            icon={Building2}
+            title="Identificação do Grupo"
+            defaultOpen
+            summary={form.nome ? form.nome : undefined}
+            desktopHeader={
+              <>
+                <div className="flex items-center gap-2 pb-3 border-b mb-3">
+                  <Building2 className="w-4 h-4 text-primary/70" />
+                  <h3 className="font-semibold text-sm">Identificação do Grupo</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Nome usado para consolidar dados comerciais e financeiros.
+                </p>
+              </>
+            }
+          >
           <div className="mb-6 space-y-1.5">
             <div className="flex items-center gap-1">
               <Label className="text-sm font-medium">Nome do Grupo *</Label>
@@ -600,15 +633,30 @@ const GruposEconomicos = () => {
               <p className="text-xs text-destructive mt-1">O nome deve ter ao menos 2 caracteres.</p>
             )}
           </div>
+          </MobileSection>
 
           {/* ── BLOCO 2: EMPRESA MATRIZ ── */}
-          <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
-            <Star className="w-4 h-4 text-primary/70" />
-            <h3 className="font-semibold text-sm">Empresa Matriz</h3>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            Defina a empresa principal para destacá-la no painel consolidado.
-          </p>
+          <MobileSection
+            icon={Star}
+            title="Empresa Matriz"
+            defaultOpen
+            summary={
+              form.empresa_matriz_id
+                ? clientesDisponiveis.find((c) => c.id === form.empresa_matriz_id)?.nome_razao_social ?? "Definida"
+                : "Não definida"
+            }
+            desktopHeader={
+              <>
+                <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
+                  <Star className="w-4 h-4 text-primary/70" />
+                  <h3 className="font-semibold text-sm">Empresa Matriz</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Opcional. Defina a empresa principal do grupo.
+                </p>
+              </>
+            }
+          >
           <div className="mb-3 space-y-1.5">
             <div className="flex items-center gap-1">
               <Label>Empresa Matriz</Label>
@@ -651,18 +699,33 @@ const GruposEconomicos = () => {
             </div>
           ) : (
             <p className="mb-5 text-xs text-muted-foreground italic">
-              Matriz não definida. Opcional — o grupo pode funcionar apenas com empresas vinculadas.
+              Matriz não definida. Opcional.
             </p>
           )}
+          </MobileSection>
 
           {/* ── BLOCO: ESTRUTURA DO GRUPO ── */}
-          <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
-            <Users className="w-4 h-4 text-primary/70" />
-            <h3 className="font-semibold text-sm">Estrutura do Grupo</h3>
-            {mode === "edit" && (
-              <span className="ml-auto text-[10px] text-muted-foreground">Somente leitura</span>
-            )}
-          </div>
+          <MobileSection
+            icon={Users}
+            title="Estrutura do Grupo"
+            defaultOpen={mode === "create"}
+            summary={
+              mode === "edit"
+                ? loadingSummary
+                  ? undefined
+                  : `${modalEmpresas.length} empresa${modalEmpresas.length !== 1 ? "s" : ""}`
+                : undefined
+            }
+            desktopHeader={
+              <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
+                <Users className="w-4 h-4 text-primary/70" />
+                <h3 className="font-semibold text-sm">Estrutura do Grupo</h3>
+                {mode === "edit" && (
+                  <span className="ml-auto text-[10px] text-muted-foreground">Somente leitura</span>
+                )}
+              </div>
+            }
+          >
           {mode === "create" ? (
             <div className="mb-5 flex items-start gap-2 bg-muted/30 rounded-md px-3 py-2.5 text-xs text-muted-foreground border">
               <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -689,7 +752,7 @@ const GruposEconomicos = () => {
                 className="h-7 px-2 text-[11px] gap-1 shrink-0"
                 onClick={() => navigate("/clientes")}
               >
-                <ExternalLink className="h-3 w-3" />Abrir clientes
+                <ExternalLink className="h-3 w-3" />Vincular em Clientes
               </Button>
             </div>
           ) : (
@@ -712,15 +775,26 @@ const GruposEconomicos = () => {
               )}
             </div>
           )}
+          </MobileSection>
 
           {/* ── BLOCO 3: CONTEXTO / OBSERVAÇÕES ── */}
-          <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
-            <FileText className="w-4 h-4 text-primary/70" />
-            <h3 className="font-semibold text-sm">Contexto / Observações</h3>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            Notas internas sobre o grupo.
-          </p>
+          <MobileSection
+            icon={FileText}
+            title="Observações"
+            defaultOpen={mode === "create"}
+            summary={form.observacoes ? `${form.observacoes.length} caracteres` : "Vazio"}
+            desktopHeader={
+              <>
+                <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
+                  <FileText className="w-4 h-4 text-primary/70" />
+                  <h3 className="font-semibold text-sm">Contexto / Observações</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Notas internas sobre o grupo.
+                </p>
+              </>
+            }
+          >
           <div className="mb-5 space-y-1.5">
             <div className="flex items-center gap-1">
               <Label>Observações</Label>
@@ -736,20 +810,32 @@ const GruposEconomicos = () => {
             <Textarea
               value={form.observacoes}
               onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              placeholder="Histórico, condições comerciais, observações financeiras ou particularidades do grupo."
-              className="min-h-[96px] resize-y"
-              rows={4}
+              placeholder="Histórico, condições, particularidades..."
+              className="min-h-[64px] sm:min-h-[96px] resize-y"
+              rows={3}
             />
           </div>
+          </MobileSection>
 
           {/* ── BLOCO 4: RESUMO CONSOLIDADO (edit mode only) ── */}
           {mode === "edit" && (
-            <>
-              <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
-                <TrendingUp className="w-4 h-4 text-primary/70" />
-                <h3 className="font-semibold text-sm">Resumo Consolidado</h3>
-                <span className="ml-auto text-[10px] text-muted-foreground">Somente leitura</span>
-              </div>
+            <MobileSection
+              icon={TrendingUp}
+              title="Resumo Consolidado"
+              defaultOpen={false}
+              summary={
+                loadingSummary
+                  ? undefined
+                  : `${modalEmpresas.length} · ${formatCurrency(modalSaldo)} · ${modalVencidos} venc.`
+              }
+              desktopHeader={
+                <div className="flex items-center gap-2 pt-2 pb-3 border-t border-b mb-3">
+                  <TrendingUp className="w-4 h-4 text-primary/70" />
+                  <h3 className="font-semibold text-sm">Resumo Consolidado</h3>
+                  <span className="ml-auto text-[10px] text-muted-foreground">Somente leitura</span>
+                </div>
+              }
+            >
               {loadingSummary ? (
                 <div className="mb-5 h-[76px] rounded-lg bg-muted/30 animate-pulse" />
               ) : (
@@ -785,7 +871,7 @@ const GruposEconomicos = () => {
                   )}
                 </div>
               )}
-            </>
+            </MobileSection>
           )}
 
           {/* ── FOOTER ── */}
