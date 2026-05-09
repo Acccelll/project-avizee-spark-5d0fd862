@@ -1,118 +1,106 @@
-## Onda 24 — Refinos mobile do formulário de Clientes
+## Onda 25 — Grid de Fornecedores (densidade, leitura e ações)
 
-Foco no uso mobile do `FormModal` de cliente: navegação por abas, densidade de campos, CTAs do empty state e estados do botão Salvar. Frontend apenas, sem mudanças de schema/RLS.
+Foco: refinar `src/pages/Fornecedores.tsx` (grid + cards do topo + toolbar) sem mexer no schema do banco nem no formulário. Aplica padrões já consolidados em Clientes/Produtos.
 
-Arquivos:
-- `src/pages/Clientes.tsx` (form do cliente)
-- `src/pages/clientes/components/ClienteEnderecosTab.tsx` (CTA central no empty state)
-- `src/pages/clientes/components/ClienteComunicacoesTab.tsx` (header empilhado mobile)
-- `src/index.css` (utilitário `.scrollbar-hide` + máscara de fade lateral)
+### 1) Cards do topo mais acionáveis
 
-### 1. TabsList scrollável sem barra cinza (alta)
+Hoje: `Total`, `Ativos`, `Inativos`. Como quase todos são ativos, o terceiro card é inútil.
 
-Hoje a `TabsList` usa `overflow-x-auto` que mostra scrollbar nativa. No mobile fica visualmente ruim e algumas labels (`Ender...`, `Comun...`) cortam.
+Substituir por 4 cards (3 visíveis em md, 4 em lg):
 
-- Adicionar utilitário global em `src/index.css`:
-  ```css
-  .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
-  .scrollbar-hide::-webkit-scrollbar { display: none; }
-  .tabs-fade-mask { mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent); }
-  ```
-- Em `Clientes.tsx`, na `TabsList` do form de cliente: trocar `overflow-x-auto` por `overflow-x-auto scrollbar-hide tabs-fade-mask` e adicionar `gap-1` + nas `TabsTrigger`s `whitespace-nowrap shrink-0 min-w-[5.5rem] justify-center` para evitar truncamento e dar área de toque maior.
-- Centralizar a aba ativa ao trocar via `useEffect` que ouve `activeTab` e chama `el.scrollIntoView({ inline: "center", behavior: "smooth", block: "nearest" })` no trigger ativo (precisa converter as `Tabs` para controladas — `value={activeTab}` + `onValueChange={setActiveTab}` com estado local; o `defaultValue` atual é "dados-gerais").
+- **Total de Fornecedores** (mantém)
+- **Ativos** (mantém, success)
+- **Sem contato** — `count(ativo=true AND coalesce(email,'')='' AND coalesce(telefone,'')='' AND coalesce(celular,'')='')` (variant warning, ícone `PhoneOff`)
+- **Cadastro incompleto** — `count(ativo=true AND (cpf_cnpj IS NULL OR cidade IS NULL OR uf IS NULL))` (variant warning, ícone `AlertCircle`)
 
-### 2. Dados Gerais — Tipo de Pessoa em linha própria no mobile (alta)
+Implementação: 2 novos `useTableCount` com filtros `or(...)` server-side (já suportado pelo hook). Clique no card aplica o filtro correspondente (ver §6). `Inativos` migra para o filtro `Status` existente.
 
-A grid é `grid-cols-1 md:grid-cols-3`, então no mobile cada campo já fica full-width. O problema visual reportado é em tablet (md ≥ 768). Ajuste:
-- Tipo de Pessoa: `col-span-2 md:col-span-1` para reservar largura útil em telas estreitas.
-- CPF/CNPJ: manter `md:col-span-1` mas garantir que o botão lupa não comprima o input (envolver em `flex-1` no `MaskedInput`).
+### 2) Máscara em CPF/CNPJ e telefone
 
-### 3. Placeholders mais curtos no mobile (alta/média)
+Trocar a renderização das células — não persistir formatado.
 
-Detectar `isMobile` (já existe `useIsMobile()`) e trocar:
-- Pessoa de Contato: `"Nome do responsável pelo contato comercial"` → mobile `"Nome do contato"`.
-- Nome/Razão Social: manter — já é curto no mobile via `tipo_pessoa === "J" ? "Razão social" : "Nome completo"` se for mobile.
-- Textarea Observações: mobile `"Notas internas..."`.
+- Coluna `cpf_cnpj`: usar `cpfCnpjMask(f.cpf_cnpj)` (`@/utils/masks`).
+- Coluna `Contato`: aplicar `phoneMask(phone)` antes de exibir.
 
-### 4. Endereço — campos com largura útil no mobile (alta)
+### 3) Coluna "Fornecedor" combinada (nome + cidade/UF)
 
-Reordenar para layout vertical em mobile (já é grid-cols-1 no mobile, então o problema é tablet). Ajustar grid para tablet:
-- Trocar `grid-cols-1 md:grid-cols-3` por `grid-cols-1 sm:grid-cols-6` e atribuir spans adequados:
-  - CEP: `sm:col-span-2`
-  - Logradouro: `sm:col-span-4`
-  - Número: `sm:col-span-2`
-  - Complemento: `sm:col-span-4`
-  - Bairro: `sm:col-span-3`
-  - Cidade: `sm:col-span-3`
-  - UF: `sm:col-span-2`
-  - País: `sm:col-span-4`
-- Garante que CEP e Número não fiquem espremidos, e Cidade/Bairro tenham largura adequada.
+Hoje a busca promete cidade mas a coluna não mostra. Reformatar `nome_razao_social` para incluir cidade/UF como subtítulo quando `nome_fantasia` for igual ou ausente:
 
-### 5. Campo País — UX mais clara (baixa)
+```text
+WALMUR COMÉRCIO LTDA
+Caxias do Sul/RS
+```
 
-Trocar o botão "Alterar" inline por padrão dl + `Button` ghost size="sm":
-- Estado padrão: input desabilitado mostrando `Brasil` + botão `variant="ghost" size="sm"` com label `Alterar país` ao lado.
-- Quando clicado, troca para `Input` editável focado.
+Quando houver `nome_fantasia` distinto: linha 2 vira `nome_fantasia · cidade/UF`. Remover a coluna `Cidade` separada (deixar só dentro da principal). Continua existindo no toggle de colunas para quem quiser destaque.
 
-### 6. Avançado — cabeçalho mais claro (baixa)
+### 4) Coluna "Contato" — telefone e e-mail empilhados, com máscara
 
-Trocar `<summary>` para incluir chevron e prefixo:
-- Texto: `▸ Campos avançados` (com `[&[open]>summary]:before:content-['▾']` ou ícone Lucide `ChevronRight` rotacionado via `group-open:rotate-90`).
+Manter a coluna combinada (Opção B do feedback), mas:
 
-### 7. Comercial — mantém 3 blocos, "Cadastrar nova forma" compacta (média)
+- Linha 1: ícone `Phone` + `phoneMask(celular || telefone)` (tabular-nums).
+- Linha 2: ícone `Mail` + e-mail truncado.
+- Quando ambos vazios: chip discreto `Sem contato` (badge `warning` outline) — substitui o `—`.
 
-Já existem três headers (Condições, Grupo, Logística). Ajustes:
-- O botão "Cadastrar nova forma de pagamento" hoje fica em `col-span-2 flex items-end`, ocupando toda a largura. Trocar para `variant="ghost" size="sm"` alinhado à direita do select de Forma de Pagamento (mesma linha em md, abaixo em mobile com `text-xs`).
-- Limite de Crédito: adicionar microcopy `Deixe 0 para "sem crédito aprovado"; em branco para "não definido".` abaixo do input.
+### 5) Coluna Status visível por padrão
 
-### 8. Comunicações — header empilhado no mobile (alta)
+Hoje `ativo` está com `hidden: true`. Tirar `hidden` para exibir `StatusBadge` Ativo/Inativo no fim da linha (alinha com Produtos).
 
-Em `ClienteComunicacoesTab.tsx` (linha ~110), o `flex items-center justify-between` quebra mal:
-- Trocar para `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3`.
-- O botão `Nova Comunicação` ganha `w-full sm:w-auto` no mobile.
+### 6) Filtros novos: "Sem contato" e "Cadastro incompleto"
 
-### 9. Entregas — CTA central no empty state (média)
+Adicionar um terceiro `MultiSelect` "Pendências" (multi) com:
 
-Em `ClienteEnderecosTab.tsx`, dentro do bloco `enderecos.length === 0`:
-- Substituir o último parágrafo (`Clique em Incluir...`) por um `Button` `variant="default"` `className="w-full sm:w-auto"` que dispara o mesmo `onClick` do botão Incluir do topo:
-  ```tsx
-  <Button onClick={openCreateEndereco} className="w-full sm:w-auto gap-1.5">
-    <Plus className="h-4 w-4" /> Incluir endereço de entrega
-  </Button>
-  ```
-- Extrair a função `openCreateEndereco` para compartilhar entre o botão do topo e este CTA.
+- `sem_contato`
+- `incompleto`
 
-### 10. Botão Salvar — desabilitar quando não há alterações (média)
+Esses filtros viram condições server-side via `or()` (estender `serverFilters` com um campo `customOr` aceito pelo `useSupabaseCrud`, ou aplicar via `filter` com operador novo `isnull`/`or`). Se o hook não suportar `or` hoje, encapsular numa pequena extensão local (sem alterar contrato global) — detalhar em §Técnico.
 
-Em `Clientes.tsx`, no `FormModalFooter`:
-- Trocar `disabled={Object.keys(formErrors).length > 0}` por:
-  ```ts
-  disabled={Object.keys(formErrors).length > 0 || (mode === "edit" && !isDirty)}
-  disabledReason={
-    Object.keys(formErrors).length > 0
-      ? "Corrija os erros do formulário antes de salvar."
-      : (mode === "edit" && !isDirty ? "Nenhuma alteração para salvar." : undefined)
-  }
-  ```
+Cards do topo (§1) usam `setFilter({ pendencia: ["sem_contato"] })` ao clicar.
 
-### 11. Footer mais compacto no mobile (baixa)
+### 7) Coluna "Tipo" — clarificar
 
-No `FormModal.tsx` o footer já tem `py-3` + safe-area. Sem mudanças aqui (já está compacto). O `FormModalFooter` já usa `max-sm:w-full max-sm:h-11`. Manter como está.
+Manter exibição PF/PJ, mas:
 
-### Fora de escopo
+- Renomear o label do header de "Tipo" para "Pessoa".
+- Renomear o filtro `MultiSelect` de "Tipos" para "Pessoa (PF/PJ)" para evitar a leitura de "tipo de fornecedor".
 
-- Múltiplos contatos por cliente (mudaria schema).
-- Refator de `FormModal` shell.
-- Indicadores de pendência DENTRO de cada aba (texto "Pendências desta seção: ..."); os ícones nos triggers já cobrem o essencial.
-- Separar "Nova Comunicação" em fluxo isolado (já é dialog próprio internamente).
+A categorização "Produto/Serviço/Transportadora" exige campo novo no schema — fora do escopo desta onda; registrar como Onda futura no `plan.md`.
 
-### Detalhes técnicos
+### 8) Toolbar mais compacta
 
-- Adicionar `useState` para `activeTab` no form de cliente, com `useRef<HTMLDivElement>` para a TabsList. Effect que faz `[data-state=active]` scrollIntoView dentro da lista.
-- A máscara de fade usa `mask-image` (suporte Safari requer prefixo `-webkit-mask-image`; incluir os dois).
-- `.scrollbar-hide` global é seguro — já usado em projetos similares; só afeta elementos onde a classe é aplicada.
+A `AdvancedFilterBar` já é o padrão — apenas:
 
-### Memórias a registrar
+- Encurtar placeholder: `"Razão social, CNPJ, e-mail ou cidade"`.
+- Padronizar larguras dos `MultiSelect` com `FILTER_W_SM` / `FILTER_W_MD` (`@/components/list/filterTokens`).
+- Garantir que `count` use a unidade `"fornecedores"` no rótulo.
 
-- `mem://produto/tabs-mobile-scroll` — Padrão: TabsList horizontal mobile usa `scrollbar-hide` + `tabs-fade-mask` + min-width por trigger + auto-center do ativo.
-- `mem://produto/cliente-form-mobile` — Regra: empty states críticos (Entregas) repetem CTA central; headers de tabs internos empilham no mobile (`flex-col sm:flex-row`).
+### 9) Ordenação default
+
+Já está `nome_razao_social asc` em `useServerSort`. Validar com `data` real (o feedback viu Z→A — provavelmente devido a `serverSortable` ter sido alterado por clique do usuário; preferências persistidas em `useDataTablePrefs`). Adicionar reset opcional no `clearFilters` para reverter `sort` ao default.
+
+### 10) Indicador inline de pendências por linha
+
+Na coluna principal "Fornecedor", se faltar contato OU documento, exibir um pequeno chip `outline warning` ao lado do nome:
+
+- `Sem contato`
+- `Sem CNPJ`
+
+Ícone `AlertCircle` 12px. Tooltip explicando qual campo falta.
+
+---
+
+### Arquivos a editar
+
+- `src/pages/Fornecedores.tsx` — grid columns, cards, filtros, toolbar.
+- (opcional) `src/hooks/useSupabaseCrud.ts` — adicionar suporte a `or` filters se necessário; preferir manter local primeiro com `supabase.from().or(...)` paralelo.
+
+### Fora de escopo (registrar como Onda futura)
+
+- Campo `tipo_fornecedor` (Produto/Serviço/Transportadora) — exige migração + UI no formulário.
+- Coluna "Cadastro incompleto" baseada em score (depois que `tipo_fornecedor` existir).
+
+### Testes / verificação
+
+- Snapshots manuais: cards mostram contagens > 0 quando há fornecedores sem contato.
+- Conferir máscaras com fornecedores reais (CPF 11 dígitos vs CNPJ 14).
+- Filtro "Pendências" combinado com `Status` retorna a interseção esperada.
+- Mobile: coluna principal continua legível (subtítulo cidade/UF não estoura).

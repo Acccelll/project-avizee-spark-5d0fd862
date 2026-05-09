@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -37,7 +38,7 @@ import { toast } from "sonner";
 import {
   Search, User2, Phone, ShoppingCart, MapPin,
   Info, Loader2, Calendar, Mail, CheckCircle2, Handshake, BadgeCheck, Package,
-  Users, UserCheck, UserX, Trash2, Plus,
+  Users, UserCheck, Trash2, Plus,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
@@ -51,6 +52,26 @@ import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { logger } from "@/lib/logger";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { cpfCnpjMask, phoneMask } from "@/utils/masks";
+import { FILTER_W_SM, FILTER_W_MD } from "@/components/list/filterTokens";
+import { AlertCircle, PhoneOff } from "lucide-react";
+
+// Predicado server-side em PostgREST para "sem contato": todos os 3 campos
+// nulos OU strings vazias. Usado em useTableCount inline e como referência
+// para o chip por linha.
+const SEM_CONTATO_OR =
+  "and(or(email.is.null,email.eq.),or(telefone.is.null,telefone.eq.),or(celular.is.null,celular.eq.))";
+const CADASTRO_INCOMPLETO_OR =
+  "or(cpf_cnpj.is.null,cpf_cnpj.eq.,cidade.is.null,cidade.eq.,uf.is.null,uf.eq.)";
+
+function isSemContato(f: { email?: string | null; telefone?: string | null; celular?: string | null }) {
+  return !f.email && !f.telefone && !f.celular;
+}
+function isCadastroIncompleto(f: { cpf_cnpj?: string | null; cidade?: string | null; uf?: string | null }) {
+  return !f.cpf_cnpj || !f.cidade || !f.uf;
+}
 
 const MAX_OBSERVACOES_LENGTH = 2000;
 const MAX_PRAZO_DAYS = 365;
@@ -133,6 +154,34 @@ const Fornecedores = () => {
     ascending: sort.ascending,
   });
   const totalAtivos = useTableCount("fornecedores", { ativo: true }).data ?? null;
+  const { data: totalSemContato } = useQuery({
+    queryKey: ["fornecedores-count", "sem-contato"],
+    staleTime: 30_000,
+    queryFn: async ({ signal }) => {
+      const { count, error } = await (supabase as unknown as typeof supabase)
+        .from("fornecedores")
+        .select("id", { count: "exact", head: true })
+        .eq("ativo", true)
+        .or(SEM_CONTATO_OR)
+        .abortSignal(signal);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+  const { data: totalIncompleto } = useQuery({
+    queryKey: ["fornecedores-count", "incompleto"],
+    staleTime: 30_000,
+    queryFn: async ({ signal }) => {
+      const { count, error } = await (supabase as unknown as typeof supabase)
+        .from("fornecedores")
+        .select("id", { count: "exact", head: true })
+        .eq("ativo", true)
+        .or(CADASTRO_INCOMPLETO_OR)
+        .abortSignal(signal);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
@@ -277,22 +326,55 @@ const Fornecedores = () => {
   {
     key: "nome_razao_social",
       mobilePrimary: true, label: "Nome / Razão Social", sortable: true, serverSortable: true,
-    render: (f: Fornecedor) => (
-      <div>
-        <p className="font-medium leading-tight">{f.nome_razao_social}</p>
-        {f.nome_fantasia && f.nome_fantasia !== f.nome_razao_social && (
-          <p className="text-xs text-muted-foreground truncate max-w-xs">{f.nome_fantasia}</p>
-        )}
-      </div>
-    ),
+    render: (f: Fornecedor) => {
+      const subtitleParts: string[] = [];
+      if (f.nome_fantasia && f.nome_fantasia !== f.nome_razao_social) subtitleParts.push(f.nome_fantasia);
+      if (f.cidade) subtitleParts.push(`${f.cidade}${f.uf ? `/${f.uf}` : ""}`);
+      const semContato = isSemContato(f);
+      const semDoc = !f.cpf_cnpj;
+      return (
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="font-medium leading-tight truncate">{f.nome_razao_social}</p>
+            {semContato && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
+                    <PhoneOff className="h-3 w-3" /> Sem contato
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>Fornecedor sem telefone, celular nem e-mail.</TooltipContent>
+              </Tooltip>
+            )}
+            {semDoc && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
+                    <AlertCircle className="h-3 w-3" /> Sem CNPJ
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>Documento (CPF/CNPJ) não cadastrado.</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+          {subtitleParts.length > 0 && (
+            <p className="text-xs text-muted-foreground truncate max-w-xs">{subtitleParts.join(" · ")}</p>
+          )}
+        </div>
+      );
+    },
   },
   {
     key: "cpf_cnpj",
       mobileCard: true, label: "CPF / CNPJ", serverSortable: true,
-    render: (f: Fornecedor) => <span className="font-mono text-xs">{f.cpf_cnpj || "—"}</span>,
+    render: (f: Fornecedor) => (
+      <span className="font-mono text-xs tabular-nums">
+        {f.cpf_cnpj ? cpfCnpjMask(f.cpf_cnpj) : <span className="text-muted-foreground">—</span>}
+      </span>
+    ),
   },
   {
-    key: "tipo_pessoa", label: "Tipo",
+    key: "tipo_pessoa", label: "Pessoa",
     render: (f: Fornecedor) => (
       <span className={`text-xs font-semibold ${f.tipo_pessoa === "F" ? "text-info dark:text-info" : "text-accent-foreground dark:text-accent-foreground"}`}>
         {f.tipo_pessoa === "F" ? "PF" : "PJ"}
@@ -303,11 +385,27 @@ const Fornecedores = () => {
     key: "contato_principal", label: "Contato",
     render: (f: Fornecedor) => {
       const phone = f.celular || f.telefone;
-      if (!phone && !f.email) return <span className="text-muted-foreground text-xs">—</span>;
+      if (!phone && !f.email) {
+        return (
+          <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
+            <PhoneOff className="h-3 w-3" /> Sem contato
+          </Badge>
+        );
+      }
       return (
         <div className="text-xs space-y-0.5">
-          {phone && <p className="font-medium tabular-nums">{phone}</p>}
-          {f.email && <p className="text-muted-foreground truncate max-w-xs">{f.email}</p>}
+          {phone && (
+            <p className="font-medium tabular-nums flex items-center gap-1.5">
+              <Phone className="h-3 w-3 text-muted-foreground" />
+              {phoneMask(phone)}
+            </p>
+          )}
+          {f.email && (
+            <p className="text-muted-foreground truncate max-w-xs flex items-center gap-1.5">
+              <Mail className="h-3 w-3" />
+              <span className="truncate">{f.email}</span>
+            </p>
+          )}
         </div>
       );
     },
@@ -326,7 +424,7 @@ const Fornecedores = () => {
       : <span className="text-muted-foreground text-xs">—</span>,
   },
   { key: "ativo",
-      mobileCard: true, label: "Status", hidden: true, render: (f: Fornecedor) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
+      mobileCard: true, label: "Status", render: (f: Fornecedor) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
   ];
 
 
@@ -380,7 +478,20 @@ const Fornecedores = () => {
             <SummaryCard title="Total de Fornecedores" value={totalRegistros} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
             <div className="hidden md:contents">
-              <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={UserX} />
+              <SummaryCard
+                title="Sem contato"
+                value={totalSemContato ?? 0}
+                icon={PhoneOff}
+                variant={(totalSemContato ?? 0) > 0 ? "warning" : "default"}
+              />
+            </div>
+            <div className="hidden lg:contents">
+              <SummaryCard
+                title="Cadastro incompleto"
+                value={totalIncompleto ?? 0}
+                icon={AlertCircle}
+                variant={(totalIncompleto ?? 0) > 0 ? "warning" : "default"}
+              />
             </div>
           </>
         }
@@ -389,10 +500,10 @@ const Fornecedores = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por razão social, CNPJ, e-mail ou cidade..."
+          searchPlaceholder="Razão social, CNPJ, e-mail ou cidade"
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
-          onClearAll={() => clearFilters()}
+          onClearAll={() => { clearFilters(); sort.onChange("nome_razao_social", "asc"); }}
           count={totalCount ?? filteredData.length}
         >
           <MultiSelect
@@ -400,14 +511,14 @@ const Fornecedores = () => {
             selected={ativoFilters}
             onChange={setAtivoFilters}
             placeholder="Status"
-            className="w-full sm:w-[140px]"
+            className={FILTER_W_SM}
           />
           <MultiSelect
             options={tipoOptions}
             selected={tipoFilters}
             onChange={setTipoFilters}
-            placeholder="Tipos"
-            className="w-full sm:w-[150px]"
+            placeholder="Pessoa (PF/PJ)"
+            className={FILTER_W_MD}
           />
         </AdvancedFilterBar>
 
