@@ -49,21 +49,29 @@ export function AddProdutoFornecedor({ fornecedorId, onAdded }: AddProdutoFornec
   };
 
   return (
-    <div className="grid grid-cols-[1fr_110px_140px_auto] gap-2 items-end">
+    <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_110px_140px_auto] md:items-end">
       <div className="space-y-1">
         <Label className="text-xs">Produto</Label>
         <ProductAutocomplete products={produtos} value={produtoId} onChange={setProdutoId} placeholder="Buscar produto..." />
       </div>
       <div className="space-y-1">
         <Label className="text-xs">Preço</Label>
-        <Input type="number" min={0} step="0.01" value={precoCompra} onChange={(e) => setPrecoCompra(Number(e.target.value))} className="h-9" />
+        <Input type="number" min={0} step="0.01" value={precoCompra} onChange={(e) => setPrecoCompra(Number(e.target.value))} className="h-9 max-sm:h-11" />
       </div>
       <div className="space-y-1">
         <Label className="text-xs">Prazo entrega (dias)</Label>
-        <Input type="number" min={0} value={leadTime} onChange={(e) => setLeadTime(Number(e.target.value))} className="h-9" />
+        <Input type="number" min={0} value={leadTime} onChange={(e) => setLeadTime(Number(e.target.value))} className="h-9 max-sm:h-11" />
       </div>
-      <Button type="button" size="sm" variant="outline" className="h-9 gap-1" onClick={handleAdd} disabled={saving}>
-        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Vincular
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-9 gap-1 max-sm:h-11 max-sm:w-full"
+        onClick={handleAdd}
+        disabled={saving}
+      >
+        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+        <span>Vincular produto</span>
       </Button>
     </div>
   );
