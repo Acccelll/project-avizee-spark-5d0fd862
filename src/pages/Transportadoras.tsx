@@ -597,37 +597,59 @@ export default function Transportadoras() {
             </div>
             <div className="col-span-2 space-y-2">
               <Label>{form.tipo_pessoa === "F" ? "CPF" : "CNPJ"}</Label>
-              <div className="flex gap-1">
-                <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size={isMobile ? "icon" : "default"}
-                  className="shrink-0 gap-1.5"
-                  disabled={cnpjLoading || form.tipo_pessoa !== "J"}
-                  aria-label="Consultar CNPJ"
-                  title="Consultar CNPJ e preencher dados automaticamente"
-                  onClick={async () => {
-                    setCnpjJustFetched(false);
-                    const result = await buscarCnpj(form.cpf_cnpj);
-                    if (result) {
-                      setForm(prev => ({
-                        ...prev,
-                        nome_razao_social: result.razao_social || prev.nome_razao_social,
-                        nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
-                        email: result.email || prev.email,
-                        telefone: result.telefone || prev.telefone,
-                        cidade: result.municipio || prev.cidade,
-                        uf: result.uf || prev.uf,
-                      }));
-                      setCnpjJustFetched(true);
-                      setTimeout(() => setCnpjJustFetched(false), 4000);
-                    }
-                  }}>
-                  {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  {!isMobile && <span>Consultar CNPJ</span>}
-                </Button>
-              </div>
+              {(() => {
+                const handleConsultarCnpj = async () => {
+                  setCnpjJustFetched(false);
+                  const result = await buscarCnpj(form.cpf_cnpj);
+                  if (result) {
+                    setForm(prev => ({
+                      ...prev,
+                      nome_razao_social: result.razao_social || prev.nome_razao_social,
+                      nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
+                      email: result.email || prev.email,
+                      telefone: result.telefone || prev.telefone,
+                      cidade: result.municipio || prev.cidade,
+                      uf: result.uf || prev.uf,
+                    }));
+                    setCnpjJustFetched(true);
+                    setTimeout(() => setCnpjJustFetched(false), 4000);
+                  }
+                };
+                const cnpjBtnDisabled = cnpjLoading || form.tipo_pessoa !== "J";
+                return isMobile ? (
+                  <div className="space-y-2">
+                    <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
+                    {form.tipo_pessoa === "J" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-1.5 h-10"
+                        disabled={cnpjBtnDisabled}
+                        onClick={handleConsultarCnpj}
+                      >
+                        {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        <span>Consultar CNPJ</span>
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="shrink-0 gap-1.5"
+                      disabled={cnpjBtnDisabled}
+                      aria-label="Consultar CNPJ"
+                      title="Consultar CNPJ e preencher dados automaticamente"
+                      onClick={handleConsultarCnpj}
+                    >
+                      {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      <span>Consultar CNPJ</span>
+                    </Button>
+                  </div>
+                );
+              })()}
               {cnpjLoading ? (
                 <p className="text-xs text-muted-foreground leading-tight flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" /> Consultando Receita Federal...
@@ -640,7 +662,7 @@ export default function Transportadoras() {
                 <p className="text-xs text-muted-foreground leading-tight">
                   {form.tipo_pessoa === "F"
                     ? "Informe o CPF do transportador autônomo."
-                    : "Informe o CNPJ e clique em Consultar CNPJ para preencher automaticamente."}
+                    : "Consultar CNPJ para preencher automaticamente."}
                 </p>
               )}
               {docChecking && (
