@@ -198,6 +198,17 @@ const Fornecedores = () => {
     "fornecedores",
   );
   const [isDirty, setIsDirty] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("dados-gerais");
+  const tabsListRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-centraliza a aba ativa em mobile (padrão canônico — vide Clientes).
+  useEffect(() => {
+    if (!modalOpen) return;
+    const el = tabsListRef.current?.querySelector<HTMLElement>(
+      `[data-state="active"][role="tab"]`,
+    );
+    el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [activeTab, modalOpen]);
   const [saving, setSaving] = useState(false);
   const isMobile = useIsMobile();
   const [modalProdutosForn, setModalProdutosForn] = useState<Array<{
