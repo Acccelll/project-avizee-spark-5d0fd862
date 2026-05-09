@@ -711,7 +711,7 @@ const Fornecedores = () => {
                 <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
               {form.tipo_pessoa === "J" && !formErrors.cpf_cnpj && (
-                <p className="text-xs text-muted-foreground">Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis, sem sobrescrever campos já preenchidos.</p>
+                <p className="text-xs text-muted-foreground">Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis — sobrescreve os campos retornados.</p>
               )}
             </div>
             <div className="space-y-1.5">
