@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { ModulePage } from "@/components/ModulePage";
@@ -12,7 +13,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus } from "lucide-react";
+import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -25,6 +26,7 @@ import {
   listClientesVinculados,
   vincularClienteTransportadora,
   desvincularClienteTransportadora,
+  setClienteTransportadoraPrioridade,
   deleteTransportadora,
   type ClienteVinculadoView,
 } from "@/services/transportadoras.service";
