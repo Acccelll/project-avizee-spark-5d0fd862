@@ -9,7 +9,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Edit, Trash2, MapPin, Users, AlertTriangle, CheckCircle2, ShieldAlert, Star } from "lucide-react";
+import { Building2, Edit, Trash2, MapPin, Users, AlertTriangle, CheckCircle2, ShieldAlert, Star, Info } from "lucide-react";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
@@ -17,6 +17,7 @@ import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailS
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
 
@@ -141,15 +142,30 @@ export function GrupoEconomicoView({ id }: Props) {
   }).length;
 
   const riskInfo = (() => {
+    if (empresas.length === 0 && financeiro.length === 0) {
+      return {
+        label: "Sem operação",
+        icon: Info,
+        badgeClass: "bg-muted text-muted-foreground border-muted-foreground/30",
+        tooltip: "Nenhuma empresa vinculada e nenhum lançamento em aberto.",
+      };
+    }
     if (titulosVencidos > 0) {
-      return { label: "Risco", icon: AlertTriangle, badgeClass: "bg-destructive/10 text-destructive border-destructive/30" };
+      return { label: "Risco", icon: AlertTriangle, badgeClass: "bg-destructive/10 text-destructive border-destructive/30", tooltip: "Há títulos vencidos no grupo." };
     }
     if (saldoConsolidado > 0) {
-      return { label: "Atenção", icon: ShieldAlert, badgeClass: "bg-warning/10 text-warning border-warning/30" };
+      return { label: "Atenção", icon: ShieldAlert, badgeClass: "bg-warning/10 text-warning border-warning/30", tooltip: "Há saldo em aberto, mas nenhum vencido." };
     }
-    return { label: "Saudável", icon: CheckCircle2, badgeClass: "bg-success/10 text-success border-success/30" };
+    return { label: "Saudável", icon: CheckCircle2, badgeClass: "bg-success/10 text-success border-success/30", tooltip: "Empresas vinculadas e nenhuma pendência financeira." };
   })();
   const RiskIcon = riskInfo.icon;
+
+  // Saldo em aberto agregado por cliente — usado na linha de cada empresa.
+  const saldoPorCliente = (data?.financeiro ?? []).reduce<Record<string, number>>((acc, f) => {
+    if (!f.cliente_id) return acc;
+    acc[f.cliente_id] = (acc[f.cliente_id] || 0) + (Number(f.saldo_restante ?? f.valor) || 0);
+    return acc;
+  }, {});
 
   usePublishDrawerSlots(`grupo_economico:${id}`, {
     breadcrumb: grupo ? `Grupo · ${grupo.nome}` : undefined,
@@ -159,17 +175,32 @@ export function GrupoEconomicoView({ id }: Props) {
         title={grupo.nome}
         meta={
           <>
-            <span className="flex items-center gap-1"><Users className="h-3 w-3" />{empresas.length} empresa{empresas.length !== 1 ? "s" : ""}</span>
-            {grupo.created_at && <span>desde {formatDate(grupo.created_at)}</span>}
+            <span className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {empresas.length} empresa{empresas.length !== 1 ? "s" : ""} vinculada{empresas.length !== 1 ? "s" : ""}
+            </span>
+            {grupo.created_at && <span>criado em {formatDate(grupo.created_at)}</span>}
+            {empresas.length === 0 && (
+              <span className="italic">sem matriz definida</span>
+            )}
           </>
         }
         badges={
           <>
             <StatusBadge status={grupo.ativo ? "ativo" : "inativo"} />
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${riskInfo.badgeClass}`}>
-              <RiskIcon className="w-2.5 h-2.5 mr-1" />
-              {riskInfo.label}
-            </Badge>
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 cursor-help ${riskInfo.badgeClass}`}>
+                    <RiskIcon className="w-2.5 h-2.5 mr-1" />
+                    {riskInfo.label}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[240px] text-xs">
+                  {riskInfo.tooltip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </>
         }
       />
@@ -233,19 +264,31 @@ export function GrupoEconomicoView({ id }: Props) {
           value={String(titulosVencidos)}
           tone={titulosVencidos > 0 ? "destructive" : "neutral"}
         />
-        <DrawerSummaryCard label="Matriz" value={matriz?.nome_razao_social || "—"} mono={false} />
+        <DrawerSummaryCard
+          label="Matriz"
+          value={matriz?.nome_razao_social || "Não definida"}
+          mono={false}
+        />
       </DrawerSummaryGrid>
 
       <Tabs defaultValue="empresas" className="w-full">
         <TabsList className="w-full grid grid-cols-3">
-          <TabsTrigger value="empresas" className="text-xs">Empresas ({empresas.length})</TabsTrigger>
+          <TabsTrigger value="empresas" className="text-xs">
+            <span className="hidden sm:inline">Empresas do grupo</span>
+            <span className="sm:hidden">Empresas</span>
+            &nbsp;({empresas.length})
+          </TabsTrigger>
           <TabsTrigger value="financeiro" className="text-xs">Financeiro</TabsTrigger>
           <TabsTrigger value="observacoes" className="text-xs">Observações</TabsTrigger>
         </TabsList>
 
         <TabsContent value="empresas" className="space-y-2 mt-3">
           {empresas.length === 0 ? (
-            <DetailEmpty icon={Users} title="Nenhuma empresa vinculada" message="Vincule clientes a este grupo na tela de Cadastros › Clientes." />
+            <DetailEmpty
+              icon={Users}
+              title="Nenhuma empresa vinculada"
+              message="Vincule clientes/empresas a este grupo no cadastro do cliente em Cadastros › Clientes para começar a consolidar informações comerciais e financeiras."
+            />
           ) : (
             <div className="space-y-1 -mx-1 px-1 overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_8px,black_calc(100%-8px),transparent)]">
               {empresas.map((e) => (
@@ -263,6 +306,9 @@ export function GrupoEconomicoView({ id }: Props) {
                     {e.tipo_relacao_grupo && <Badge variant="outline" className="text-[9px]">{relacaoLabel[e.tipo_relacao_grupo] || e.tipo_relacao_grupo}</Badge>}
                     {(e.cidade || e.uf) && (
                       <p className="flex items-center gap-1 justify-end"><MapPin className="h-3 w-3" />{[e.cidade, e.uf].filter(Boolean).join("/")}</p>
+                    )}
+                    {saldoPorCliente[e.id] > 0 && (
+                      <p className="font-mono text-warning">Saldo {formatCurrency(saldoPorCliente[e.id])}</p>
                     )}
                   </div>
                 </div>
@@ -287,7 +333,11 @@ export function GrupoEconomicoView({ id }: Props) {
             </div>
           </div>
           {financeiro.length === 0 && (
-            <DetailEmpty icon={CheckCircle2} title="Sem títulos em aberto" message="Nenhuma empresa do grupo possui lançamentos a receber pendentes." />
+            <DetailEmpty
+              icon={CheckCircle2}
+              title="Sem títulos em aberto"
+              message="Nenhuma empresa do grupo possui lançamentos a receber em aberto no momento."
+            />
           )}
         </TabsContent>
 
@@ -295,7 +345,10 @@ export function GrupoEconomicoView({ id }: Props) {
           {grupo.observacoes ? (
             <p className="text-sm whitespace-pre-wrap">{grupo.observacoes}</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Nenhuma observação registrada.</p>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground italic">Nenhuma observação cadastrada.</p>
+              <p className="text-xs text-muted-foreground">Edite o grupo para registrar observações internas.</p>
+            </div>
           )}
         </TabsContent>
       </Tabs>
