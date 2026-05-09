@@ -38,7 +38,7 @@ import { toast } from "sonner";
 import {
   Search, User2, Phone, ShoppingCart, MapPin,
   Info, Loader2, Calendar, Mail, CheckCircle2, Handshake, BadgeCheck, Package,
-  Users, UserCheck, UserX, Trash2, Plus,
+  Users, UserCheck, Trash2, Plus,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
