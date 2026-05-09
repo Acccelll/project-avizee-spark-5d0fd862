@@ -52,8 +52,9 @@ export const clienteFornecedorSchema = z.object({
   telefone: telefoneSchema,
   celular: telefoneSchema,
   contato: z.string().max(100).optional().or(z.literal("")),
-  prazo_padrao: z.number().min(0, "Prazo não pode ser negativo").max(365, "Prazo máximo 365 dias"),
-  limite_credito: z.number().min(0, "Limite não pode ser negativo"),
+  prazo_padrao: z.number().min(0, "Prazo não pode ser negativo").max(365, "Prazo máximo 365 dias").optional().default(30),
+  // `limite_credito` é específico de Clientes; opcional aqui para reaproveitar o schema em Fornecedores.
+  limite_credito: z.number().min(0, "Limite não pode ser negativo").optional(),
   logradouro: z.string().max(200).optional().or(z.literal("")),
   numero: z.string().max(20).optional().or(z.literal("")),
   complemento: z.string().max(100).optional().or(z.literal("")),
