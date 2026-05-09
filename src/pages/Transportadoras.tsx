@@ -741,10 +741,18 @@ export default function Transportadoras() {
             <div className="space-y-2">
               <Label className="font-semibold text-sm">Prazo Médio de Entrega</Label>
               <div className="relative">
-                <Input value={form.prazo_medio} onChange={(e) => setForm({ ...form, prazo_medio: e.target.value })} placeholder="Ex.: 3, 5 ou 3-5" className="h-10 pr-24 font-mono" />
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={form.prazo_medio}
+                  onChange={(e) => setForm({ ...form, prazo_medio: e.target.value.replace(/\D/g, "") })}
+                  placeholder="Ex.: 5"
+                  className="h-10 pr-24 font-mono"
+                />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none select-none">dias úteis</span>
               </div>
-              <p className="text-xs text-muted-foreground leading-tight">Prazo médio informado pela transportadora — aceita número único (5) ou faixa (3-5). Usado como referência em remessas.</p>
+              <p className="text-xs text-muted-foreground leading-tight">Prazo médio em dias úteis. Usado como referência em remessas.</p>
             </div>
           </div>
             </TabsContent>
