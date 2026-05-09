@@ -684,13 +684,13 @@ const Fornecedores = () => {
                   </Tooltip>
                 )}
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-1">
                 <MaskedInput mask="cpf_cnpj" value={form.cpf_cnpj} onChange={(v) => updateForm({ cpf_cnpj: v })} />
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="shrink-0 gap-1.5 px-3 text-xs"
+                  className="shrink-0 gap-1.5 px-3 text-xs max-sm:h-11 max-sm:w-full"
                   disabled={cnpjLoading || form.tipo_pessoa !== "J"}
                   onClick={async () => {
                     const result = await buscarCnpj(form.cpf_cnpj);
@@ -727,7 +727,10 @@ const Fornecedores = () => {
                 <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
               {form.tipo_pessoa === "J" && !formErrors.cpf_cnpj && (
-                <p className="text-xs text-muted-foreground">Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis — sobrescreve os campos retornados.</p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="sm:hidden">Preenche dados pela Receita Federal.</span>
+                  <span className="hidden sm:inline">Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis — sobrescreve os campos retornados.</span>
+                </p>
               )}
             </div>
             <div className="space-y-1.5">
