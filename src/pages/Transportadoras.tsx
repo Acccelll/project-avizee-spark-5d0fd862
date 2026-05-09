@@ -717,6 +717,15 @@ export default function Transportadoras() {
             {/* ── TAB: ENDEREÇO ─────────────────────────────── */}
             <TabsContent value="endereco" className="space-y-4 mt-0">
           <p className="text-xs text-muted-foreground mb-4">Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.</p>
+          {mode === "edit" && (!form.cep || !form.logradouro || !form.numero) && (
+            <div className="mb-4 flex items-start gap-2 rounded-md border-l-4 border-warning bg-warning/5 px-3 py-2 text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">Endereço incompleto</p>
+                <p className="text-muted-foreground">Preencha CEP, logradouro e número para uso em remessas e etiquetas.</p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 space-y-2">
               <Label>CEP</Label>
