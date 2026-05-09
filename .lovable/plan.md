@@ -1,56 +1,89 @@
-## Onda 41 — Drawer Grupo Econômico (microcopy + hierarquia)
+# Onda 41c — Editar Grupo Econômico (mobile)
 
-Foco: padronizar nomenclatura, melhorar fallback de Matriz, contextualizar o badge de risco e dar mais propósito aos empty states. Sem mudanças de schema, lógica ou estrutura de abas.
+Foco: aliviar o topo, reduzir altura útil consumida por elementos fixos e tornar a edição menos longa em telas ≤ 768px. Sem mudanças de schema, RLS, ou lógica de negócio. Apenas `src/pages/GruposEconomicos.tsx` e ajustes mínimos em `src/components/FormModal.tsx` / `FormModalFooter.tsx` se necessário.
 
-### Diagnóstico (em `src/components/views/GrupoEconomicoView.tsx`)
+## Alta prioridade
 
-- **Mistura "Empresas" × "Clientes"**: a aba se chama `Empresas`, o KPI também, mas os textos auxiliares usam "clientes". O modelo do sistema é `clientes` (a tabela), e o grid lista "N clientes vinculados". Manter a semântica **Empresas do grupo** (foco de consolidação empresarial), mas alinhar o auxiliar.
-- **Matriz `—`** quando não definida soa "quebrado".
-- **Cabeçalho secundário** ("0 empresas · desde 09/05/2026") é raso.
-- **Badge "Saudável"** aparece em grupos sem nenhuma operação, dando falsa impressão. Quando não há empresas vinculadas **e** não há lançamentos, o status correto é "Sem operação".
-- **Empty states** das três abas sem orientação suficiente.
+### 1. Header mais leve no mobile
+- "Ver painel" como **link discreto** no mobile (`variant="ghost"`, ícone + texto pequeno) e mantém botão `outline` no desktop (`hidden sm:inline-flex` / `sm:hidden`).
+- Reduzir o `meta` no mobile: manter apenas `Cadastrado em DD/MM/AAAA`. Os indicadores "Nenhuma empresa vinculada" e "Sem matriz definida" passam a ser uma **única linha condensada** ao final do meta: `Sem empresa · Sem matriz` (texto curto, sem ícones), só renderizada quando ao menos um for verdadeiro.
+- Remover o `Star` repetido no meta (já há indicação de matriz no bloco dedicado).
 
-### Mudanças (alta prioridade)
+### 2. Título sem truncamento
+- Passar `title="Editar Grupo"` no mobile e `"Editar Grupo Econômico"` no desktop (alternativa mais simples: encurtar para `"Editar Grupo"` em ambos — proposta na implementação).
+- Ajuste mínimo no `FormModal.tsx`: o `DialogTitle` já tem `truncate`; trocar para `truncate sm:truncate` mantendo wrap em mobile (`break-words leading-tight`) — ver seção técnica.
 
-1. **Padronização semântica** — manter "Empresas" como termo principal:
-   - Aba: `Empresas do grupo (N)` (encurta para `Empresas (N)` em mobile via responsividade simples no label).
-   - KPI: `Empresas` (já está).
-   - Empty state da aba Empresas: título `Nenhuma empresa vinculada`, mensagem `Vincule clientes/empresas a este grupo no cadastro do cliente em Cadastros › Clientes.`
+### 3. Footer mais compacto
+- No mobile, "Cancelar" vira **link secundário** (`variant="link"`, altura natural) e "Salvar Alterações" continua como botão sólido full-width.
+- O footer sticky atual já existe. Apenas ajuste em `FormModalFooter.tsx` para aceitar `cancelAsLink` opcional (default false) — quando true, no mobile renderiza Cancelar como link inline acima/abaixo do botão primário, reduzindo a altura do bloco.
+- Mantém comportamento atual no desktop.
 
-2. **Fallback do KPI Matriz**:
-   - Substituir `"—"` por `"Não definida"` em `text-muted-foreground italic`, mantendo `mono={false}`.
+### 4. Reduzir sensação de formulário longo (acordeão no mobile)
+- Envolver as seções em um componente local **`MobileSection`** que, em `useIsMobile()`, renderiza um header tappable + chevron (similar ao `MobileCollapsibleBlock`), e no desktop renderiza o conteúdo direto (mantém o visual atual).
+- Seções: **Identificação** (aberta por padrão), **Empresa Matriz** (aberta), **Estrutura do Grupo** (recolhida no edit), **Observações** (recolhida), **Resumo Consolidado** (recolhida — mostra só os 3 números no header quando fechado).
+- Estado local com `useState`, sem persistência (não vale criar pref para isso).
 
-3. **Cabeçalho secundário** (`meta` do `RecordIdentityCard`):
-   - `N empresa(s) vinculada(s) · criado em DD/MM/AAAA`.
-   - Quando `empresas.length === 0`, anexar segmento extra: `· sem matriz definida` apenas se `matriz === null`.
+## Média prioridade
 
-4. **Badge de risco contextual** (`getRiskInfo` no escopo do componente):
-   - Nova classe "Sem operação" quando `empresas.length === 0` **e** `financeiro.length === 0` (zero lançamentos abertos): label `"Sem operação"`, ícone `Info`, classe neutra (`bg-muted text-muted-foreground border-muted-foreground/30`).
-   - Tooltip no badge explicando a regra de cada estado (Risco/Atenção/Saudável/Sem operação).
+### 5. Resumo Consolidado compacto no mobile
+- Quando fechado: header mostra `Empresas: N · Saldo: R$ X · Vencidos: N` (uma linha resumida).
+- Quando aberto: cards atuais empilhados (já estão `grid-cols-1` no mobile).
 
-5. **Empty states refinados**:
-   - Empresas: título e mensagem do item 1 acima.
-   - Financeiro: quando `financeiro.length === 0`, título `"Sem títulos em aberto"` (mantém) + mensagem `"Nenhuma empresa do grupo possui lançamentos a receber em aberto no momento."`.
-   - Observações vazia: trocar copy para `"Nenhuma observação cadastrada."` + parágrafo discreto `"Edite o grupo para registrar observações internas."`.
+### 6. Observações com altura inicial menor
+- `min-h-[64px] rows={3}` no mobile, mantém `min-h-[96px] rows={4}` no desktop via `sm:min-h-[96px]`.
+- Encurtar microcopy: "Notas internas sobre o grupo." → mantém. Placeholder mais curto: `"Histórico, condições, particularidades..."`.
 
-### Mudanças (média prioridade)
+### 7. Microcopy mais curta
+- Identificação: "Nome usado para consolidar dados comerciais e financeiros."
+- Empresa Matriz: "Opcional. Defina a empresa principal do grupo."
+- Botão na empty state da Estrutura: trocar "Abrir clientes" por **"Vincular em Clientes"**.
 
-6. **Aba Empresas — linha por empresa enriquecida** (já existe estrutura). Ajustes:
-   - Mostrar papel claro: `Matriz`, `Filial`, `Coligada`, `Independente` (já usa `relacaoLabel`); manter o `Star` apenas para a matriz canônica (`empresa_matriz_id`).
-   - Acrescentar saldo individual à direita quando >0 — agregando `financeiro` por `cliente_id` no carregamento já existente. Render: `Saldo R$ X.XXX,XX` em `text-warning`. Sem novas queries.
+## Detalhes técnicos
 
-### Fora de escopo
+**Arquivos:**
+- `src/pages/GruposEconomicos.tsx` — alterações 1, 2 (passagem de prop), 4, 5, 6, 7.
+- `src/components/FormModal.tsx` — minor: `DialogTitle` permitir wrap em mobile.
+- `src/components/FormModalFooter.tsx` — adicionar prop opcional `cancelAsLink?: boolean` (no-op no desktop).
 
-- Reposicionar/agrupar os botões `Editar`/`Inativar`/`Excluir` em menu de overflow (item 8 do feedback) — mantém visual atual.
-- Aba Financeiro com top-clientes, limite de crédito, última movimentação (item 6) — depende de novas queries; adiar.
-- CTA "Adicionar observação" inline (item 7) — observações são editadas no modal de edição, manter copy + remissão.
-- Mudanças no header `Grid Grupos Econômicos` (já tratado nas Ondas 39/40).
+**`MobileSection` (componente local em GruposEconomicos.tsx):**
+```tsx
+function MobileSection({ icon, title, summary, defaultOpen, children }) {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(defaultOpen ?? true);
+  if (!isMobile) return <>{header desktop atual}{children}</>;
+  return (
+    <div className="border-t first:border-t-0">
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 py-3">
+        <Icon /> <span>{title}</span>
+        {!open && summary && <span className="ml-auto text-xs text-muted-foreground">{summary}</span>}
+        <ChevronDown className={cn('ml-auto', open && 'rotate-180')} />
+      </button>
+      {open && <div>{children}</div>}
+    </div>
+  );
+}
+```
+
+**Header compactado:** consolidar os 2 indicadores em um único item no array `meta`:
+```ts
+const semVinculos = !loadingSummary && (modalEmpresas.length === 0 || !form.empresa_matriz_id);
+const partes = [
+  modalEmpresas.length === 0 ? "Sem empresa" : null,
+  !form.empresa_matriz_id ? "Sem matriz" : null,
+].filter(Boolean).join(" · ");
+// adiciona { label: partes } se semVinculos
+```
+
+**Ver painel responsivo:**
+```tsx
+<Button className="hidden sm:inline-flex ...">Ver painel</Button>
+<Button variant="ghost" size="sm" className="sm:hidden h-7 px-1.5 text-xs gap-1">
+  <ExternalLink/>Painel
+</Button>
+```
+
+## Out of scope
+- Persistência do estado aberto/fechado das seções.
+- Mudanças no Drawer (`GrupoEconomicoView`) — já tratado em Onda 41.
+- Mudanças no grid `/grupos-economicos` (lista) — já tratado anteriormente.
 - Schema, RLS, RPCs.
-
-### Arquivos afetados
-
-- `src/components/views/GrupoEconomicoView.tsx` (microcopy, fallback Matriz, badge "Sem operação" + tooltip, agregação de saldo por empresa, empty states).
-
-### Verificação
-
-- Visual no preview com o grupo PLUMA atual: matriz mostra "Não definida"; cabeçalho mostra "0 empresas vinculadas · criado em 09/05/2026 · sem matriz definida"; badge mostra "Sem operação" com tooltip; aba Observações mostra a mensagem nova.
