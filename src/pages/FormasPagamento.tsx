@@ -251,10 +251,13 @@ export default function FormasPagamento() {
       key: "tipo", label: "Tipo",
       render: (f: FormaPagamento) => {
         const Icon = tipoIcon[f.tipo] || HelpCircle;
+        const label =
+          tipoLabel[f.tipo] ||
+          (f.tipo ? f.tipo.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "—");
         return (
           <Badge variant="outline" className="gap-1 text-xs font-medium">
             <Icon className="w-3 h-3" />
-            {tipoLabel[f.tipo] || f.tipo}
+            {label}
           </Badge>
         );
       },
@@ -284,7 +287,7 @@ export default function FormasPagamento() {
       },
     },
     {
-      key: "gera_financeiro", label: "Financeiro",
+      key: "gera_financeiro", label: "Financeiro", mobileCard: true,
       render: (f: FormaPagamento) => (
         <TooltipProvider delayDuration={200}>
           <Tooltip>
@@ -328,14 +331,14 @@ export default function FormasPagamento() {
             <SummaryCard title="Total" value={String(data.length)} icon={CreditCard} />
             <SummaryCard title="Ativas" value={String(summaryAtivos)} icon={CheckCircle} variant="success" />
             <SummaryCard title="Parceladas" value={String(summaryParceladas)} icon={CalendarDays} />
-            <SummaryCard title="Criam lançamentos" value={String(summaryGeraFin)} icon={Wallet} variant="info" />
+            <SummaryCard title="Criam lançamentos" shortTitle="Financeiro" value={String(summaryGeraFin)} icon={Wallet} variant="info" />
           </>
         }
       >
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por descrição..."
+          searchPlaceholder="Buscar forma..."
           activeFilters={activeFilterChips}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => clearFilters(["ativo", "tipo", "gera"])}
