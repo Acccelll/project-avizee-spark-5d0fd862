@@ -1,77 +1,47 @@
-## Onda 27 — Drawer de Fornecedores (FornecedorView)
+## Onda 28 — Refino do modal Editar/Novo Fornecedor
 
-Refinos no `src/components/views/FornecedorView.tsx`. Sem migração de schema; correção de dados inconsistentes vira derivação na UI + aviso visual. Tudo se mantém na camada de apresentação.
+Arquivo único: `src/pages/Fornecedores.tsx` (bloco `<FormModal>` linhas ~561-996). Sem mudanças de banco, services ou hooks — apenas UI/microcopy.
 
-### 1. Documento × tipo_pessoa derivados (alta)
-Hoje exibe direto `selected.tipo_pessoa` e `selected.cpf_cnpj` cru. Trocar por:
-- `cpfCnpjMask(selected.cpf_cnpj)` no header e na aba Geral.
-- Tipo derivado: se o documento tem 14 dígitos → "Pessoa Jurídica (CNPJ)"; 11 → "Pessoa Física (CPF)"; senão usa `tipo_pessoa`.
-- Quando o tipo cadastrado **diverge** do tamanho do documento, exibir um `Badge` `warning` ao lado: "Tipo divergente do CNPJ/CPF" com tooltip explicando — não altera o banco, só sinaliza para o usuário corrigir via "Editar".
+### 1. Cabeçalho (alta prioridade)
+- **Remover redundância Badge × Toggle**: dropar o `status` (StatusBadge) do `FormModal` no modo edição. Manter apenas o toggle no `headerActions`, com label mais explícito: "Fornecedor ativo" / "Fornecedor inativo" (ação, não estado duplicado).
+- **Documento contextual**: passar `identifier={cpfCnpjMask(selected.cpf_cnpj)}` já formatado (importar `cpfCnpjMask` de `@/utils/masks`).
+- **Meta enxuta**: manter `Cadastrado em` e `Atualizado em`. Mover `Prazo padrão` para fora do meta (ele já aparece na aba Compras) — reduz fragmentação.
 
-### 2. Header com chips operacionais (média)
-No `RecordIdentityCard.badges` atualmente só aparece `StatusBadge`. Acrescentar:
-- `[Ativo|Inativo]` (já existe, mantém).
-- `[PJ]` ou `[PF]` derivado (item 1).
-- `[Transportadora]` quando `selected.tipo_fornecedor === "transportadora"`. Como `tipo_fornecedor` está fora do escopo desta onda (registrado na onda 25 como futuro), só renderizar se o campo existir e tiver valor — fallback silencioso.
-- Documento na meta passa a usar `cpfCnpjMask`.
+### 2. Indicador "Alterações não salvas" duplicado (alta)
+- O `FormModal` já mostra o estado quando recebe `isDirty`, e o `FormModalFooter` repete. Desativar no topo: passar `isDirty={false}` ao `FormModal` e manter o status apenas no rodapé (via `FormModalFooter` que já trata).
 
-### 3. Botão fechar e faixa de ações (média/baixa)
-- Botão de fechar é renderizado pelo `RelationalDrawerStack` — fora do escopo aqui. Deixar registrado, não mexer.
-- Compactar a faixa publicada em `actions`:
-  - Manter `Editar` como botão visível primário.
-  - Mover `Excluir` (e `Excluir definitivamente` quando admin) para um menu **Mais ações** (`DropdownMenu`), ao lado de Editar.
-  - `Mais ações` também recebe atalhos contextuais já viáveis hoje:
-    - "Abrir compras do fornecedor" → `navigate("/compras?fornecedorId=" + id)` (verificar parâmetro real; se não houver suporte, abrir `/compras`).
-    - "Abrir financeiro" → `navigate("/financeiro?fornecedorId=" + id)` com mesmo fallback.
-  - Inativar/Vincular produto/Vincular transportadora ficam fora desta onda (precisam mutations próprias).
+### 3. Aba Dados Gerais (alta + média)
+- **Label dinâmico do documento**: `<Label>{form.tipo_pessoa === "J" ? "CNPJ" : "CPF"}</Label>` (lin 640).
+- **Microcopy do Consultar CNPJ** (lin 695): trocar por *"Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis, sem sobrescrever campos já preenchidos."*
+- **Selo "Dados fiscais preenchidos"** (lin 620-625): trocar para neutro: *"Dados principais preenchidos"* com ícone `CheckCircle2` em `text-muted-foreground` em vez de `text-success` (a validação atual cobre só presença de CNPJ + nome).
+- **Indicador de pendências por aba** (média): adicionar pequeno dot `!` em `TabsTrigger` quando houver `formErrors` cujo campo pertença à aba. Mapeamento simples local: `dados-gerais → [cpf_cnpj, nome_razao_social]`, `contatos → [email, telefone, celular]`, `endereco → [cep, uf]`, `compras → [prazo_padrao]`. Renderizar `<span className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />` quando aba tiver erro.
 
-### 4. KPIs sem `—` ambíguo (alta)
-Substituir o `—` por mensagens contextuais no `DrawerSummaryCard`:
-- **Prazo Médio**: `prazoMedio` ausente → texto "Sem dados" e `hint` "sem lead time nem prazo padrão".
-- **Última Compra**: `compras.length === 0` → "Sem compras".
-- **Saldo Aberto** e **Vol. Compras**: já mostram R$ 0,00 — manter, mas adicionar `hint` quando 0 ("nenhum título em aberto" / "nenhuma compra registrada").
+### 4. Aba Contatos (média)
+- Manter estrutura. Apenas reforçar a microcopy do bloco *"Canais de comunicação"* já está ok. Adicionar nota de roadmap em comentário de código indicando a evolução futura (contato comercial/financeiro/logístico) — sem implementar agora.
 
-### 5. Aba Geral reorganizada (média)
-Sem mudar o grid 2 colunas, apenas:
-- Renomear "Dados Fiscais" → **Identificação fiscal** e mostrar `cpfCnpjMask` + tipo derivado (item 1).
-- "Contato" → **Contato principal**, `phoneMask(telefone)` e `phoneMask(celular)`.
-- "Condições" → mantém, com "Prazo padrão: Não definido" quando ausente (em vez de `—`).
-- Bloco Endereço aplica `cepMask` no CEP; junta logradouro/número/complemento numa linha mais legível.
+### 5. Aba Endereço (média)
+- **CEP com botão de busca explícito** ao lado do `MaskedInput` (mantém `onBlur` mas torna a ação visível): botão `outline` `size="sm"` com `Search` + label *"Buscar"* — chama o mesmo handler do `buscarCep`.
+- **Texto auxiliar mais claro** (lin 788-790): *"Informe o CEP — os demais campos são preenchidos automaticamente. Você pode editá-los depois."*
+- **País como default Brasil**: deixar visualmente menos protagonista — mover para fim do grid (já está) e reduzir width: `md:col-span-1` (em vez de 2). Sem default novo (já vem `"Brasil"` no emptyForm).
 
-### 6. Máscaras (alta)
-Importar `cpfCnpjMask`, `phoneMask`, `cepMask` de `@/utils/masks` e aplicar em **todos** os pontos onde hoje aparece o valor cru: header (meta + breadcrumb), aba Geral, aba Relacionamento.
+### 6. Aba Compras (alta)
+- **Microcopy**: renomear *"Vincular Produto Manualmente"* (lin 942) → *"Vincular produto ao fornecedor"*. Renomear label "Lead (d)" no `AddProdutoFornecedor` → "Prazo de entrega (dias)" — editar `src/components/fornecedores/AddProdutoFornecedor.tsx` linhas 53-55 (Label) e ajustar `grid-cols` para acomodar texto maior (`grid-cols-[1fr_110px_140px_auto]`).
+- **Lista de produtos vinculados já existe** (lin 946-969) — já atende o ponto 9.4. Apenas adicionar header "Itens fornecidos (N)" acima do bloco quando `modalProdutosForn.length > 0`.
+- **Chip "Aplica-se a compras e financeiro"** (lin 859-861): integrar ao parágrafo introdutório como texto natural, removendo o chip avulso. Novo parágrafo: *"Condições comerciais padrão deste fornecedor — aplicadas automaticamente em cotações, pedidos de compra e títulos financeiros. Podem ser sobrescritas por operação."*
 
-### 7. Empty states com CTA (média)
-- **Compras** vazia: `DetailEmpty` ganha `action` "Novo pedido de compra" → `navigate("/compras?fornecedorId=" + id&new=1)`. Se a página não suportar deep-link (verificar antes), apenas `navigate("/compras")`.
-- **Financeiro** vazia: `action` "Abrir módulo Financeiro" → `navigate("/financeiro?fornecedorId=" + id)`.
-- **Produtos** vazia: `action` "Vincular produto" → reaproveitar fluxo do `AddProdutoFornecedor` que já existe em `src/components/fornecedores/`. Se exigir contexto extra, fallback abre `openEdit` (drawer fecha + edição com aba Produtos).
-- Verificar a API atual de `DetailEmpty` para confirmar se aceita slot `action`. Se não aceitar, estender o componente com prop opcional `action?: ReactNode`.
+### 7. Aba Observações (média)
+- Encurtar texto auxiliar (lin 977-981) → *"Observações internas sobre o fornecedor. Use este campo para registrar condições negociadas, restrições e histórico de relacionamento."*
 
-### 8. Aba "Relac." → "Relacionamento" + reordenar (média)
-- Renomear `TabsTrigger` para "Relacion." (cabe melhor) ou "Relac." só no muito estreito; em `md+` usar "Relacionamento".
-- Inverter ordem de exibição: primeiro **Contato principal** (sempre que houver algum dado), depois **Condições negociadas**, por último **Observações** (nunca esconder o título — quando vazio, mostra `DetailEmpty` curto "Nenhuma observação registrada"). Isso elimina a contradição "sem observações" + bloco de contato logo abaixo.
+### 8. Estado "Novo Fornecedor" vs "Editar" (alta)
+- O título já alterna corretamente. Garantir que **no modo `create`** nada de `meta`, `identifier`, `status` e `headerActions` (toggle) seja renderizado — já está condicionado a `mode === "edit"`. Adicionar o `createHint` mais específico ao modo create (ok).
+- Botão primário no `create`: o `FormModalFooter` com `mode="create"` já mostra "Salvar". Trocar `primaryLabel` para *"Criar Fornecedor"* no rodapé apenas quando `mode === "create"`.
 
-### 9. Indicadores nas abas (média)
-Em cada `TabsTrigger`, anexar contagem entre parênteses **quando > 0**:
-- `Compras (n)`, `Financ. (n)`, `Produtos (n)`.
-- Manter `Geral` e `Relacionamento` sem contador.
-- Quando algum dado crítico estiver faltando (ex.: produtos = 0 e fornecedor é de produto, prazo padrão ausente), exibir um `•` discreto colorido — fora desta onda; registrar como futuro, pois exige inferir o "papel" do fornecedor.
+### Resumo técnico de edição
+- `src/pages/Fornecedores.tsx`: bloco `<FormModal>` (props `status`, `meta`, `isDirty`); aba Dados Gerais (label dinâmico, microcopy, selo neutro); pendências por aba em `TabsList`; aba Endereço (botão Buscar CEP, texto, país); aba Compras (microcopy, integração do chip, header da lista); aba Obs (texto curto); footer (`primaryLabel` condicional).
+- `src/components/fornecedores/AddProdutoFornecedor.tsx`: label "Prazo de entrega (dias)" e grid widths.
+- Importar `cpfCnpjMask` de `@/utils/masks` em `Fornecedores.tsx`.
 
-### Itens fora desta onda
-- Campo `tipo_fornecedor` (Produto/Serviço/Transportadora) — registrado na Onda 25; chips ficam condicionais.
-- Migração de dados para corrigir CNPJs com `tipo_pessoa = F` — apenas sinalizamos; correção em massa exige migration própria.
-- Botão de fechar do drawer (`RelationalDrawerStack`).
-- Inativar via menu (precisa mutation dedicada).
-
-### Arquivos a editar
-- `src/components/views/FornecedorView.tsx` — máscaras, KPIs com hint, header com chips derivados, faixa de ações com `DropdownMenu` "Mais ações", abas com contadores, reorganização da Relacionamento, CTAs nos empty states.
-- `src/components/ui/DetailStates.tsx` — adicionar prop `action?: ReactNode` em `DetailEmpty` se ainda não existir.
-
-### Critérios de verificação
-- CNPJ com 14 dígitos exibe "Pessoa Jurídica (CNPJ)" mesmo quando `tipo_pessoa = F`, com badge warning visível.
-- Telefone e CEP aparecem mascarados em todas as abas.
-- Faixa de ações no header: 2 botões visíveis (`Editar` + `Mais ações`); `Excluir` migrou para o menu.
-- KPIs nunca exibem `—` sozinho.
-- Abas Compras/Financ./Produtos mostram contagem quando > 0.
-- Empty states têm CTA navegável.
-- Drawer abre, alterna abas e fecha sem regressão (testes existentes).
+### Fora de escopo
+- Múltiplos contatos (comercial/financeiro/logístico) → roadmap, fica como comentário.
+- Validação fiscal "real" do badge → mantém como "Dados principais preenchidos".
+- Mudanças no `FormModal` base ou no `FormModalFooter`.
