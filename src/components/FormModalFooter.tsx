@@ -86,13 +86,13 @@ export function FormModalFooter({
         {secondaryActions}
         <Button
           type="button"
-          variant={cancelAsLink ? "link" : "outline"}
+          variant="outline"
           onClick={onCancel}
           disabled={saving}
           aria-label={cancelLabel}
           className={cn(
             cancelAsLink
-              ? "max-sm:w-full max-sm:h-8 max-sm:text-xs text-muted-foreground sm:variant-outline"
+              ? "max-sm:w-full max-sm:h-8 max-sm:text-xs max-sm:border-0 max-sm:bg-transparent max-sm:underline-offset-4 max-sm:hover:underline max-sm:text-muted-foreground"
               : "max-sm:w-full max-sm:h-11",
           )}
         >
