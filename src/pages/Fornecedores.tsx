@@ -52,6 +52,7 @@ import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 import { logger } from "@/lib/logger";
+import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { cpfCnpjMask, phoneMask } from "@/utils/masks";
 import { FILTER_W_SM, FILTER_W_MD } from "@/components/list/filterTokens";
