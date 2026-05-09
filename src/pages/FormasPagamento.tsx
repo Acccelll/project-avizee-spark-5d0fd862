@@ -219,6 +219,13 @@ export default function FormasPagamento() {
 
   const summaryAtivos = useMemo(() => data.filter((f) => f.ativo).length, [data]);
   const summaryGeraFin = useMemo(() => data.filter((f) => f.gera_financeiro).length, [data]);
+  const summaryParceladas = useMemo(
+    () =>
+      data.filter(
+        (f) => (Array.isArray(f.intervalos_dias) ? f.intervalos_dias.length : 0) > 1 || (f.parcelas ?? 0) > 1,
+      ).length,
+    [data],
+  );
 
   const ativoOptions: MultiSelectOption[] = [
     { label: "Ativo", value: "ativo" },
@@ -237,53 +244,68 @@ export default function FormasPagamento() {
       key: "descricao",
       mobilePrimary: true, label: "Forma de Pagamento", sortable: true,
       render: (f: FormaPagamento) => {
-        const Icon = tipoIcon[f.tipo];
-        return (
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />}
-            <span className="font-medium leading-tight">{f.descricao}</span>
-          </div>
-        );
+        return <span className="font-medium leading-tight">{f.descricao}</span>;
       },
     },
     {
       key: "tipo", label: "Tipo",
-      render: (f: FormaPagamento) => (
-        <span className="text-xs font-medium">{tipoLabel[f.tipo] || f.tipo}</span>
-      ),
-    },
-    {
-      key: "prazo",
-      mobileCard: true, label: "Prazo / Parcelas", sortable: true,
       render: (f: FormaPagamento) => {
-        const intervals = Array.isArray(f.intervalos_dias) && f.intervalos_dias.length > 0 ? f.intervalos_dias : null;
-        if (intervals) {
-          return (
-            <div>
-              <span className="font-mono text-xs font-medium">{intervals.join(" / ")} d</span>
-              <span className="ml-1 text-xs text-muted-foreground">({intervals.length}x)</span>
-            </div>
-          );
-        }
+        const Icon = tipoIcon[f.tipo] || HelpCircle;
         return (
-          <span className="font-mono text-xs font-medium">
-            {f.prazo_dias === 0 ? "À vista" : `${f.prazo_dias}d`}
-          </span>
+          <Badge variant="outline" className="gap-1 text-xs font-medium">
+            <Icon className="w-3 h-3" />
+            {tipoLabel[f.tipo] || f.tipo}
+          </Badge>
         );
       },
     },
     {
-      key: "gera_financeiro", label: "Gera Financeiro",
+      key: "prazo",
+      mobileCard: true, label: "Parcelamento", sortable: true,
+      render: (f: FormaPagamento) => {
+        const intervals = Array.isArray(f.intervalos_dias) && f.intervalos_dias.length > 0 ? f.intervalos_dias : null;
+        if (intervals && intervals.length > 1) {
+          return (
+            <div className="leading-tight">
+              <div className="text-xs font-medium">{intervals.length} parcelas</div>
+              <div className="font-mono text-xs text-muted-foreground">{intervals.join("/")} dias</div>
+            </div>
+          );
+        }
+        if (intervals && intervals.length === 1) {
+          return <span className="text-xs font-medium">1 parcela · {intervals[0]} dias</span>;
+        }
+        if (f.prazo_dias === 0) {
+          return <span className="text-xs font-medium">À vista</span>;
+        }
+        return (
+          <span className="text-xs font-medium">1 parcela · {f.prazo_dias} dias</span>
+        );
+      },
+    },
+    {
+      key: "gera_financeiro", label: "Financeiro",
       render: (f: FormaPagamento) => (
-        <Badge
-          variant="outline"
-          className={f.gera_financeiro
-            ? "bg-success/10 text-success border-success/30 text-xs gap-1"
-            : "text-xs gap-1 text-muted-foreground"}
-        >
-          {f.gera_financeiro ? <CheckCircle className="w-3 h-3" /> : <Ban className="w-3 h-3" />}
-          {f.gera_financeiro ? "Sim" : "Não"}
-        </Badge>
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className={f.gera_financeiro
+                  ? "bg-success/10 text-success border-success/30 text-xs gap-1 cursor-help"
+                  : "text-xs gap-1 text-muted-foreground cursor-help"}
+              >
+                {f.gera_financeiro ? <CheckCircle className="w-3 h-3" /> : <Ban className="w-3 h-3" />}
+                {f.gera_financeiro ? "Sim" : "Não"}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              {f.gera_financeiro
+                ? "Cria lançamento financeiro automaticamente em pedidos e notas."
+                : "Não cria lançamento financeiro."}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       ),
     },
     { key: "ativo", label: "Status", render: (f: FormaPagamento) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
