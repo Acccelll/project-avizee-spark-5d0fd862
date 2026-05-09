@@ -91,6 +91,18 @@ export function FornecedorView({ id }: Props) {
   const prazoMedio = leadTimeMedio ?? selected?.prazo_padrao ?? null;
   const prazoMedioFonte = leadTimeMedio !== null ? "lead time" : selected?.prazo_padrao ? "prazo padrão" : null;
 
+  // Tipo derivado a partir do documento (preferência sobre tipo_pessoa cadastrado).
+  const docDigits = (selected?.cpf_cnpj || "").replace(/\D/g, "");
+  const tipoDerivado: "J" | "F" | null =
+    docDigits.length === 14 ? "J" : docDigits.length === 11 ? "F" : null;
+  const tipoEffective = tipoDerivado ?? selected?.tipo_pessoa ?? null;
+  const tipoLabel =
+    tipoEffective === "J" ? "Pessoa Jurídica" : tipoEffective === "F" ? "Pessoa Física" : "—";
+  const tipoShort = tipoEffective === "J" ? "PJ" : tipoEffective === "F" ? "PF" : null;
+  const docDivergente =
+    !!tipoDerivado && !!selected?.tipo_pessoa && tipoDerivado !== selected.tipo_pessoa;
+  const docFmt = selected?.cpf_cnpj ? cpfCnpjMask(selected.cpf_cnpj) : "";
+
   const deleteDescription = (() => {
     const parts: string[] = [];
     if (compras.length > 0) parts.push(`${compras.length} pedido(s) de compra`);
@@ -105,7 +117,7 @@ export function FornecedorView({ id }: Props) {
 
   // Publica slots no header padronizado
   usePublishDrawerSlots(`fornecedor:${id}`, {
-    breadcrumb: selected?.cpf_cnpj ? `Fornecedor · ${selected.cpf_cnpj}` : undefined,
+    breadcrumb: docFmt ? `Fornecedor · ${docFmt}` : undefined,
     summary: selected ? (
       <RecordIdentityCard
         icon={Truck}
@@ -113,13 +125,40 @@ export function FornecedorView({ id }: Props) {
         subtitle={selected.nome_fantasia || undefined}
         meta={
           <>
-            {selected.cpf_cnpj && <span className="font-mono">{selected.cpf_cnpj}</span>}
+            {docFmt && <span className="font-mono">{docFmt}</span>}
             {(selected.cidade || selected.uf) && (
               <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{[selected.cidade, selected.uf].filter(Boolean).join("/")}</span>
             )}
           </>
         }
-        badges={<StatusBadge status={selected.ativo ? "ativo" : "inativo"} />}
+        badges={
+          <>
+            <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
+            {tipoShort && (
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">
+                {tipoShort}
+              </Badge>
+            )}
+            {docDivergente && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className="h-5 gap-1 border-warning/40 bg-warning/10 px-1.5 text-[10px] font-semibold text-warning"
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      Tipo divergente
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    O cadastro está como {selected.tipo_pessoa === "J" ? "Pessoa Jurídica" : "Pessoa Física"}, mas o documento tem {docDigits.length} dígitos ({tipoDerivado === "J" ? "CNPJ" : "CPF"}). Edite o fornecedor para corrigir.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </>
+        }
       />
     ) : undefined,
     actions: selected ? (
@@ -130,20 +169,36 @@ export function FornecedorView({ id }: Props) {
         }}>
           <Edit className="h-3.5 w-3.5" /> Editar
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Excluir fornecedor" onClick={() => setDeleteConfirmOpen(true)}>
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
-        </Button>
-        {isAdmin && selected.ativo === false && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-            aria-label="Excluir fornecedor permanentemente"
-            onClick={() => setPermDeleteOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
-          </Button>
-        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Mais ações">
+              <MoreHorizontal className="h-3.5 w-3.5" /> Mais
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => { navigate("/pedidos-compra"); window.setTimeout(() => clearStack(), 0); }}>
+              <ShoppingBag className="mr-2 h-3.5 w-3.5" /> Abrir pedidos de compra
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { navigate("/financeiro"); window.setTimeout(() => clearStack(), 0); }}>
+              <CreditCard className="mr-2 h-3.5 w-3.5" /> Abrir financeiro
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir
+            </DropdownMenuItem>
+            {isAdmin && selected.ativo === false && (
+              <DropdownMenuItem
+                onClick={() => setPermDeleteOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir definitivamente
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </>
     ) : undefined,
   });
