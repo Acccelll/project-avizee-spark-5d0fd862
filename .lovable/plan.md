@@ -1,70 +1,77 @@
-## Onda 26 — Mobile do grid de Fornecedores
+## Onda 27 — Drawer de Fornecedores (FornecedorView)
 
-Foco: tirar redundâncias, padronizar o card mobile e melhorar a paginação. Tudo em `src/pages/Fornecedores.tsx` (mais um pequeno ajuste em `MobileQuickAddFAB` se necessário). Sem mudanças de regra de negócio nem de schema.
+Refinos no `src/components/views/FornecedorView.tsx`. Sem migração de schema; correção de dados inconsistentes vira derivação na UI + aviso visual. Tudo se mantém na camada de apresentação.
 
-### 1. CTA único no mobile (alta prioridade)
-- Manter o botão **Novo Fornecedor** do header (já adaptado para `w-full` em mobile pelo `ModulePage`).
-- Remover o `<MobileQuickAddFAB />` desta tela. O FAB hoje duplica a mesma ação do header e compete com a paginação no rodapé.
-- `quickAddOpen`/`QuickAddSupplierModal` continuam disponíveis caso outros pontos disparem (manter o estado, só não renderizar o FAB).
+### 1. Documento × tipo_pessoa derivados (alta)
+Hoje exibe direto `selected.tipo_pessoa` e `selected.cpf_cnpj` cru. Trocar por:
+- `cpfCnpjMask(selected.cpf_cnpj)` no header e na aba Geral.
+- Tipo derivado: se o documento tem 14 dígitos → "Pessoa Jurídica (CNPJ)"; 11 → "Pessoa Física (CPF)"; senão usa `tipo_pessoa`.
+- Quando o tipo cadastrado **diverge** do tamanho do documento, exibir um `Badge` `warning` ao lado: "Tipo divergente do CNPJ/CPF" com tooltip explicando — não altera o banco, só sinaliza para o usuário corrigir via "Editar".
 
-### 2. Cards-resumo: 3 visíveis no mobile, sem truncar (alta)
-Hoje só `Total` e `Ativos` aparecem no mobile; `Sem contato` está em `hidden md:contents`. O ideal operacional é mostrar 3 cards com rótulo curto.
-- Layout: `grid-cols-3` no mobile (já existe `md:grid-cols-4` no `ModulePage`). Os 3 cards visíveis em mobile passam a ser:
-  1. **Total** (shortTitle) / "Total de Fornecedores" no desktop
-  2. **Ativos**
-  3. **Sem contato** (warning quando > 0) — promover para visível no mobile
-- "Cadastro incompleto" continua em `hidden lg:contents` (4º card no desktop largo).
-- Usar a prop existente `shortTitle` do `SummaryCard` para evitar truncamento ("Total de F…").
+### 2. Header com chips operacionais (média)
+No `RecordIdentityCard.badges` atualmente só aparece `StatusBadge`. Acrescentar:
+- `[Ativo|Inativo]` (já existe, mantém).
+- `[PJ]` ou `[PF]` derivado (item 1).
+- `[Transportadora]` quando `selected.tipo_fornecedor === "transportadora"`. Como `tipo_fornecedor` está fora do escopo desta onda (registrado na onda 25 como futuro), só renderizar se o campo existir e tiver valor — fallback silencioso.
+- Documento na meta passa a usar `cpfCnpjMask`.
 
-### 3. Busca com placeholder curto no mobile (alta)
-- `AdvancedFilterBar.searchPlaceholder` passa a ser dependente do `useIsMobile`:
-  - mobile: `"Buscar fornecedor..."`
-  - desktop: mantém `"Razão social, CNPJ, e-mail ou cidade"`.
+### 3. Botão fechar e faixa de ações (média/baixa)
+- Botão de fechar é renderizado pelo `RelationalDrawerStack` — fora do escopo aqui. Deixar registrado, não mexer.
+- Compactar a faixa publicada em `actions`:
+  - Manter `Editar` como botão visível primário.
+  - Mover `Excluir` (e `Excluir definitivamente` quando admin) para um menu **Mais ações** (`DropdownMenu`), ao lado de Editar.
+  - `Mais ações` também recebe atalhos contextuais já viáveis hoje:
+    - "Abrir compras do fornecedor" → `navigate("/compras?fornecedorId=" + id)` (verificar parâmetro real; se não houver suporte, abrir `/compras`).
+    - "Abrir financeiro" → `navigate("/financeiro?fornecedorId=" + id)` com mesmo fallback.
+  - Inativar/Vincular produto/Vincular transportadora ficam fora desta onda (precisam mutations próprias).
 
-### 4. Card mobile padronizado (alta)
-Reorganizar a coluna `mobilePrimary` (`nome_razao_social`) para ficar previsível e remover a duplicação do badge "Sem contato" que hoje aparece tanto na linha do nome quanto na coluna `contato_principal`.
+### 4. KPIs sem `—` ambíguo (alta)
+Substituir o `—` por mensagens contextuais no `DrawerSummaryCard`:
+- **Prazo Médio**: `prazoMedio` ausente → texto "Sem dados" e `hint` "sem lead time nem prazo padrão".
+- **Última Compra**: `compras.length === 0` → "Sem compras".
+- **Saldo Aberto** e **Vol. Compras**: já mostram R$ 0,00 — manter, mas adicionar `hint` quando 0 ("nenhum título em aberto" / "nenhuma compra registrada").
 
-Estrutura final do card (ordem de leitura):
+### 5. Aba Geral reorganizada (média)
+Sem mudar o grid 2 colunas, apenas:
+- Renomear "Dados Fiscais" → **Identificação fiscal** e mostrar `cpfCnpjMask` + tipo derivado (item 1).
+- "Contato" → **Contato principal**, `phoneMask(telefone)` e `phoneMask(celular)`.
+- "Condições" → mantém, com "Prazo padrão: Não definido" quando ausente (em vez de `—`).
+- Bloco Endereço aplica `cepMask` no CEP; junta logradouro/número/complemento numa linha mais legível.
 
-```text
-Linha 1  Nome / Razão social                    ⋮ (menu)
-Linha 2  Nome fantasia · Cidade/UF
-Linha 3  CNPJ formatado (mono)
-Linha 4  [PJ] [Ativo] [Sem contato?] [Sem CNPJ?]
-Rodapé   ações rápidas contextuais
-```
+### 6. Máscaras (alta)
+Importar `cpfCnpjMask`, `phoneMask`, `cepMask` de `@/utils/masks` e aplicar em **todos** os pontos onde hoje aparece o valor cru: header (meta + breadcrumb), aba Geral, aba Relacionamento.
 
-Mudanças concretas:
-- Na coluna `nome_razao_social`: remover os dois `Badge`s inline ("Sem contato" e "Sem CNPJ") da linha do nome — eles passam para a Linha 4 (badge row).
-- Adicionar uma nova coluna `mobileCard` "Indicadores" que consolida em uma única linha de chips: `Pessoa (PF/PJ)`, `Status (Ativo/Inativo)`, `Sem contato` (se aplicável), `Sem CNPJ` (se aplicável). Isso elimina a duplicação descrita no item 6 do feedback e atende ao item 8 (status visível por linha).
-- Coluna `tipo_pessoa` continua existindo para a tabela desktop, mas ganha `hidden: true` no contexto mobile (não duplicar com o chip da Linha 4). Como `DataTable` filtra por `mobileCard`/`mobilePrimary`, basta não marcar `tipo_pessoa` como `mobileCard` (já é o caso) e remover seu `Badge` redundante da Linha 1.
-- Coluna `contato_principal`: remover o estado "Sem contato" daqui (passou para a badge row). Quando há contato, mantém telefone + e-mail com ícones.
+### 7. Empty states com CTA (média)
+- **Compras** vazia: `DetailEmpty` ganha `action` "Novo pedido de compra" → `navigate("/compras?fornecedorId=" + id&new=1)`. Se a página não suportar deep-link (verificar antes), apenas `navigate("/compras")`.
+- **Financeiro** vazia: `action` "Abrir módulo Financeiro" → `navigate("/financeiro?fornecedorId=" + id)`.
+- **Produtos** vazia: `action` "Vincular produto" → reaproveitar fluxo do `AddProdutoFornecedor` que já existe em `src/components/fornecedores/`. Se exigir contexto extra, fallback abre `openEdit` (drawer fecha + edição com aba Produtos).
+- Verificar a API atual de `DetailEmpty` para confirmar se aceita slot `action`. Se não aceitar, estender o componente com prop opcional `action?: ReactNode`.
 
-### 5. Rodapé contextual do card (média)
-Hoje todo card mostra o `ContactInlineActions` (Ligar, WhatsApp, E-mail, Ver). Quando o fornecedor está sem contato, sobra só o "olho" e o card fica vazio.
-- Manter `mobileInlineActions={ContactInlineActions}` quando há `phone || email`.
-- Quando **não há contato**, trocar por um CTA contextual: botão `outline` "Adicionar contato" que abre `openEdit(f)` direto na aba/posição do telefone (no momento basta abrir `openEdit(f)`; a aba "Contato" pode ser refinada depois).
-- Implementação: criar uma função inline em `mobileInlineActions` que decide qual variante renderizar.
+### 8. Aba "Relac." → "Relacionamento" + reordenar (média)
+- Renomear `TabsTrigger` para "Relacion." (cabe melhor) ou "Relac." só no muito estreito; em `md+` usar "Relacionamento".
+- Inverter ordem de exibição: primeiro **Contato principal** (sempre que houver algum dado), depois **Condições negociadas**, por último **Observações** (nunca esconder o título — quando vazio, mostra `DetailEmpty` curto "Nenhuma observação registrada"). Isso elimina a contradição "sem observações" + bloco de contato logo abaixo.
 
-### 6. Paginação compacta + safe area (média)
-- Sem FAB (item 1), o rodapé deixa de competir, mas a paginação ainda fica "solta".
-- Trocar o `paginationMode` default do `DataTable` para `"infinite"` apenas no mobile (a prop já existe). Em desktop, manter paginação. Como `paginationMode` é controlado pelo `DataTable` via toggle, basta passar `mobilePaginationMode="infinite"` se existir; se não existir essa prop, adicionar uma checagem mínima ou manter paginação compacta.
-- Verificar suporte real em `src/components/DataTable.tsx` (linhas 841/868 já alternam entre `pagination` e `infinite`). Se não houver prop específica para forçar por viewport, manter paginação tradicional e apenas adicionar `pb-safe` ao container do `DataTable` mobile para respirar.
+### 9. Indicadores nas abas (média)
+Em cada `TabsTrigger`, anexar contagem entre parênteses **quando > 0**:
+- `Compras (n)`, `Financ. (n)`, `Produtos (n)`.
+- Manter `Geral` e `Relacionamento` sem contador.
+- Quando algum dado crítico estiver faltando (ex.: produtos = 0 e fornecedor é de produto, prazo padrão ausente), exibir um `•` discreto colorido — fora desta onda; registrar como futuro, pois exige inferir o "papel" do fornecedor.
 
-### 7. Microcopy e badges
-- `addLabel` no header continua "Novo Fornecedor".
-- `unidade` da `AdvancedFilterBar` mantém "fornecedores".
-
-### Itens fora desta onda (registrados para waves futuras)
-- Reduzir densidade da topbar (item 14): é AppLayout global, escopo separado.
-- Sinais adicionais (Transportadora / Serviço / Produto): depende do campo `tipo_fornecedor`, registrado na onda 25 como futuro.
-- Aba "Contato" em deep-link no `openEdit`: requer parametrização do `FormModal`.
+### Itens fora desta onda
+- Campo `tipo_fornecedor` (Produto/Serviço/Transportadora) — registrado na Onda 25; chips ficam condicionais.
+- Migração de dados para corrigir CNPJs com `tipo_pessoa = F` — apenas sinalizamos; correção em massa exige migration própria.
+- Botão de fechar do drawer (`RelationalDrawerStack`).
+- Inativar via menu (precisa mutation dedicada).
 
 ### Arquivos a editar
-- `src/pages/Fornecedores.tsx` — colunas (`nome_razao_social`, `tipo_pessoa`, `contato_principal`, nova "Indicadores"), `summaryCards`, `searchPlaceholder` responsivo, remoção do `MobileQuickAddFAB`, `mobileInlineActions` condicional.
-- (opcional) `src/components/SummaryCard.tsx` — apenas se faltar suporte a `shortTitle` no breakpoint usado (já existe).
+- `src/components/views/FornecedorView.tsx` — máscaras, KPIs com hint, header com chips derivados, faixa de ações com `DropdownMenu` "Mais ações", abas com contadores, reorganização da Relacionamento, CTAs nos empty states.
+- `src/components/ui/DetailStates.tsx` — adicionar prop `action?: ReactNode` em `DetailEmpty` se ainda não existir.
 
 ### Critérios de verificação
-- Mobile (390px): 3 cards-resumo visíveis sem truncar; busca curta; nenhum FAB; cards exibem nome → fantasia·cidade/UF → CNPJ → chips → rodapé contextual; "Sem contato" aparece uma única vez.
-- Desktop: comportamento inalterado (4 colunas no `lg`, paginação tradicional, ações inline preservadas).
-- Sem regressão de testes (`useSupabaseCrud`, masks).
+- CNPJ com 14 dígitos exibe "Pessoa Jurídica (CNPJ)" mesmo quando `tipo_pessoa = F`, com badge warning visível.
+- Telefone e CEP aparecem mascarados em todas as abas.
+- Faixa de ações no header: 2 botões visíveis (`Editar` + `Mais ações`); `Excluir` migrou para o menu.
+- KPIs nunca exibem `—` sozinho.
+- Abas Compras/Financ./Produtos mostram contagem quando > 0.
+- Empty states têm CTA navegável.
+- Drawer abre, alterna abas e fecha sem regressão (testes existentes).

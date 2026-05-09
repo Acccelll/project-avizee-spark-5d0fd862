@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
-import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare } from "lucide-react";
+import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare, MoreHorizontal, AlertTriangle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
@@ -22,6 +22,16 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type { FornecedorRow, CompraRow, FinanceiroLancamentoRow, ProdutoFornecedorRow } from "@/types/cadastros";
 import { getEffectiveStatus } from "@/lib/financeiro";
+import { cpfCnpjMask, phoneMask, cepMask } from "@/utils/masks";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   id: string;
@@ -81,6 +91,18 @@ export function FornecedorView({ id }: Props) {
   const prazoMedio = leadTimeMedio ?? selected?.prazo_padrao ?? null;
   const prazoMedioFonte = leadTimeMedio !== null ? "lead time" : selected?.prazo_padrao ? "prazo padrão" : null;
 
+  // Tipo derivado a partir do documento (preferência sobre tipo_pessoa cadastrado).
+  const docDigits = (selected?.cpf_cnpj || "").replace(/\D/g, "");
+  const tipoDerivado: "J" | "F" | null =
+    docDigits.length === 14 ? "J" : docDigits.length === 11 ? "F" : null;
+  const tipoEffective = tipoDerivado ?? selected?.tipo_pessoa ?? null;
+  const tipoLabel =
+    tipoEffective === "J" ? "Pessoa Jurídica" : tipoEffective === "F" ? "Pessoa Física" : "—";
+  const tipoShort = tipoEffective === "J" ? "PJ" : tipoEffective === "F" ? "PF" : null;
+  const docDivergente =
+    !!tipoDerivado && !!selected?.tipo_pessoa && tipoDerivado !== selected.tipo_pessoa;
+  const docFmt = selected?.cpf_cnpj ? cpfCnpjMask(selected.cpf_cnpj) : "";
+
   const deleteDescription = (() => {
     const parts: string[] = [];
     if (compras.length > 0) parts.push(`${compras.length} pedido(s) de compra`);
@@ -95,7 +117,7 @@ export function FornecedorView({ id }: Props) {
 
   // Publica slots no header padronizado
   usePublishDrawerSlots(`fornecedor:${id}`, {
-    breadcrumb: selected?.cpf_cnpj ? `Fornecedor · ${selected.cpf_cnpj}` : undefined,
+    breadcrumb: docFmt ? `Fornecedor · ${docFmt}` : undefined,
     summary: selected ? (
       <RecordIdentityCard
         icon={Truck}
@@ -103,13 +125,40 @@ export function FornecedorView({ id }: Props) {
         subtitle={selected.nome_fantasia || undefined}
         meta={
           <>
-            {selected.cpf_cnpj && <span className="font-mono">{selected.cpf_cnpj}</span>}
+            {docFmt && <span className="font-mono">{docFmt}</span>}
             {(selected.cidade || selected.uf) && (
               <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{[selected.cidade, selected.uf].filter(Boolean).join("/")}</span>
             )}
           </>
         }
-        badges={<StatusBadge status={selected.ativo ? "ativo" : "inativo"} />}
+        badges={
+          <>
+            <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
+            {tipoShort && (
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">
+                {tipoShort}
+              </Badge>
+            )}
+            {docDivergente && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className="h-5 gap-1 border-warning/40 bg-warning/10 px-1.5 text-[10px] font-semibold text-warning"
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      Tipo divergente
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    O cadastro está como {selected.tipo_pessoa === "J" ? "Pessoa Jurídica" : "Pessoa Física"}, mas o documento tem {docDigits.length} dígitos ({tipoDerivado === "J" ? "CNPJ" : "CPF"}). Edite o fornecedor para corrigir.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </>
+        }
       />
     ) : undefined,
     actions: selected ? (
@@ -120,20 +169,36 @@ export function FornecedorView({ id }: Props) {
         }}>
           <Edit className="h-3.5 w-3.5" /> Editar
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Excluir fornecedor" onClick={() => setDeleteConfirmOpen(true)}>
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
-        </Button>
-        {isAdmin && selected.ativo === false && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-            aria-label="Excluir fornecedor permanentemente"
-            onClick={() => setPermDeleteOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
-          </Button>
-        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Mais ações">
+              <MoreHorizontal className="h-3.5 w-3.5" /> Mais
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => { navigate("/pedidos-compra"); window.setTimeout(() => clearStack(), 0); }}>
+              <ShoppingBag className="mr-2 h-3.5 w-3.5" /> Abrir pedidos de compra
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { navigate("/financeiro"); window.setTimeout(() => clearStack(), 0); }}>
+              <CreditCard className="mr-2 h-3.5 w-3.5" /> Abrir financeiro
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir
+            </DropdownMenuItem>
+            {isAdmin && selected.ativo === false && (
+              <DropdownMenuItem
+                onClick={() => setPermDeleteOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir definitivamente
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </>
     ) : undefined,
   });
@@ -148,25 +213,40 @@ export function FornecedorView({ id }: Props) {
       <DrawerSummaryGrid cols={4}>
         <DrawerSummaryCard
           label="Prazo Médio"
-          value={prazoMedio ? `${prazoMedio} dias` : "—"}
-          hint={prazoMedioFonte || undefined}
+          value={prazoMedio ? `${prazoMedio} dias` : "Sem dados"}
+          hint={prazoMedio ? prazoMedioFonte || undefined : "sem lead time nem prazo padrão"}
         />
         <DrawerSummaryCard
           label="Saldo Aberto"
           value={formatCurrency(totalAberto)}
           tone={totalAberto > 0 ? "destructive" : "neutral"}
+          hint={totalAberto === 0 ? "nenhum título em aberto" : undefined}
         />
-        <DrawerSummaryCard label="Vol. Compras" value={formatCurrency(volumeTotal)} />
-        <DrawerSummaryCard label="Última Compra" value={ultCompra ? formatDate(ultCompra) : "—"} mono={false} />
+        <DrawerSummaryCard
+          label="Vol. Compras"
+          value={formatCurrency(volumeTotal)}
+          hint={compras.length === 0 ? "nenhuma compra registrada" : undefined}
+        />
+        <DrawerSummaryCard
+          label="Última Compra"
+          value={ultCompra ? formatDate(ultCompra) : "Sem compras"}
+          mono={false}
+        />
       </DrawerSummaryGrid>
 
       <Tabs defaultValue="geral" className="w-full">
         <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="geral" className="text-xs px-1">Geral</TabsTrigger>
-          <TabsTrigger value="compras" className="text-xs px-1">Compras</TabsTrigger>
-          <TabsTrigger value="financeiro" className="text-xs px-1">Financ.</TabsTrigger>
-          <TabsTrigger value="produtos" className="text-xs px-1">Produtos</TabsTrigger>
-          <TabsTrigger value="relacionamento" className="text-xs px-1">Relac.</TabsTrigger>
+          <TabsTrigger value="compras" className="text-xs px-1">
+            Compras{compras.length > 0 ? ` (${compras.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="financeiro" className="text-xs px-1">
+            Financ.{financeiro.length > 0 ? ` (${financeiro.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="produtos" className="text-xs px-1">
+            Produtos{produtos.length > 0 ? ` (${produtos.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="relacionamento" className="text-xs px-1">Relacion.</TabsTrigger>
         </TabsList>
 
         {/* TAB: GERAL */}
@@ -174,21 +254,28 @@ export function FornecedorView({ id }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
             <div className="space-y-4">
               <div className="space-y-2">
-                <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><Building2 className="h-3 w-3" /> Dados Fiscais</h4>
-                <p><span className="text-muted-foreground">CNPJ/CPF:</span> {selected.cpf_cnpj || "—"}</p>
+                <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><Building2 className="h-3 w-3" /> Identificação Fiscal</h4>
+                <p><span className="text-muted-foreground">{tipoEffective === "J" ? "CNPJ" : tipoEffective === "F" ? "CPF" : "CNPJ/CPF"}:</span> <span className="font-mono">{docFmt || "—"}</span></p>
                 {selected.inscricao_estadual && <p><span className="text-muted-foreground">Insc. Estadual:</span> {selected.inscricao_estadual}</p>}
-                <p><span className="text-muted-foreground">Tipo:</span> {selected.tipo_pessoa === "J" ? "Pessoa Jurídica" : "Pessoa Física"}</p>
+                <p>
+                  <span className="text-muted-foreground">Tipo:</span> {tipoLabel}
+                  {docDivergente && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-warning">
+                      <AlertTriangle className="h-3 w-3" /> divergente do documento
+                    </span>
+                  )}
+                </p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><Mail className="h-3 w-3" /> Contato</h4>
+                <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><Mail className="h-3 w-3" /> Contato Principal</h4>
                 <p><span className="text-muted-foreground">Email:</span> {selected.email || "—"}</p>
-                <p><span className="text-muted-foreground">Telefone:</span> {selected.telefone || "—"}</p>
-                {selected.celular && <p><span className="text-muted-foreground">Celular:</span> {selected.celular}</p>}
+                <p><span className="text-muted-foreground">Telefone:</span> {selected.telefone ? phoneMask(selected.telefone) : "—"}</p>
+                {selected.celular && <p><span className="text-muted-foreground">Celular:</span> {phoneMask(selected.celular)}</p>}
                 {selected.contato && <p><span className="text-muted-foreground">Responsável:</span> {selected.contato}</p>}
               </div>
               <div className="space-y-2">
                 <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><CreditCard className="h-3 w-3" /> Condições</h4>
-                <p><span className="text-muted-foreground">Prazo Padrão:</span> {selected.prazo_padrao ? `${selected.prazo_padrao} dias` : "—"}</p>
+                <p><span className="text-muted-foreground">Prazo Padrão:</span> {selected.prazo_padrao ? `${selected.prazo_padrao} dias` : "Não definido"}</p>
               </div>
             </div>
             <div className="space-y-4">
@@ -200,7 +287,7 @@ export function FornecedorView({ id }: Props) {
                   {(selected.bairro || selected.cidade || selected.uf) && (
                     <><br />{[selected.bairro, [selected.cidade, selected.uf].filter(Boolean).join("/")].filter(Boolean).join(" — ")}</>
                   )}
-                  {selected.cep && <><br />CEP: {selected.cep}</>}
+                  {selected.cep && <><br />CEP: {cepMask(selected.cep)}</>}
                 </p>
               </div>
             </div>
@@ -227,7 +314,16 @@ export function FornecedorView({ id }: Props) {
           )}
           <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><ShoppingBag className="h-3.5 w-3.5" /> Últimos Pedidos de Compra</h4>
           {compras.length === 0 ? (
-            <DetailEmpty icon={ShoppingBag} title="Nenhum pedido de compra" message="Nenhum pedido de compra encontrado para este fornecedor" />
+            <DetailEmpty
+              icon={ShoppingBag}
+              title="Nenhum pedido de compra"
+              message="Crie um pedido ou vincule este fornecedor a produtos para iniciar o histórico de compras."
+              action={
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { navigate("/pedidos-compra"); window.setTimeout(() => clearStack(), 0); }}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Novo pedido de compra
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-2">
               {compras.map((c) => (
@@ -267,7 +363,16 @@ export function FornecedorView({ id }: Props) {
           </div>
           <h4 className="font-semibold flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><FileText className="h-3.5 w-3.5" /> Lançamentos Recentes</h4>
           {financeiro.length === 0 ? (
-            <DetailEmpty icon={CreditCard} title="Nenhum lançamento financeiro" message="Nenhum lançamento financeiro registrado para este fornecedor" />
+            <DetailEmpty
+              icon={CreditCard}
+              title="Nenhum lançamento financeiro"
+              message="Os títulos a pagar aparecerão aqui após compras, notas fiscais ou lançamentos manuais."
+              action={
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { navigate("/financeiro"); window.setTimeout(() => clearStack(), 0); }}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir módulo Financeiro
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-2">
               {financeiro.map((f) => (
@@ -292,7 +397,16 @@ export function FornecedorView({ id }: Props) {
         <TabsContent value="produtos" className="space-y-3 mt-3">
           <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><Package className="h-3.5 w-3.5" /> Produtos Fornecidos</h4>
           {produtos.length === 0 ? (
-            <DetailEmpty icon={Package} title="Nenhum produto vinculado" message="Nenhum produto vinculado a este fornecedor" />
+            <DetailEmpty
+              icon={Package}
+              title="Nenhum produto vinculado"
+              message="Vincule produtos para registrar código do fornecedor, custo de compra, prazo e histórico."
+              action={
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { navigate(`/fornecedores?editId=${id}`); window.setTimeout(() => clearStack(), 0); }}>
+                  <Edit className="h-3.5 w-3.5" /> Vincular produto
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-2">
               {produtos.map((p) => (
@@ -318,22 +432,14 @@ export function FornecedorView({ id }: Props) {
 
         {/* TAB: RELACIONAMENTO */}
         <TabsContent value="relacionamento" className="space-y-4 mt-3">
-          {selected.observacoes ? (
-            <div className="space-y-2">
-              <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><FileText className="h-3 w-3" /> Observações</h4>
-              <p className="text-xs text-muted-foreground italic leading-relaxed bg-muted/20 rounded-lg p-3">{selected.observacoes}</p>
-            </div>
-          ) : (
-            <DetailEmpty title="Sem observações registradas" className="py-6" />
-          )}
           {(selected.contato || selected.email || selected.telefone || selected.celular) && (
             <div className="space-y-2">
               <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><MessageSquare className="h-3 w-3" /> Contato Principal</h4>
               <div className="rounded-lg border bg-card p-3 space-y-1.5 text-xs">
                 {selected.contato && <p><span className="text-muted-foreground">Responsável:</span> {selected.contato}</p>}
                 {selected.email && <p><span className="text-muted-foreground">Email:</span> {selected.email}</p>}
-                {selected.telefone && <p><span className="text-muted-foreground">Telefone:</span> {selected.telefone}</p>}
-                {selected.celular && <p><span className="text-muted-foreground">Celular:</span> {selected.celular}</p>}
+                {selected.telefone && <p><span className="text-muted-foreground">Telefone:</span> {phoneMask(selected.telefone)}</p>}
+                {selected.celular && <p><span className="text-muted-foreground">Celular:</span> {phoneMask(selected.celular)}</p>}
               </div>
             </div>
           )}
@@ -345,6 +451,14 @@ export function FornecedorView({ id }: Props) {
               </div>
             </div>
           )}
+          <div className="space-y-2">
+            <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><FileText className="h-3 w-3" /> Observações</h4>
+            {selected.observacoes ? (
+              <p className="text-xs text-muted-foreground italic leading-relaxed bg-muted/20 rounded-lg p-3">{selected.observacoes}</p>
+            ) : (
+              <DetailEmpty title="Nenhuma observação registrada" className="py-4" />
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
