@@ -153,6 +153,34 @@ const Fornecedores = () => {
     ascending: sort.ascending,
   });
   const totalAtivos = useTableCount("fornecedores", { ativo: true }).data ?? null;
+  const { data: totalSemContato } = useQuery({
+    queryKey: ["fornecedores-count", "sem-contato"],
+    staleTime: 30_000,
+    queryFn: async ({ signal }) => {
+      const { count, error } = await (supabase as unknown as typeof supabase)
+        .from("fornecedores")
+        .select("id", { count: "exact", head: true })
+        .eq("ativo", true)
+        .or(SEM_CONTATO_OR)
+        .abortSignal(signal);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+  const { data: totalIncompleto } = useQuery({
+    queryKey: ["fornecedores-count", "incompleto"],
+    staleTime: 30_000,
+    queryFn: async ({ signal }) => {
+      const { count, error } = await (supabase as unknown as typeof supabase)
+        .from("fornecedores")
+        .select("id", { count: "exact", head: true })
+        .eq("ativo", true)
+        .or(CADASTRO_INCOMPLETO_OR)
+        .abortSignal(signal);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
   const { pushView } = useRelationalNavigation();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
