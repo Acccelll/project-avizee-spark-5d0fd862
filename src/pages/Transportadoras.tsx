@@ -863,7 +863,7 @@ export default function Transportadoras() {
             <Textarea
               value={form.observacoes}
               onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              placeholder="Restrições de atendimento, particularidades operacionais, observações de logística..."
+              placeholder="Registre observações internas sobre atendimento, restrições, preferências ou histórico."
               rows={4}
               className="resize-none"
             />
