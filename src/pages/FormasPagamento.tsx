@@ -15,6 +15,7 @@ import {
   Building2, Wallet, AlertTriangle, Users, TrendingUp, CalendarDays, StickyNote,
   Info, CheckCircle, Ban,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,14 +46,33 @@ interface FormaPagamento {
 }
 
 const tipoLabel: Record<string, string> = {
-  pix: "PIX", boleto: "Boleto", cartao: "Cartão",
-  dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro",
+  pix: "PIX",
+  boleto: "Boleto",
   boleto_dda: "Boleto/DDA",
+  cartao: "Cartão",
+  cartao_credito: "Cartão de crédito",
+  cartao_debito: "Cartão de débito",
+  dinheiro: "Dinheiro",
+  transferencia: "Transferência",
+  cobranca_automatica: "Cobrança automática",
+  debito_automatico: "Débito automático",
+  outro: "Outros",
+  outros: "Outros",
 };
 
 const tipoIcon: Record<string, React.ElementType> = {
-  pix: QrCode, boleto: FileText, cartao: CreditCard,
-  dinheiro: Banknote, transferencia: ArrowLeftRight, outro: HelpCircle,
+  pix: QrCode,
+  boleto: FileText,
+  boleto_dda: FileText,
+  cartao: CreditCard,
+  cartao_credito: CreditCard,
+  cartao_debito: CreditCard,
+  dinheiro: Banknote,
+  transferencia: ArrowLeftRight,
+  cobranca_automatica: Wallet,
+  debito_automatico: Wallet,
+  outro: HelpCircle,
+  outros: HelpCircle,
 };
 
 interface FormaPagamentoForm {
