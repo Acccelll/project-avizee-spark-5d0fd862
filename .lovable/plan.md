@@ -1,69 +1,67 @@
-## Onda 33 — Refino do formulário de Transportadora
+# Onda 34 — Editar Transportadora (mobile)
 
-Escopo: apenas `src/pages/Transportadoras.tsx` (e, se necessário, `MaskedInput`/`useCnpjLookup` para feedbacks). Nada de mudança de schema ou regra de negócio nesta onda — `prazo_medio` continua `text` (estruturação numérica fica para uma onda futura, ver "Fora do escopo").
+Refinos focados em UX mobile do `FormModal` em `src/pages/Transportadoras.tsx`. Sem mudanças de schema, sem mudanças de regra de negócio.
 
-### Alta prioridade
+## Alta prioridade
 
-1. **CNPJ formatado em todo lugar**
-   - Header do FormModal: passar `identifier={cpfCnpjMask(selected.cpf_cnpj)}` em vez do valor cru.
-   - Aba Clientes vinculados: aplicar `cpfCnpjMask(cv.clientes.cpf_cnpj)` na linha de cada vínculo.
-   - Conferir `mobileIdentifierKey="cpf_cnpj"` do DataTable — se renderiza valor cru, trocar por `mobileIdentifier` formatado (callback) já que o grid mostra o número sem máscara em mobile.
+1. **CNPJ formatado em todas as exibições mobile**
+   - O header do `FormModal` já passa `cpfCnpjMask`, mas em mobile o `identifier` pode aparecer cru quando o form ainda está sendo digitado. Garantir que tanto o chip do header quanto a exibição na lista de Clientes Vinculados usem `cpfCnpjMask` (já parcialmente aplicado em `cv.clientes.cpf_cnpj`). Validar visualmente.
 
-2. **Botão "Consultar CNPJ" mais explícito**
-   - No desktop, trocar o botão `size="icon"` por um botão com ícone + texto "Consultar CNPJ" (mantém `size="icon"` só em telas estreitas via `useIsMobile`, com `aria-label` e `title`).
-   - Estados de feedback ao lado do campo (sob o helper text):
-     - idle → texto auxiliar atual
-     - `cnpjLoading` → "Consultando Receita Federal..." com `Loader2`
-     - sucesso (resultado preenchido) → "Dados preenchidos automaticamente" (texto verde, some após 4s via `setTimeout`)
-     - 404 / erro → já tratados em `useCnpjLookup` via toast; manter, sem duplicar.
+2. **Abas com scroll horizontal limpo (padrão "tabs-mobile-scroll")**
+   - Substituir `<TabsList className="mb-4 w-full justify-start overflow-x-auto">` por composição canônica:
+     - `overflow-x-auto scrollbar-hide tabs-fade-mask`
+     - `Tabs` controlada (state `activeTab`) para auto-centralizar o trigger ativo via `scrollIntoView({ inline: "center" })` em `useEffect`.
+   - Encurtar rótulos no mobile (via `useIsMobile`):
+     - Dados Gerais → **Dados**
+     - Contatos → **Contatos**
+     - Operacional → **Operação**
+     - Endereço → **Endereço**
+     - Clientes → **Clientes**
+     - Obs. → **Obs.**
 
-3. **Aba Endereço — remover borda laranja sem contexto**
-   - Investigar (durante a implementação) o que está causando a borda visível no print: provavelmente `:focus-visible` herdado do `TabsContent` ou algum wrapper. Normalizar para sem outline visual no painel inteiro; manter foco apenas nos campos.
-   - Adicionar banner de **completude do endereço** quando faltar campo essencial (CEP, logradouro, número):
-     - Bloco discreto (`bg-muted/40 border-l-4 border-warning`) com texto "Endereço incompleto — preencha CEP, logradouro e número para uso em remessas".
-   - Acrescentar indicador `(!)` ao lado do label da aba Endereço quando o endereço estiver incompleto e a transportadora estiver em modo edit.
+3. **Botão "Consultar CNPJ" mais claro no mobile**
+   - Hoje em mobile fica só ícone ao lado do campo. Mover para **abaixo** do campo CNPJ quando `isMobile`, full-width, com label "Consultar CNPJ" + ícone.
+   - Microcopy auxiliar: encurtar para `"Consultar CNPJ para preencher automaticamente."`
 
-4. **Ações nos clientes vinculados**
-   - Cada linha passa a expor (sempre visível, não só no hover):
-     - botão "Tornar preferencial" / "Remover preferência" (alterna `prioridade` 1 ↔ próxima posição) — já existe `Star`, falta o toggle clicável.
-     - botão "Abrir cliente" (navega para `/clientes?editId=...` via `useNavigate`).
-     - botão "Remover vínculo" (mantém o atual, sem `opacity-0`).
-   - CNPJ do cliente formatado (vide item 1).
+4. **Estruturar prazo médio (campo numérico simples)**
+   - Manter compatibilidade com string atual. Trocar input livre por:
+     - `Input type="number"` (inteiro, min=0), placeholder `"Ex.: 5"`, sufixo "dias úteis" mantido.
+     - Helper text: `"Use o prazo médio em dias úteis."`
+   - Não dividir em min/max nesta onda (escopo ainda compatível com migração futura).
 
-### Média prioridade
+5. **Botão "Vincular" com estado claro**
+   - Já existe hint quando desabilitado. Reforçar no mobile:
+     - Quando nenhum cliente selecionado: variante `outline`, hint `"Selecione um cliente para vincular."` em destaque (cor `text-warning-foreground`).
+     - Quando cliente selecionado: variante `default` ativa.
 
-5. **Renomear "Tipo" → "Tipo de Pessoa"** na aba Dados Gerais (apenas o `<Label>`).
+## Média prioridade
 
-6. **Renomear "Status" → "Situação da transportadora"** na aba Dados Gerais (apenas o `<Label>`). Badge do header continua só leitura.
+6. **Header mobile reorganizado em linhas**
+   - Aproveitar `meta` do `FormModal` para garantir quebra natural por `flex-wrap` (já existe). Ajustar `meta` para ordem: `[CNPJ via identifier] / status badge / Cadastro · Atualização / Modalidade · Cidade-UF`.
 
-7. **Botão "Vincular" — contraste e mensagem**
-   - Quando desabilitado por falta de seleção, exibir hint inline: "Selecione um cliente para vincular" (texto pequeno ao lado/abaixo do botão).
-   - Quando habilitado, garantir variant default (já é) e remover qualquer classe que esteja apagando o tom (verificar se `disabled` está vazando estilo).
+7. **Status compacto na aba Dados Gerais**
+   - Trocar `Card` grande do toggle `ativo` por linha simples: `<div class="flex items-center justify-between py-2 border rounded-md px-3">Status <Switch/> Ativo</div>`.
 
-8. **Telefone — confirmar máscara**
-   - O campo já usa `MaskedInput mask="telefone"`. Verificar se ao salvar e reabrir o valor é re-mascarado (problema reportado `(11) 21889000`); se vier cru do banco, aplicar `phoneMask` no carregamento do form (linha ~222 e ~286).
+8. **Padding inferior do conteúdo**
+   - Já há `max-sm:pb-24` no `FormModal`; revisar se com footer atual último campo do Endereço fica visível. Se necessário, aumentar para `pb-28`.
 
-9. **Placeholder da aba Obs.**
-   - Trocar para: `Registre observações internas sobre atendimento, restrições, preferências ou histórico.`
+9. **Footer compacto no mobile**
+   - Em `FormModalFooter`: reduzir `h-11` para `h-10` no mobile e `gap-2` → `gap-1.5` quando `isMobile`. Pequeno ajuste para liberar área útil.
 
-### Baixa prioridade
+10. **Máscara de telefone na aba Contatos**
+    - Aplicar `phoneMask` no `onChange` do campo telefone (hoje texto puro). Garantir reaplicação no carregamento (`phoneMask(t.telefone)`).
 
-10. **Microcopy**
-    - Helper text do prazo médio: incluir "(ex.: 3, 5 ou 3-5)" para padronizar entrada enquanto o campo continua texto.
+## Baixa prioridade
 
-### Fora do escopo (registrar para próxima onda)
+11. **Microcopy / placeholders curtos** no mobile (helper text das abas Operacional e Obs.).
+12. **Aba Obs.**: separar visualmente "Observações internas" de "Uso no Sistema" com `border-t pt-4 mt-4` e título h4.
 
-- **Estruturação numérica do `prazo_medio`** (mín/máx + unidade): exige migração de schema (`prazo_medio_min int`, `prazo_medio_max int`, `prazo_medio_unidade`), backfill dos textos atuais e ajuste em remessas/relatórios. Anotar em `.lovable/plan.md` como "Onda 34 — Prazo estruturado".
-- **WhatsApp/celular separados**: também exige coluna nova; deixar para onda dedicada de "Canais de contato".
-- **Validação de e-mail visível**: já existe em `transportadoraSchema`; reforço de UX inline fica para a onda de validação client-side global.
+## Fora de escopo
+- Validação de e-mail / campo WhatsApp separado (Onda 35).
+- Estrutura `prazo_min`/`prazo_max` em colunas (requer migração).
+- Ações por linha em Clientes Vinculados além do já existente (estrela/abrir/remover).
 
-### Detalhes técnicos
-
-- Arquivos tocados: `src/pages/Transportadoras.tsx` (principal). Possível ajuste mínimo em `src/components/ui/MaskedInput` se necessário para reformatar valor inicial — só se o item 8 confirmar o bug.
-- Imports adicionais previstos: `useNavigate` (react-router-dom), `Star`/`StarOff`, `ExternalLink` de lucide-react, `cpfCnpjMask`/`phoneMask` (já importados).
-- Sem mudanças em RLS, edge functions ou tipos do Supabase.
-- Atualizar `.lovable/plan.md` com a Onda 33 e listar Onda 34 (prazo estruturado) como follow-up.
-## Onda 34 (follow-up) — Prazo estruturado de entrega
-- Migração: prazo_medio_min int, prazo_medio_max int, prazo_medio_unidade ('dias_uteis'|'dias_corridos').
-- Backfill parsing dos textos atuais (regex '(\d+)(?:\s*-\s*(\d+))?').
-- Atualizar UI/relatórios/remessas para usar campos numéricos.
+## Arquivos
+- `src/pages/Transportadoras.tsx` (principal)
+- `src/components/FormModalFooter.tsx` (apenas ajuste fino de altura mobile)
+- `.lovable/plan.md` (registrar Onda 34)
