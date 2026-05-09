@@ -308,7 +308,7 @@ export default function Transportadoras() {
       nome_fantasia: selected.nome_fantasia || "",
       cpf_cnpj: selected.cpf_cnpj || "",
       contato: selected.contato || "",
-      telefone: selected.telefone || "",
+      telefone: selected.telefone ? phoneMask(selected.telefone) : "",
       email: selected.email || "",
       logradouro: selected.logradouro || "",
       numero: selected.numero || "",
