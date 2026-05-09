@@ -785,7 +785,7 @@ const Fornecedores = () => {
                 <Input
                   value={form.contato}
                   onChange={(e) => updateForm({ contato: e.target.value })}
-                  placeholder="Nome do responsável pelo atendimento comercial"
+                  placeholder={isMobile ? "Nome do contato" : "Nome do responsável pelo atendimento comercial"}
                 />
               </div>
             </div>
