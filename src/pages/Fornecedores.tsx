@@ -331,33 +331,9 @@ const Fornecedores = () => {
       const subtitleParts: string[] = [];
       if (f.nome_fantasia && f.nome_fantasia !== f.nome_razao_social) subtitleParts.push(f.nome_fantasia);
       if (f.cidade) subtitleParts.push(`${f.cidade}${f.uf ? `/${f.uf}` : ""}`);
-      const semContato = isSemContato(f);
-      const semDoc = !f.cpf_cnpj;
       return (
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="font-medium leading-tight truncate">{f.nome_razao_social}</p>
-            {semContato && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
-                    <PhoneOff className="h-3 w-3" /> Sem contato
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>Fornecedor sem telefone, celular nem e-mail.</TooltipContent>
-              </Tooltip>
-            )}
-            {semDoc && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
-                    <AlertCircle className="h-3 w-3" /> Sem CNPJ
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>Documento (CPF/CNPJ) não cadastrado.</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          <p className="font-medium leading-tight truncate">{f.nome_razao_social}</p>
           {subtitleParts.length > 0 && (
             <p className="text-xs text-muted-foreground truncate max-w-xs">{subtitleParts.join(" · ")}</p>
           )}
@@ -387,11 +363,7 @@ const Fornecedores = () => {
     render: (f: Fornecedor) => {
       const phone = f.celular || f.telefone;
       if (!phone && !f.email) {
-        return (
-          <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
-            <PhoneOff className="h-3 w-3" /> Sem contato
-          </Badge>
-        );
+        return <span className="text-muted-foreground text-xs">—</span>;
       }
       return (
         <div className="text-xs space-y-0.5">
@@ -426,6 +398,32 @@ const Fornecedores = () => {
   },
   { key: "ativo",
       mobileCard: true, label: "Status", render: (f: Fornecedor) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
+  {
+    key: "indicadores",
+    mobileCard: true, label: "Indicadores", hidden: true,
+    render: (f: Fornecedor) => {
+      const semContato = isSemContato(f);
+      const semDoc = !f.cpf_cnpj;
+      return (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+            {f.tipo_pessoa === "F" ? "PF" : "PJ"}
+          </Badge>
+          <StatusBadge status={f.ativo ? "ativo" : "inativo"} />
+          {semContato && (
+            <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
+              <PhoneOff className="h-3 w-3" /> Sem contato
+            </Badge>
+          )}
+          {semDoc && (
+            <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
+              <AlertCircle className="h-3 w-3" /> Sem CNPJ
+            </Badge>
+          )}
+        </div>
+      );
+    },
+  },
   ];
 
 
