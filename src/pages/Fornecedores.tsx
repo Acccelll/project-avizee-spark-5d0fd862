@@ -199,6 +199,7 @@ const Fornecedores = () => {
   );
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const isMobile = useIsMobile();
   const [modalProdutosForn, setModalProdutosForn] = useState<Array<{
     id: string; produto_nome: string; preco_compra: number | null;
     lead_time_dias: number | null; eh_principal: boolean | null;
