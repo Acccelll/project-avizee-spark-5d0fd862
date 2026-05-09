@@ -1034,7 +1034,7 @@ const Fornecedores = () => {
               maxLength={MAX_OBSERVACOES_LENGTH}
               value={form.observacoes}
               onChange={(e) => updateForm({ observacoes: e.target.value })}
-              placeholder="Informações relevantes: condições especiais negociadas, restrições de fornecimento, preferências logísticas, histórico de relacionamento..."
+              placeholder={isMobile ? "Observações internas" : "Informações relevantes: condições especiais negociadas, restrições de fornecimento, preferências logísticas, histórico de relacionamento..."}
             />
             <p className="text-xs text-muted-foreground mt-1 text-right">{form.observacoes.length}/{MAX_OBSERVACOES_LENGTH}</p>
           </div>
