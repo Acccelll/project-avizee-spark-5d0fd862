@@ -331,14 +331,14 @@ export default function FormasPagamento() {
             <SummaryCard title="Total" value={String(data.length)} icon={CreditCard} />
             <SummaryCard title="Ativas" value={String(summaryAtivos)} icon={CheckCircle} variant="success" />
             <SummaryCard title="Parceladas" value={String(summaryParceladas)} icon={CalendarDays} />
-            <SummaryCard title="Criam lançamentos" value={String(summaryGeraFin)} icon={Wallet} variant="info" />
+            <SummaryCard title="Criam lançamentos" shortTitle="Financeiro" value={String(summaryGeraFin)} icon={Wallet} variant="info" />
           </>
         }
       >
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por descrição..."
+          searchPlaceholder="Buscar forma..."
           activeFilters={activeFilterChips}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => clearFilters(["ativo", "tipo", "gera"])}
