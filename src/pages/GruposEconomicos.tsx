@@ -125,6 +125,8 @@ const GruposEconomicos = () => {
     ascending: sort.ascending,
   });
   const totalAtivosGrupos = useTableCount("grupos_economicos", { ativo: true }).data ?? null;
+  const totalGruposGlobal = useTableCount("grupos_economicos").data ?? null;
+  const totalInativosGrupos = useTableCount("grupos_economicos", { ativo: false }).data ?? null;
 
   // Stable string keys derived from data - avoids infinite effect loops caused by
   // useSupabaseCrud returning a new [] reference on every render while loading.
@@ -389,25 +391,29 @@ const GruposEconomicos = () => {
   }));
 
   const summaryAtivos = totalAtivosGrupos ?? 0;
+  const summaryInativos = totalInativosGrupos ?? 0;
   const totalRegistros = totalCount ?? data.length;
+  const totalRegistrosGlobal = totalGruposGlobal ?? totalRegistros;
+  // `clienteCountMap` é populado a partir de TODOS os clientes ativos com
+  // grupo vinculado (sem filtro de página), então a contagem é global.
   const summaryComClientes = useMemo(
-    () => data.filter((g) => (clienteCountMap[g.id] ?? 0) > 0).length,
-    [data, clienteCountMap],
+    () => Object.values(clienteCountMap).filter((n) => n > 0).length,
+    [clienteCountMap],
   );
 
   return (
     <><ModulePage
         title="Grupos Econômicos"
-        subtitle="Central de consulta e gestão de grupos econômicos"
+        subtitle="Consolide clientes relacionados em grupos para análises e condições comerciais."
         addLabel="Novo Grupo"
         onAdd={openCreate}
         count={totalRegistros}
         summaryCards={
           <>
-            <SummaryCard title="Total de Grupos" value={totalRegistros} icon={Building2} />
+            <SummaryCard title="Total de Grupos" value={totalRegistrosGlobal} icon={Building2} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" value={Math.max(0, totalRegistros - summaryAtivos)} icon={Building2} />
-            <SummaryCard title="Com Clientes (página)" value={summaryComClientes} icon={Users} />
+            <SummaryCard title="Inativos" value={summaryInativos} icon={Building2} />
+            <SummaryCard title="Com Clientes" value={summaryComClientes} icon={Users} />
           </>
         }
       >
