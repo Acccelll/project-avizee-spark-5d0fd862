@@ -805,12 +805,12 @@ const Fornecedores = () => {
             {/* ── TAB: ENDEREÇO ─────────────────────────────── */}
             <TabsContent value="endereco" className="space-y-4 mt-0">
           <p className="text-xs text-muted-foreground mb-3">
-            Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.
+            Informe o CEP — os demais campos são preenchidos automaticamente. Você pode editá-los depois.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 md:col-span-2 space-y-1.5">
               <Label>CEP</Label>
-              <div className="relative">
+              <div className="flex gap-1">
                 <MaskedInput
                   mask="cep"
                   value={form.cep}
@@ -821,11 +821,24 @@ const Fornecedores = () => {
                       updateForm({ logradouro: result.logradouro, bairro: result.bairro, cidade: result.localidade, uf: result.uf });
                     }
                   }}
-                  className={cepLoading ? "pr-8" : ""}
                 />
-                {cepLoading && (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1.5 px-3 text-xs"
+                  disabled={cepLoading || !form.cep}
+                  onClick={async () => {
+                    const result = await buscarCep(form.cep);
+                    if (result) {
+                      updateForm({ logradouro: result.logradouro, bairro: result.bairro, cidade: result.localidade, uf: result.uf });
+                    }
+                  }}
+                  aria-label="Buscar CEP"
+                >
+                  {cepLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                  Buscar
+                </Button>
               </div>
               {formErrors.cep && <p className="text-xs text-destructive">{formErrors.cep}</p>}
             </div>
@@ -863,7 +876,7 @@ const Fornecedores = () => {
               </Select>
               {formErrors.uf && <p className="text-xs text-destructive">{formErrors.uf}</p>}
             </div>
-            <div className="col-span-1 md:col-span-2 space-y-1.5">
+            <div className="col-span-1 md:col-span-1 space-y-1.5">
               <Label>País</Label>
               <Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} />
             </div>
@@ -875,12 +888,9 @@ const Fornecedores = () => {
           <div className="flex items-center gap-2 pb-1">
             <ShoppingCart className="w-4 h-4 text-primary/70" />
             <h3 className="font-semibold text-sm">Condições de Compra</h3>
-            <span className="ml-auto text-xs bg-info/10 text-info border border-info/30 dark:text-info dark:border-info rounded-full px-2 py-0.5 leading-none">
-              Aplica-se a compras e financeiro
-            </span>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Condições comerciais padrão deste fornecedor. Aplicadas automaticamente em cotações e pedidos de compra. Podem ser sobrescritas por operação.
+            Condições comerciais padrão deste fornecedor — aplicadas automaticamente em cotações, pedidos de compra e títulos financeiros. Podem ser sobrescritas por operação.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="col-span-2 md:col-span-2 space-y-1.5">
@@ -958,7 +968,10 @@ const Fornecedores = () => {
             <div className="border rounded-lg p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Package className="h-3.5 w-3.5" /> Vincular Produto Manualmente
+                  <Package className="h-3.5 w-3.5" /> Vincular produto ao fornecedor
+                  {modalProdutosForn.length > 0 && (
+                    <span className="ml-1 text-muted-foreground/70 normal-case">· {modalProdutosForn.length} item{modalProdutosForn.length !== 1 ? "s" : ""} vinculado{modalProdutosForn.length !== 1 ? "s" : ""}</span>
+                  )}
                 </h4>
               </div>
               {/* All linked products */}
@@ -994,9 +1007,7 @@ const Fornecedores = () => {
             {/* ── TAB: OBSERVAÇÕES ──────────────────────────── */}
             <TabsContent value="observacoes" className="space-y-4 mt-0">
           <p className="text-xs text-muted-foreground mb-3">
-            Observações internas, comerciais e operacionais sobre o fornecedor. Visível apenas internamente.
-            Use este campo para registrar condições especiais negociadas, restrições de fornecimento,
-            preferências logísticas e histórico de relacionamento.
+            Observações internas sobre o fornecedor. Use este campo para registrar condições negociadas, restrições e histórico de relacionamento.
           </p>
           <div className="mb-6">
             <Textarea
