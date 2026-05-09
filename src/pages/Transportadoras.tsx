@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -147,6 +147,16 @@ export default function Transportadoras() {
   const [savingVinculoCliente, setSavingVinculoCliente] = useState(false);
   const navigate = useNavigate();
   const [cnpjJustFetched, setCnpjJustFetched] = useState(false);
+
+  // Aba ativa controlada (auto-centraliza no mobile)
+  const [activeTab, setActiveTab] = useState<string>("dados-gerais");
+  const tabsListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const list = tabsListRef.current;
+    if (!list) return;
+    const active = list.querySelector<HTMLElement>('[data-state="active"]');
+    if (active) active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [activeTab]);
 
   // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
   useEditDeepLink<Transportadora>({
