@@ -420,13 +420,12 @@ const GruposEconomicos = () => {
         subtitle="Consolide clientes relacionados em grupos para análises e condições comerciais."
         addLabel="Novo Grupo"
         onAdd={openCreate}
-        count={totalRegistros}
         summaryCards={
           <>
-            <SummaryCard title="Total de Grupos" value={totalRegistrosGlobal} icon={Building2} />
-            <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" value={summaryInativos} icon={Building2} />
-            <SummaryCard title="Com Clientes" value={summaryComClientes} icon={Users} />
+            <SummaryCard title="Total de Grupos" shortTitle="Total" value={totalRegistrosGlobal} icon={Building2} />
+            <SummaryCard title="Ativos" shortTitle="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativos" shortTitle="Inativos" value={summaryInativos} icon={Building2} />
+            <SummaryCard title="Com Clientes" shortTitle="Com clientes" value={summaryComClientes} icon={Users} />
           </>
         }
       >

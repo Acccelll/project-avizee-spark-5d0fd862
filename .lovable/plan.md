@@ -1,55 +1,42 @@
-## Onda 39 — Grid Grupos Econômicos
+## Onda 40 — Grid Grupos Econômicos (mobile)
 
-Foco: eliminar a inconsistência crítica entre os cards e a coluna Status, e tornar a tela mais relacional (clientes vinculados visíveis e clicáveis). Sem mudanças de schema, somente UI/leitura.
+Foco em melhorias de mobile da grid `/grupos-economicos`. Sem mudanças de schema, lógica ou backend — apenas UI/microcopy e propagação de campo já existente (`shortTitle` no `SummaryCard`, `mobileSubtitle` via coluna).
 
 ### Diagnóstico
 
-Em `src/pages/GruposEconomicos.tsx`:
+- **KPIs truncando** (`Total de ...`, `Com Clie...`): o componente `SummaryCard` já aceita `shortTitle` (renderiza no mobile) — basta passar.
+- **Card mostra `—`**: a coluna `qtd_clientes` foi corrigida na Onda 39 para "N clientes" no desktop, mas no mobile ela aparece como linha "identifier". Quando count = 0, ainda fica fraca como segunda linha. Precisamos garantir que o card mobile mostre **sempre** "N cliente(s)" com plural correto.
+- **"1 registro" duplicado**: `ModulePage` recebe `count={totalRegistros}` e `AdvancedFilterBar` também → renderizam o mesmo contador duas vezes (ModulePage.tsx:107 + AdvancedFilterBar.tsx:134/212). Solução: não passar `count` para `ModulePage` quando `AdvancedFilterBar` já o exibe.
+- **Paginação com 1 página**: as setas continuam visíveis (apenas `disabled`). No mobile, ocupar espaço com setas inúteis polui. O `DataTable` mobile-paginação fica em `lines 941-966`. Adicionar `singlePage` derivado e ocultar a barra inteira quando `totalPages <= 1` (e `serverPagination?.hasMore !== true`).
+- **Card pobre de contexto**: além de "N clientes" como identifier, podemos colocar a observação/matriz como subtítulo via uma coluna `mobileCard` adicional renderizada no card mobile.
 
-- **Inconsistência Ativos/Inativos**: o card *Ativos* usa `useTableCount("grupos_economicos", { ativo: true })` (global), mas *Inativos* é calculado como `totalRegistros - summaryAtivos`. Quando há filtro de status ativo na URL, `totalCount` vem **filtrado** pelo server (`serverFilters`), enquanto `summaryAtivos` é **global** → contas batem em zero negativo / divergem do que a tabela mostra.
-- **"Com Clientes (página)"** depende só de `data` (página corrente), exatamente o anti-padrão já corrigido em outras telas.
-- **Coluna Clientes** mostra `—` quando count = 0; deveria mostrar "0 clientes" e ser clicável para abrir o drawer.
-- **Linha pobre de contexto**: nome isolado, sem fallback quando não há matriz/descrição.
+### Mudanças
 
-### Mudanças (alta prioridade)
+1. **`src/pages/GruposEconomicos.tsx`**
+   - Adicionar `shortTitle` aos quatro `SummaryCard`: `"Total"`, `"Ativos"`, `"Inativos"`, `"Com clientes"`.
+   - Remover `count={totalRegistros}` do `ModulePage` (mantendo no `AdvancedFilterBar`) → elimina duplicação no topo.
+   - Coluna `qtd_clientes`: render volta a sempre exibir "N cliente(s)" (já implementado na Onda 39); confirmar que o `mobileIdentifierKey="qtd_clientes"` continua apontando para ela — OK.
+   - Nova coluna oculta no desktop, visível no card mobile, com `mobileCard: true` e `key: "contexto_mobile"`, mostrando: matriz (se houver) → primeira linha de observações → "Sem matriz definida". Reaproveita exatamente o mesmo cálculo já feito na coluna `nome` (extrair helper `getContextoSecundario(g)`).
 
-1. **Cards 100% globais e consistentes** em `GruposEconomicos.tsx`:
-   - `Total de Grupos` → `useTableCount("grupos_economicos")` (sem filtros).
-   - `Ativos` → `useTableCount("grupos_economicos", { ativo: true })` (já existe).
-   - `Inativos` → `useTableCount("grupos_economicos", { ativo: false })` (novo, em vez de subtração).
-   - `Com Clientes` → derivado do mapa global de contagens de `clientes`. O `useEffect` atual já busca **todos** os clientes ativos com `grupo_economico_id`, então `Object.keys(clienteCountMap).length` é uma contagem global — basta renomear o card e remover o sufixo "(página)".
-   - Resultado: os 4 cards passam a ser independentes do filtro/paginação corrente, eliminando a divergência com o status da linha.
+2. **`src/components/DataTable.tsx`** (apenas a paginação mobile, lines 941-966)
+   - Calcular `mobilePagerVisible = serverPagination ? (totalPages > 1 || serverPagination.hasMore) : (viewMode === 'infinite' ? sortedData.length > visibleCount : totalPages > 1)`.
+   - Quando `mobilePagerVisible === false`, esconder o bloco inteiro de "X–Y de Z + setas" (a contagem global já aparece em `AdvancedFilterBar`).
 
-2. **Coluna Clientes** (`columns[1]`):
-   - Substituir o `—` por `"0 clientes"` em estado neutro (`text-muted-foreground`).
-   - Para count > 0, manter ícone + número e adicionar sufixo "cliente(s)".
-   - Tornar a célula clicável (`button` ou `RelationalLink`) que chama `openView(g)` e abre o drawer já na aba de empresas (envia query param `?tab=empresas` consumido por `GrupoEconomicoView` — pequeno ajuste no `Tabs defaultValue`).
-
-3. **Linha mais informativa** em `columns[0]`:
-   - Quando não há matriz nem descrição, adicionar subtítulo discreto: `"Sem matriz definida"` em `text-xs text-muted-foreground`.
-   - Quando `g.observacoes` existir e não houver matriz, mostrar primeira linha truncada do observações como subtítulo alternativo.
-
-### Mudanças (média prioridade)
-
-4. **Coluna "Atualizado em"** visível por padrão (hoje `hidden: true` em `created_at`):
-   - Renomear para "Cadastro" → manter; adicionar nova coluna `updated_at` (se existir no schema; se não, manter apenas `created_at` visível). Confirmar via `supabase--read_query` antes de implementar.
-   - Mostrar `formatDate` discreto (`text-xs text-muted-foreground`).
-
-5. **Microcopy**: `subtitle` da página → "Consolide clientes relacionados em grupos para análises e condições comerciais."
+3. **Microcopy**
+   - Pluralização explícita: usar "1 cliente vinculado" / "N clientes vinculados" no card mobile (label do field) — adicionar `mobileLabel` opcional? Mais simples: o `render` já produz o texto certo; basta que o identifier no mobile passe a usar o mesmo render (já passa).
 
 ### Fora de escopo
 
-- Coluna de faturamento por grupo (depende de agregado server-side, evolução futura).
-- Filtros "com/sem clientes" (baixa prioridade, deixar para quando houver volume).
-- Mudanças em `GrupoEconomicoView` além do `defaultValue` da Tabs aceitar query param.
-- Qualquer alteração de schema, RLS ou lógica de negócio.
+- Esconder/desabilitar paginação no desktop (a queixa é mobile).
+- Mensagem orientativa abaixo da lista quando há poucos registros (item 10 do feedback) — pode entrar em onda futura para evitar inflar o `DataTable`.
+- Coluna "Última atualização" — campo `updated_at` não existe em `grupos_economicos` (verificado).
+- Qualquer mudança em RBAC, RLS ou queries.
 
 ### Arquivos afetados
 
-- `src/pages/GruposEconomicos.tsx` (cards, coluna clientes, coluna nome, microcopy).
-- `src/components/views/GrupoEconomicoView.tsx` (apenas para aceitar `defaultValue` dinâmico via search param `tab`).
+- `src/pages/GruposEconomicos.tsx` (cards `shortTitle`, remover `count` do ModulePage, coluna mobile contexto).
+- `src/components/DataTable.tsx` (esconder pager mobile com 1 página).
 
 ### Verificação
 
-- Confirmar via `read_query` que `useTableCount` retorna 1 para `{ativo:true}` quando há 1 grupo PLUMA ativo (validar a hipótese da divergência observada).
-- Inspeção visual no preview: cards batem com a tabela em qualquer combinação de filtro de status.
+- Preview mobile (390x844): quatro KPIs sem reticências; card mostra `PLUMA` + `0 clientes vinculados` + subtítulo de contexto + badge `Ativo`; só um "1 registro" no topo; sem barra de paginação no rodapé com 1 item.
