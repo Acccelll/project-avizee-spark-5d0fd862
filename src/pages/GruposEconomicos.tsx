@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Building2, Info, Star, FileText, TrendingUp, ExternalLink, Users, Calendar, UserCheck, AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Building2, Info, Star, FileText, TrendingUp, ExternalLink, Users, Calendar, UserCheck, AlertTriangle, CheckCircle2, ShieldAlert, ChevronDown } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useServerSort } from "@/hooks/useServerSort";
 import { useTableCount } from "@/hooks/useTableCount";
@@ -31,6 +31,62 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { notifyError } from "@/utils/errorMessages";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { logger } from "@/lib/logger";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
+import type { ComponentType, ReactNode } from "react";
+
+// ── Acordeão local: no mobile vira tappable + chevron; no desktop renderiza como antes.
+function MobileSection({
+  icon: Icon,
+  title,
+  summary,
+  defaultOpen = true,
+  rightSlot,
+  children,
+  desktopHeader,
+  className,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  summary?: ReactNode;
+  defaultOpen?: boolean;
+  rightSlot?: ReactNode;
+  children: ReactNode;
+  desktopHeader: ReactNode;
+  className?: string;
+}) {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(defaultOpen);
+  if (!isMobile) {
+    return (
+      <div className={className}>
+        {desktopHeader}
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div className="border-t first:border-t-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 py-3 text-left active:bg-muted/40 transition-colors"
+      >
+        <Icon className="h-4 w-4 text-primary/70 shrink-0" />
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+        {rightSlot}
+        <div className="ml-auto flex items-center gap-2 min-w-0">
+          {!open && summary && (
+            <span className="text-[11px] text-muted-foreground truncate max-w-[180px] text-right">{summary}</span>
+          )}
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
+        </div>
+      </button>
+      {open && <div className="pb-3">{children}</div>}
+    </div>
+  );
+}
 
 interface GrupoEconomico {
   id: string;
