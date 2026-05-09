@@ -48,6 +48,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCan } from "@/hooks/useCan";
 import { transportadoraSchema, validateForm } from "@/lib/validationSchemas";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Transportadora {
   id: string;
@@ -131,6 +132,7 @@ export default function Transportadoras() {
   const { saving, submit } = useSubmitLock();
   const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
   const { can } = useCan();
+  const isMobile = useIsMobile();
   const canExcluir = can("transportadoras:excluir");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [modalCliCount, setModalCliCount] = useState(0);
@@ -327,7 +329,7 @@ export default function Transportadoras() {
       mobilePrimary: true, label: "Transportadora", sortable: true,
       render: (t: Transportadora) => (
         <div>
-          <p className="font-medium leading-tight">{t.nome_razao_social}</p>
+          <p className="font-medium leading-tight line-clamp-2">{t.nome_razao_social}</p>
           {t.nome_fantasia && t.nome_fantasia !== t.nome_razao_social && (
             <p className="text-xs text-muted-foreground truncate max-w-xs">{t.nome_fantasia}</p>
           )}
@@ -347,6 +349,7 @@ export default function Transportadoras() {
     },
     {
       key: "contato_principal", label: "Contato",
+      mobileCard: true,
       render: (t: Transportadora) => {
         if (!t.telefone && !t.email) return <span className="text-muted-foreground text-xs">—</span>;
         return (
@@ -445,15 +448,15 @@ export default function Transportadoras() {
           <>
             <SummaryCard title="Total" value={data.length} icon={Truck} />
             <SummaryCard title="Ativas" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Sem prazo médio" value={summarySemPrazo} icon={Clock} variant={summarySemPrazo > 0 ? "warning" : "default"} />
-            <SummaryCard title="Sem contato" value={summarySemContato} icon={PhoneOff} variant={summarySemContato > 0 ? "warning" : "default"} />
+            <SummaryCard title="Sem prazo médio" shortTitle="Sem prazo" value={summarySemPrazo} icon={Clock} variant={summarySemPrazo > 0 ? "warning" : "default"} />
+            <SummaryCard title="Sem contato" shortTitle="Sem contato" value={summarySemContato} icon={PhoneOff} variant={summarySemContato > 0 ? "warning" : "default"} />
           </>
         }
       >
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nome, CNPJ ou cidade..."
+          searchPlaceholder={isMobile ? "Buscar transportadora..." : "Buscar por nome, CNPJ ou cidade..."}
           activeFilters={activeFilterChips}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => clearFilters(["ativo", "modalidade"])}
