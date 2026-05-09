@@ -500,3 +500,38 @@ export function TransportadoraView({ id }: Props) {
     </div>
   );
 }
+
+function ResumoBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground">{title}</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">{children}</div>
+    </div>
+  );
+}
+
+function ResumoField({
+  label,
+  value,
+  empty = "—",
+  mono = false,
+  fullWidth = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  empty?: string;
+  mono?: boolean;
+  fullWidth?: boolean;
+}) {
+  const isEmpty = value === null || value === undefined || value === "";
+  return (
+    <div className={fullWidth ? "col-span-2" : undefined}>
+      <p className="text-[10px] text-muted-foreground uppercase font-semibold">{label}</p>
+      {isEmpty ? (
+        <p className="text-sm text-muted-foreground italic">{empty}</p>
+      ) : (
+        <div className={`text-sm font-medium ${mono ? "font-mono" : ""}`}>{value}</div>
+      )}
+    </div>
+  );
+}
