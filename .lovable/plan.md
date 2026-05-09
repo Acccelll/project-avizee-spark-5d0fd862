@@ -1,70 +1,50 @@
-# Onda 31 — Drawer de Transportadoras
+# Onda 32 — Grid de Transportadoras (mobile)
 
-Foco: enriquecer o drawer (`src/components/views/TransportadoraView.tsx`) sem mudar regra de negócio. Trabalho de apresentação + uma query auxiliar leve.
+Foco: refinar o grid no mobile sem mexer em regra de negócio. Mudanças em apresentação (`src/pages/Transportadoras.tsx`) e, se necessário, microajustes em wrappers compartilhados.
 
 ## Alta prioridade
 
-### 1. Máscara no CNPJ do cabeçalho
-- Aplicar `cpfCnpjMask` em `transportadora.cpf_cnpj` antes de renderizar no `RecordIdentityCard`. Já é usado no grid.
+### 1. Cards de resumo sem truncamento
+- `SummaryCard` já aceita `shortTitle` (renderizado no mobile). Aplicar:
+  - "Sem prazo médio" → `shortTitle="Sem prazo"`
+  - "Sem contato" → `shortTitle="Sem contato"`
+  - Total/Ativas já cabem.
 
-### 2. KPI "Prazo médio" com microcopy claro
-- `prazo_medio` preenchido → mostrar `{n} dias`.
-- Vazio → `Não definido` (estado informativo, não `—`).
+### 2. Placeholder da busca mais curto no mobile
+- Hoje: `"Buscar por nome, CNPJ ou cidade..."`.
+- Usar `useIsMobile`: mobile → `"Buscar transportadora..."`; desktop → mantém atual.
 
-### 3. Aba Resumo mais rica
-Reorganizar em 3 blocos com headings discretos:
+### 3. Status visível no card mobile
+- A coluna `ativo` já tem `mobileCard: true` (acabou de virar visível também no desktop na Onda 30). Garantir que o `StatusBadge` aparece no card mobile.
+- Confirmar ordem dos campos em `mobileCard` para o status ficar próximo da modalidade.
 
-**Identificação**
-- CNPJ (formatado) · Modalidade (badge) · Cidade/UF · Status
+### 4. Nome em até 2 linhas no card mobile
+- A coluna `nome_razao_social` (mobilePrimary) hoje renderiza nome com `leading-tight`. Trocar `truncate` (se houver) por `line-clamp-2` no nome principal e manter `truncate` no nome fantasia.
+- Ajuste isolado nessa coluna; não toca `MobileCardList`.
 
-**Contato principal**
-- Responsável · Telefone (com `phoneMask`, ícone Phone, `tel:` link) · E-mail (ícone Mail, `mailto:` link)
-
-**Indicadores logísticos**
-- Prazo médio · Remessas ativas (em trânsito + pendentes) · Clientes vinculados
-
-Cada campo vazio passa a mostrar copy contextual: `Não informado` / `Sem e-mail cadastrado` / `Sem responsável definido` / `Sem histórico` — em vez de `—`.
-
-### 4. Estado vazio da aba Clientes acionável
-- Manter `DetailEmpty`, mas adicionar CTA "Vincular cliente" que dispara `navigate('/transportadoras?editId=' + id)` e abre o modal de edição (já tem aba Clientes lá). Mesma rota usada pelo botão Editar.
-
-### 5. Estado vazio da aba Obs.
-- Trocar parágrafo solto por `DetailEmpty` (icon `FileText`, título "Sem observações") com CTA "Adicionar observação" → navega para edição.
+### 5. Hierarquia / leitura do card
+- Manter ordem: Nome (2 linhas) → fantasia (1 linha truncada) → identificador `PJ · 44.914.992/0001-38` (CNPJ já com máscara da Onda 30) → Cidade/UF → Modalidade (badge) → Status (badge).
+- Nada de novos campos; só ordem e formatação.
 
 ## Média prioridade
 
-### 6. Reduzir exposição do "Inativar"
-- Manter `Editar` como ação primária (`variant="outline"`).
-- Mover `Inativar` para um menu `Mais ações` (`DropdownMenu` com trigger `MoreVertical`), junto com `Excluir definitivamente` (quando admin + inativo).
-- Confirmação destrutiva já existe (`ConfirmDialog`), mantida.
-
-### 7. Aba Remessas mais informativa
-- Em cada item, mostrar: cliente (linha 1, mais forte) → `RelationalLink` para remessa com label "Remessa · {rastreio || '—'}" → data prevista → status badge.
-- Trocar `sem rastreio` itálico por `<Badge variant="outline">Sem rastreio</Badge>` discreto.
-
-### 8. Padronizar contadores nas abas
-- `Resumo` sem contador (raiz).
-- `Clientes ({n})` · `Remessas ({n})` · `Obs. ({transportadora.observacoes ? 1 : 0})`.
-
-## Baixa prioridade (incluir se trivial)
-
-### 9. Permitir 2 linhas no nome do cabeçalho
-- Verificar `RecordIdentityCard`: se hoje aplica `truncate`, ajustar o consumo aqui via prop ou wrapper para `line-clamp-2`. Se for ajuste no componente compartilhado, tratar como follow-up.
+### 6. Telefone no card mobile (quando houver)
+- A coluna `contato_principal` hoje não está marcada como `mobileCard`. Adicionar `mobileCard: true` para mostrar telefone+e-mail no card.
+- Mantém ícones discretos `Phone`/`Mail` que já existem.
 
 ## Fora de escopo
 
-- Reduzir destaque do botão fechar (controlado por `RelationalDrawerStack`/shell — fora do escopo deste drawer).
-- "Última remessa" e "transportadora preferencial" no cabeçalho — preferencial não existe no schema; última remessa pode ser inferida mas adicionaria ruído ao header.
-- Atalhos `WhatsApp` (precisa coluna ou parsing de telefone celular).
+- **Topbar / nome do módulo truncado** — vem do app shell (`Sidebar`/`Topbar`), não da página de Transportadoras. Tratar em onda específica do shell mobile.
+- **Bottom nav / contexto "Fornecedores ativo"** — também é do shell de navegação.
+- **Esconder setas da paginação quando há 1 página** — comportamento do `DataTable` compartilhado; impacta todos os módulos. Tratar em onda própria.
+- **Botão "Nova Transportadora" muito dominante** — já segue padrão do `ModulePage`; mexer aqui causa inconsistência.
 
 ## Arquivos a alterar
 
-- `src/components/views/TransportadoraView.tsx` — única mudança.
-- (Reusa `cpfCnpjMask`/`phoneMask` de `src/utils/masks.ts`; usa `DropdownMenu` já existente em `@/components/ui/dropdown-menu`.)
+- `src/pages/Transportadoras.tsx` — única mudança.
 
 ## Validação
 
 - Build passa.
-- Conferir visual em `/transportadoras` abrindo um registro (desktop e mobile 390px).
-- Confirmar que CTAs de estados vazios disparam o modal de edição corretamente.
-- Confirmar fluxo Inativar via "Mais ações".
+- `/transportadoras` no preview a 390px: ver cards-resumo sem truncar, placeholder curto, card com nome em 2 linhas, status visível, telefone presente quando houver.
+- 1162px (atual): nada quebra; placeholder volta ao texto longo; cards-resumo continuam com label completo.
