@@ -1,50 +1,69 @@
-# Onda 32 — Grid de Transportadoras (mobile)
+## Onda 33 — Refino do formulário de Transportadora
 
-Foco: refinar o grid no mobile sem mexer em regra de negócio. Mudanças em apresentação (`src/pages/Transportadoras.tsx`) e, se necessário, microajustes em wrappers compartilhados.
+Escopo: apenas `src/pages/Transportadoras.tsx` (e, se necessário, `MaskedInput`/`useCnpjLookup` para feedbacks). Nada de mudança de schema ou regra de negócio nesta onda — `prazo_medio` continua `text` (estruturação numérica fica para uma onda futura, ver "Fora do escopo").
 
-## Alta prioridade
+### Alta prioridade
 
-### 1. Cards de resumo sem truncamento
-- `SummaryCard` já aceita `shortTitle` (renderizado no mobile). Aplicar:
-  - "Sem prazo médio" → `shortTitle="Sem prazo"`
-  - "Sem contato" → `shortTitle="Sem contato"`
-  - Total/Ativas já cabem.
+1. **CNPJ formatado em todo lugar**
+   - Header do FormModal: passar `identifier={cpfCnpjMask(selected.cpf_cnpj)}` em vez do valor cru.
+   - Aba Clientes vinculados: aplicar `cpfCnpjMask(cv.clientes.cpf_cnpj)` na linha de cada vínculo.
+   - Conferir `mobileIdentifierKey="cpf_cnpj"` do DataTable — se renderiza valor cru, trocar por `mobileIdentifier` formatado (callback) já que o grid mostra o número sem máscara em mobile.
 
-### 2. Placeholder da busca mais curto no mobile
-- Hoje: `"Buscar por nome, CNPJ ou cidade..."`.
-- Usar `useIsMobile`: mobile → `"Buscar transportadora..."`; desktop → mantém atual.
+2. **Botão "Consultar CNPJ" mais explícito**
+   - No desktop, trocar o botão `size="icon"` por um botão com ícone + texto "Consultar CNPJ" (mantém `size="icon"` só em telas estreitas via `useIsMobile`, com `aria-label` e `title`).
+   - Estados de feedback ao lado do campo (sob o helper text):
+     - idle → texto auxiliar atual
+     - `cnpjLoading` → "Consultando Receita Federal..." com `Loader2`
+     - sucesso (resultado preenchido) → "Dados preenchidos automaticamente" (texto verde, some após 4s via `setTimeout`)
+     - 404 / erro → já tratados em `useCnpjLookup` via toast; manter, sem duplicar.
 
-### 3. Status visível no card mobile
-- A coluna `ativo` já tem `mobileCard: true` (acabou de virar visível também no desktop na Onda 30). Garantir que o `StatusBadge` aparece no card mobile.
-- Confirmar ordem dos campos em `mobileCard` para o status ficar próximo da modalidade.
+3. **Aba Endereço — remover borda laranja sem contexto**
+   - Investigar (durante a implementação) o que está causando a borda visível no print: provavelmente `:focus-visible` herdado do `TabsContent` ou algum wrapper. Normalizar para sem outline visual no painel inteiro; manter foco apenas nos campos.
+   - Adicionar banner de **completude do endereço** quando faltar campo essencial (CEP, logradouro, número):
+     - Bloco discreto (`bg-muted/40 border-l-4 border-warning`) com texto "Endereço incompleto — preencha CEP, logradouro e número para uso em remessas".
+   - Acrescentar indicador `(!)` ao lado do label da aba Endereço quando o endereço estiver incompleto e a transportadora estiver em modo edit.
 
-### 4. Nome em até 2 linhas no card mobile
-- A coluna `nome_razao_social` (mobilePrimary) hoje renderiza nome com `leading-tight`. Trocar `truncate` (se houver) por `line-clamp-2` no nome principal e manter `truncate` no nome fantasia.
-- Ajuste isolado nessa coluna; não toca `MobileCardList`.
+4. **Ações nos clientes vinculados**
+   - Cada linha passa a expor (sempre visível, não só no hover):
+     - botão "Tornar preferencial" / "Remover preferência" (alterna `prioridade` 1 ↔ próxima posição) — já existe `Star`, falta o toggle clicável.
+     - botão "Abrir cliente" (navega para `/clientes?editId=...` via `useNavigate`).
+     - botão "Remover vínculo" (mantém o atual, sem `opacity-0`).
+   - CNPJ do cliente formatado (vide item 1).
 
-### 5. Hierarquia / leitura do card
-- Manter ordem: Nome (2 linhas) → fantasia (1 linha truncada) → identificador `PJ · 44.914.992/0001-38` (CNPJ já com máscara da Onda 30) → Cidade/UF → Modalidade (badge) → Status (badge).
-- Nada de novos campos; só ordem e formatação.
+### Média prioridade
 
-## Média prioridade
+5. **Renomear "Tipo" → "Tipo de Pessoa"** na aba Dados Gerais (apenas o `<Label>`).
 
-### 6. Telefone no card mobile (quando houver)
-- A coluna `contato_principal` hoje não está marcada como `mobileCard`. Adicionar `mobileCard: true` para mostrar telefone+e-mail no card.
-- Mantém ícones discretos `Phone`/`Mail` que já existem.
+6. **Renomear "Status" → "Situação da transportadora"** na aba Dados Gerais (apenas o `<Label>`). Badge do header continua só leitura.
 
-## Fora de escopo
+7. **Botão "Vincular" — contraste e mensagem**
+   - Quando desabilitado por falta de seleção, exibir hint inline: "Selecione um cliente para vincular" (texto pequeno ao lado/abaixo do botão).
+   - Quando habilitado, garantir variant default (já é) e remover qualquer classe que esteja apagando o tom (verificar se `disabled` está vazando estilo).
 
-- **Topbar / nome do módulo truncado** — vem do app shell (`Sidebar`/`Topbar`), não da página de Transportadoras. Tratar em onda específica do shell mobile.
-- **Bottom nav / contexto "Fornecedores ativo"** — também é do shell de navegação.
-- **Esconder setas da paginação quando há 1 página** — comportamento do `DataTable` compartilhado; impacta todos os módulos. Tratar em onda própria.
-- **Botão "Nova Transportadora" muito dominante** — já segue padrão do `ModulePage`; mexer aqui causa inconsistência.
+8. **Telefone — confirmar máscara**
+   - O campo já usa `MaskedInput mask="telefone"`. Verificar se ao salvar e reabrir o valor é re-mascarado (problema reportado `(11) 21889000`); se vier cru do banco, aplicar `phoneMask` no carregamento do form (linha ~222 e ~286).
 
-## Arquivos a alterar
+9. **Placeholder da aba Obs.**
+   - Trocar para: `Registre observações internas sobre atendimento, restrições, preferências ou histórico.`
 
-- `src/pages/Transportadoras.tsx` — única mudança.
+### Baixa prioridade
 
-## Validação
+10. **Microcopy**
+    - Helper text do prazo médio: incluir "(ex.: 3, 5 ou 3-5)" para padronizar entrada enquanto o campo continua texto.
 
-- Build passa.
-- `/transportadoras` no preview a 390px: ver cards-resumo sem truncar, placeholder curto, card com nome em 2 linhas, status visível, telefone presente quando houver.
-- 1162px (atual): nada quebra; placeholder volta ao texto longo; cards-resumo continuam com label completo.
+### Fora do escopo (registrar para próxima onda)
+
+- **Estruturação numérica do `prazo_medio`** (mín/máx + unidade): exige migração de schema (`prazo_medio_min int`, `prazo_medio_max int`, `prazo_medio_unidade`), backfill dos textos atuais e ajuste em remessas/relatórios. Anotar em `.lovable/plan.md` como "Onda 34 — Prazo estruturado".
+- **WhatsApp/celular separados**: também exige coluna nova; deixar para onda dedicada de "Canais de contato".
+- **Validação de e-mail visível**: já existe em `transportadoraSchema`; reforço de UX inline fica para a onda de validação client-side global.
+
+### Detalhes técnicos
+
+- Arquivos tocados: `src/pages/Transportadoras.tsx` (principal). Possível ajuste mínimo em `src/components/ui/MaskedInput` se necessário para reformatar valor inicial — só se o item 8 confirmar o bug.
+- Imports adicionais previstos: `useNavigate` (react-router-dom), `Star`/`StarOff`, `ExternalLink` de lucide-react, `cpfCnpjMask`/`phoneMask` (já importados).
+- Sem mudanças em RLS, edge functions ou tipos do Supabase.
+- Atualizar `.lovable/plan.md` com a Onda 33 e listar Onda 34 (prazo estruturado) como follow-up.
+## Onda 34 (follow-up) — Prazo estruturado de entrega
+- Migração: prazo_medio_min int, prazo_medio_max int, prazo_medio_unidade ('dias_uteis'|'dias_corridos').
+- Backfill parsing dos textos atuais (regex '(\d+)(?:\s*-\s*(\d+))?').
+- Atualizar UI/relatórios/remessas para usar campos numéricos.

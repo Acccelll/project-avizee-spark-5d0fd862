@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { ModulePage } from "@/components/ModulePage";
@@ -12,7 +13,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus } from "lucide-react";
+import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, Mail, PhoneOff, Clock, FileText, Loader2, Users, UserCheck, UserX, Plus, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -25,6 +26,7 @@ import {
   listClientesVinculados,
   vincularClienteTransportadora,
   desvincularClienteTransportadora,
+  setClienteTransportadoraPrioridade,
   deleteTransportadora,
   type ClienteVinculadoView,
 } from "@/services/transportadoras.service";
@@ -143,6 +145,8 @@ export default function Transportadoras() {
   const [loadingEditClientes, setLoadingEditClientes] = useState(false);
   const [vinculoClienteId, setVinculoClienteId] = useState("");
   const [savingVinculoCliente, setSavingVinculoCliente] = useState(false);
+  const navigate = useNavigate();
+  const [cnpjJustFetched, setCnpjJustFetched] = useState(false);
 
   // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
   useEditDeepLink<Transportadora>({
@@ -213,6 +217,25 @@ export default function Transportadoras() {
     }
   };
 
+  const handleTogglePreferencial = async (
+    vinculoId: string,
+    atualPrioridade: number | null,
+    transportadoraId: string,
+  ) => {
+    try {
+      const novaPrioridade =
+        atualPrioridade === 1 ? editClientesVinculados.length + 1 : 1;
+      await setClienteTransportadoraPrioridade(vinculoId, novaPrioridade);
+      await loadEditClientes(transportadoraId);
+      toast.success(
+        novaPrioridade === 1 ? "Marcado como preferencial" : "Preferência removida",
+      );
+    } catch (err) {
+      console.error("[transportadoras] erro ao alterar prioridade:", err);
+      notifyError(err);
+    }
+  };
+
   const openCreate = () => { setMode("create"); setForm({...emptyForm}); setSelected(null); setModalCliCount(0); setModalRemCount(0); setModalOpen(true); };
   const openEdit = (t: Transportadora) => {
     setMode("edit"); setSelected(t);
@@ -220,7 +243,7 @@ export default function Transportadoras() {
       tipo_pessoa: t.tipo_pessoa || "J",
       nome_razao_social: t.nome_razao_social, nome_fantasia: t.nome_fantasia || "",
       cpf_cnpj: t.cpf_cnpj || "", contato: t.contato || "",
-      telefone: t.telefone || "", email: t.email || "",
+      telefone: t.telefone ? phoneMask(t.telefone) : "", email: t.email || "",
       logradouro: t.logradouro || "", numero: t.numero || "",
       complemento: t.complemento || "", bairro: t.bairro || "",
       cidade: t.cidade || "", uf: t.uf || "", cep: t.cep || "",
@@ -285,7 +308,7 @@ export default function Transportadoras() {
       nome_fantasia: selected.nome_fantasia || "",
       cpf_cnpj: selected.cpf_cnpj || "",
       contato: selected.contato || "",
-      telefone: selected.telefone || "",
+      telefone: selected.telefone ? phoneMask(selected.telefone) : "",
       email: selected.email || "",
       logradouro: selected.logradouro || "",
       numero: selected.numero || "",
@@ -504,7 +527,7 @@ export default function Transportadoras() {
         size="xl"
         mode={mode}
         createHint="Informe a razão social, CNPJ e modalidade. Tabelas e endereços de coleta podem ser configurados depois."
-        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
+        identifier={mode === "edit" && selected?.cpf_cnpj ? cpfCnpjMask(selected.cpf_cnpj) : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ label: `Cadastro: ${formatDate(selected.created_at)}` }] : []),
@@ -531,7 +554,12 @@ export default function Transportadoras() {
               <TabsTrigger value="dados-gerais" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
               <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
               <TabsTrigger value="operacional" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Operacional</TabsTrigger>
-              <TabsTrigger value="endereco" className="gap-1.5"><MapPin className="h-3.5 w-3.5" />Endereço</TabsTrigger>
+              <TabsTrigger value="endereco" className="gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />Endereço
+                {mode === "edit" && (!form.cep || !form.logradouro || !form.numero) && (
+                  <AlertTriangle className="h-3 w-3 text-warning" aria-label="Endereço incompleto" />
+                )}
+              </TabsTrigger>
               {mode === "edit" && (
                 <TabsTrigger value="clientes-vinculados" className="gap-1.5">
                   <Users className="h-3.5 w-3.5" />Clientes
@@ -545,7 +573,7 @@ export default function Transportadoras() {
             <TabsContent value="dados-gerais" className="space-y-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 md:col-span-1 space-y-2">
-              <Label>Tipo</Label>
+              <Label>Tipo de Pessoa</Label>
               <Select value={form.tipo_pessoa} onValueChange={(v) => setForm({ ...form, tipo_pessoa: v, cpf_cnpj: "" })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -558,29 +586,50 @@ export default function Transportadoras() {
               <Label>{form.tipo_pessoa === "F" ? "CPF" : "CNPJ"}</Label>
               <div className="flex gap-1">
                 <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
-                <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cnpjLoading || form.tipo_pessoa !== "J"}
-                  aria-label="Buscar CNPJ"
-                  title="Buscar dados pelo CNPJ e preencher automaticamente"
+                <Button
+                  type="button"
+                  variant="outline"
+                  size={isMobile ? "icon" : "default"}
+                  className="shrink-0 gap-1.5"
+                  disabled={cnpjLoading || form.tipo_pessoa !== "J"}
+                  aria-label="Consultar CNPJ"
+                  title="Consultar CNPJ e preencher dados automaticamente"
                   onClick={async () => {
+                    setCnpjJustFetched(false);
                     const result = await buscarCnpj(form.cpf_cnpj);
-                    if (result) setForm(prev => ({
-                      ...prev,
-                      nome_razao_social: result.razao_social || prev.nome_razao_social,
-                      nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
-                      email: result.email || prev.email,
-                      telefone: result.telefone || prev.telefone,
-                      cidade: result.municipio || prev.cidade,
-                      uf: result.uf || prev.uf,
-                    }));
+                    if (result) {
+                      setForm(prev => ({
+                        ...prev,
+                        nome_razao_social: result.razao_social || prev.nome_razao_social,
+                        nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
+                        email: result.email || prev.email,
+                        telefone: result.telefone || prev.telefone,
+                        cidade: result.municipio || prev.cidade,
+                        uf: result.uf || prev.uf,
+                      }));
+                      setCnpjJustFetched(true);
+                      setTimeout(() => setCnpjJustFetched(false), 4000);
+                    }
                   }}>
                   {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {!isMobile && <span>Consultar CNPJ</span>}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground leading-tight">
-                {form.tipo_pessoa === "F"
-                  ? "Informe o CPF do transportador autônomo."
-                  : "Informe o CNPJ e clique em buscar para preencher automaticamente."}
-              </p>
+              {cnpjLoading ? (
+                <p className="text-xs text-muted-foreground leading-tight flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Consultando Receita Federal...
+                </p>
+              ) : cnpjJustFetched ? (
+                <p className="text-xs text-success leading-tight flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Dados preenchidos automaticamente.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground leading-tight">
+                  {form.tipo_pessoa === "F"
+                    ? "Informe o CPF do transportador autônomo."
+                    : "Informe o CNPJ e clique em Consultar CNPJ para preencher automaticamente."}
+                </p>
+              )}
               {docChecking && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
@@ -599,7 +648,7 @@ export default function Transportadoras() {
               <Input value={form.nome_fantasia} onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })} placeholder="Nome comercial (se diferente da razão social)" />
             </div>
             <div className="col-span-2 md:col-span-3 space-y-2">
-              <Label>Status</Label>
+              <Label>Situação da transportadora</Label>
               <div className="flex items-center gap-3 h-9 px-3 rounded-md border bg-background">
                 <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
                 <span className="text-sm text-muted-foreground">{form.ativo ? "Ativo" : "Inativo"}</span>
@@ -657,10 +706,10 @@ export default function Transportadoras() {
             <div className="space-y-2">
               <Label className="font-semibold text-sm">Prazo Médio de Entrega</Label>
               <div className="relative">
-                <Input value={form.prazo_medio} onChange={(e) => setForm({ ...form, prazo_medio: e.target.value })} placeholder="Ex: 3-5" className="h-10 pr-24 font-mono" />
+                <Input value={form.prazo_medio} onChange={(e) => setForm({ ...form, prazo_medio: e.target.value })} placeholder="Ex.: 3, 5 ou 3-5" className="h-10 pr-24 font-mono" />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none select-none">dias úteis</span>
               </div>
-              <p className="text-xs text-muted-foreground leading-tight">Prazo médio informado pela transportadora. Usado como referência em remessas.</p>
+              <p className="text-xs text-muted-foreground leading-tight">Prazo médio informado pela transportadora — aceita número único (5) ou faixa (3-5). Usado como referência em remessas.</p>
             </div>
           </div>
             </TabsContent>
@@ -668,6 +717,15 @@ export default function Transportadoras() {
             {/* ── TAB: ENDEREÇO ─────────────────────────────── */}
             <TabsContent value="endereco" className="space-y-4 mt-0">
           <p className="text-xs text-muted-foreground mb-4">Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.</p>
+          {mode === "edit" && (!form.cep || !form.logradouro || !form.numero) && (
+            <div className="mb-4 flex items-start gap-2 rounded-md border-l-4 border-warning bg-warning/5 px-3 py-2 text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">Endereço incompleto</p>
+                <p className="text-muted-foreground">Preencha CEP, logradouro e número para uso em remessas e etiquetas.</p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 space-y-2">
               <Label>CEP</Label>
@@ -742,24 +800,29 @@ export default function Transportadoras() {
             Vincule clientes a esta transportadora para facilitar o uso nos processos logísticos.
           </p>
           {/* Adicionar vínculo */}
-          <div className="flex gap-2 mb-3">
-            <Select value={vinculoClienteId} onValueChange={setVinculoClienteId}>
-              <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Selecionar cliente..." /></SelectTrigger>
-              <SelectContent>
-                {clientesList
-                   .filter(cl => !editClientesVinculados.some(cv => cv.cliente_id === cl.id))
-                  .map(cl => <SelectItem key={cl.id} value={cl.id}>{cl.nome_razao_social}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button" size="sm"
-              disabled={!vinculoClienteId || savingVinculoCliente}
-              onClick={() => selected && handleVincularCliente(selected.id)}
-              className="gap-1 h-9"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Vincular
-            </Button>
+          <div className="mb-3 space-y-1">
+            <div className="flex gap-2">
+              <Select value={vinculoClienteId} onValueChange={setVinculoClienteId}>
+                <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Selecionar cliente..." /></SelectTrigger>
+                <SelectContent>
+                  {clientesList
+                     .filter(cl => !editClientesVinculados.some(cv => cv.cliente_id === cl.id))
+                    .map(cl => <SelectItem key={cl.id} value={cl.id}>{cl.nome_razao_social}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button" size="sm" variant="default"
+                disabled={!vinculoClienteId || savingVinculoCliente}
+                onClick={() => selected && handleVincularCliente(selected.id)}
+                className="gap-1 h-9"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Vincular
+              </Button>
+            </div>
+            {!vinculoClienteId && (
+              <p className="text-[11px] text-muted-foreground">Selecione um cliente para habilitar o botão Vincular.</p>
+            )}
           </div>
           {loadingEditClientes ? (
             <div className="h-16 bg-muted/30 rounded-lg animate-pulse" />
@@ -771,25 +834,58 @@ export default function Transportadoras() {
           ) : (
             <div className="space-y-0.5">
               {editClientesVinculados.map((cv) => (
-                <div key={cv.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors border-b last:border-b-0 group">
+                <div key={cv.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors border-b last:border-b-0">
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    {cv.prioridade === 1 && <Star className="h-3 w-3 text-warning shrink-0" />}
-                    <div>
-                      <span className="text-xs font-medium text-foreground">{cv.clientes?.nome_razao_social}</span>
-                      {cv.clientes?.cpf_cnpj && <span className="ml-1.5 text-[10px] text-muted-foreground font-mono">{cv.clientes.cpf_cnpj}</span>}
+                    {cv.prioridade === 1 && <Star className="h-3 w-3 text-warning fill-warning shrink-0" aria-label="Preferencial" />}
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-foreground truncate">{cv.clientes?.nome_razao_social}</div>
+                      {cv.clientes?.cpf_cnpj && (
+                        <div className="text-[10px] text-muted-foreground font-mono">{cpfCnpjMask(cv.clientes.cpf_cnpj)}</div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {cv.modalidade && <span className="text-xs text-muted-foreground capitalize">{cv.modalidade}</span>}
-                    {cv.prazo_medio && <span className="text-xs text-muted-foreground font-mono">{cv.prazo_medio}d</span>}
-                    <Button
-                      type="button" size="icon" variant="ghost"
-                      className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label="Remover vínculo"
-                      onClick={() => selected && handleDesvincularCliente(cv.id, selected.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {cv.modalidade && <span className="text-xs text-muted-foreground capitalize mr-1">{cv.modalidade}</span>}
+                    {cv.prazo_medio && <span className="text-xs text-muted-foreground font-mono mr-1">{cv.prazo_medio}d</span>}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button" size="icon" variant="ghost"
+                          className="h-7 w-7"
+                          aria-label={cv.prioridade === 1 ? "Remover preferência" : "Marcar como preferencial"}
+                          onClick={() => selected && handleTogglePreferencial(cv.id, cv.prioridade, selected.id)}
+                        >
+                          <Star className={`h-3.5 w-3.5 ${cv.prioridade === 1 ? "text-warning fill-warning" : "text-muted-foreground"}`} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{cv.prioridade === 1 ? "Remover preferência" : "Marcar como preferencial"}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button" size="icon" variant="ghost"
+                          className="h-7 w-7"
+                          aria-label="Abrir cliente"
+                          onClick={() => navigate(`/clientes?editId=${cv.cliente_id}`)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Abrir cliente</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button" size="icon" variant="ghost"
+                          className="h-7 w-7 text-destructive"
+                          aria-label="Remover vínculo"
+                          onClick={() => selected && handleDesvincularCliente(cv.id, selected.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Remover vínculo</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               ))}
@@ -805,7 +901,7 @@ export default function Transportadoras() {
             <Textarea
               value={form.observacoes}
               onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              placeholder="Restrições de atendimento, particularidades operacionais, observações de logística..."
+              placeholder="Registre observações internas sobre atendimento, restrições, preferências ou histórico."
               rows={4}
               className="resize-none"
             />
