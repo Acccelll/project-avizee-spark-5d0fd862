@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -147,6 +147,16 @@ export default function Transportadoras() {
   const [savingVinculoCliente, setSavingVinculoCliente] = useState(false);
   const navigate = useNavigate();
   const [cnpjJustFetched, setCnpjJustFetched] = useState(false);
+
+  // Aba ativa controlada (auto-centraliza no mobile)
+  const [activeTab, setActiveTab] = useState<string>("dados-gerais");
+  const tabsListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const list = tabsListRef.current;
+    if (!list) return;
+    const active = list.querySelector<HTMLElement>('[data-state="active"]');
+    if (active) active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [activeTab]);
 
   // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
   useEditDeepLink<Transportadora>({
@@ -549,11 +559,14 @@ export default function Transportadoras() {
       >
         <form id="transportadora-form" onSubmit={handleSubmit} className="space-y-0">
 
-          <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto">
-              <TabsTrigger value="dados-gerais" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList
+              ref={tabsListRef}
+              className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
+            >
+              <TabsTrigger value="dados-gerais" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />{isMobile ? "Dados" : "Dados Gerais"}</TabsTrigger>
               <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
-              <TabsTrigger value="operacional" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Operacional</TabsTrigger>
+              <TabsTrigger value="operacional" className="gap-1.5"><Truck className="h-3.5 w-3.5" />{isMobile ? "Operação" : "Operacional"}</TabsTrigger>
               <TabsTrigger value="endereco" className="gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />Endereço
                 {mode === "edit" && (!form.cep || !form.logradouro || !form.numero) && (
@@ -584,37 +597,59 @@ export default function Transportadoras() {
             </div>
             <div className="col-span-2 space-y-2">
               <Label>{form.tipo_pessoa === "F" ? "CPF" : "CNPJ"}</Label>
-              <div className="flex gap-1">
-                <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size={isMobile ? "icon" : "default"}
-                  className="shrink-0 gap-1.5"
-                  disabled={cnpjLoading || form.tipo_pessoa !== "J"}
-                  aria-label="Consultar CNPJ"
-                  title="Consultar CNPJ e preencher dados automaticamente"
-                  onClick={async () => {
-                    setCnpjJustFetched(false);
-                    const result = await buscarCnpj(form.cpf_cnpj);
-                    if (result) {
-                      setForm(prev => ({
-                        ...prev,
-                        nome_razao_social: result.razao_social || prev.nome_razao_social,
-                        nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
-                        email: result.email || prev.email,
-                        telefone: result.telefone || prev.telefone,
-                        cidade: result.municipio || prev.cidade,
-                        uf: result.uf || prev.uf,
-                      }));
-                      setCnpjJustFetched(true);
-                      setTimeout(() => setCnpjJustFetched(false), 4000);
-                    }
-                  }}>
-                  {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  {!isMobile && <span>Consultar CNPJ</span>}
-                </Button>
-              </div>
+              {(() => {
+                const handleConsultarCnpj = async () => {
+                  setCnpjJustFetched(false);
+                  const result = await buscarCnpj(form.cpf_cnpj);
+                  if (result) {
+                    setForm(prev => ({
+                      ...prev,
+                      nome_razao_social: result.razao_social || prev.nome_razao_social,
+                      nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
+                      email: result.email || prev.email,
+                      telefone: result.telefone || prev.telefone,
+                      cidade: result.municipio || prev.cidade,
+                      uf: result.uf || prev.uf,
+                    }));
+                    setCnpjJustFetched(true);
+                    setTimeout(() => setCnpjJustFetched(false), 4000);
+                  }
+                };
+                const cnpjBtnDisabled = cnpjLoading || form.tipo_pessoa !== "J";
+                return isMobile ? (
+                  <div className="space-y-2">
+                    <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
+                    {form.tipo_pessoa === "J" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-1.5 h-10"
+                        disabled={cnpjBtnDisabled}
+                        onClick={handleConsultarCnpj}
+                      >
+                        {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        <span>Consultar CNPJ</span>
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <MaskedInput mask={form.tipo_pessoa === "F" ? "cpf" : "cnpj"} value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="shrink-0 gap-1.5"
+                      disabled={cnpjBtnDisabled}
+                      aria-label="Consultar CNPJ"
+                      title="Consultar CNPJ e preencher dados automaticamente"
+                      onClick={handleConsultarCnpj}
+                    >
+                      {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      <span>Consultar CNPJ</span>
+                    </Button>
+                  </div>
+                );
+              })()}
               {cnpjLoading ? (
                 <p className="text-xs text-muted-foreground leading-tight flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" /> Consultando Receita Federal...
@@ -627,7 +662,7 @@ export default function Transportadoras() {
                 <p className="text-xs text-muted-foreground leading-tight">
                   {form.tipo_pessoa === "F"
                     ? "Informe o CPF do transportador autônomo."
-                    : "Informe o CNPJ e clique em Consultar CNPJ para preencher automaticamente."}
+                    : "Consultar CNPJ para preencher automaticamente."}
                 </p>
               )}
               {docChecking && (
@@ -706,10 +741,18 @@ export default function Transportadoras() {
             <div className="space-y-2">
               <Label className="font-semibold text-sm">Prazo Médio de Entrega</Label>
               <div className="relative">
-                <Input value={form.prazo_medio} onChange={(e) => setForm({ ...form, prazo_medio: e.target.value })} placeholder="Ex.: 3, 5 ou 3-5" className="h-10 pr-24 font-mono" />
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={form.prazo_medio}
+                  onChange={(e) => setForm({ ...form, prazo_medio: e.target.value.replace(/\D/g, "") })}
+                  placeholder="Ex.: 5"
+                  className="h-10 pr-24 font-mono"
+                />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none select-none">dias úteis</span>
               </div>
-              <p className="text-xs text-muted-foreground leading-tight">Prazo médio informado pela transportadora — aceita número único (5) ou faixa (3-5). Usado como referência em remessas.</p>
+              <p className="text-xs text-muted-foreground leading-tight">Prazo médio em dias úteis. Usado como referência em remessas.</p>
             </div>
           </div>
             </TabsContent>
@@ -811,7 +854,7 @@ export default function Transportadoras() {
                 </SelectContent>
               </Select>
               <Button
-                type="button" size="sm" variant="default"
+                type="button" size="sm" variant={!vinculoClienteId ? "outline" : "default"}
                 disabled={!vinculoClienteId || savingVinculoCliente}
                 onClick={() => selected && handleVincularCliente(selected.id)}
                 className="gap-1 h-9"
@@ -821,7 +864,7 @@ export default function Transportadoras() {
               </Button>
             </div>
             {!vinculoClienteId && (
-              <p className="text-[11px] text-muted-foreground">Selecione um cliente para habilitar o botão Vincular.</p>
+              <p className="text-[11px] text-warning-foreground">Selecione um cliente para habilitar o botão Vincular.</p>
             )}
           </div>
           {loadingEditClientes ? (
