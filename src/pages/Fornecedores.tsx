@@ -551,7 +551,6 @@ const Fornecedores = () => {
           />
         </PullToRefresh>
       </ModulePage>
-      <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo fornecedor" />
       <QuickAddSupplierModal
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
