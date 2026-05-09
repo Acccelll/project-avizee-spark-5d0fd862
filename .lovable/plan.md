@@ -1,53 +1,64 @@
-# Onda 36 — Mobile do grid Formas de Pagamento
+## Onda 37 — Refino do formulário "Editar Forma de Pagamento"
 
-Refinos no card mobile e nos summary cards de `/formas-pagamento` (`src/pages/FormasPagamento.tsx`). UI/labels apenas — sem mudança de schema.
+Foco: tornar a relação **prazo padrão × parcelas** mais intuitiva, melhorar a configuração/visualização de parcelas e refinar microcopy. Sem mudanças de schema, sem mudar lógica de cálculo. Tudo em `src/pages/FormasPagamento.tsx`.
 
-## Contexto
-- `SummaryCard` aceita `shortTitle` que substitui `title` no mobile (uso já consagrado no projeto).
-- `MobileCardList` (via `DataTable`) renderiza:
-  - **primary**: `mobilePrimary: true` → `descricao`.
-  - **identifier**: coluna apontada por `mobileIdentifierKey` → hoje `tipo` (já é Badge com ícone após Onda 35).
-  - **detalhes**: colunas marcadas `mobileCard: true` → hoje só `prazo` (Parcelamento).
-  - **status**: badge no canto superior direito (`ativo`).
-- Onda 35 já corrigiu nomes técnicos (`cartao_credito`/`outros`) e a representação de "30d" virou "n parcelas · 30/60/90 dias". Esses pontos do feedback estão resolvidos no desktop e — como o mobile reusa as mesmas colunas — também no mobile.
+### Alta prioridade
 
-## Alta prioridade
+**1. Bloco "Condição de Pagamento" — hierarquia À vista × A prazo**
+- Adicionar um seletor superior `RadioGroup`/segmented com duas opções: **À vista** | **A prazo**.
+- Estado derivado: `aPrazo = prazo_dias > 0 || intervalos_dias.length > 0`.
+- Ao selecionar **À vista** → zera `prazo_dias` e `intervalos_dias`; oculta sub-bloco de prazo/parcelas e mostra badge sutil "Pagamento à vista — sem prazo adicional".
+- Ao selecionar **A prazo** → revela: campo "Prazo padrão" + sub-bloco "Parcelamento".
+- Mensagem curta e direta dentro do sub-bloco: *"Se você adicionar parcelas abaixo, os intervalos definidos substituirão o prazo padrão."*
 
-1. **Eliminar truncamento dos summary cards no mobile**
-   - `Total` → mantém.
-   - `Ativas` → mantém.
-   - `Parceladas` → mantém.
-   - `Criam lançamentos` → adicionar `shortTitle="Financeiro"`.
-   - Validar visualmente que nenhum card mais corta o texto a 391px.
+**2. Lista de parcelas explícita (substitui a fileira de chips)**
+- Quando houver `intervalos_dias`, renderizar uma lista vertical:
+  - `Parcela 1 — 30 dias [editar] [remover]`
+  - `Parcela 2 — 60 dias …`
+- Cada item editável inline (input numérico pequeno) ou ação "remover" (X).
+- Manter ordem do array; reordenação fica fora de escopo.
+- Resumo mantido: "3 parcelas: 30 / 60 / 90 dias" (já existe).
 
-2. **Confirmar que valores técnicos não aparecem mais**
-   - `tipoLabel`/`tipoIcon` agora cobrem `cartao_credito`, `cartao_debito`, `cobranca_automatica`, `debito_automatico`, `outros`. Como `mobileIdentifierKey="tipo"` reusa o `render` do desktop, o card mobile já mostra o badge "Cartão de crédito"/"Outros" com ícone consistente.
-   - Adicionar fallback defensivo no `tipoLabel`: se a chave não existir, usar capitalização legível (`f.tipo.replace("_", " ")`) para nunca exibir snake_case bruto.
+**3. Estado vazio e label do adder de parcelas**
+- Estado vazio (quando A prazo, sem intervalos): *"Nenhuma parcela configurada. Adicione intervalos para criar um parcelamento (ex.: 30, 60, 90)."*
+- Renomear label do input para **"Dias da parcela"** e botão para **"Adicionar parcela"** (mantido).
+- Manter Enter para confirmar.
 
-3. **Hierarquia do card mobile mais clara**
-   - Atual: `descricao` (primary) → badge `tipo` (identifier) → `prazo` (detail).
-   - Trocar o wrapper `font-mono text-muted-foreground` herdado do slot identifier não é necessário porque o badge tem fundo próprio; mas vamos garantir a ordem desejada **título → tipo → parcelamento → status**:
-     - Manter `mobilePrimary: descricao`.
-     - Manter `mobileIdentifierKey: tipo` (Badge com ícone).
-     - Manter `prazo` como `mobileCard` (já em duas linhas: "n parcelas / 30/60/90 dias" / "1 parcela · 30 dias" / "À vista").
-     - Status segue como pill no canto via `mobileStatusKey="ativo"`.
+### Média prioridade
 
-4. **Mostrar "Gera financeiro" no card mobile**
-   - Marcar a coluna `gera_financeiro` como `mobileCard: true` para que apareça nas details do card. O render já é o Badge "Sim/Não" com tooltip + ícone (`CheckCircle`/`Ban`), o que mantém compacto. Em mobile o tooltip não dispara, mas o badge "Sim/Não" sozinho carrega o sinal.
+**4. Identificação da Regra — labels mais claras**
+- "Descrição" → **"Nome da forma"** com helper inalterado ("Como aparecerá em clientes, orçamentos e pedidos").
+- "Tipo" → **"Meio de pagamento"** (`Label` apenas; `value` permanece `tipo`).
+- Manter Status como está (já compacto).
 
-## Média prioridade
+**5. Bloco "Comportamento Financeiro" — copy mais objetiva**
+- Texto auxiliar: *"Quando ativado, gera lançamentos financeiros automaticamente ao usar esta forma em pedidos e orçamentos."* (alinhado ao tooltip do grid).
 
-5. **Placeholder da busca mais curto**
-   - `searchPlaceholder="Buscar forma..."` (substitui "Buscar por descrição..."). Vale para desktop e mobile — ganho maior no mobile.
+**6. Bloco "Uso / Contexto" — mais escaneável**
+- Manter os 3 itens, mas com **labels em negrito + frase curta**, sem subordinadas longas. Já está próximo; apenas encurtar.
+- Ex.: "**Financeiro:** gera lançamentos ao finalizar pedidos." / "**Financeiro:** não gera lançamentos automáticos."
 
-6. **Ícone do PIX padronizado**
-   - Manter `QrCode` (lucide) para `pix` em todos os pontos. Confirmar que não há renderização de unicode/emoji no nome `descricao` (a forma "PIX à vista" é apenas texto cadastrado pelo usuário); nada a fazer no código além de garantir que o Badge `tipo` use sempre o ícone do `tipoIcon`.
+**7. Observações — placeholder neutro**
+- *"Registre instruções internas, restrições comerciais ou observações sobre o uso desta forma."*
 
-## Fora de escopo (registrar no plano para futura onda)
+### Baixa prioridade
 
-- **Paginação compacta quando há 1 página só**: `DataTable` controla `Pagination` próprio; alterar comportamento muda comportamento global de outras telas. Tratar em onda dedicada ao DataTable mobile.
-- **Bottom-nav highlighting** do módulo "Formas e condições de pagamento": pertence ao módulo Cadastros e usa o item agrupador. Avaliar em onda específica de navegação mobile.
+**8. Chip de tipo no topo (drawer header)**
+- Manter como contexto visual; nenhuma mudança de comportamento. Apenas garantir que o ícone/label vem de `tipoLabel[form.tipo]` (já é).
 
-## Arquivos
-- `src/pages/FormasPagamento.tsx` (única alteração)
-- `.lovable/plan.md` (registrar Onda 36)
+**9. Compactar levemente o container do toggle Status**
+- Reduzir `h-10` da linha do Switch e remover espaço residual (sem mover do lugar).
+
+### Fora de escopo
+- Separação `meios_pagamento` × `condicoes_pagamento` (ADR 004 mantém modelo único).
+- Mudanças no `QuickAddFormaPagamentoModal` (cadastro rápido continua como está).
+- Schema/RLS/migrations.
+
+### Arquivos
+- `src/pages/FormasPagamento.tsx` (única alteração).
+- `.lovable/plan.md` (registro da onda).
+
+### Validação
+- Build TS limpo.
+- Cenários testados manualmente: à vista, 30 dias sem parcelas, 30/60/90, 3x cartão.
+- Toggle À vista ⇄ A prazo preserva descrição e tipo, zera apenas prazo/parcelas conforme regra.
