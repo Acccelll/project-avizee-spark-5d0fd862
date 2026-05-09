@@ -527,7 +527,7 @@ export default function Transportadoras() {
         size="xl"
         mode={mode}
         createHint="Informe a razão social, CNPJ e modalidade. Tabelas e endereços de coleta podem ser configurados depois."
-        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
+        identifier={mode === "edit" && selected?.cpf_cnpj ? cpfCnpjMask(selected.cpf_cnpj) : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ label: `Cadastro: ${formatDate(selected.created_at)}` }] : []),
