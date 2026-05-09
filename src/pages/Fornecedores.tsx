@@ -577,7 +577,7 @@ const Fornecedores = () => {
           if (isDirty && !(await confirmDiscard())) return;
           setModalOpen(false);
         }}
-        title={mode === "create" ? "Novo Fornecedor" : "Editar Fornecedor"}
+        title={mode === "create" ? (isMobile ? "Novo" : "Novo Fornecedor") : (isMobile ? "Editar" : "Editar Fornecedor")}
         size="xl"
         mode={mode}
         createHint="Preencha razão social, CPF/CNPJ e contato principal. Demais dados podem ser complementados depois."
@@ -589,7 +589,7 @@ const Fornecedores = () => {
               onCheckedChange={(v) => updateForm({ ativo: v })}
               aria-label={form.ativo ? "Inativar fornecedor" : "Reativar fornecedor"}
             />
-            <span className="font-medium">{form.ativo ? "Fornecedor ativo" : "Fornecedor inativo"}</span>
+            <span className="font-medium hidden sm:inline">{form.ativo ? "Fornecedor ativo" : "Fornecedor inativo"}</span>
           </label>
         ) : undefined}
         meta={mode === "edit" && selected ? [
@@ -615,10 +615,13 @@ const Fornecedores = () => {
       >
         <form id="fornecedor-form" onSubmit={handleSubmit} className="space-y-0">
 
-          <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList
+              ref={tabsListRef}
+              className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
+            >
               <TabsTrigger value="dados-gerais" className="gap-1.5">
-                <User2 className="h-3.5 w-3.5" />Dados Gerais
+                <User2 className="h-3.5 w-3.5" />{isMobile ? "Dados" : "Dados Gerais"}
                 {(formErrors.cpf_cnpj || formErrors.nome_razao_social) && (
                   <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
                 )}
