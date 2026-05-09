@@ -268,7 +268,6 @@ export function GrupoEconomicoView({ id }: Props) {
           label="Matriz"
           value={matriz?.nome_razao_social || "Não definida"}
           mono={false}
-          tone={matriz ? "neutral" : "muted"}
         />
       </DrawerSummaryGrid>
 
