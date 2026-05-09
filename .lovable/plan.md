@@ -1,106 +1,70 @@
-## Onda 25 — Grid de Fornecedores (densidade, leitura e ações)
+## Onda 26 — Mobile do grid de Fornecedores
 
-Foco: refinar `src/pages/Fornecedores.tsx` (grid + cards do topo + toolbar) sem mexer no schema do banco nem no formulário. Aplica padrões já consolidados em Clientes/Produtos.
+Foco: tirar redundâncias, padronizar o card mobile e melhorar a paginação. Tudo em `src/pages/Fornecedores.tsx` (mais um pequeno ajuste em `MobileQuickAddFAB` se necessário). Sem mudanças de regra de negócio nem de schema.
 
-### 1) Cards do topo mais acionáveis
+### 1. CTA único no mobile (alta prioridade)
+- Manter o botão **Novo Fornecedor** do header (já adaptado para `w-full` em mobile pelo `ModulePage`).
+- Remover o `<MobileQuickAddFAB />` desta tela. O FAB hoje duplica a mesma ação do header e compete com a paginação no rodapé.
+- `quickAddOpen`/`QuickAddSupplierModal` continuam disponíveis caso outros pontos disparem (manter o estado, só não renderizar o FAB).
 
-Hoje: `Total`, `Ativos`, `Inativos`. Como quase todos são ativos, o terceiro card é inútil.
+### 2. Cards-resumo: 3 visíveis no mobile, sem truncar (alta)
+Hoje só `Total` e `Ativos` aparecem no mobile; `Sem contato` está em `hidden md:contents`. O ideal operacional é mostrar 3 cards com rótulo curto.
+- Layout: `grid-cols-3` no mobile (já existe `md:grid-cols-4` no `ModulePage`). Os 3 cards visíveis em mobile passam a ser:
+  1. **Total** (shortTitle) / "Total de Fornecedores" no desktop
+  2. **Ativos**
+  3. **Sem contato** (warning quando > 0) — promover para visível no mobile
+- "Cadastro incompleto" continua em `hidden lg:contents` (4º card no desktop largo).
+- Usar a prop existente `shortTitle` do `SummaryCard` para evitar truncamento ("Total de F…").
 
-Substituir por 4 cards (3 visíveis em md, 4 em lg):
+### 3. Busca com placeholder curto no mobile (alta)
+- `AdvancedFilterBar.searchPlaceholder` passa a ser dependente do `useIsMobile`:
+  - mobile: `"Buscar fornecedor..."`
+  - desktop: mantém `"Razão social, CNPJ, e-mail ou cidade"`.
 
-- **Total de Fornecedores** (mantém)
-- **Ativos** (mantém, success)
-- **Sem contato** — `count(ativo=true AND coalesce(email,'')='' AND coalesce(telefone,'')='' AND coalesce(celular,'')='')` (variant warning, ícone `PhoneOff`)
-- **Cadastro incompleto** — `count(ativo=true AND (cpf_cnpj IS NULL OR cidade IS NULL OR uf IS NULL))` (variant warning, ícone `AlertCircle`)
+### 4. Card mobile padronizado (alta)
+Reorganizar a coluna `mobilePrimary` (`nome_razao_social`) para ficar previsível e remover a duplicação do badge "Sem contato" que hoje aparece tanto na linha do nome quanto na coluna `contato_principal`.
 
-Implementação: 2 novos `useTableCount` com filtros `or(...)` server-side (já suportado pelo hook). Clique no card aplica o filtro correspondente (ver §6). `Inativos` migra para o filtro `Status` existente.
-
-### 2) Máscara em CPF/CNPJ e telefone
-
-Trocar a renderização das células — não persistir formatado.
-
-- Coluna `cpf_cnpj`: usar `cpfCnpjMask(f.cpf_cnpj)` (`@/utils/masks`).
-- Coluna `Contato`: aplicar `phoneMask(phone)` antes de exibir.
-
-### 3) Coluna "Fornecedor" combinada (nome + cidade/UF)
-
-Hoje a busca promete cidade mas a coluna não mostra. Reformatar `nome_razao_social` para incluir cidade/UF como subtítulo quando `nome_fantasia` for igual ou ausente:
+Estrutura final do card (ordem de leitura):
 
 ```text
-WALMUR COMÉRCIO LTDA
-Caxias do Sul/RS
+Linha 1  Nome / Razão social                    ⋮ (menu)
+Linha 2  Nome fantasia · Cidade/UF
+Linha 3  CNPJ formatado (mono)
+Linha 4  [PJ] [Ativo] [Sem contato?] [Sem CNPJ?]
+Rodapé   ações rápidas contextuais
 ```
 
-Quando houver `nome_fantasia` distinto: linha 2 vira `nome_fantasia · cidade/UF`. Remover a coluna `Cidade` separada (deixar só dentro da principal). Continua existindo no toggle de colunas para quem quiser destaque.
+Mudanças concretas:
+- Na coluna `nome_razao_social`: remover os dois `Badge`s inline ("Sem contato" e "Sem CNPJ") da linha do nome — eles passam para a Linha 4 (badge row).
+- Adicionar uma nova coluna `mobileCard` "Indicadores" que consolida em uma única linha de chips: `Pessoa (PF/PJ)`, `Status (Ativo/Inativo)`, `Sem contato` (se aplicável), `Sem CNPJ` (se aplicável). Isso elimina a duplicação descrita no item 6 do feedback e atende ao item 8 (status visível por linha).
+- Coluna `tipo_pessoa` continua existindo para a tabela desktop, mas ganha `hidden: true` no contexto mobile (não duplicar com o chip da Linha 4). Como `DataTable` filtra por `mobileCard`/`mobilePrimary`, basta não marcar `tipo_pessoa` como `mobileCard` (já é o caso) e remover seu `Badge` redundante da Linha 1.
+- Coluna `contato_principal`: remover o estado "Sem contato" daqui (passou para a badge row). Quando há contato, mantém telefone + e-mail com ícones.
 
-### 4) Coluna "Contato" — telefone e e-mail empilhados, com máscara
+### 5. Rodapé contextual do card (média)
+Hoje todo card mostra o `ContactInlineActions` (Ligar, WhatsApp, E-mail, Ver). Quando o fornecedor está sem contato, sobra só o "olho" e o card fica vazio.
+- Manter `mobileInlineActions={ContactInlineActions}` quando há `phone || email`.
+- Quando **não há contato**, trocar por um CTA contextual: botão `outline` "Adicionar contato" que abre `openEdit(f)` direto na aba/posição do telefone (no momento basta abrir `openEdit(f)`; a aba "Contato" pode ser refinada depois).
+- Implementação: criar uma função inline em `mobileInlineActions` que decide qual variante renderizar.
 
-Manter a coluna combinada (Opção B do feedback), mas:
+### 6. Paginação compacta + safe area (média)
+- Sem FAB (item 1), o rodapé deixa de competir, mas a paginação ainda fica "solta".
+- Trocar o `paginationMode` default do `DataTable` para `"infinite"` apenas no mobile (a prop já existe). Em desktop, manter paginação. Como `paginationMode` é controlado pelo `DataTable` via toggle, basta passar `mobilePaginationMode="infinite"` se existir; se não existir essa prop, adicionar uma checagem mínima ou manter paginação compacta.
+- Verificar suporte real em `src/components/DataTable.tsx` (linhas 841/868 já alternam entre `pagination` e `infinite`). Se não houver prop específica para forçar por viewport, manter paginação tradicional e apenas adicionar `pb-safe` ao container do `DataTable` mobile para respirar.
 
-- Linha 1: ícone `Phone` + `phoneMask(celular || telefone)` (tabular-nums).
-- Linha 2: ícone `Mail` + e-mail truncado.
-- Quando ambos vazios: chip discreto `Sem contato` (badge `warning` outline) — substitui o `—`.
+### 7. Microcopy e badges
+- `addLabel` no header continua "Novo Fornecedor".
+- `unidade` da `AdvancedFilterBar` mantém "fornecedores".
 
-### 5) Coluna Status visível por padrão
-
-Hoje `ativo` está com `hidden: true`. Tirar `hidden` para exibir `StatusBadge` Ativo/Inativo no fim da linha (alinha com Produtos).
-
-### 6) Filtros novos: "Sem contato" e "Cadastro incompleto"
-
-Adicionar um terceiro `MultiSelect` "Pendências" (multi) com:
-
-- `sem_contato`
-- `incompleto`
-
-Esses filtros viram condições server-side via `or()` (estender `serverFilters` com um campo `customOr` aceito pelo `useSupabaseCrud`, ou aplicar via `filter` com operador novo `isnull`/`or`). Se o hook não suportar `or` hoje, encapsular numa pequena extensão local (sem alterar contrato global) — detalhar em §Técnico.
-
-Cards do topo (§1) usam `setFilter({ pendencia: ["sem_contato"] })` ao clicar.
-
-### 7) Coluna "Tipo" — clarificar
-
-Manter exibição PF/PJ, mas:
-
-- Renomear o label do header de "Tipo" para "Pessoa".
-- Renomear o filtro `MultiSelect` de "Tipos" para "Pessoa (PF/PJ)" para evitar a leitura de "tipo de fornecedor".
-
-A categorização "Produto/Serviço/Transportadora" exige campo novo no schema — fora do escopo desta onda; registrar como Onda futura no `plan.md`.
-
-### 8) Toolbar mais compacta
-
-A `AdvancedFilterBar` já é o padrão — apenas:
-
-- Encurtar placeholder: `"Razão social, CNPJ, e-mail ou cidade"`.
-- Padronizar larguras dos `MultiSelect` com `FILTER_W_SM` / `FILTER_W_MD` (`@/components/list/filterTokens`).
-- Garantir que `count` use a unidade `"fornecedores"` no rótulo.
-
-### 9) Ordenação default
-
-Já está `nome_razao_social asc` em `useServerSort`. Validar com `data` real (o feedback viu Z→A — provavelmente devido a `serverSortable` ter sido alterado por clique do usuário; preferências persistidas em `useDataTablePrefs`). Adicionar reset opcional no `clearFilters` para reverter `sort` ao default.
-
-### 10) Indicador inline de pendências por linha
-
-Na coluna principal "Fornecedor", se faltar contato OU documento, exibir um pequeno chip `outline warning` ao lado do nome:
-
-- `Sem contato`
-- `Sem CNPJ`
-
-Ícone `AlertCircle` 12px. Tooltip explicando qual campo falta.
-
----
+### Itens fora desta onda (registrados para waves futuras)
+- Reduzir densidade da topbar (item 14): é AppLayout global, escopo separado.
+- Sinais adicionais (Transportadora / Serviço / Produto): depende do campo `tipo_fornecedor`, registrado na onda 25 como futuro.
+- Aba "Contato" em deep-link no `openEdit`: requer parametrização do `FormModal`.
 
 ### Arquivos a editar
+- `src/pages/Fornecedores.tsx` — colunas (`nome_razao_social`, `tipo_pessoa`, `contato_principal`, nova "Indicadores"), `summaryCards`, `searchPlaceholder` responsivo, remoção do `MobileQuickAddFAB`, `mobileInlineActions` condicional.
+- (opcional) `src/components/SummaryCard.tsx` — apenas se faltar suporte a `shortTitle` no breakpoint usado (já existe).
 
-- `src/pages/Fornecedores.tsx` — grid columns, cards, filtros, toolbar.
-- (opcional) `src/hooks/useSupabaseCrud.ts` — adicionar suporte a `or` filters se necessário; preferir manter local primeiro com `supabase.from().or(...)` paralelo.
-
-### Fora de escopo (registrar como Onda futura)
-
-- Campo `tipo_fornecedor` (Produto/Serviço/Transportadora) — exige migração + UI no formulário.
-- Coluna "Cadastro incompleto" baseada em score (depois que `tipo_fornecedor` existir).
-
-### Testes / verificação
-
-- Snapshots manuais: cards mostram contagens > 0 quando há fornecedores sem contato.
-- Conferir máscaras com fornecedores reais (CPF 11 dígitos vs CNPJ 14).
-- Filtro "Pendências" combinado com `Status` retorna a interseção esperada.
-- Mobile: coluna principal continua legível (subtítulo cidade/UF não estoura).
+### Critérios de verificação
+- Mobile (390px): 3 cards-resumo visíveis sem truncar; busca curta; nenhum FAB; cards exibem nome → fantasia·cidade/UF → CNPJ → chips → rodapé contextual; "Sem contato" aparece uma única vez.
+- Desktop: comportamento inalterado (4 colunas no `lg`, paginação tradicional, ações inline preservadas).
+- Sem regressão de testes (`useSupabaseCrud`, masks).
