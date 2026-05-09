@@ -468,16 +468,14 @@ const Fornecedores = () => {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total de Fornecedores" value={totalRegistros} icon={Users} />
+            <SummaryCard title="Total de Fornecedores" shortTitle="Total" value={totalRegistros} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <div className="hidden md:contents">
-              <SummaryCard
-                title="Sem contato"
-                value={totalSemContato ?? 0}
-                icon={PhoneOff}
-                variant={(totalSemContato ?? 0) > 0 ? "warning" : "default"}
-              />
-            </div>
+            <SummaryCard
+              title="Sem contato"
+              value={totalSemContato ?? 0}
+              icon={PhoneOff}
+              variant={(totalSemContato ?? 0) > 0 ? "warning" : "default"}
+            />
             <div className="hidden lg:contents">
               <SummaryCard
                 title="Cadastro incompleto"
@@ -493,7 +491,7 @@ const Fornecedores = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Razão social, CNPJ, e-mail ou cidade"
+          searchPlaceholder={isMobile ? "Buscar fornecedor..." : "Razão social, CNPJ, e-mail ou cidade"}
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
           onClearAll={() => { clearFilters(); sort.onChange("nome_razao_social", "asc"); }}
@@ -533,12 +531,23 @@ const Fornecedores = () => {
             serverSortKey={sort.sortKey}
             serverSortDir={sort.sortDir}
             mobileInlineActions={(f: Fornecedor) => (
-              <ContactInlineActions
-                phone={f.celular || f.telefone}
-                whatsapp={f.celular || f.telefone}
-                email={f.email}
-                onView={() => openView(f)}
-              />
+              (f.celular || f.telefone || f.email) ? (
+                <ContactInlineActions
+                  phone={f.celular || f.telefone}
+                  whatsapp={f.celular || f.telefone}
+                  email={f.email}
+                  onView={() => openView(f)}
+                />
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5"
+                  onClick={(e) => { e.stopPropagation(); openEdit(f); }}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar contato
+                </Button>
+              )
             )}
           />
         </PullToRefresh>
