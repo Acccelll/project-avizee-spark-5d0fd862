@@ -568,8 +568,7 @@ const Fornecedores = () => {
         size="xl"
         mode={mode}
         createHint="Preencha razão social, CPF/CNPJ e contato principal. Demais dados podem ser complementados depois."
-        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
+        identifier={mode === "edit" && selected?.cpf_cnpj ? cpfCnpjMask(selected.cpf_cnpj) : undefined}
         headerActions={mode === "edit" && selected ? (
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
             <Switch
@@ -577,15 +576,14 @@ const Fornecedores = () => {
               onCheckedChange={(v) => updateForm({ ativo: v })}
               aria-label={form.ativo ? "Inativar fornecedor" : "Reativar fornecedor"}
             />
-            <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
+            <span className="font-medium">{form.ativo ? "Fornecedor ativo" : "Fornecedor inativo"}</span>
           </label>
         ) : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(selected.updated_at && selected.updated_at !== selected.created_at ? [{ icon: BadgeCheck, label: `Atualizado em ${formatDate(selected.updated_at)}` }] : []),
-          ...(form.prazo_padrao ? [{ icon: ShoppingCart, label: `Prazo padrão: ${form.prazo_padrao} dias` }] : []),
         ] : undefined}
-        isDirty={isDirty}
+        isDirty={false}
         footer={
           <FormModalFooter
             saving={saving}
@@ -597,6 +595,7 @@ const Fornecedores = () => {
             submitAsForm
             formId="fornecedor-form"
             mode={mode}
+            primaryLabel={mode === "create" ? "Criar Fornecedor" : undefined}
             onSaveAndNew={mode === "create" ? handleSaveAndNew : undefined}
           />
         }
@@ -605,10 +604,30 @@ const Fornecedores = () => {
 
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
-              <TabsTrigger value="dados-gerais" className="gap-1.5"><User2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
-              <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
-              <TabsTrigger value="endereco" className="gap-1.5"><MapPin className="h-3.5 w-3.5" />Endereço</TabsTrigger>
-              <TabsTrigger value="compras" className="gap-1.5"><ShoppingCart className="h-3.5 w-3.5" />Compras</TabsTrigger>
+              <TabsTrigger value="dados-gerais" className="gap-1.5">
+                <User2 className="h-3.5 w-3.5" />Dados Gerais
+                {(formErrors.cpf_cnpj || formErrors.nome_razao_social) && (
+                  <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="contatos" className="gap-1.5">
+                <Phone className="h-3.5 w-3.5" />Contatos
+                {(formErrors.email || formErrors.telefone || formErrors.celular) && (
+                  <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="endereco" className="gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />Endereço
+                {(formErrors.cep || formErrors.uf) && (
+                  <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="compras" className="gap-1.5">
+                <ShoppingCart className="h-3.5 w-3.5" />Compras
+                {formErrors.prazo_padrao && (
+                  <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
               <TabsTrigger value="observacoes" className="gap-1.5"><Handshake className="h-3.5 w-3.5" />Obs.</TabsTrigger>
             </TabsList>
 
@@ -618,9 +637,9 @@ const Fornecedores = () => {
             <User2 className="w-4 h-4 text-primary/70" />
             <h3 className="font-semibold text-sm">Identificação</h3>
             {form.cpf_cnpj && form.nome_razao_social.length >= MIN_NOME_RAZAO_SOCIAL_LENGTH && (
-              <span className="ml-auto flex items-center gap-1 text-xs text-success font-medium">
+              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Dados fiscais preenchidos
+                Dados principais preenchidos
               </span>
             )}
           </div>
@@ -637,7 +656,7 @@ const Fornecedores = () => {
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-1">
-                <Label>CPF/CNPJ</Label>
+                <Label>{form.tipo_pessoa === "J" ? "CNPJ" : "CPF"}</Label>
                 {form.tipo_pessoa === "J" && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -692,7 +711,7 @@ const Fornecedores = () => {
                 <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
               {form.tipo_pessoa === "J" && !formErrors.cpf_cnpj && (
-                <p className="text-xs text-muted-foreground">Consultar CNPJ preenche razão social, endereço e contato automaticamente.</p>
+                <p className="text-xs text-muted-foreground">Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis — sobrescreve os campos retornados.</p>
               )}
             </div>
             <div className="space-y-1.5">
@@ -786,12 +805,12 @@ const Fornecedores = () => {
             {/* ── TAB: ENDEREÇO ─────────────────────────────── */}
             <TabsContent value="endereco" className="space-y-4 mt-0">
           <p className="text-xs text-muted-foreground mb-3">
-            Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.
+            Informe o CEP — os demais campos são preenchidos automaticamente. Você pode editá-los depois.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 md:col-span-2 space-y-1.5">
               <Label>CEP</Label>
-              <div className="relative">
+              <div className="flex gap-1">
                 <MaskedInput
                   mask="cep"
                   value={form.cep}
@@ -802,11 +821,24 @@ const Fornecedores = () => {
                       updateForm({ logradouro: result.logradouro, bairro: result.bairro, cidade: result.localidade, uf: result.uf });
                     }
                   }}
-                  className={cepLoading ? "pr-8" : ""}
                 />
-                {cepLoading && (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1.5 px-3 text-xs"
+                  disabled={cepLoading || !form.cep}
+                  onClick={async () => {
+                    const result = await buscarCep(form.cep);
+                    if (result) {
+                      updateForm({ logradouro: result.logradouro, bairro: result.bairro, cidade: result.localidade, uf: result.uf });
+                    }
+                  }}
+                  aria-label="Buscar CEP"
+                >
+                  {cepLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                  Buscar
+                </Button>
               </div>
               {formErrors.cep && <p className="text-xs text-destructive">{formErrors.cep}</p>}
             </div>
@@ -844,7 +876,7 @@ const Fornecedores = () => {
               </Select>
               {formErrors.uf && <p className="text-xs text-destructive">{formErrors.uf}</p>}
             </div>
-            <div className="col-span-1 md:col-span-2 space-y-1.5">
+            <div className="col-span-1 md:col-span-1 space-y-1.5">
               <Label>País</Label>
               <Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} />
             </div>
@@ -856,12 +888,9 @@ const Fornecedores = () => {
           <div className="flex items-center gap-2 pb-1">
             <ShoppingCart className="w-4 h-4 text-primary/70" />
             <h3 className="font-semibold text-sm">Condições de Compra</h3>
-            <span className="ml-auto text-xs bg-info/10 text-info border border-info/30 dark:text-info dark:border-info rounded-full px-2 py-0.5 leading-none">
-              Aplica-se a compras e financeiro
-            </span>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Condições comerciais padrão deste fornecedor. Aplicadas automaticamente em cotações e pedidos de compra. Podem ser sobrescritas por operação.
+            Condições comerciais padrão deste fornecedor — aplicadas automaticamente em cotações, pedidos de compra e títulos financeiros. Podem ser sobrescritas por operação.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="col-span-2 md:col-span-2 space-y-1.5">
@@ -939,7 +968,10 @@ const Fornecedores = () => {
             <div className="border rounded-lg p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Package className="h-3.5 w-3.5" /> Vincular Produto Manualmente
+                  <Package className="h-3.5 w-3.5" /> Vincular produto ao fornecedor
+                  {modalProdutosForn.length > 0 && (
+                    <span className="ml-1 text-muted-foreground/70 normal-case">· {modalProdutosForn.length} item{modalProdutosForn.length !== 1 ? "s" : ""} vinculado{modalProdutosForn.length !== 1 ? "s" : ""}</span>
+                  )}
                 </h4>
               </div>
               {/* All linked products */}
@@ -975,9 +1007,7 @@ const Fornecedores = () => {
             {/* ── TAB: OBSERVAÇÕES ──────────────────────────── */}
             <TabsContent value="observacoes" className="space-y-4 mt-0">
           <p className="text-xs text-muted-foreground mb-3">
-            Observações internas, comerciais e operacionais sobre o fornecedor. Visível apenas internamente.
-            Use este campo para registrar condições especiais negociadas, restrições de fornecimento,
-            preferências logísticas e histórico de relacionamento.
+            Observações internas sobre o fornecedor. Use este campo para registrar condições negociadas, restrições e histórico de relacionamento.
           </p>
           <div className="mb-6">
             <Textarea

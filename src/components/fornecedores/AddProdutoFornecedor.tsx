@@ -49,7 +49,7 @@ export function AddProdutoFornecedor({ fornecedorId, onAdded }: AddProdutoFornec
   };
 
   return (
-    <div className="grid grid-cols-[1fr_100px_80px_auto] gap-2 items-end">
+    <div className="grid grid-cols-[1fr_110px_140px_auto] gap-2 items-end">
       <div className="space-y-1">
         <Label className="text-xs">Produto</Label>
         <ProductAutocomplete products={produtos} value={produtoId} onChange={setProdutoId} placeholder="Buscar produto..." />
@@ -59,7 +59,7 @@ export function AddProdutoFornecedor({ fornecedorId, onAdded }: AddProdutoFornec
         <Input type="number" min={0} step="0.01" value={precoCompra} onChange={(e) => setPrecoCompra(Number(e.target.value))} className="h-9" />
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Lead (d)</Label>
+        <Label className="text-xs">Prazo entrega (dias)</Label>
         <Input type="number" min={0} value={leadTime} onChange={(e) => setLeadTime(Number(e.target.value))} className="h-9" />
       </div>
       <Button type="button" size="sm" variant="outline" className="h-9 gap-1" onClick={handleAdd} disabled={saving}>
