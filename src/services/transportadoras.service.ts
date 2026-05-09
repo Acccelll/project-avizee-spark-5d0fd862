@@ -96,6 +96,21 @@ export async function desvincularClienteTransportadora(vinculoId: string): Promi
 }
 
 /**
+ * Atualiza a prioridade de um vínculo cliente↔transportadora.
+ * Usado pelo toggle "Tornar preferencial" na aba Clientes do form.
+ */
+export async function setClienteTransportadoraPrioridade(
+  vinculoId: string,
+  prioridade: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from("cliente_transportadoras")
+    .update({ prioridade })
+    .eq("id", vinculoId);
+  if (error) throw error;
+}
+
+/**
  * Remove (desativa) uma transportadora. Soft delete por padrão; bloqueia
  * quando há vínculos com clientes, remessas, NF-e, orçamentos ou pedidos.
  */
