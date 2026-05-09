@@ -314,7 +314,16 @@ export function FornecedorView({ id }: Props) {
           )}
           <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><ShoppingBag className="h-3.5 w-3.5" /> Últimos Pedidos de Compra</h4>
           {compras.length === 0 ? (
-            <DetailEmpty icon={ShoppingBag} title="Nenhum pedido de compra" message="Nenhum pedido de compra encontrado para este fornecedor" />
+            <DetailEmpty
+              icon={ShoppingBag}
+              title="Nenhum pedido de compra"
+              message="Crie um pedido ou vincule este fornecedor a produtos para iniciar o histórico de compras."
+              action={
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { navigate("/pedidos-compra"); window.setTimeout(() => clearStack(), 0); }}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Novo pedido de compra
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-2">
               {compras.map((c) => (
@@ -354,7 +363,16 @@ export function FornecedorView({ id }: Props) {
           </div>
           <h4 className="font-semibold flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><FileText className="h-3.5 w-3.5" /> Lançamentos Recentes</h4>
           {financeiro.length === 0 ? (
-            <DetailEmpty icon={CreditCard} title="Nenhum lançamento financeiro" message="Nenhum lançamento financeiro registrado para este fornecedor" />
+            <DetailEmpty
+              icon={CreditCard}
+              title="Nenhum lançamento financeiro"
+              message="Os títulos a pagar aparecerão aqui após compras, notas fiscais ou lançamentos manuais."
+              action={
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { navigate("/financeiro"); window.setTimeout(() => clearStack(), 0); }}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir módulo Financeiro
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-2">
               {financeiro.map((f) => (
@@ -379,7 +397,16 @@ export function FornecedorView({ id }: Props) {
         <TabsContent value="produtos" className="space-y-3 mt-3">
           <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><Package className="h-3.5 w-3.5" /> Produtos Fornecidos</h4>
           {produtos.length === 0 ? (
-            <DetailEmpty icon={Package} title="Nenhum produto vinculado" message="Nenhum produto vinculado a este fornecedor" />
+            <DetailEmpty
+              icon={Package}
+              title="Nenhum produto vinculado"
+              message="Vincule produtos para registrar código do fornecedor, custo de compra, prazo e histórico."
+              action={
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { navigate(`/fornecedores?editId=${id}`); window.setTimeout(() => clearStack(), 0); }}>
+                  <Edit className="h-3.5 w-3.5" /> Vincular produto
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-2">
               {produtos.map((p) => (
@@ -405,22 +432,14 @@ export function FornecedorView({ id }: Props) {
 
         {/* TAB: RELACIONAMENTO */}
         <TabsContent value="relacionamento" className="space-y-4 mt-3">
-          {selected.observacoes ? (
-            <div className="space-y-2">
-              <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><FileText className="h-3 w-3" /> Observações</h4>
-              <p className="text-xs text-muted-foreground italic leading-relaxed bg-muted/20 rounded-lg p-3">{selected.observacoes}</p>
-            </div>
-          ) : (
-            <DetailEmpty title="Sem observações registradas" className="py-6" />
-          )}
           {(selected.contato || selected.email || selected.telefone || selected.celular) && (
             <div className="space-y-2">
               <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><MessageSquare className="h-3 w-3" /> Contato Principal</h4>
               <div className="rounded-lg border bg-card p-3 space-y-1.5 text-xs">
                 {selected.contato && <p><span className="text-muted-foreground">Responsável:</span> {selected.contato}</p>}
                 {selected.email && <p><span className="text-muted-foreground">Email:</span> {selected.email}</p>}
-                {selected.telefone && <p><span className="text-muted-foreground">Telefone:</span> {selected.telefone}</p>}
-                {selected.celular && <p><span className="text-muted-foreground">Celular:</span> {selected.celular}</p>}
+                {selected.telefone && <p><span className="text-muted-foreground">Telefone:</span> {phoneMask(selected.telefone)}</p>}
+                {selected.celular && <p><span className="text-muted-foreground">Celular:</span> {phoneMask(selected.celular)}</p>}
               </div>
             </div>
           )}
@@ -432,6 +451,14 @@ export function FornecedorView({ id }: Props) {
               </div>
             </div>
           )}
+          <div className="space-y-2">
+            <h4 className="font-semibold flex items-center gap-2 border-b pb-1 text-muted-foreground uppercase text-[10px]"><FileText className="h-3 w-3" /> Observações</h4>
+            {selected.observacoes ? (
+              <p className="text-xs text-muted-foreground italic leading-relaxed bg-muted/20 rounded-lg p-3">{selected.observacoes}</p>
+            ) : (
+              <DetailEmpty title="Nenhuma observação registrada" className="py-4" />
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
