@@ -49,8 +49,8 @@ import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCan } from "@/hooks/useCan";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
-import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -199,6 +199,7 @@ const Fornecedores = () => {
   );
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const isMobile = useIsMobile();
   const [modalProdutosForn, setModalProdutosForn] = useState<Array<{
     id: string; produto_nome: string; preco_compra: number | null;
     lead_time_dias: number | null; eh_principal: boolean | null;
@@ -334,31 +335,27 @@ const Fornecedores = () => {
       const semDoc = !f.cpf_cnpj;
       return (
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="font-medium leading-tight truncate">{f.nome_razao_social}</p>
-            {semContato && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
-                    <PhoneOff className="h-3 w-3" /> Sem contato
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>Fornecedor sem telefone, celular nem e-mail.</TooltipContent>
-              </Tooltip>
-            )}
-            {semDoc && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
-                    <AlertCircle className="h-3 w-3" /> Sem CNPJ
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>Documento (CPF/CNPJ) não cadastrado.</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          <p className="font-medium leading-tight truncate">{f.nome_razao_social}</p>
           {subtitleParts.length > 0 && (
             <p className="text-xs text-muted-foreground truncate max-w-xs">{subtitleParts.join(" · ")}</p>
+          )}
+          {isMobile && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                {f.tipo_pessoa === "F" ? "PF" : "PJ"}
+              </Badge>
+              <StatusBadge status={f.ativo ? "ativo" : "inativo"} />
+              {semContato && (
+                <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
+                  <PhoneOff className="h-3 w-3" /> Sem contato
+                </Badge>
+              )}
+              {semDoc && (
+                <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
+                  <AlertCircle className="h-3 w-3" /> Sem CNPJ
+                </Badge>
+              )}
+            </div>
           )}
         </div>
       );
@@ -386,11 +383,7 @@ const Fornecedores = () => {
     render: (f: Fornecedor) => {
       const phone = f.celular || f.telefone;
       if (!phone && !f.email) {
-        return (
-          <Badge variant="warning" className="h-5 px-1.5 text-[10px] gap-1">
-            <PhoneOff className="h-3 w-3" /> Sem contato
-          </Badge>
-        );
+        return <span className="text-muted-foreground text-xs">—</span>;
       }
       return (
         <div className="text-xs space-y-0.5">
@@ -475,16 +468,14 @@ const Fornecedores = () => {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total de Fornecedores" value={totalRegistros} icon={Users} />
+            <SummaryCard title="Total de Fornecedores" shortTitle="Total" value={totalRegistros} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <div className="hidden md:contents">
-              <SummaryCard
-                title="Sem contato"
-                value={totalSemContato ?? 0}
-                icon={PhoneOff}
-                variant={(totalSemContato ?? 0) > 0 ? "warning" : "default"}
-              />
-            </div>
+            <SummaryCard
+              title="Sem contato"
+              value={totalSemContato ?? 0}
+              icon={PhoneOff}
+              variant={(totalSemContato ?? 0) > 0 ? "warning" : "default"}
+            />
             <div className="hidden lg:contents">
               <SummaryCard
                 title="Cadastro incompleto"
@@ -500,7 +491,7 @@ const Fornecedores = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Razão social, CNPJ, e-mail ou cidade"
+          searchPlaceholder={isMobile ? "Buscar fornecedor..." : "Razão social, CNPJ, e-mail ou cidade"}
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
           onClearAll={() => { clearFilters(); sort.onChange("nome_razao_social", "asc"); }}
@@ -540,17 +531,27 @@ const Fornecedores = () => {
             serverSortKey={sort.sortKey}
             serverSortDir={sort.sortDir}
             mobileInlineActions={(f: Fornecedor) => (
-              <ContactInlineActions
-                phone={f.celular || f.telefone}
-                whatsapp={f.celular || f.telefone}
-                email={f.email}
-                onView={() => openView(f)}
-              />
+              (f.celular || f.telefone || f.email) ? (
+                <ContactInlineActions
+                  phone={f.celular || f.telefone}
+                  whatsapp={f.celular || f.telefone}
+                  email={f.email}
+                  onView={() => openView(f)}
+                />
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5"
+                  onClick={(e) => { e.stopPropagation(); openEdit(f); }}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar contato
+                </Button>
+              )
             )}
           />
         </PullToRefresh>
       </ModulePage>
-      <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo fornecedor" />
       <QuickAddSupplierModal
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
