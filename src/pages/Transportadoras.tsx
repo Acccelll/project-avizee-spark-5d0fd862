@@ -145,6 +145,8 @@ export default function Transportadoras() {
   const [loadingEditClientes, setLoadingEditClientes] = useState(false);
   const [vinculoClienteId, setVinculoClienteId] = useState("");
   const [savingVinculoCliente, setSavingVinculoCliente] = useState(false);
+  const navigate = useNavigate();
+  const [cnpjJustFetched, setCnpjJustFetched] = useState(false);
 
   // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
   useEditDeepLink<Transportadora>({
@@ -222,7 +224,7 @@ export default function Transportadoras() {
       tipo_pessoa: t.tipo_pessoa || "J",
       nome_razao_social: t.nome_razao_social, nome_fantasia: t.nome_fantasia || "",
       cpf_cnpj: t.cpf_cnpj || "", contato: t.contato || "",
-      telefone: t.telefone || "", email: t.email || "",
+      telefone: t.telefone ? phoneMask(t.telefone) : "", email: t.email || "",
       logradouro: t.logradouro || "", numero: t.numero || "",
       complemento: t.complemento || "", bairro: t.bairro || "",
       cidade: t.cidade || "", uf: t.uf || "", cep: t.cep || "",
