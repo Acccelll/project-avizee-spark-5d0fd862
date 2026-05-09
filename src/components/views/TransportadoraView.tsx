@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Truck, Edit, Trash2, MapPin, Phone, Mail, Building2,
-  Star, Package, AlertTriangle, Users, FileText,
+  Star, Package, AlertTriangle, Users, FileText, MoreVertical, Plus,
 } from "lucide-react";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
@@ -21,6 +21,13 @@ import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { toast } from "sonner";
 import { notifyError } from "@/utils/errorMessages";
+import { cpfCnpjMask, phoneMask } from "@/utils/masks";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   id: string;
@@ -143,7 +150,7 @@ export function TransportadoraView({ id }: Props) {
                 {transportadora.nome_fantasia}
               </span>
             )}
-            {transportadora.cpf_cnpj && <span className="font-mono">{transportadora.cpf_cnpj}</span>}
+            {transportadora.cpf_cnpj && <span className="font-mono">{cpfCnpjMask(transportadora.cpf_cnpj)}</span>}
             {transportadora.cidade && (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
@@ -178,26 +185,36 @@ export function TransportadoraView({ id }: Props) {
         >
           <Edit className="h-3.5 w-3.5" /> Editar
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-          aria-label="Inativar transportadora"
-          onClick={() => setDeleteOpen(true)}
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Inativar
-        </Button>
-        {isAdmin && transportadora.ativo === false && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-            aria-label="Excluir transportadora permanentemente"
-            onClick={() => setPermDeleteOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
-          </Button>
-        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              aria-label="Mais ações"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {transportadora.ativo && (
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Inativar
+              </DropdownMenuItem>
+            )}
+            {isAdmin && transportadora.ativo === false && (
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setPermDeleteOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir definitivamente
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </>
     ) : undefined,
   });
@@ -212,6 +229,12 @@ export function TransportadoraView({ id }: Props) {
     pendentes: remessas.filter(r => r.status_transporte === "pendente" || r.status_transporte === "postado").length,
     devolvidas: remessas.filter(r => r.status_transporte === "devolvido").length,
   };
+  const remessasAtivas = remessasResumo.emTransito + remessasResumo.pendentes;
+  const obsCount = transportadora.observacoes ? 1 : 0;
+  const goToEdit = () => {
+    navigate(`/transportadoras?editId=${id}`);
+    window.setTimeout(() => clearStack(), 0);
+  };
 
   return (
     <div className="space-y-5">
@@ -220,7 +243,10 @@ export function TransportadoraView({ id }: Props) {
           label="Modalidade"
           value={MODALIDADE_LABEL[transportadora.modalidade || ""] || "—"}
         />
-        <DrawerSummaryCard label="Prazo médio" value={transportadora.prazo_medio || "—"} />
+        <DrawerSummaryCard
+          label="Prazo médio"
+          value={transportadora.prazo_medio ? `${transportadora.prazo_medio} dias` : "Não definido"}
+        />
         <DrawerSummaryCard label="Clientes" value={String(clientes.length)} />
         <DrawerSummaryCard
           label="Remessas"
@@ -234,43 +260,86 @@ export function TransportadoraView({ id }: Props) {
           <TabsTrigger value="resumo" className="text-xs">Resumo</TabsTrigger>
           <TabsTrigger value="clientes" className="text-xs">Clientes ({clientes.length})</TabsTrigger>
           <TabsTrigger value="remessas" className="text-xs">Remessas ({remessas.length})</TabsTrigger>
-          <TabsTrigger value="obs" className="text-xs">Obs.</TabsTrigger>
+          <TabsTrigger value="obs" className="text-xs">Obs. ({obsCount})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="resumo" className="space-y-4 mt-3 text-sm">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Responsável</p>
-              <p className="font-medium">{transportadora.contato || "—"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Telefone</p>
-              <p className="font-medium flex items-center gap-1">
-                {transportadora.telefone ? (
-                  <>
+        <TabsContent value="resumo" className="space-y-5 mt-3 text-sm">
+          <ResumoBlock title="Identificação">
+            <ResumoField label="CNPJ" value={transportadora.cpf_cnpj ? cpfCnpjMask(transportadora.cpf_cnpj) : null} mono empty="Não informado" />
+            <ResumoField
+              label="Modalidade"
+              value={
+                transportadora.modalidade ? (
+                  <Badge variant="outline" className="text-[11px]">
+                    {MODALIDADE_LABEL[transportadora.modalidade] || transportadora.modalidade}
+                  </Badge>
+                ) : null
+              }
+              empty="Não definida"
+            />
+            <ResumoField
+              label="Cidade / UF"
+              value={transportadora.cidade ? `${transportadora.cidade}${transportadora.uf ? `/${transportadora.uf}` : ""}` : null}
+              empty="Não informada"
+            />
+            <ResumoField
+              label="Status"
+              value={<StatusBadge status={transportadora.ativo ? "ativo" : "inativo"} />}
+            />
+          </ResumoBlock>
+
+          <ResumoBlock title="Contato principal">
+            <ResumoField label="Responsável" value={transportadora.contato || null} empty="Sem responsável definido" />
+            <ResumoField
+              label="Telefone"
+              value={
+                transportadora.telefone ? (
+                  <a href={`tel:${transportadora.telefone}`} className="inline-flex items-center gap-1.5 hover:underline">
                     <Phone className="h-3 w-3 text-muted-foreground" />
-                    {transportadora.telefone}
-                  </>
-                ) : "—"}
-              </p>
-            </div>
-            <div className="col-span-2">
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">E-mail</p>
-              <p className="font-medium flex items-center gap-1 break-all">
-                {transportadora.email ? (
-                  <>
+                    <span className="tabular-nums">{phoneMask(transportadora.telefone)}</span>
+                  </a>
+                ) : null
+              }
+              empty="Sem telefone cadastrado"
+            />
+            <ResumoField
+              label="E-mail"
+              fullWidth
+              value={
+                transportadora.email ? (
+                  <a href={`mailto:${transportadora.email}`} className="inline-flex items-center gap-1.5 break-all hover:underline">
                     <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
-                    {transportadora.email}
-                  </>
-                ) : "—"}
-              </p>
-            </div>
-          </div>
+                    <span>{transportadora.email}</span>
+                  </a>
+                ) : null
+              }
+              empty="Sem e-mail cadastrado"
+            />
+          </ResumoBlock>
+
+          <ResumoBlock title="Indicadores logísticos">
+            <ResumoField
+              label="Prazo médio"
+              value={transportadora.prazo_medio ? `${transportadora.prazo_medio} dias` : null}
+              empty="Sem histórico"
+            />
+            <ResumoField label="Remessas ativas" value={String(remessasAtivas)} />
+            <ResumoField label="Clientes vinculados" value={String(clientes.length)} />
+          </ResumoBlock>
         </TabsContent>
 
         <TabsContent value="clientes" className="space-y-2 mt-3">
           {clientes.length === 0 ? (
-            <DetailEmpty icon={Users} title="Nenhum cliente vinculado" message="Esta transportadora ainda não está atrelada a clientes." />
+            <DetailEmpty
+              icon={Users}
+              title="Nenhum cliente vinculado"
+              message="Esta transportadora ainda não está atrelada a clientes."
+              action={
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={goToEdit}>
+                  <Plus className="h-3.5 w-3.5" /> Vincular cliente
+                </Button>
+              }
+            />
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
@@ -340,9 +409,13 @@ export function TransportadoraView({ id }: Props) {
                   <div key={r.id} className="flex items-center justify-between py-2 px-2 rounded-md hover:bg-muted/30 border-b last:border-b-0 gap-2">
                     <div className="min-w-0 flex-1">
                       <RelationalLink type="remessa" id={r.id}>
-                        {r.codigo_rastreio
-                          ? <span className="font-mono text-xs">{r.codigo_rastreio}</span>
-                          : <span className="text-xs text-muted-foreground italic">sem rastreio</span>}
+                        {r.codigo_rastreio ? (
+                          <span className="font-mono text-xs">{r.codigo_rastreio}</span>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                            Sem rastreio
+                          </Badge>
+                        )}
                       </RelationalLink>
                       {r.clientes?.nome_razao_social && (
                         <p className="text-xs text-muted-foreground truncate">{r.clientes.nome_razao_social}</p>
@@ -367,7 +440,16 @@ export function TransportadoraView({ id }: Props) {
           {transportadora.observacoes ? (
             <p className="text-sm whitespace-pre-wrap">{transportadora.observacoes}</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Nenhuma observação registrada.</p>
+            <DetailEmpty
+              icon={FileText}
+              title="Sem observações"
+              message="Use este espaço para anotações logísticas e comerciais sobre a transportadora."
+              action={
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={goToEdit}>
+                  <Plus className="h-3.5 w-3.5" /> Adicionar observação
+                </Button>
+              }
+            />
           )}
         </TabsContent>
       </Tabs>
@@ -415,6 +497,41 @@ export function TransportadoraView({ id }: Props) {
         }
         onDeleted={() => clearStack()}
       />
+    </div>
+  );
+}
+
+function ResumoBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground">{title}</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">{children}</div>
+    </div>
+  );
+}
+
+function ResumoField({
+  label,
+  value,
+  empty = "—",
+  mono = false,
+  fullWidth = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  empty?: string;
+  mono?: boolean;
+  fullWidth?: boolean;
+}) {
+  const isEmpty = value === null || value === undefined || value === "";
+  return (
+    <div className={fullWidth ? "col-span-2" : undefined}>
+      <p className="text-[10px] text-muted-foreground uppercase font-semibold">{label}</p>
+      {isEmpty ? (
+        <p className="text-sm text-muted-foreground italic">{empty}</p>
+      ) : (
+        <div className={`text-sm font-medium ${mono ? "font-mono" : ""}`}>{value}</div>
+      )}
     </div>
   );
 }
