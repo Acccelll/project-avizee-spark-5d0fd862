@@ -26,6 +26,8 @@ interface FormModalFooterProps {
   saveAndNewLabel?: string;
   secondaryActions?: ReactNode;
   className?: string;
+  /** Quando true, "Cancelar" vira link discreto no mobile (reduz altura do footer). */
+  cancelAsLink?: boolean;
 }
 
 export function FormModalFooter({
@@ -44,6 +46,7 @@ export function FormModalFooter({
   saveAndNewLabel = "Salvar e criar outro",
   secondaryActions,
   className,
+  cancelAsLink = false,
 }: FormModalFooterProps) {
   const label = primaryLabel ?? (mode === "create" ? "Salvar" : "Salvar Alterações");
   const noChanges = mode === "edit" && !isDirty && !disabled;
@@ -83,11 +86,15 @@ export function FormModalFooter({
         {secondaryActions}
         <Button
           type="button"
-          variant="outline"
+          variant={cancelAsLink ? "link" : "outline"}
           onClick={onCancel}
           disabled={saving}
           aria-label={cancelLabel}
-          className="max-sm:w-full max-sm:h-11"
+          className={cn(
+            cancelAsLink
+              ? "max-sm:w-full max-sm:h-8 max-sm:text-xs text-muted-foreground sm:variant-outline"
+              : "max-sm:w-full max-sm:h-11",
+          )}
         >
           {cancelLabel}
         </Button>
