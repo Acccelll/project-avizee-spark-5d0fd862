@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useCanHardDelete } from "@/hooks/useCanHardDelete";
-import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare } from "lucide-react";
+import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare, MoreHorizontal, AlertTriangle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
@@ -22,6 +22,16 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type { FornecedorRow, CompraRow, FinanceiroLancamentoRow, ProdutoFornecedorRow } from "@/types/cadastros";
 import { getEffectiveStatus } from "@/lib/financeiro";
+import { cpfCnpjMask, phoneMask, cepMask } from "@/utils/masks";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   id: string;
