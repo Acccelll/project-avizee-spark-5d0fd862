@@ -54,13 +54,13 @@ export function FormModalFooter({
   return (
     <div
       className={cn(
-        "flex items-center gap-3",
-        hasStatus ? "justify-between" : "justify-end",
+        "flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3",
+        hasStatus ? "sm:justify-between" : "sm:justify-end",
         className,
       )}
     >
       {hasStatus && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0 max-sm:px-1">
           {isDirty && !saving && (
             <span className="inline-flex items-center gap-1.5">
               <Circle className="h-2 w-2 fill-warning text-warning" />

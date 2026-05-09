@@ -1,47 +1,84 @@
-## Onda 28 — Refino do modal Editar/Novo Fornecedor
+## Onda 29 — Fornecedor mobile: cortes, overflow e densidade
 
-Arquivo único: `src/pages/Fornecedores.tsx` (bloco `<FormModal>` linhas ~561-996). Sem mudanças de banco, services ou hooks — apenas UI/microcopy.
+Foco: deixar o modal de criar/editar fornecedor confortável em viewport ≤390px, sem cortes de título/CNPJ, sem overflow horizontal, com abas e formulários adaptados a coluna única. Sem mudança de regra de negócio.
 
-### 1. Cabeçalho (alta prioridade)
-- **Remover redundância Badge × Toggle**: dropar o `status` (StatusBadge) do `FormModal` no modo edição. Manter apenas o toggle no `headerActions`, com label mais explícito: "Fornecedor ativo" / "Fornecedor inativo" (ação, não estado duplicado).
-- **Documento contextual**: passar `identifier={cpfCnpjMask(selected.cpf_cnpj)}` já formatado (importar `cpfCnpjMask` de `@/utils/masks`).
-- **Meta enxuta**: manter `Cadastrado em` e `Atualizado em`. Mover `Prazo padrão` para fora do meta (ele já aparece na aba Compras) — reduz fragmentação.
+### 1. Cabeçalho do modal (alta prioridade)
+Em `src/pages/Fornecedores.tsx` (props do `<FormModal>`):
+- Em mobile, encurtar o título: usar `isMobile ? "Editar" : "Editar Fornecedor"` (e `"Novo"` vs `"Novo Fornecedor"`). Mantém significado e libera espaço para o documento.
+- Quebra do CNPJ no chip: o `identifier` do `FormModal` aplica truncate. Adicionar `whitespace-nowrap` ao chip de identifier ajustando o `FormModal` (ou — mais seguro — passar `identifier={undefined}` no mobile e renderizar uma linha extra abaixo do título dentro do conteúdo do modal: `CNPJ: 06.143.681/0001-23`).
+  - Implementação proposta: ajustar `FormModal` (linha ~104) para que o `<span>` do identifier receba `whitespace-nowrap` e em mobile (≤sm) fique em linha própria via `basis-full` quando dentro do flex-wrap do header.
+- Toggle "Fornecedor ativo" no `headerActions`: em mobile, renderizar apenas o `Switch` com `aria-label`, sem o `<span>` de texto (o estado fica visível pelo Switch). Texto continua em desktop.
 
-### 2. Indicador "Alterações não salvas" duplicado (alta)
-- O `FormModal` já mostra o estado quando recebe `isDirty`, e o `FormModalFooter` repete. Desativar no topo: passar `isDirty={false}` ao `FormModal` e manter o status apenas no rodapé (via `FormModalFooter` que já trata).
+### 2. Abas scrolláveis (alta)
+Substituir o `TabsList` atual (linha ~607) pelo padrão canônico já usado em `Clientes.tsx`:
+```tsx
+<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+  <TabsList
+    ref={tabsListRef}
+    className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
+  >
+```
+- Adicionar estado `activeTab` controlado e `tabsListRef` com `useEffect` que faz `scrollIntoView({ inline: "center", behavior: "smooth" })` no trigger ativo (mesmo padrão de Clientes — copiar utilitário se existir, senão hook local).
+- Encurtar label "Dados Gerais" → `Dados` em mobile (manter completo em desktop via `isMobile ? "Dados" : "Dados Gerais"`).
+- Memória `tabs-mobile-scroll` já documenta o padrão.
 
-### 3. Aba Dados Gerais (alta + média)
-- **Label dinâmico do documento**: `<Label>{form.tipo_pessoa === "J" ? "CNPJ" : "CPF"}</Label>` (lin 640).
-- **Microcopy do Consultar CNPJ** (lin 695): trocar por *"Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis, sem sobrescrever campos já preenchidos."*
-- **Selo "Dados fiscais preenchidos"** (lin 620-625): trocar para neutro: *"Dados principais preenchidos"* com ícone `CheckCircle2` em `text-muted-foreground` em vez de `text-success` (a validação atual cobre só presença de CNPJ + nome).
-- **Indicador de pendências por aba** (média): adicionar pequeno dot `!` em `TabsTrigger` quando houver `formErrors` cujo campo pertença à aba. Mapeamento simples local: `dados-gerais → [cpf_cnpj, nome_razao_social]`, `contatos → [email, telefone, celular]`, `endereco → [cep, uf]`, `compras → [prazo_padrao]`. Renderizar `<span className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />` quando aba tiver erro.
+### 3. Aba "Dados Gerais" — coluna única (alta)
+Atualmente `grid-cols-1 md:grid-cols-3`. Está correto no mobile, mas o problema é o input do CNPJ + botão "Consultar CNPJ" no mesmo `flex gap-1`, que esmaga ambos.
+- Reestruturar o bloco do CNPJ:
+  - Linha 1: `MaskedInput` ocupando 100%.
+  - Linha 2 (apenas PJ): botão `Consultar CNPJ` com `w-full sm:w-auto`, ícone + texto.
+  - Microcopy abaixo, encurtada em mobile: `"Preenche dados pela Receita Federal."` (versão completa só em desktop).
+- Inscrição Estadual: já é `space-y-1.5` mas vai para grid de 3 colunas no md+. Em mobile já é coluna única. Garantir `w-full` no Input e adicionar checkbox `Isento` opcional ao lado do label (apenas para PJ). [Inferência: mantemos isento como string "ISENTO" no campo existente — checkbox só preenche/limpa.]
+- "Dados principais preenchidos": em mobile, deslocar para abaixo do título da seção (não `ml-auto`) para evitar wrap apertado.
 
-### 4. Aba Contatos (média)
-- Manter estrutura. Apenas reforçar a microcopy do bloco *"Canais de comunicação"* já está ok. Adicionar nota de roadmap em comentário de código indicando a evolução futura (contato comercial/financeiro/logístico) — sem implementar agora.
+### 4. Aba "Contatos" (média)
+- Encurtar placeholders no mobile via `isMobile ? "Nome do contato" : "Nome do responsável pelo atendimento comercial"`.
+- Telefone/Celular: já estão em grid responsivo, mas verificar e forçar `grid-cols-1 md:grid-cols-2` (em vez de col-span-3) para não dividir em colunas estreitas.
 
-### 5. Aba Endereço (média)
-- **CEP com botão de busca explícito** ao lado do `MaskedInput` (mantém `onBlur` mas torna a ação visível): botão `outline` `size="sm"` com `Search` + label *"Buscar"* — chama o mesmo handler do `buscarCep`.
-- **Texto auxiliar mais claro** (lin 788-790): *"Informe o CEP — os demais campos são preenchidos automaticamente. Você pode editá-los depois."*
-- **País como default Brasil**: deixar visualmente menos protagonista — mover para fim do grid (já está) e reduzir width: `md:col-span-1` (em vez de 2). Sem default novo (já vem `"Brasil"` no emptyForm).
+### 5. Aba "Endereço" (alta padding, média resto)
+- Adicionar `pb-24 sm:pb-0` no `TabsContent value="endereco"` (e idealmente em todas as abas) para o último campo não ficar escondido pelo footer sticky. O `FormModal` já tem `max-sm:pb-24` no scroll container — confirmar que está funcionando; se sim, este item vira "no-op". Caso ainda corte, aumentar para `max-sm:pb-28`.
+- Manter botão "Buscar" CEP já adicionado na onda anterior.
 
-### 6. Aba Compras (alta)
-- **Microcopy**: renomear *"Vincular Produto Manualmente"* (lin 942) → *"Vincular produto ao fornecedor"*. Renomear label "Lead (d)" no `AddProdutoFornecedor` → "Prazo de entrega (dias)" — editar `src/components/fornecedores/AddProdutoFornecedor.tsx` linhas 53-55 (Label) e ajustar `grid-cols` para acomodar texto maior (`grid-cols-[1fr_110px_140px_auto]`).
-- **Lista de produtos vinculados já existe** (lin 946-969) — já atende o ponto 9.4. Apenas adicionar header "Itens fornecidos (N)" acima do bloco quando `modalProdutosForn.length > 0`.
-- **Chip "Aplica-se a compras e financeiro"** (lin 859-861): integrar ao parágrafo introdutório como texto natural, removendo o chip avulso. Novo parágrafo: *"Condições comerciais padrão deste fornecedor — aplicadas automaticamente em cotações, pedidos de compra e títulos financeiros. Podem ser sobrescritas por operação."*
+### 6. Aba "Compras" — overflow horizontal (alta)
+O componente `AddProdutoFornecedor` usa `grid-cols-[1fr_110px_140px_auto]` que estoura em 390px.
+- Editar `src/components/fornecedores/AddProdutoFornecedor.tsx`:
+  ```
+  <div className="grid grid-cols-1 md:grid-cols-[1fr_110px_140px_auto] gap-2 md:items-end">
+  ```
+- Em mobile, renderizar em coluna única:
+  - Produto (autocomplete largura total)
+  - Preço (largura total)
+  - Prazo de entrega (dias) (largura total)
+  - Botão `+ Vincular produto` com `w-full md:w-auto`, label completo `"Vincular produto"` (não só ícone) e `h-11` em mobile.
+- A lista de produtos vinculados (`modalProdutosForn.map`) — verificar se truncate horizontal causa scroll. Se sim, envolver `min-w-0` nos itens flex.
 
-### 7. Aba Observações (média)
-- Encurtar texto auxiliar (lin 977-981) → *"Observações internas sobre o fornecedor. Use este campo para registrar condições negociadas, restrições e histórico de relacionamento."*
+### 7. Rodapé fixo (média)
+Em `FormModalFooter`:
+- Reduzir `py-3` do container (no `FormModal.tsx` linha ~144) para `max-sm:py-2`.
+- Botão "Cancelar" em mobile: trocar `variant="outline"` por `variant="ghost"` quando isMobile, ou manter outline mas reduzir altura para `h-10`. Decisão proposta: manter outline + `h-11` (touch target), mas reduzir padding vertical do container do footer.
+- Indicador "Alterações não salvas": atualmente `flex items-center` com `min-w-0`, quebra em mobile porque divide espaço com botões empilhados. Solução: em mobile, mover o indicador para uma linha própria acima dos botões. Ajustar `FormModalFooter` para `flex-col items-stretch sm:flex-row sm:items-center sm:justify-between` e remover o wrap flex-col-reverse da seção de botões (ou manter, mas remover o ramo `justify-between` em mobile).
 
-### 8. Estado "Novo Fornecedor" vs "Editar" (alta)
-- O título já alterna corretamente. Garantir que **no modo `create`** nada de `meta`, `identifier`, `status` e `headerActions` (toggle) seja renderizado — já está condicionado a `mode === "edit"`. Adicionar o `createHint` mais específico ao modo create (ok).
-- Botão primário no `create`: o `FormModalFooter` com `mode="create"` já mostra "Salvar". Trocar `primaryLabel` para *"Criar Fornecedor"* no rodapé apenas quando `mode === "create"`.
+### 8. Microcopy & textos auxiliares (baixa)
+- Aba Obs.: já encurtada na onda anterior; reavaliar no mobile.
+- Tooltips com `Info` continuam, mas em mobile podem virar `popover`/clique (fora de escopo desta onda — tooltip por hover funciona com tap em mobile shadcn).
 
-### Resumo técnico de edição
-- `src/pages/Fornecedores.tsx`: bloco `<FormModal>` (props `status`, `meta`, `isDirty`); aba Dados Gerais (label dinâmico, microcopy, selo neutro); pendências por aba em `TabsList`; aba Endereço (botão Buscar CEP, texto, país); aba Compras (microcopy, integração do chip, header da lista); aba Obs (texto curto); footer (`primaryLabel` condicional).
-- `src/components/fornecedores/AddProdutoFornecedor.tsx`: label "Prazo de entrega (dias)" e grid widths.
-- Importar `cpfCnpjMask` de `@/utils/masks` em `Fornecedores.tsx`.
+### Arquivos afetados
+- `src/pages/Fornecedores.tsx` — título dinâmico mobile, abas controladas + scroll-into-view, CNPJ em duas linhas, microcopy condicional, coluna única em Contatos, padding extra na aba Endereço, label do toggle.
+- `src/components/fornecedores/AddProdutoFornecedor.tsx` — grid responsivo coluna única + botão full-width com label.
+- `src/components/FormModal.tsx` — `whitespace-nowrap` no chip de identifier; padding vertical reduzido no footer mobile.
+- `src/components/FormModalFooter.tsx` — layout `flex-col` em mobile com indicador "alterações não salvas" em linha separada.
 
 ### Fora de escopo
-- Múltiplos contatos (comercial/financeiro/logístico) → roadmap, fica como comentário.
-- Validação fiscal "real" do badge → mantém como "Dados principais preenchidos".
-- Mudanças no `FormModal` base ou no `FormModalFooter`.
+- Validação avançada de Inscrição Estadual.
+- Tooltip → popover em mobile (mudança transversal).
+- Refatorar abas em accordion (manter scroll horizontal canônico).
+- Mudanças no `useCnpjLookup` ou no schema.
+
+### Critérios de aceite (mobile 390px)
+1. Título "Editar" / "Novo" não trunca.
+2. CNPJ aparece completo em uma única linha (sem quebra no meio do número).
+3. Abas roláveis com fade lateral, sem barra cinza, aba ativa centralizada automaticamente.
+4. Aba Dados: campo CNPJ ocupa 100% e botão Consultar fica abaixo, full-width.
+5. Aba Compras: zero overflow horizontal, botão "+ Vincular produto" visível por completo.
+6. Indicador "Alterações não salvas" aparece em linha própria, não compete com os botões.
+7. Último campo da aba Endereço fica visível ao rolar até o fim, sem ser coberto pelo rodapé.

@@ -102,7 +102,7 @@ export function FormModal({
                 </span>
               )}
               {identifier && (
-                <span className="text-xs font-mono text-muted-foreground bg-muted/60 border border-border/60 rounded px-1.5 py-0.5">
+                <span className="text-xs font-mono text-muted-foreground bg-muted/60 border border-border/60 rounded px-1.5 py-0.5 whitespace-nowrap max-sm:basis-full max-sm:w-full">
                   {identifier}
                 </span>
               )}
@@ -147,7 +147,7 @@ export function FormModal({
         </div>
 
         {footer && (
-          <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-6 py-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:shadow-[0_-4px_12px_-4px_hsl(var(--background))]">
+          <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-6 py-3 max-sm:px-4 max-sm:py-2 max-sm:pb-[max(0.5rem,env(safe-area-inset-bottom))] max-sm:shadow-[0_-4px_12px_-4px_hsl(var(--background))]">
             {footer}
           </div>
         )}

@@ -198,6 +198,17 @@ const Fornecedores = () => {
     "fornecedores",
   );
   const [isDirty, setIsDirty] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("dados-gerais");
+  const tabsListRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-centraliza a aba ativa em mobile (padrão canônico — vide Clientes).
+  useEffect(() => {
+    if (!modalOpen) return;
+    const el = tabsListRef.current?.querySelector<HTMLElement>(
+      `[data-state="active"][role="tab"]`,
+    );
+    el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [activeTab, modalOpen]);
   const [saving, setSaving] = useState(false);
   const isMobile = useIsMobile();
   const [modalProdutosForn, setModalProdutosForn] = useState<Array<{
@@ -247,6 +258,7 @@ const Fornecedores = () => {
     loadTokenRef.current += 1;
     setMode("create"); setForm({ ...emptyForm }); setSelected(null); setIsDirty(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
+    setActiveTab("dados-gerais");
     setModalOpen(true);
   };
   const openEdit = (f: Fornecedor) => {
@@ -264,6 +276,7 @@ const Fornecedores = () => {
     setIsDirty(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
     void loadFornContext(f.id, token);
+    setActiveTab("dados-gerais");
     setModalOpen(true);
   };
 
@@ -564,7 +577,7 @@ const Fornecedores = () => {
           if (isDirty && !(await confirmDiscard())) return;
           setModalOpen(false);
         }}
-        title={mode === "create" ? "Novo Fornecedor" : "Editar Fornecedor"}
+        title={mode === "create" ? (isMobile ? "Novo" : "Novo Fornecedor") : (isMobile ? "Editar" : "Editar Fornecedor")}
         size="xl"
         mode={mode}
         createHint="Preencha razão social, CPF/CNPJ e contato principal. Demais dados podem ser complementados depois."
@@ -576,7 +589,7 @@ const Fornecedores = () => {
               onCheckedChange={(v) => updateForm({ ativo: v })}
               aria-label={form.ativo ? "Inativar fornecedor" : "Reativar fornecedor"}
             />
-            <span className="font-medium">{form.ativo ? "Fornecedor ativo" : "Fornecedor inativo"}</span>
+            <span className="font-medium hidden sm:inline">{form.ativo ? "Fornecedor ativo" : "Fornecedor inativo"}</span>
           </label>
         ) : undefined}
         meta={mode === "edit" && selected ? [
@@ -602,10 +615,13 @@ const Fornecedores = () => {
       >
         <form id="fornecedor-form" onSubmit={handleSubmit} className="space-y-0">
 
-          <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList
+              ref={tabsListRef}
+              className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
+            >
               <TabsTrigger value="dados-gerais" className="gap-1.5">
-                <User2 className="h-3.5 w-3.5" />Dados Gerais
+                <User2 className="h-3.5 w-3.5" />{isMobile ? "Dados" : "Dados Gerais"}
                 {(formErrors.cpf_cnpj || formErrors.nome_razao_social) && (
                   <span aria-label="Pendências nesta aba" className="ml-1 h-1.5 w-1.5 rounded-full bg-destructive" />
                 )}
@@ -668,13 +684,13 @@ const Fornecedores = () => {
                   </Tooltip>
                 )}
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-1">
                 <MaskedInput mask="cpf_cnpj" value={form.cpf_cnpj} onChange={(v) => updateForm({ cpf_cnpj: v })} />
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="shrink-0 gap-1.5 px-3 text-xs"
+                  className="shrink-0 gap-1.5 px-3 text-xs max-sm:h-11 max-sm:w-full"
                   disabled={cnpjLoading || form.tipo_pessoa !== "J"}
                   onClick={async () => {
                     const result = await buscarCnpj(form.cpf_cnpj);
@@ -711,7 +727,10 @@ const Fornecedores = () => {
                 <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
               {form.tipo_pessoa === "J" && !formErrors.cpf_cnpj && (
-                <p className="text-xs text-muted-foreground">Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis — sobrescreve os campos retornados.</p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="sm:hidden">Preenche dados pela Receita Federal.</span>
+                  <span className="hidden sm:inline">Consulta automática na Receita Federal. Preenche razão social, endereço e contato quando disponíveis — sobrescreve os campos retornados.</span>
+                </p>
               )}
             </div>
             <div className="space-y-1.5">
@@ -766,7 +785,7 @@ const Fornecedores = () => {
                 <Input
                   value={form.contato}
                   onChange={(e) => updateForm({ contato: e.target.value })}
-                  placeholder="Nome do responsável pelo atendimento comercial"
+                  placeholder={isMobile ? "Nome do contato" : "Nome do responsável pelo atendimento comercial"}
                 />
               </div>
             </div>
@@ -1015,7 +1034,7 @@ const Fornecedores = () => {
               maxLength={MAX_OBSERVACOES_LENGTH}
               value={form.observacoes}
               onChange={(e) => updateForm({ observacoes: e.target.value })}
-              placeholder="Informações relevantes: condições especiais negociadas, restrições de fornecimento, preferências logísticas, histórico de relacionamento..."
+              placeholder={isMobile ? "Observações internas" : "Informações relevantes: condições especiais negociadas, restrições de fornecimento, preferências logísticas, histórico de relacionamento..."}
             />
             <p className="text-xs text-muted-foreground mt-1 text-right">{form.observacoes.length}/{MAX_OBSERVACOES_LENGTH}</p>
           </div>
