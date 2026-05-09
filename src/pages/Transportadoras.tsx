@@ -554,7 +554,12 @@ export default function Transportadoras() {
               <TabsTrigger value="dados-gerais" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
               <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
               <TabsTrigger value="operacional" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Operacional</TabsTrigger>
-              <TabsTrigger value="endereco" className="gap-1.5"><MapPin className="h-3.5 w-3.5" />Endereço</TabsTrigger>
+              <TabsTrigger value="endereco" className="gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />Endereço
+                {mode === "edit" && (!form.cep || !form.logradouro || !form.numero) && (
+                  <AlertTriangle className="h-3 w-3 text-warning" aria-label="Endereço incompleto" />
+                )}
+              </TabsTrigger>
               {mode === "edit" && (
                 <TabsTrigger value="clientes-vinculados" className="gap-1.5">
                   <Users className="h-3.5 w-3.5" />Clientes
