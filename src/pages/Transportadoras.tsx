@@ -854,7 +854,7 @@ export default function Transportadoras() {
                 </SelectContent>
               </Select>
               <Button
-                type="button" size="sm" variant="default"
+                type="button" size="sm" variant={!vinculoClienteId ? "outline" : "default"}
                 disabled={!vinculoClienteId || savingVinculoCliente}
                 onClick={() => selected && handleVincularCliente(selected.id)}
                 className="gap-1 h-9"
@@ -864,7 +864,7 @@ export default function Transportadoras() {
               </Button>
             </div>
             {!vinculoClienteId && (
-              <p className="text-[11px] text-muted-foreground">Selecione um cliente para habilitar o botão Vincular.</p>
+              <p className="text-[11px] text-warning-foreground">Selecione um cliente para habilitar o botão Vincular.</p>
             )}
           </div>
           {loadingEditClientes ? (
