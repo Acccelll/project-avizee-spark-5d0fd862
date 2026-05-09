@@ -559,11 +559,14 @@ export default function Transportadoras() {
       >
         <form id="transportadora-form" onSubmit={handleSubmit} className="space-y-0">
 
-          <Tabs defaultValue="dados-gerais" className="w-full">
-            <TabsList className="mb-4 w-full justify-start overflow-x-auto">
-              <TabsTrigger value="dados-gerais" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList
+              ref={tabsListRef}
+              className="mb-4 w-full justify-start overflow-x-auto scrollbar-hide tabs-fade-mask gap-1 [&_button]:whitespace-nowrap [&_button]:shrink-0 [&_button]:min-w-[5.5rem] [&_button]:justify-center"
+            >
+              <TabsTrigger value="dados-gerais" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />{isMobile ? "Dados" : "Dados Gerais"}</TabsTrigger>
               <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
-              <TabsTrigger value="operacional" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Operacional</TabsTrigger>
+              <TabsTrigger value="operacional" className="gap-1.5"><Truck className="h-3.5 w-3.5" />{isMobile ? "Operação" : "Operacional"}</TabsTrigger>
               <TabsTrigger value="endereco" className="gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />Endereço
                 {mode === "edit" && (!form.cep || !form.logradouro || !form.numero) && (
