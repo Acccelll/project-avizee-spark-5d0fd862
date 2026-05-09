@@ -352,7 +352,7 @@ const GruposEconomicos = () => {
       label: "Clientes",
       render: (g: GrupoEconomico) => {
         const count = clienteCountMap[g.id] ?? 0;
-        const label = count === 1 ? "1 cliente" : `${count} clientes`;
+        const label = count === 1 ? "1 cliente vinculado" : `${count} clientes vinculados`;
         return (
           <button
             type="button"
