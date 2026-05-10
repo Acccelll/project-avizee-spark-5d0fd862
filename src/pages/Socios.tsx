@@ -64,6 +64,7 @@ export default function Socios() {
   const [selected, setSelected] = useState<Socio | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<SocioForm>(emptyForm);
+  const [initialForm, setInitialForm] = useState<SocioForm>(emptyForm);
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? "identificacao");
   const { saving, submit } = useSubmitLock();
 
@@ -125,6 +126,7 @@ export default function Socios() {
   const openCreate = () => {
     setMode("create");
     setForm(emptyForm);
+    setInitialForm(emptyForm);
     setSelected(null);
     setActiveTab("identificacao");
     setModalOpen(true);
@@ -133,15 +135,20 @@ export default function Socios() {
   const openEdit = (s: Socio) => {
     setMode("edit");
     setSelected(s);
-    setForm({
-      nome: s.nome, cpf: s.cpf ?? "", email: s.email ?? "", telefone: s.telefone ?? "",
+    const next: SocioForm = {
+      nome: s.nome,
+      cpf: s.cpf ? cpfMask(s.cpf) : "",
+      email: s.email ?? "",
+      telefone: s.telefone ?? "",
       ativo: s.ativo,
       data_entrada: s.data_entrada, data_saida: s.data_saida,
       forma_recebimento_padrao: s.forma_recebimento_padrao ?? "pix",
       chave_pix: s.chave_pix ?? "", banco: s.banco ?? "", agencia: s.agencia ?? "",
       conta: s.conta ?? "", tipo_conta: s.tipo_conta ?? "corrente",
       observacoes: s.observacoes ?? "",
-    });
+    };
+    setForm(next);
+    setInitialForm(next);
     setActiveTab("identificacao");
     setModalOpen(true);
   };
@@ -187,7 +194,16 @@ export default function Socios() {
   const adicionarParticipacao = async () => {
     if (!selected) return;
     if (novaPart.percentual <= 0) { toast.error("Informe um percentual maior que zero"); return; }
+    if (novaPart.percentual > 100) { toast.error("Percentual não pode ultrapassar 100%"); return; }
     if (!novaPart.vigencia_inicio) { toast.error("Informe a vigência inicial"); return; }
+    const somaVigentes = participacoes
+      .filter((p) => !p.vigencia_fim)
+      .reduce((acc, p) => acc + Number(p.percentual), 0);
+    const projetada = somaVigentes + novaPart.percentual;
+    if (projetada > 100.0001) {
+      toast.error(`A soma das participações ficará em ${formatPercent(projetada)}. Ajuste antes de salvar.`);
+      return;
+    }
     await createPart.mutateAsync({
       socio_id: selected.id,
       percentual: novaPart.percentual,
@@ -196,6 +212,25 @@ export default function Socios() {
     });
     setNovaPart({ percentual: 0, vigencia_inicio: new Date().toISOString().split("T")[0], vigencia_fim: "" });
   };
+
+  const isDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(initialForm),
+    [form, initialForm],
+  );
+
+  const somaVigentes = useMemo(
+    () => participacoes.filter((p) => !p.vigencia_fim).reduce((a, p) => a + Number(p.percentual), 0),
+    [participacoes],
+  );
+  const somaProjetada = somaVigentes + (Number(novaPart.percentual) || 0);
+  const composicaoStatus = (() => {
+    if (Math.abs(somaVigentes - 100) < 0.01) return { label: "Composição válida", variant: "default" as const };
+    if (somaVigentes < 100) return { label: "Incompleta", variant: "secondary" as const };
+    return { label: "Excedida", variant: "destructive" as const };
+  })();
+  const formaRec = form.forma_recebimento_padrao;
+  const showPix = formaRec === "pix";
+  const showBanco = formaRec === "ted";
 
   const columns = [
     { key: "nome", label: "Nome", mobilePrimary: true },
@@ -310,6 +345,7 @@ export default function Socios() {
         footer={
           <FormModalFooter
             saving={saving}
+            isDirty={isDirty}
             onCancel={() => setModalOpen(false)}
             submitAsForm
             formId="socio-form"
@@ -327,7 +363,12 @@ export default function Socios() {
           </ScrollableTabsList>
 
           <TabsContent value="identificacao">
-            <form id="socio-form" onSubmit={handleSubmit} className="space-y-6">
+            <form
+              id="socio-form"
+              onSubmit={handleSubmit}
+              tabIndex={-1}
+              className="space-y-6 outline-none focus:outline-none focus-visible:ring-0 focus-visible:outline-none"
+            >
               <section className="space-y-3">
                 <header className="flex items-center gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Identificação</span>
@@ -346,7 +387,7 @@ export default function Socios() {
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="soc-status">Status</Label>
+                    <Label htmlFor="soc-status">Status do sócio</Label>
                     <Select value={form.ativo ? "ativo" : "inativo"} onValueChange={(v) => setForm({ ...form, ativo: v === "ativo" })}>
                       <SelectTrigger id="soc-status"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -385,7 +426,7 @@ export default function Socios() {
                 </header>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Forma padrão</Label>
+                    <Label>Forma padrão de recebimento</Label>
                     <Select value={form.forma_recebimento_padrao} onValueChange={(v) => setForm({ ...form, forma_recebimento_padrao: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -396,46 +437,72 @@ export default function Socios() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Chave Pix</Label>
-                    <Input value={form.chave_pix} onChange={(e) => setForm({ ...form, chave_pix: e.target.value })} />
-                  </div>
+                  {showPix && (
+                    <div className="space-y-1.5">
+                      <Label>Chave Pix</Label>
+                      <Input value={form.chave_pix} onChange={(e) => setForm({ ...form, chave_pix: e.target.value })} placeholder="CPF, e-mail, telefone ou chave aleatória" />
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Banco</Label>
-                    <Input value={form.banco} onChange={(e) => setForm({ ...form, banco: e.target.value })} />
+                {showBanco && (
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Banco</Label>
+                      <Input value={form.banco} onChange={(e) => setForm({ ...form, banco: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Agência</Label>
+                      <Input value={form.agencia} onChange={(e) => setForm({ ...form, agencia: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Conta</Label>
+                      <Input value={form.conta} onChange={(e) => setForm({ ...form, conta: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Tipo de conta</Label>
+                      <Select value={form.tipo_conta} onValueChange={(v) => setForm({ ...form, tipo_conta: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="corrente">Corrente</SelectItem>
+                          <SelectItem value="poupanca">Poupança</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Agência</Label>
-                    <Input value={form.agencia} onChange={(e) => setForm({ ...form, agencia: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Conta</Label>
-                    <Input value={form.conta} onChange={(e) => setForm({ ...form, conta: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Tipo</Label>
-                    <Select value={form.tipo_conta} onValueChange={(v) => setForm({ ...form, tipo_conta: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="corrente">Corrente</SelectItem>
-                        <SelectItem value="poupanca">Poupança</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                )}
+                {(formaRec === "dinheiro" || formaRec === "outro") && (
+                  <p className="text-xs text-muted-foreground">
+                    Sem dados bancários necessários. Use o campo Observações para registrar instruções específicas.
+                  </p>
+                )}
               </section>
 
               <section className="space-y-1.5">
                 <Label>Observações</Label>
                 <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} />
+                <p className="text-[11px] text-muted-foreground text-right">{form.observacoes.length}/500</p>
               </section>
             </form>
           </TabsContent>
 
           {mode === "edit" && (
             <TabsContent value="participacoes" className="space-y-4">
+              <div className="rounded-lg border bg-muted/20 p-4 grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground">Participação atual</div>
+                  <div className="font-mono text-base">
+                    {formatPercent(Number(selected?.percentual_participacao_atual ?? 0))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Soma vigente (este sócio)</div>
+                  <div className="font-mono text-base">{formatPercent(somaVigentes)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Status</div>
+                  <Badge variant={composicaoStatus.variant}>{composicaoStatus.label}</Badge>
+                </div>
+              </div>
               <div className="rounded-lg border p-4 space-y-3">
                 <h4 className="font-medium text-sm">Adicionar período de participação</h4>
                 <div className="grid grid-cols-4 gap-3 items-end">
@@ -448,11 +515,17 @@ export default function Socios() {
                     <Input type="date" value={novaPart.vigencia_inicio} onChange={(e) => setNovaPart({ ...novaPart, vigencia_inicio: e.target.value })} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Vigência fim (opcional)</Label>
+                    <Label title="Deixe em branco para manter o período em aberto. Períodos não podem se sobrepor.">Vigência fim (opcional)</Label>
                     <Input type="date" value={novaPart.vigencia_fim} onChange={(e) => setNovaPart({ ...novaPart, vigencia_fim: e.target.value })} />
                   </div>
                   <Button type="button" onClick={adicionarParticipacao}><Plus className="h-4 w-4 mr-1" />Adicionar</Button>
                 </div>
+                {somaProjetada > 100.0001 && (
+                  <p className="text-xs text-destructive flex items-start gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
+                    A soma das participações ficará em {formatPercent(somaProjetada)}. Ajuste antes de salvar.
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground flex items-start gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
                   Períodos não podem se sobrepor para o mesmo sócio.
@@ -465,7 +538,7 @@ export default function Socios() {
                     <tr>
                       <th className="text-left p-3 font-medium">Percentual</th>
                       <th className="text-left p-3 font-medium">Início</th>
-                      <th className="text-left p-3 font-medium">Fim</th>
+                      <th className="text-left p-3 font-medium">Situação</th>
                       <th className="w-12"></th>
                     </tr>
                   </thead>
@@ -475,9 +548,15 @@ export default function Socios() {
                     )}
                     {participacoes.map((p: SocioParticipacao) => (
                       <tr key={p.id} className="border-b last:border-0">
-                        <td className="p-3 font-mono">{Number(p.percentual).toFixed(2)}%</td>
+                        <td className="p-3 font-mono">{formatPercent(Number(p.percentual))}</td>
                         <td className="p-3">{formatDate(p.vigencia_inicio)}</td>
-                        <td className="p-3">{p.vigencia_fim ? formatDate(p.vigencia_fim) : "—"}</td>
+                        <td className="p-3">
+                          {p.vigencia_fim ? (
+                            <span className="text-muted-foreground">Encerrada em {formatDate(p.vigencia_fim)}</span>
+                          ) : (
+                            <Badge>Vigente</Badge>
+                          )}
+                        </td>
                         <td className="p-3 text-right">
                           <Button size="icon" variant="ghost" onClick={() => removePart.mutate(p.id)} aria-label="Remover participação">
                             <Trash2 className="h-4 w-4" />
