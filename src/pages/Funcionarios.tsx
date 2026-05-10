@@ -211,20 +211,23 @@ export default function Funcionarios() {
         if (!ativoFilters.includes(status)) return false;
       }
       if (tipoContratoFilters.length > 0 && !tipoContratoFilters.includes(f.tipo_contrato)) return false;
+      if (departamentoFilters.length > 0 && !departamentoFilters.includes(f.departamento || "")) return false;
       return true;
     });
-  }, [data, ativoFilters, tipoContratoFilters]);
+  }, [data, ativoFilters, tipoContratoFilters, departamentoFilters]);
 
   const activeFilters = useMemo<FilterChip[]>(() => {
     const chips: FilterChip[] = [];
     ativoFilters.forEach(f => chips.push({ key: "ativo", label: "Status", value: [f], displayValue: f === "ativo" ? "Ativo" : "Inativo" }));
     tipoContratoFilters.forEach(f => chips.push({ key: "tipo_contrato", label: "Contrato", value: [f], displayValue: tipoContratoLabel[f] || f }));
+    departamentoFilters.forEach(f => chips.push({ key: "departamento", label: "Depto.", value: [f], displayValue: f }));
     return chips;
-  }, [ativoFilters, tipoContratoFilters]);
+  }, [ativoFilters, tipoContratoFilters, departamentoFilters]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
     if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
     else if (key === "tipo_contrato") setTipoContratoFilters(tipoContratoFilters.filter(v => v !== value));
+    else if (key === "departamento") setDepartamentoFilters(departamentoFilters.filter(v => v !== value));
   };
 
   const ativoOptions: MultiSelectOption[] = [
@@ -239,15 +242,70 @@ export default function Funcionarios() {
     { label: "Temporário", value: "temporario" },
   ];
 
+  const departamentoOptions: MultiSelectOption[] = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach(f => { if (f.departamento) set.add(f.departamento); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map(d => ({ label: d, value: d }));
+  }, [data]);
+
+  const isAdmin = useIsAdmin();
+
   const columns = [
-    { key: "nome", label: "Nome" },
+    {
+      key: "nome",
+      label: "Funcionário",
+      render: (f: Funcionario) => (
+        <div className="flex flex-col leading-tight">
+          <span className="font-medium">{f.nome}</span>
+          {f.cpf && (
+            <span className="text-xs text-muted-foreground font-mono">
+              {maskCpfPartial(f.cpf)}
+            </span>
+          )}
+        </div>
+      ),
+    },
     { key: "ativo", label: "Status", render: (f: Funcionario) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
     { key: "cargo", label: "Cargo", render: (f: Funcionario) => f.cargo || "—" },
     { key: "departamento", label: "Depto.", render: (f: Funcionario) => f.departamento || "—" },
-    { key: "tipo_contrato", label: "Contrato", render: (f: Funcionario) => tipoContratoLabel[f.tipo_contrato] || f.tipo_contrato },
-    { key: "data_admissao", label: "Admissão", render: (f: Funcionario) => formatDate(f.data_admissao) },
+    {
+      key: "tipo_contrato",
+      label: "Contrato",
+      render: (f: Funcionario) => (
+        <Badge
+          variant="outline"
+          className={cn("font-normal", tipoContratoBadgeClass[f.tipo_contrato] || "")}
+        >
+          {tipoContratoLabel[f.tipo_contrato] || f.tipo_contrato}
+        </Badge>
+      ),
+    },
+    {
+      key: "data_admissao",
+      label: "Admissão",
+      render: (f: Funcionario) => {
+        const tempo = tempoDeCasa(f.data_admissao, f.data_demissao);
+        return (
+          <div className="flex flex-col leading-tight">
+            <span>{formatDate(f.data_admissao)}</span>
+            {tempo && <span className="text-xs text-muted-foreground">{tempo}</span>}
+          </div>
+        );
+      },
+    },
     { key: "cpf", label: "CPF", hidden: true, render: (f: Funcionario) => f.cpf || "—" },
-    { key: "salario_base", label: "Salário Base", hidden: true, render: (f: Funcionario) => <span className="font-mono">{formatCurrency(Number(f.salario_base))}</span> },
+    // Coluna sensível — só disponível para admins (TODO: granular `funcionarios:salario_view`).
+    ...(isAdmin
+      ? [{
+          key: "salario_base",
+          label: "Salário Base",
+          hidden: true,
+          render: (f: Funcionario) => (
+            <span className="font-mono">{formatCurrency(Number(f.salario_base))}</span>
+          ),
+        }]
+      : []),
   ];
 
   return (
