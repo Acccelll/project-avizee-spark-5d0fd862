@@ -106,6 +106,7 @@ export default function Funcionarios() {
       q: { type: "string" },
       ativo: { type: "stringArray" },
       contrato: { type: "stringArray" },
+      departamento: { type: "stringArray" },
     },
   });
   const searchTerm = filterValue.q;
@@ -114,6 +115,8 @@ export default function Funcionarios() {
   const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
   const tipoContratoFilters = filterValue.contrato;
   const setTipoContratoFilters = (v: string[]) => setFilter({ contrato: v });
+  const departamentoFilters = filterValue.departamento;
+  const setDepartamentoFilters = (v: string[]) => setFilter({ departamento: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Funcionario>({
     table: "funcionarios",
