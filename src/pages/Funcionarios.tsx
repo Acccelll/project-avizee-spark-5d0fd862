@@ -593,8 +593,8 @@ export default function Funcionarios() {
                 <Label htmlFor="emp-motivo-deslig">Motivo do desligamento</Label>
                 <Textarea
                   id="emp-motivo-deslig"
-                  value={(form as FuncionarioForm & { motivo_inativacao?: string }).motivo_inativacao ?? ""}
-                  onChange={e => setForm({ ...form, motivo_inativacao: e.target.value } as FuncionarioForm)}
+                  value={form.motivo_inativacao}
+                  onChange={e => setForm({ ...form, motivo_inativacao: e.target.value })}
                   placeholder="Pedido de demissão, término de contrato, etc."
                   rows={2}
                 />
