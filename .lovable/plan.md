@@ -1,55 +1,60 @@
-## Onda 42e — Refino mobile do form Editar/Novo Funcionário
+## Onda 42f — Refino do grid de Sócios (`/socios`)
 
-Escopo: apenas `src/pages/Funcionarios.tsx` (form). Sem migração, sem mudanças desktop relevantes.
-
-Vários itens da revisão já foram entregues na Onda 42d (máscara CPF + validação inline, salário em moeda, desligamento condicional, "Situação do colaborador", `confirmOnDirty`, `disabledReason` no Salvar, `CPF ###.###.###-##` no header, contador em Observações). Esta onda foca no que sobrou — quase tudo é layout mobile.
+Escopo: apenas `src/pages/Socios.tsx` (grid + KPIs). Sem migração, sem alterar drawer/form. Foca em CPF sensível, percentual pt-BR, validação visual da composição e clareza das colunas.
 
 ### Alta prioridade
 
-1. **Empilhar grids 2-col no mobile**
-   - Trocar `grid grid-cols-2 gap-4` por `grid grid-cols-1 sm:grid-cols-2 gap-4` nos blocos:
-     - Identificação (CPF + Situação)
-     - Vínculo (Admissão + Desligamento)
-     - Estrutura Interna (Cargo + Departamento)
-   - Mantém densidade no desktop, dá respiro no mobile.
+1. **CPF formatado e mascarado por permissão**
+   - Coluna "CPF" passa a renderizar:
+     - Sem CPF → badge `outline` discreto "CPF pendente" (`text-muted-foreground`).
+     - Admin (`useIsAdmin`) → CPF completo via `cpfMask` (`446.790.278-35`).
+     - Não-admin → mascarado parcialmente: `***.790.278-**` (mantém os 6 dígitos do meio).
+   - Helper local `partialCpf(digits)`; a versão completa só é montada se `isAdmin`.
 
-2. **Estado do botão Salvar mais visível no mobile**
-   - O botão já tem `max-sm:h-11` no `FormModalFooter`. Garantir que o motivo do disabled apareça como hint visível (não só `title=`) em mobile, já que tooltip nativo não funciona bem em touch:
-     - Renderizar uma linha de hint pequena `text-[11px] text-muted-foreground` acima do footer interno **somente quando `noChanges` ou `disabledReason` ativo e o usuário está em mobile**.
-   - Implementar via prop opcional `disabledHint?: ReactNode` no `FormModalFooter` (ou render inline no `Funcionarios.tsx` passando como `secondaryActions` mobile-only). Preferência: adicionar `disabledHint` no `FormModalFooter` para reuso.
+2. **Percentual em padrão pt-BR**
+   - Coluna "Participação atual" usa `formatPercent(Number(s.percentual_participacao_atual ?? 0))` → `20,00%`.
+   - SummaryCard "Soma de participações" também usa `formatPercent(kpis.soma)`.
+
+3. **Validação visual da composição (KPI)**
+   - SummaryCard "Soma de participações" ganha `description` dinâmica:
+     - `Math.abs(soma - 100) < 0.01` → "Composição válida" (variant `success`).
+     - `soma < 100` → `Faltam X,XX%` (variant `warning`).
+     - `soma > 100` → `Excede X,XX%` (variant `danger`).
+   - Reutiliza `formatPercent` para o delta.
+
+4. **Renomear coluna "Entrada" → "Entrada societária"**
+   - Apenas o `label`. `key` continua `data_entrada`.
+
+5. **Coluna CPF: estado "—" → "CPF pendente"**
+   - Coberto por (1); reforço explícito de UX.
 
 ### Média prioridade
 
-3. **Hierarquia do cabeçalho do FormModal**
-   - Já temos badge + identifier `CPF ...` + meta cargo/depto/admissão/tempo de casa.
-   - No mobile (`max-sm`), garantir que `meta` quebre linha e que o `identifier` apareça em linha própria abaixo do título (atualmente vai inline). Pequeno ajuste de classe no `FormModal`: o header já é `flex-wrap`, então só precisamos validar visualmente; se ficar amontoado, adicionar `max-sm:basis-full` no `identifier` chip.
+6. **Card de pendência de CPF (condicional)**
+   - Calcular `kpis.cpfPendentes = socios.filter(s => !s.cpf).length`.
+   - Quando `> 0`, renderizar 4º `SummaryCard` "CPF pendente" com `variant="warning"` e ícone `AlertTriangle`. Quando `0`, não renderiza (mantém o layout enxuto).
 
-4. **Texto de apoio da Remuneração com mais peso**
-   - Hoje: `text-[11px] text-muted-foreground`.
-   - Mobile: trocar por bloco discreto com fundo `bg-muted/40 border rounded-md px-2.5 py-2` e texto `text-xs text-foreground/80`. Mantém ícone $.
+7. **Busca por nome/CPF no DataTable**
+   - `DataTable` já aceita busca padrão do `ModulePage` (verificar via `searchKey`/props existentes; se não houver, expor `searchPlaceholder="Buscar por nome ou CPF..."` — ajuste mínimo, sem refator).
+   - Filtro por dígitos do CPF: na coluna `cpf`, prover `searchValue: (s) => `${s.nome} ${(s.cpf ?? "").replace(/\D/g,"")}`` se a API do `DataTable` permitir; caso contrário, deixar busca no `nome` apenas (a sondagem ao implementar definirá).
 
-5. **Observações mobile**
-   - `rows={3}` → `rows={4}` (apenas via classe `min-h-[120px]` para manter desktop estável).
-   - Placeholder mais curto no mobile via `useIsMobile`: "Notas internas, acordos, histórico..."
+### Fora de escopo (necessitam migração ou outras telas)
 
-### Baixa prioridade
-
-6. **Hint do CPF inline mais legível no mobile**
-   - Validação já existe (`text-[11px]`); aumentar para `text-xs` no mobile para tap-targets/leitura.
-
-### Fora de escopo (já entregue ou demanda backend)
-
-- Máscara/validação CPF, salário em moeda, desligamento condicional, motivo do desligamento, contador em Obs., header com `CPF ...`, `confirmOnDirty`, motivo de bloqueio do Salvar — entregues na Onda 42d.
-- Matrícula, centro de custo, filial, gestor — exigem migração + UI nova; permanecem fora.
+- **Coluna "Papel/tipo do sócio"** — tabela `socios` não tem campo `papel`/`tipo_socio`. Requer migração + UI. Fica para onda futura.
+- **Histórico/última alteração no grid** — já existe a aba "Participações" no drawer/modal; coluna extra exigiria join e sai do escopo de UI.
+- **Ações específicas** ("alterar participação", "registrar saída") — drawer já oferece edição e a aba Participações; ações específicas exigem refactor de `RowActions` e novos fluxos.
+- **Filtros por papel/status** — depende de (papel) acima; filtro por status pode entrar em onda dedicada se demandado.
 
 ### Arquivos
 
-- `src/pages/Funcionarios.tsx` — grids, hint da remuneração, placeholder/altura de Obs.
-- `src/components/FormModalFooter.tsx` — adicionar prop opcional `disabledHint?: ReactNode` renderizada acima dos botões quando o primário estiver desabilitado (mobile-friendly, substitui o `title=` invisível em touch).
+- `src/pages/Socios.tsx` — colunas (`cpf`, `percentual_participacao_atual`, `data_entrada`), `kpis` (cpfPendentes + label dinâmico da soma), card adicional, busca.
+- Novo helper inline `partialCpf` (não cria arquivo).
+- Imports adicionais: `cpfMask` (`@/utils/masks`), `formatPercent` (`@/lib/format`), `useIsAdmin` (`@/hooks/useIsAdmin`).
 
 ### Checks
 
-- Build + `tsc` passam.
-- Em 390x844: cada par de campos passa a ocupar uma coluna; toques confortáveis.
-- Em ≥640px (`sm`): layout permanece 2 colunas (sem regressão desktop).
-- Botão Salvar com hint visível "Sem alterações para salvar" / "Corrija o CPF antes de salvar" no mobile.
+- `tsc` passa.
+- Admin vê CPF completo formatado; não-admin vê `***.xxx.xxx-**`.
+- Soma 100,00% → card verde "Composição válida"; soma divergente → warning/danger com delta em pt-BR.
+- Coluna renomeada para "Entrada societária".
+- Card "CPF pendente" só aparece quando há sócios sem CPF.
