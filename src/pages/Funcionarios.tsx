@@ -563,7 +563,7 @@ export default function Funcionarios() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="emp-admissao">Data de Admissão *</Label>
                 <Input id="emp-admissao" type="date" value={form.data_admissao} onChange={e => setForm({ ...form, data_admissao: e.target.value })} required />
@@ -608,7 +608,7 @@ export default function Funcionarios() {
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Estrutura Interna</span>
               <div className="flex-1 h-px bg-border" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="emp-cargo">Cargo</Label>
                 <Input id="emp-cargo" value={form.cargo} onChange={e => setForm({ ...form, cargo: e.target.value })} placeholder="Ex: Analista, Operador..." />
