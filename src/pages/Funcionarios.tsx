@@ -638,11 +638,36 @@ export default function Funcionarios() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <Input id="emp-salario" type="number" step="0.01" min={0} value={form.salario_base} onChange={e => setForm({ ...form, salario_base: Number(e.target.value) })} required className="font-mono font-semibold text-base" />
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <DollarSign className="w-3 h-3 shrink-0" />
-                Impacta o cálculo da folha e os lançamentos financeiros (salário + FGTS).
-              </p>
+              {isAdmin ? (
+                <>
+                  <Input
+                    id="emp-salario"
+                    inputMode="numeric"
+                    value={formatCurrency(form.salario_base || 0)}
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      const cents = digits ? Number(digits) : 0;
+                      setForm({ ...form, salario_base: cents / 100 });
+                    }}
+                    onFocus={e => e.target.select()}
+                    required
+                    className="font-mono font-semibold text-base"
+                  />
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 shrink-0" />
+                    Usado no cálculo da folha e na geração de lançamentos financeiros (salário + FGTS 8%). Não inclui demais encargos.
+                  </p>
+                </>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="h-10 flex items-center gap-2 px-3 rounded-md border bg-muted/40 text-sm text-muted-foreground font-mono cursor-help">
+                      <EyeOff className="w-3.5 h-3.5" /> R$ ••••
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-xs">Sem permissão para visualizar salário</TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </div>
 
