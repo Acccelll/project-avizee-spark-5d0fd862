@@ -43,6 +43,7 @@ interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
   data_admissao: string; data_demissao: string | null; salario_base: number;
   tipo_contrato: string; observacoes: string; ativo: boolean; created_at: string;
+  motivo_inativacao?: string | null;
 }
 
 const tipoContratoLabel: Record<string, string> = { clt: "CLT", pj: "PJ", estagio: "Estágio", temporario: "Temporário" };
@@ -98,11 +99,13 @@ interface FuncionarioForm {
   nome: string; cpf: string; cargo: string; departamento: string;
   data_admissao: string; data_demissao: string | null; salario_base: number;
   tipo_contrato: string; observacoes: string; ativo: boolean;
+  motivo_inativacao: string;
 }
 
 const emptyForm: FuncionarioForm = {
   nome: "", cpf: "", cargo: "", departamento: "", data_admissao: new Date().toISOString().split("T")[0],
   data_demissao: null, salario_base: 0, tipo_contrato: "clt", observacoes: "", ativo: true,
+  motivo_inativacao: "",
 };
 
 function isValidCpf(cpf: string): boolean {
@@ -177,7 +180,7 @@ export default function Funcionarios() {
   };
   const openEdit = (f: Funcionario) => {
     setMode("edit"); setSelected(f);
-    const next: FuncionarioForm = { nome: f.nome, cpf: f.cpf || "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo };
+    const next: FuncionarioForm = { nome: f.nome, cpf: f.cpf ? cpfMask(f.cpf) : "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo, motivo_inativacao: f.motivo_inativacao || "" };
     reset(next);
     setModalOpen(true);
   };
