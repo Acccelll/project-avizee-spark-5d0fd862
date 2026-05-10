@@ -9,12 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Users, Edit, Trash2, DollarSign, CalendarDays, FileText,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, Plus, ExternalLink,
 } from "lucide-react";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { ViewField, ViewSection } from "@/components/ui/ViewField";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
@@ -70,6 +72,23 @@ interface FuncionarioDetail {
 const tipoContratoLabel: Record<string, string> = {
   clt: "CLT", pj: "PJ", estagio: "Estágio", temporario: "Temporário",
 };
+
+/** Calcula tempo de casa em "X anos e Y meses" (ou "Z meses" / "menos de 1 mês"). */
+function tempoDeCasa(admissao: string | null | undefined, demissao?: string | null): string {
+  if (!admissao) return "";
+  const start = new Date(admissao);
+  const end = demissao ? new Date(demissao) : new Date();
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "";
+  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  if (end.getDate() < start.getDate()) months -= 1;
+  if (months < 1) return "menos de 1 mês";
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (years === 0) return `${rem} ${rem === 1 ? "mês" : "meses"}`;
+  const yLabel = `${years} ${years === 1 ? "ano" : "anos"}`;
+  if (rem === 0) return yLabel;
+  return `${yLabel} e ${rem} ${rem === 1 ? "mês" : "meses"}`;
+}
 
 export function FuncionarioView({ id }: Props) {
   const navigate = useNavigate();
