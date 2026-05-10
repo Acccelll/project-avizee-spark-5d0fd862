@@ -453,28 +453,28 @@ export default function Funcionarios() {
         isDirty={isFormDirty}
         confirmOnDirty
         footer={
-          <FormModalFooter
-            saving={submitting}
-            isDirty={isFormDirty}
-            onCancel={handleCloseModal}
-            submitAsForm
-            formId="funcionario-form"
-            mode={mode}
-            disabled={(() => {
-              const d = form.cpf.replace(/\D/g, "");
-              if (form.cpf && d.length === 11 && !isValidCpf(d)) return true;
-              if (cpfChecking) return true;
-              if (cpfUnico === false) return true;
-              return false;
-            })()}
-            disabledReason={(() => {
-              const d = form.cpf.replace(/\D/g, "");
-              if (form.cpf && d.length === 11 && !isValidCpf(d)) return "Corrija o CPF antes de salvar";
-              if (cpfChecking) return "Aguarde a verificação do CPF";
-              if (cpfUnico === false) return "CPF já cadastrado em outro funcionário";
-              return undefined;
-            })()}
-          />
+          (() => {
+            const d = form.cpf.replace(/\D/g, "");
+            let reason: string | undefined;
+            if (form.cpf && d.length === 11 && !isValidCpf(d)) reason = "Corrija o CPF antes de salvar";
+            else if (cpfChecking) reason = "Aguarde a verificação do CPF";
+            else if (cpfUnico === false) reason = "CPF já cadastrado em outro funcionário";
+            const blocked = !!reason;
+            const mobileHint = reason ?? (mode === "edit" && !isFormDirty ? "Sem alterações para salvar" : undefined);
+            return (
+              <FormModalFooter
+                saving={submitting}
+                isDirty={isFormDirty}
+                onCancel={handleCloseModal}
+                submitAsForm
+                formId="funcionario-form"
+                mode={mode}
+                disabled={blocked}
+                disabledReason={reason}
+                disabledHint={mobileHint}
+              />
+            );
+          })()
         }
       >
         <form id="funcionario-form" onSubmit={handleSubmit} className="space-y-6">
