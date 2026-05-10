@@ -28,6 +28,8 @@ interface FormModalFooterProps {
   className?: string;
   /** Quando true, "Cancelar" vira link discreto no mobile (reduz altura do footer). */
   cancelAsLink?: boolean;
+  /** Hint visível (não tooltip) explicando porque o primário está desabilitado. Útil em mobile/touch. */
+  disabledHint?: ReactNode;
 }
 
 export function FormModalFooter({
@@ -47,6 +49,7 @@ export function FormModalFooter({
   secondaryActions,
   className,
   cancelAsLink = false,
+  disabledHint,
 }: FormModalFooterProps) {
   const label = primaryLabel ?? (mode === "create" ? "Salvar" : "Salvar Alterações");
   const noChanges = mode === "edit" && !isDirty && !disabled;
@@ -56,6 +59,7 @@ export function FormModalFooter({
   const showSaveAndNew = mode === "create" && !!onSaveAndNew;
 
   const hasStatus = (isDirty && !saving) || saving;
+  const showDisabledHint = !!disabledHint && primaryDisabled && !saving;
 
   return (
     <div
@@ -65,6 +69,11 @@ export function FormModalFooter({
         className,
       )}
     >
+      {showDisabledHint && (
+        <div className="sm:hidden text-[11px] text-muted-foreground px-1 -mb-1">
+          {disabledHint}
+        </div>
+      )}
       {hasStatus && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0 max-sm:px-1">
           {isDirty && !saving && (
