@@ -34,6 +34,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -72,6 +73,21 @@ function tempoDeCasa(admissao: string | null | undefined, demissao?: string | nu
   const yLabel = `${years} ${years === 1 ? "ano" : "anos"}`;
   if (rem === 0) return yLabel;
   return `${yLabel} e ${rem} ${rem === 1 ? "mês" : "meses"}`;
+}
+
+/** Currency em formato compacto BR (R$ 17,5 mil / R$ 1,2 mi). Usado em KPIs mobile. */
+function formatCurrencyCompact(value: number): string {
+  try {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      notation: "compact",
+      compactDisplay: "short",
+      maximumFractionDigits: 1,
+    }).format(value);
+  } catch {
+    return formatCurrency(value);
+  }
 }
 
 /** Typed form for create/edit — avoids `Record<string, any>`. */
