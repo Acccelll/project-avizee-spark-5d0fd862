@@ -416,7 +416,7 @@ export default function Funcionarios() {
               }
             } : undefined}
             deleteBehavior="soft"
-            mobileIdentifierKey="cargo"
+            mobileIdentifierKey="cpf"
             mobileStatusKey="ativo"
           />
         </PullToRefresh>
