@@ -17,7 +17,10 @@ import { useSocios, useSocioParticipacoes } from "@/hooks/useSocios";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { toast } from "sonner";
 import type { Socio, SocioParticipacao } from "@/types/domain";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPercent } from "@/lib/format";
+import { cpfMask } from "@/utils/masks";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollableTabsList } from "@/components/ui/scrollable-tabs";
 import { SocioDrawer } from "@/components/socios/SocioDrawer";
@@ -50,6 +53,8 @@ const emptyForm: SocioForm = {
 
 export default function Socios() {
   const { socios, loading, create, update, remove } = useSocios();
+  const { isAdmin } = useIsAdmin();
+  const [search, setSearch] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
   const [modalOpen, setModalOpen] = useState(false);
@@ -77,8 +82,41 @@ export default function Socios() {
   const kpis = useMemo(() => {
     const ativos = socios.filter((s) => s.ativo);
     const somaAtual = ativos.reduce((acc, s) => acc + Number(s.percentual_participacao_atual ?? 0), 0);
-    return { total: socios.length, ativos: ativos.length, soma: somaAtual };
+    const cpfPendentes = socios.filter((s) => !s.cpf || !String(s.cpf).trim()).length;
+    return { total: socios.length, ativos: ativos.length, soma: somaAtual, cpfPendentes };
   }, [socios]);
+
+  const composicaoInfo = useMemo(() => {
+    const delta = kpis.soma - 100;
+    if (Math.abs(delta) < 0.01) {
+      return { variant: "success" as const, subtitle: "Composição válida" };
+    }
+    if (delta < 0) {
+      return { variant: "warning" as const, subtitle: `Faltam ${formatPercent(Math.abs(delta))}` };
+    }
+    return { variant: "danger" as const, subtitle: `Excede ${formatPercent(delta)}` };
+  }, [kpis.soma]);
+
+  const filteredSocios = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return socios;
+    const qDigits = q.replace(/\D/g, "");
+    return socios.filter((s) => {
+      const nomeMatch = s.nome?.toLowerCase().includes(q);
+      const cpfDigits = (s.cpf ?? "").replace(/\D/g, "");
+      const cpfMatch = qDigits.length > 0 && cpfDigits.includes(qDigits);
+      return nomeMatch || cpfMatch;
+    });
+  }, [socios, search]);
+
+  const renderCpfCell = (s: Socio) => {
+    const digits = (s.cpf ?? "").replace(/\D/g, "");
+    if (digits.length !== 11) {
+      return <Badge variant="outline" className="text-muted-foreground font-normal">CPF pendente</Badge>;
+    }
+    if (isAdmin) return <span className="tabular-nums">{cpfMask(digits)}</span>;
+    return <span className="tabular-nums">{`***.${digits.slice(3, 6)}.${digits.slice(6, 9)}-**`}</span>;
+  };
 
   const openCreate = () => {
     setMode("create");
@@ -157,10 +195,10 @@ export default function Socios() {
 
   const columns = [
     { key: "nome", label: "Nome" },
-    { key: "cpf", label: "CPF", render: (s: Socio) => s.cpf || "—" },
-    { key: "percentual_participacao_atual", label: "Participação atual", render: (s: Socio) => `${Number(s.percentual_participacao_atual ?? 0).toFixed(2)}%` },
+    { key: "cpf", label: "CPF", render: renderCpfCell },
+    { key: "percentual_participacao_atual", label: "Participação atual", render: (s: Socio) => formatPercent(Number(s.percentual_participacao_atual ?? 0)) },
     { key: "ativo", label: "Status", render: (s: Socio) => <StatusBadge status={s.ativo ? "ativo" : "inativo"} /> },
-    { key: "data_entrada", label: "Entrada", render: (s: Socio) => s.data_entrada ? formatDate(s.data_entrada) : "—" },
+    { key: "data_entrada", label: "Entrada societária", render: (s: Socio) => s.data_entrada ? formatDate(s.data_entrada) : "—" },
     { key: "email", label: "E-mail", hidden: true, render: (s: Socio) => s.email || "—" },
     { key: "telefone", label: "Telefone", hidden: true, render: (s: Socio) => s.telefone || "—" },
   ];
@@ -172,22 +210,34 @@ export default function Socios() {
         subtitle="Cadastro societário e histórico de participações"
         addLabel="Novo Sócio"
         onAdd={openCreate}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Buscar por nome ou CPF..."
         summaryCards={
           <>
             <SummaryCard title="Total de Sócios" value={String(kpis.total)} icon={Briefcase} />
             <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
             <SummaryCard
               title="Soma de participações"
-              value={`${kpis.soma.toFixed(2)}%`}
+              value={formatPercent(kpis.soma)}
+              subtitle={composicaoInfo.subtitle}
               icon={Percent}
-              variant={Math.abs(kpis.soma - 100) > 0.01 ? "warning" : "success"}
+              variant={composicaoInfo.variant}
             />
+            {kpis.cpfPendentes > 0 && (
+              <SummaryCard
+                title="CPF pendente"
+                value={String(kpis.cpfPendentes)}
+                icon={AlertTriangle}
+                variant="warning"
+              />
+            )}
           </>
         }
       >
         <DataTable
           columns={columns}
-          data={socios}
+          data={filteredSocios}
           loading={loading}
           moduleKey="socios"
           showColumnToggle
