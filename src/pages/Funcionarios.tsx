@@ -653,10 +653,10 @@ export default function Funcionarios() {
                     required
                     className="font-mono font-semibold text-base"
                   />
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 shrink-0" />
-                    Usado no cálculo da folha e na geração de lançamentos financeiros (salário + FGTS 8%). Não inclui demais encargos.
-                  </p>
+                  <div className="flex items-start gap-2 rounded-md border bg-muted/40 px-2.5 py-2 text-xs text-foreground/80">
+                    <DollarSign className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                    <span>Usado no cálculo da folha e na geração de lançamentos financeiros (salário + FGTS 8%). Não inclui demais encargos.</span>
+                  </div>
                 </>
               ) : (
                 <Tooltip>
