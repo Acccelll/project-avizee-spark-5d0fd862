@@ -267,28 +267,39 @@ export default function Funcionarios() {
   }, [data]);
 
   const isAdmin = useIsAdmin();
+  const isMobile = useIsMobile();
 
   const columns = [
     {
       key: "nome",
       label: "Funcionário",
+      mobilePrimary: true,
       render: (f: Funcionario) => (
         <div className="flex flex-col leading-tight">
           <span className="font-medium">{f.nome}</span>
+          {/* Desktop: CPF mascarado embaixo do nome. Mobile: CPF vai como
+              identifier do card; mostramos o cargo aqui como subtítulo. */}
           {f.cpf && (
-            <span className="text-xs text-muted-foreground font-mono">
+            <span className="hidden sm:inline text-xs text-muted-foreground font-mono">
               {maskCpfPartial(f.cpf)}
+            </span>
+          )}
+          {f.cargo && (
+            <span className="sm:hidden text-sm text-muted-foreground">
+              {f.cargo}
             </span>
           )}
         </div>
       ),
     },
     { key: "ativo", label: "Status", render: (f: Funcionario) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
-    { key: "cargo", label: "Cargo", render: (f: Funcionario) => f.cargo || "—" },
-    { key: "departamento", label: "Depto.", render: (f: Funcionario) => f.departamento || "—" },
+    // Cargo: visível na tabela desktop, suprimido no card mobile (vai como subtítulo do nome).
+    { key: "cargo", label: "Cargo", mobileCard: false, render: (f: Funcionario) => f.cargo || "—" },
+    { key: "departamento", label: "Depto.", mobileCard: true, render: (f: Funcionario) => f.departamento || "—" },
     {
       key: "tipo_contrato",
       label: "Contrato",
+      mobileCard: true,
       render: (f: Funcionario) => (
         <Badge
           variant="outline"
@@ -301,6 +312,7 @@ export default function Funcionarios() {
     {
       key: "data_admissao",
       label: "Admissão",
+      mobileCard: true,
       render: (f: Funcionario) => {
         const tempo = tempoDeCasa(f.data_admissao, f.data_demissao);
         return (
@@ -311,7 +323,12 @@ export default function Funcionarios() {
         );
       },
     },
-    { key: "cpf", label: "CPF", hidden: true, render: (f: Funcionario) => f.cpf || "—" },
+    {
+      key: "cpf",
+      label: "CPF",
+      hidden: true,
+      render: (f: Funcionario) => (f.cpf ? `CPF ${maskCpfPartial(f.cpf)}` : ""),
+    },
     // Coluna sensível — só disponível para admins (TODO: granular `funcionarios:salario_view`).
     ...(isAdmin
       ? [{
