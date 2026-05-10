@@ -8,7 +8,7 @@ import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Users, Edit, Trash2, DollarSign, CalendarDays, FileText,
+  Users, Edit, Trash2, DollarSign, FileText,
   AlertTriangle, CheckCircle2, Plus, ExternalLink,
 } from "lucide-react";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
