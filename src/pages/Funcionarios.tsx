@@ -453,28 +453,28 @@ export default function Funcionarios() {
         isDirty={isFormDirty}
         confirmOnDirty
         footer={
-          <FormModalFooter
-            saving={submitting}
-            isDirty={isFormDirty}
-            onCancel={handleCloseModal}
-            submitAsForm
-            formId="funcionario-form"
-            mode={mode}
-            disabled={(() => {
-              const d = form.cpf.replace(/\D/g, "");
-              if (form.cpf && d.length === 11 && !isValidCpf(d)) return true;
-              if (cpfChecking) return true;
-              if (cpfUnico === false) return true;
-              return false;
-            })()}
-            disabledReason={(() => {
-              const d = form.cpf.replace(/\D/g, "");
-              if (form.cpf && d.length === 11 && !isValidCpf(d)) return "Corrija o CPF antes de salvar";
-              if (cpfChecking) return "Aguarde a verificação do CPF";
-              if (cpfUnico === false) return "CPF já cadastrado em outro funcionário";
-              return undefined;
-            })()}
-          />
+          (() => {
+            const d = form.cpf.replace(/\D/g, "");
+            let reason: string | undefined;
+            if (form.cpf && d.length === 11 && !isValidCpf(d)) reason = "Corrija o CPF antes de salvar";
+            else if (cpfChecking) reason = "Aguarde a verificação do CPF";
+            else if (cpfUnico === false) reason = "CPF já cadastrado em outro funcionário";
+            const blocked = !!reason;
+            const mobileHint = reason ?? (mode === "edit" && !isFormDirty ? "Sem alterações para salvar" : undefined);
+            return (
+              <FormModalFooter
+                saving={submitting}
+                isDirty={isFormDirty}
+                onCancel={handleCloseModal}
+                submitAsForm
+                formId="funcionario-form"
+                mode={mode}
+                disabled={blocked}
+                disabledReason={reason}
+                disabledHint={mobileHint}
+              />
+            );
+          })()
         }
       >
         <form id="funcionario-form" onSubmit={handleSubmit} className="space-y-6">
@@ -489,7 +489,7 @@ export default function Funcionarios() {
               <Label htmlFor="emp-nome" className="font-medium">Nome completo *</Label>
               <Input id="emp-nome" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Nome do colaborador" required className="text-base" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="emp-cpf">CPF <span className="text-muted-foreground text-xs font-normal">— identificador</span></Label>
                 <MaskedInput
@@ -563,7 +563,7 @@ export default function Funcionarios() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="emp-admissao">Data de Admissão *</Label>
                 <Input id="emp-admissao" type="date" value={form.data_admissao} onChange={e => setForm({ ...form, data_admissao: e.target.value })} required />
@@ -608,7 +608,7 @@ export default function Funcionarios() {
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Estrutura Interna</span>
               <div className="flex-1 h-px bg-border" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="emp-cargo">Cargo</Label>
                 <Input id="emp-cargo" value={form.cargo} onChange={e => setForm({ ...form, cargo: e.target.value })} placeholder="Ex: Analista, Operador..." />
@@ -653,10 +653,10 @@ export default function Funcionarios() {
                     required
                     className="font-mono font-semibold text-base"
                   />
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 shrink-0" />
-                    Usado no cálculo da folha e na geração de lançamentos financeiros (salário + FGTS 8%). Não inclui demais encargos.
-                  </p>
+                  <div className="flex items-start gap-2 rounded-md border bg-muted/40 px-2.5 py-2 text-xs text-foreground/80">
+                    <DollarSign className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                    <span>Usado no cálculo da folha e na geração de lançamentos financeiros (salário + FGTS 8%). Não inclui demais encargos.</span>
+                  </div>
                 </>
               ) : (
                 <Tooltip>
@@ -684,7 +684,15 @@ export default function Funcionarios() {
                 <Label htmlFor="emp-obs">Notas internas <span className="text-muted-foreground text-xs font-normal">— visível apenas internamente</span></Label>
                 <span className="text-[11px] text-muted-foreground tabular-nums">{form.observacoes.length}/1000</span>
               </div>
-              <Textarea id="emp-obs" value={form.observacoes} maxLength={1000} onChange={e => setForm({ ...form, observacoes: e.target.value })} placeholder="Notas sobre o colaborador, histórico relevante, acordos específicos..." rows={3} />
+              <Textarea
+                id="emp-obs"
+                value={form.observacoes}
+                maxLength={1000}
+                onChange={e => setForm({ ...form, observacoes: e.target.value })}
+                placeholder={isMobile ? "Notas internas, acordos, histórico..." : "Notas sobre o colaborador, histórico relevante, acordos específicos..."}
+                rows={3}
+                className="min-h-[120px]"
+              />
             </div>
           </div>
 
