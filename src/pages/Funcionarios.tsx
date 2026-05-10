@@ -684,7 +684,15 @@ export default function Funcionarios() {
                 <Label htmlFor="emp-obs">Notas internas <span className="text-muted-foreground text-xs font-normal">— visível apenas internamente</span></Label>
                 <span className="text-[11px] text-muted-foreground tabular-nums">{form.observacoes.length}/1000</span>
               </div>
-              <Textarea id="emp-obs" value={form.observacoes} maxLength={1000} onChange={e => setForm({ ...form, observacoes: e.target.value })} placeholder="Notas sobre o colaborador, histórico relevante, acordos específicos..." rows={3} />
+              <Textarea
+                id="emp-obs"
+                value={form.observacoes}
+                maxLength={1000}
+                onChange={e => setForm({ ...form, observacoes: e.target.value })}
+                placeholder={isMobile ? "Notas internas, acordos, histórico..." : "Notas sobre o colaborador, histórico relevante, acordos específicos..."}
+                rows={3}
+                className="min-h-[120px]"
+              />
             </div>
           </div>
 
