@@ -1,59 +1,67 @@
-# Onda 42 — Grid de Funcionários: identificação, filtros e cards
+# Onda 42b — Grid Funcionários: refinos mobile
 
-Refinos no `src/pages/Funcionarios.tsx` para tornar o grid mais útil para RH sem mudar schema nem regra de negócio. Tudo é UI/apresentação.
+Ajustes só de UI/apresentação no mobile do `/funcionarios`. Aproveita as APIs já existentes (`shortTitle`, `subtitle` em `SummaryCard`; `mobilePrimary`, `mobileCard`, `mobileIdentifierKey`, `mobileStatusKey`, `mobileLabeledDetails` em `DataTable`; campo `identifier` em `MobileCardList`).
 
-## Escopo (alta prioridade)
+## Alta prioridade
 
-### 1. Identificação do funcionário no grid
-Coluna **Nome** vira célula composta (duas linhas):
-- Linha 1: `nome` (atual)
-- Linha 2: `CPF: ***.***.NNN-NN` em `text-xs text-muted-foreground` (mascara os 6 primeiros dígitos, mostra os 3 últimos + DV — padrão LGPD-friendly). Quando sem CPF, oculta a linha.
+### 1. Cards-resumo (KPIs) — corrigir truncamento e densidade
+Adicionar `shortTitle` em todos para encurtar no mobile (já há suporte nativo no `SummaryCard`):
 
-CPF completo continua visível no Drawer/Edit (já existe). Coluna `cpf` standalone permanece como opcional escondida.
+| Card | Desktop | Mobile (`shortTitle`) |
+|---|---|---|
+| Total de Funcionários | (mantém) | "Total" |
+| Ativos | (mantém) | "Ativos" |
+| Inativos | (mantém) | "Inativos" |
+| Salários (ativos) | (mantém) | "Folha" |
 
-### 2. Card "Folha Mensal" — explicar o cálculo
-- Renomear para **"Salários (ativos)"**
-- Subtítulo/tooltip: *"Soma de salários-base de funcionários ativos. Não inclui encargos, benefícios ou comissões."*
-- Usa `SummaryCard` com prop de tooltip/hint (verificar suporte; senão envolver em `Tooltip`).
+**Folha em formato compacto no mobile**: criar util local `formatCurrencyCompact(n)` que retorna `R$ 17,5 mil` / `R$ 1,2 mi` (Intl `notation: "compact", compactDisplay: "short", currency: "BRL"`). Usar `useIsMobile()` para escolher entre `formatCurrency` e `formatCurrencyCompact` no card "Salários (ativos)". Subtítulo "Soma de salários-base de ativos" continua (já implementado).
 
-### 3. Contrato como badge
-Coluna **Contrato** passa a renderizar um badge discreto (`Badge` outline + cor por tipo via `STATUS_VARIANT_MAP` ou map local):
-- CLT → neutro
-- PJ → info
-- Estágio → warning suave
-- Temporário → muted
+### 2. Placeholder de busca mais curto no mobile
+Trocar `searchPlaceholder` por algo responsivo. Como `AdvancedFilterBar` aceita string, usar `useIsMobile()` para alternar:
+- desktop: `"Buscar por nome, cargo, CPF, departamento..."`
+- mobile: `"Buscar funcionário..."`
 
-### 4. Filtro por Departamento
-- Adicionar `MultiSelect` "Departamento" no `AdvancedFilterBar`.
-- Opções derivadas dinamicamente de `data` (departamentos distintos, ordenados, ignorando vazios).
-- Estado em `useUrlListState` (`filterValue.departamento: stringArray`), aplicado em `filteredData` e exibido nos `activeFilters` chips.
+### 3. Card de funcionário — hierarquia Nome → Cargo → metadados
+Reorganizar as `columns` e flags mobile para que o card mobile mostre:
 
-### 5. Tempo de casa na coluna Admissão
-Célula **Admissão** vira composta:
-- Linha 1: `formatDate(data_admissao)` (atual)
-- Linha 2: `2 anos e 4 meses` em `text-xs text-muted-foreground`, calculado por util local `tempoDeCasa(data_admissao, data_demissao?)` (anos/meses cheios; "menos de 1 mês" como fallback).
+```
+Ana Paula Ferreira          [Ativo]   ⋮
+Analista Financeiro
+Financeiro · CLT · 15/01/2024
+CPF ***.***.789-01
+```
 
-## Escopo (média)
+Mudanças no array `columns`:
+- Coluna `nome` → `mobilePrimary: true` (já é primary por default; reforçar). Renderiza só o nome no mobile (sem o CPF embaixo, pois CPF vai como `identifier`).
+- Coluna `cargo` → `mobilePrimary: false`, **subtítulo do nome**: para isso, expandir o `render` da coluna `nome` para detectar mobile e incluir o cargo como segunda linha em `text-sm font-normal text-muted-foreground`. Alternativa mais limpa: criar `mobileSubtitleKey="cargo"` no `DataTable` (escopo extra — preferir aproveitar o render duplo do `nome`).
+  - **Decisão:** dentro do `render` de `nome`, mostrar `<span className="font-semibold">{nome}</span>` + (mobile-only via `sm:hidden`) `<span className="block text-sm text-muted-foreground">{cargo}</span>`. Cargo continua como coluna no desktop.
+- Cargo → adicionar `mobileCard: false` para evitar repetir como detail-field.
+- `cpf` (oculta) ganha `mobileIdentifier: true` via `mobileIdentifierKey="cpf"` no `<DataTable>`, com `render` mascarado: `CPF ***.***.789-01`.
+- `departamento`, `tipo_contrato`, `data_admissao` ganham `mobileCard: true` para virarem a linha de metadados (separados por `·` automaticamente quando `mobileLabeledDetails` é `false` — comportamento atual).
+- Status já está em `mobileStatusKey="ativo"` → vai para o canto superior direito (já está). Manter.
 
-### 6. Coluna opcional "Salário" com gate de permissão
-- Coluna `salario_base` continua oculta por padrão (já está). 
-- Gating: usar `useCan('funcionarios','salario_view')` ou — se a permissão fina não existir — `useIsAdmin()` como mínimo seguro. Sem permissão, a coluna não aparece em `columns` nem no toggle. **Decisão:** começar com `useIsAdmin()` para evitar adicionar permissão nova; deixar TODO para criar `salario_view` depois.
+### 4. CPF mascarado no card mobile
+Configurar `mobileIdentifierKey="cpf"` no `<DataTable>`. Como a coluna `cpf` já existe (oculta no desktop), o `MobileCardList` vai renderizar o `render` dela como `identifier`. Trocar o `render` da coluna `cpf` para `f.cpf ? \`CPF ${maskCpfPartial(f.cpf)}\` : ""` (string vazia esconde a linha).
 
-### 7. Paginação 1-página
-No `DataTable`, quando `totalPages <= 1` ocultar setas prev/next (manter contador "1–N de N"). Mudança no `DataTable` se for trivial e não-invasiva; senão, escopo separado.
+## Média prioridade
+
+### 5. Card mais compacto
+Reduzir paddings do `MobileCardList` ou aplicar densidade via prop. **Conservador:** não tocar no `MobileCardList` (componente compartilhado por vários módulos). Ganho de altura virá naturalmente ao remover repetições (cargo deixa de ser detail-field).
+
+### 6. Card inteiro tappable (já existe)
+`MobileCardList` já chama `onItemClick={onRowClick ?? onView ?? onEdit}`. `Funcionarios` já passa `onView`. Sem mudanças.
 
 ## Fora de escopo
-- Cards futuros (férias, aniversariantes, documentos pendentes) — depende de dados não existentes hoje.
-- Filtro avançado por cargo (busca já cobre).
-- Mudanças no Drawer/Edit/schema/RPC.
-- Permissão nova `salario_view` (anotada como TODO).
+- Aniversariantes / férias / documentos pendentes (KPIs futuros — depende de dados não modelados).
+- Mudanças no `MobileCardList` (densidade global, separadores customizados).
+- Mudança no `DataTable` para suportar `mobileSubtitleKey` (over-engineering pra um caso).
+- Filtros adicionais (já entregue: status, contrato, depto).
 
 ## Arquivos
-- `src/pages/Funcionarios.tsx` — colunas, filtro depto, KPI rename, gate salário, util `tempoDeCasa`, máscara CPF parcial.
-- `src/components/DataTable.tsx` — apenas se for ocultar setas em página única (avaliar; pode virar item separado).
-- Sem migrations.
+- `src/pages/Funcionarios.tsx` — `shortTitle` nos 4 KPIs, `formatCurrencyCompact` mobile, placeholder responsivo, render duplo da coluna `nome` (cargo no mobile), `mobileCard`/`mobileIdentifierKey="cpf"` configurados, render de `cpf` ajustado.
+- Sem mudanças em componentes compartilhados, sem migrations.
 
 ## Validação
-- Build limpo.
-- Visual: viewport atual (1292) e mobile.
-- Confirmar que filtros chips removem corretamente `departamento`.
+- Build limpo (tsc).
+- Visual em 391×844 (viewport atual): KPIs sem truncar, "Folha R$ 17,5 mil", placeholder "Buscar funcionário...", card com Nome (bold) + Cargo (muted) + linha "Depto · Contrato · Admissão" + "CPF ***.***.NNN-NN" + badge Ativo + menu.
+- Visual desktop (≥1024px): inalterado em relação à Onda 42.

@@ -34,6 +34,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -72,6 +73,21 @@ function tempoDeCasa(admissao: string | null | undefined, demissao?: string | nu
   const yLabel = `${years} ${years === 1 ? "ano" : "anos"}`;
   if (rem === 0) return yLabel;
   return `${yLabel} e ${rem} ${rem === 1 ? "mês" : "meses"}`;
+}
+
+/** Currency em formato compacto BR (R$ 17,5 mil / R$ 1,2 mi). Usado em KPIs mobile. */
+function formatCurrencyCompact(value: number): string {
+  try {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      notation: "compact",
+      compactDisplay: "short",
+      maximumFractionDigits: 1,
+    }).format(value);
+  } catch {
+    return formatCurrency(value);
+  }
 }
 
 /** Typed form for create/edit — avoids `Record<string, any>`. */
@@ -251,28 +267,39 @@ export default function Funcionarios() {
   }, [data]);
 
   const isAdmin = useIsAdmin();
+  const isMobile = useIsMobile();
 
   const columns = [
     {
       key: "nome",
       label: "Funcionário",
+      mobilePrimary: true,
       render: (f: Funcionario) => (
         <div className="flex flex-col leading-tight">
           <span className="font-medium">{f.nome}</span>
+          {/* Desktop: CPF mascarado embaixo do nome. Mobile: CPF vai como
+              identifier do card; mostramos o cargo aqui como subtítulo. */}
           {f.cpf && (
-            <span className="text-xs text-muted-foreground font-mono">
+            <span className="hidden sm:inline text-xs text-muted-foreground font-mono">
               {maskCpfPartial(f.cpf)}
+            </span>
+          )}
+          {f.cargo && (
+            <span className="sm:hidden text-sm text-muted-foreground">
+              {f.cargo}
             </span>
           )}
         </div>
       ),
     },
     { key: "ativo", label: "Status", render: (f: Funcionario) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
-    { key: "cargo", label: "Cargo", render: (f: Funcionario) => f.cargo || "—" },
-    { key: "departamento", label: "Depto.", render: (f: Funcionario) => f.departamento || "—" },
+    // Cargo: visível na tabela desktop, suprimido no card mobile (vai como subtítulo do nome).
+    { key: "cargo", label: "Cargo", mobileCard: false, render: (f: Funcionario) => f.cargo || "—" },
+    { key: "departamento", label: "Depto.", mobileCard: true, render: (f: Funcionario) => f.departamento || "—" },
     {
       key: "tipo_contrato",
       label: "Contrato",
+      mobileCard: true,
       render: (f: Funcionario) => (
         <Badge
           variant="outline"
@@ -285,6 +312,7 @@ export default function Funcionarios() {
     {
       key: "data_admissao",
       label: "Admissão",
+      mobileCard: true,
       render: (f: Funcionario) => {
         const tempo = tempoDeCasa(f.data_admissao, f.data_demissao);
         return (
@@ -295,7 +323,12 @@ export default function Funcionarios() {
         );
       },
     },
-    { key: "cpf", label: "CPF", hidden: true, render: (f: Funcionario) => f.cpf || "—" },
+    {
+      key: "cpf",
+      label: "CPF",
+      hidden: true,
+      render: (f: Funcionario) => (f.cpf ? `CPF ${maskCpfPartial(f.cpf)}` : ""),
+    },
     // Coluna sensível — só disponível para admins (TODO: granular `funcionarios:salario_view`).
     ...(isAdmin
       ? [{
@@ -317,14 +350,14 @@ export default function Funcionarios() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total de Funcionários" value={String(kpis.total)} icon={Users} />
-            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
+            <SummaryCard title="Total de Funcionários" shortTitle="Total" value={String(kpis.total)} icon={Users} />
+            <SummaryCard title="Ativos" shortTitle="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativos" shortTitle="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
             <SummaryCard
               title="Salários (ativos)"
-              shortTitle="Salários"
+              shortTitle="Folha"
               subtitle="Soma de salários-base de ativos. Não inclui encargos."
-              value={formatCurrency(kpis.totalSalarios)}
+              value={isMobile ? formatCurrencyCompact(kpis.totalSalarios) : formatCurrency(kpis.totalSalarios)}
               icon={DollarSign}
             />
           </>
@@ -333,7 +366,7 @@ export default function Funcionarios() {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nome, cargo, CPF, departamento..."
+          searchPlaceholder={isMobile ? "Buscar funcionário..." : "Buscar por nome, cargo, CPF, departamento..."}
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => clearFilters(["ativo", "contrato", "departamento"])}
@@ -383,7 +416,7 @@ export default function Funcionarios() {
               }
             } : undefined}
             deleteBehavior="soft"
-            mobileIdentifierKey="cargo"
+            mobileIdentifierKey="cpf"
             mobileStatusKey="ativo"
           />
         </PullToRefresh>
