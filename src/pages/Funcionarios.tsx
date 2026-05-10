@@ -33,6 +33,7 @@ import { useCan } from "@/hooks/useCan";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
+import { cn } from "@/lib/utils";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
