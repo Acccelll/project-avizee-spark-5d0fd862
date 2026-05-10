@@ -320,7 +320,13 @@ export default function Funcionarios() {
             <SummaryCard title="Total de Funcionários" value={String(kpis.total)} icon={Users} />
             <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
             <SummaryCard title="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
-            <SummaryCard title="Folha Mensal" value={formatCurrency(kpis.totalSalarios)} icon={DollarSign} />
+            <SummaryCard
+              title="Salários (ativos)"
+              shortTitle="Salários"
+              subtitle="Soma de salários-base de ativos. Não inclui encargos."
+              value={formatCurrency(kpis.totalSalarios)}
+              icon={DollarSign}
+            />
           </>
         }
       >
@@ -330,7 +336,7 @@ export default function Funcionarios() {
           searchPlaceholder="Buscar por nome, cargo, CPF, departamento..."
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => clearFilters(["ativo", "contrato"])}
+          onClearAll={() => clearFilters(["ativo", "contrato", "departamento"])}
           count={filteredData.length}
         >
           <MultiSelect
@@ -347,6 +353,15 @@ export default function Funcionarios() {
             placeholder="Contrato"
             className="w-[150px]"
           />
+          {departamentoOptions.length > 0 && (
+            <MultiSelect
+              options={departamentoOptions}
+              selected={departamentoFilters}
+              onChange={setDepartamentoFilters}
+              placeholder="Departamento"
+              className="w-[170px]"
+            />
+          )}
         </AdvancedFilterBar>
 
         <PullToRefresh onRefresh={fetchData}>
