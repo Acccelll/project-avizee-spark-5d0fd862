@@ -400,7 +400,20 @@ export function FuncionarioView({ id }: Props) {
             <DetailEmpty
               icon={DollarSign}
               title="Sem lançamentos"
-              message="Nenhum lançamento financeiro vinculado a este funcionário."
+              message="Adiantamentos, descontos, reembolsos e outros lançamentos vinculados aparecem aqui."
+              action={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    navigate("/financeiro");
+                    window.setTimeout(() => clearStack(), 0);
+                  }}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir financeiro
+                </Button>
+              }
             />
           ) : (
             <div className="space-y-2">
@@ -452,7 +465,24 @@ export function FuncionarioView({ id }: Props) {
           {funcionario.observacoes ? (
             <p className="text-sm whitespace-pre-wrap">{funcionario.observacoes}</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Nenhuma observação registrada.</p>
+            <DetailEmpty
+              icon={FileText}
+              title="Nenhuma observação registrada"
+              message="Use a edição do funcionário para adicionar uma observação interna."
+              action={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    navigate(`/funcionarios?editId=${id}`);
+                    window.setTimeout(() => clearStack(), 0);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar observação
+                </Button>
+              }
+            />
           )}
         </TabsContent>
       </Tabs>
