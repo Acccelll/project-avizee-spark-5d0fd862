@@ -437,14 +437,18 @@ export default function Funcionarios() {
         size="lg"
         mode={mode}
         createHint="Informe nome, CPF, cargo e admissão. Folha e financeiro ficam disponíveis após o cadastro."
-        identifier={mode === "edit" && selected?.cpf ? selected.cpf : undefined}
+        identifier={mode === "edit" && selected?.cpf ? `CPF ${cpfMask(selected.cpf)}` : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.cargo ? [{ label: selected.cargo }] : []),
           ...(selected.departamento ? [{ label: selected.departamento }] : []),
           ...(selected.data_admissao ? [{ label: `Admissão: ${formatDate(selected.data_admissao)}` }] : []),
+          ...(selected.ativo && selected.data_admissao && tempoDeCasa(selected.data_admissao)
+            ? [{ label: tempoDeCasa(selected.data_admissao) }]
+            : []),
         ] : undefined}
         isDirty={isFormDirty}
+        confirmOnDirty
         footer={
           <FormModalFooter
             saving={submitting}
@@ -453,6 +457,20 @@ export default function Funcionarios() {
             submitAsForm
             formId="funcionario-form"
             mode={mode}
+            disabled={(() => {
+              const d = form.cpf.replace(/\D/g, "");
+              if (form.cpf && d.length === 11 && !isValidCpf(d)) return true;
+              if (cpfChecking) return true;
+              if (cpfUnico === false) return true;
+              return false;
+            })()}
+            disabledReason={(() => {
+              const d = form.cpf.replace(/\D/g, "");
+              if (form.cpf && d.length === 11 && !isValidCpf(d)) return "Corrija o CPF antes de salvar";
+              if (cpfChecking) return "Aguarde a verificação do CPF";
+              if (cpfUnico === false) return "CPF já cadastrado em outro funcionário";
+              return undefined;
+            })()}
           />
         }
       >
