@@ -30,6 +30,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCan } from "@/hooks/useCan";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
@@ -40,6 +41,37 @@ interface Funcionario {
 }
 
 const tipoContratoLabel: Record<string, string> = { clt: "CLT", pj: "PJ", estagio: "Estágio", temporario: "Temporário" };
+
+const tipoContratoBadgeClass: Record<string, string> = {
+  clt: "border-border bg-muted/40 text-foreground",
+  pj: "border-primary/30 bg-primary/10 text-primary",
+  estagio: "border-warning/30 bg-warning/10 text-warning",
+  temporario: "border-muted-foreground/30 bg-muted/30 text-muted-foreground",
+};
+
+/** Mascara CPF preservando apenas os 3 últimos dígitos + DV. Ex.: ***.***.789-01 */
+function maskCpfPartial(cpf: string | null | undefined): string {
+  const digits = (cpf || "").replace(/\D/g, "");
+  if (digits.length !== 11) return cpf || "";
+  return `***.***.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+}
+
+/** Calcula tempo de casa em "X anos e Y meses" (ou "Z meses" / "menos de 1 mês"). */
+function tempoDeCasa(admissao: string | null | undefined, demissao?: string | null): string {
+  if (!admissao) return "";
+  const start = new Date(admissao);
+  const end = demissao ? new Date(demissao) : new Date();
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "";
+  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  if (end.getDate() < start.getDate()) months -= 1;
+  if (months < 1) return "menos de 1 mês";
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (years === 0) return `${rem} ${rem === 1 ? "mês" : "meses"}`;
+  const yLabel = `${years} ${years === 1 ? "ano" : "anos"}`;
+  if (rem === 0) return yLabel;
+  return `${yLabel} e ${rem} ${rem === 1 ? "mês" : "meses"}`;
+}
 
 /** Typed form for create/edit — avoids `Record<string, any>`. */
 interface FuncionarioForm {
