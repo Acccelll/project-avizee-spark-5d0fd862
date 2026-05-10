@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
 import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
@@ -67,9 +68,9 @@ const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado", "expirado"];
 const PROXIMA_VENCER_DIAS = 7;
 
 const historicoOptions: { label: string; value: string }[] = [
+  { label: "Todos", value: "todos" },
   { label: "Excluir legados", value: "excluir" },
   { label: "Apenas legados", value: "apenas" },
-  { label: "Todos", value: "todos" },
 ];
 
 const validadeOptions: { label: string; value: string }[] = [
@@ -87,8 +88,15 @@ function getValidadeStatus(validade: string | null, status: string): "vencida" |
   return "vigente";
 }
 
-function ValidadeBadge({ validade, status }: { validade: string | null; status: string }) {
-  if (!validade) return <span className="text-muted-foreground">—</span>;
+function ValidadeBadge({ validade, status, origem }: { validade: string | null; status: string; origem?: string | null }) {
+  if (!validade) {
+    const isLegado = origem === "importacao_historica" || status === "historico";
+    return (
+      <span className="text-xs text-muted-foreground italic">
+        {isLegado ? "Legado sem validade" : "Sem validade"}
+      </span>
+    );
+  }
   const vs = getValidadeStatus(validade, status);
   const daysLeft = calculateDaysBetween(new Date(), validade);
   if (vs === "vencida") {
@@ -333,7 +341,7 @@ const Orcamentos = () => {
     },
     {
       key: "validade", label: "Validade",
-      render: (o: Orcamento) => <ValidadeBadge validade={o.validade} status={o.status} />,
+      render: (o: Orcamento) => <ValidadeBadge validade={o.validade} status={o.status} origem={o.origem} />,
     },
     {
       key: "valor_total",
@@ -350,7 +358,17 @@ const Orcamentos = () => {
         // (status canônico após Fase 3.2 — antes era "enviado", removido).
         const effectiveStatus =
           vs === "vencida" && normalizedStatus === "pendente" ? "expirado" : normalizedStatus;
-        return <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />;
+        const badge = (
+          <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />
+        );
+        if (effectiveStatus === "historico") {
+          return (
+            <span title="Orçamento legado importado, sem fluxo comercial ativo." className="inline-block">
+              {badge}
+            </span>
+          );
+        }
+        return badge;
       },
     },
     {
