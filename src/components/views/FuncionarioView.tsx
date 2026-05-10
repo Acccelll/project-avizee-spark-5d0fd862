@@ -150,12 +150,22 @@ export function FuncionarioView({ id }: Props) {
     summary: funcionario ? (
       <RecordIdentityCard
         icon={Users}
-        title={funcionario.nome}
+        title={
+          funcionario.nome.length > 30 ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="truncate">{funcionario.nome}</span>
+              </TooltipTrigger>
+              <TooltipContent>{funcionario.nome}</TooltipContent>
+            </Tooltip>
+          ) : (
+            funcionario.nome
+          )
+        }
         meta={
           <>
             {funcionario.cargo && <span className="font-medium">{funcionario.cargo}</span>}
             {funcionario.departamento && <span>{funcionario.departamento}</span>}
-            {funcionario.cpf && <span className="font-mono">{funcionario.cpf}</span>}
           </>
         }
         badges={
@@ -165,19 +175,28 @@ export function FuncionarioView({ id }: Props) {
               {tipoContratoLabel[funcionario.tipo_contrato] || funcionario.tipo_contrato}
             </Badge>
             {situacao.label !== "Ativo" && (
-              <Badge
-                variant="outline"
-                className={`text-[10px] gap-1 ${
-                  situacao.tone === "warning"
-                    ? "bg-warning/10 text-warning border-warning/20"
-                    : situacao.tone === "destructive"
-                    ? "bg-destructive/10 text-destructive border-destructive/20"
-                    : ""
-                }`}
-              >
-                {situacao.tone === "warning" && <AlertTriangle className="w-2.5 h-2.5" />}
-                {situacao.label}
-              </Badge>
+              situacao.label === "Sem folha" ? (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] text-muted-foreground border-dashed"
+                >
+                  {situacao.label}
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] gap-1 ${
+                    situacao.tone === "warning"
+                      ? "bg-warning/10 text-warning border-warning/20"
+                      : situacao.tone === "destructive"
+                      ? "bg-destructive/10 text-destructive border-destructive/20"
+                      : ""
+                  }`}
+                >
+                  {situacao.tone === "warning" && <AlertTriangle className="w-2.5 h-2.5" />}
+                  {situacao.label}
+                </Badge>
+              )
             )}
           </>
         }
