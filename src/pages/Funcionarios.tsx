@@ -680,8 +680,11 @@ export default function Funcionarios() {
               <div className="flex-1 h-px bg-border" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="emp-obs">Notas internas <span className="text-muted-foreground text-xs font-normal">— visível apenas internamente</span></Label>
-              <Textarea id="emp-obs" value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} placeholder="Notas sobre o colaborador, histórico relevante, acordos específicos..." rows={3} />
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="emp-obs">Notas internas <span className="text-muted-foreground text-xs font-normal">— visível apenas internamente</span></Label>
+                <span className="text-[11px] text-muted-foreground tabular-nums">{form.observacoes.length}/1000</span>
+              </div>
+              <Textarea id="emp-obs" value={form.observacoes} maxLength={1000} onChange={e => setForm({ ...form, observacoes: e.target.value })} placeholder="Notas sobre o colaborador, histórico relevante, acordos específicos..." rows={3} />
             </div>
           </div>
 
