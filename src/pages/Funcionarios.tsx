@@ -211,7 +211,11 @@ export default function Funcionarios() {
       return;
     }
     await submit(async () => {
-      const payload = { ...form, data_demissao: form.data_demissao || null };
+      const payload = {
+        ...form,
+        cpf: cpfDigits,
+        data_demissao: form.ativo ? null : (form.data_demissao || null),
+      };
       if (mode === "create") await create(payload as Partial<Funcionario>);
       else if (selected) {
         await update(selected.id, payload as Partial<Funcionario>);
