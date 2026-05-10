@@ -5,7 +5,7 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Wallet, FileText, Inbox } from "lucide-react";
+import { Pencil, Wallet, FileText } from "lucide-react";
 import { DetailEmpty } from "@/components/ui/DetailStates";
 import { cpfMask } from "@/utils/masks";
 import { formatCurrency, formatDate } from "@/lib/format";
