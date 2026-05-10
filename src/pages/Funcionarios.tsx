@@ -553,10 +553,10 @@ export default function Funcionarios() {
               <Select value={form.tipo_contrato} onValueChange={v => setForm({ ...form, tipo_contrato: v })}>
                 <SelectTrigger id="emp-tipo-contrato"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="clt">CLT — Consolidação das Leis do Trabalho</SelectItem>
-                  <SelectItem value="pj">PJ — Pessoa Jurídica</SelectItem>
+                  <SelectItem value="clt">CLT</SelectItem>
+                  <SelectItem value="pj">PJ</SelectItem>
                   <SelectItem value="estagio">Estágio</SelectItem>
-                  <SelectItem value="temporario">Temporário — prazo determinado</SelectItem>
+                  <SelectItem value="temporario">Temporário</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -565,12 +565,38 @@ export default function Funcionarios() {
                 <Label htmlFor="emp-admissao">Data de Admissão *</Label>
                 <Input id="emp-admissao" type="date" value={form.data_admissao} onChange={e => setForm({ ...form, data_admissao: e.target.value })} required />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="emp-demissao">Data de Desligamento</Label>
-                <Input id="emp-demissao" type="date" value={form.data_demissao ?? ""} onChange={e => setForm({ ...form, data_demissao: e.target.value || null })} />
-                {!form.data_demissao && <p className="text-[11px] text-muted-foreground">Preencher apenas se houver desligamento</p>}
-              </div>
+              {form.ativo ? (
+                <div className="space-y-1.5">
+                  <Label className="text-muted-foreground">Data de Desligamento</Label>
+                  <div className="h-10 flex items-center px-3 rounded-md border border-dashed border-border/60 text-sm text-muted-foreground">
+                    Não aplicável — colaborador ativo
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label htmlFor="emp-demissao">Data de Desligamento *</Label>
+                  <Input
+                    id="emp-demissao"
+                    type="date"
+                    value={form.data_demissao ?? new Date().toISOString().split("T")[0]}
+                    onChange={e => setForm({ ...form, data_demissao: e.target.value || null })}
+                    required
+                  />
+                </div>
+              )}
             </div>
+            {!form.ativo && (
+              <div className="space-y-1.5">
+                <Label htmlFor="emp-motivo-deslig">Motivo do desligamento</Label>
+                <Textarea
+                  id="emp-motivo-deslig"
+                  value={(form as FuncionarioForm & { motivo_inativacao?: string }).motivo_inativacao ?? ""}
+                  onChange={e => setForm({ ...form, motivo_inativacao: e.target.value } as FuncionarioForm)}
+                  placeholder="Pedido de demissão, término de contrato, etc."
+                  rows={2}
+                />
+              </div>
+            )}
           </div>
 
           {/* BLOCO: ESTRUTURA INTERNA */}
