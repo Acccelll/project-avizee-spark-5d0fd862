@@ -35,6 +35,9 @@ import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MaskedInput } from "@/components/ui/MaskedInput";
+import { cpfMask } from "@/utils/masks";
+import { CheckCircle2, XCircle, Loader2, EyeOff } from "lucide-react";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
