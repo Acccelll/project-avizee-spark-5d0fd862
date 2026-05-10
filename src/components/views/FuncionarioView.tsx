@@ -40,6 +40,7 @@ interface FuncionarioRow {
   tipo_contrato: string;
   observacoes: string | null;
   ativo: boolean;
+  motivo_inativacao?: string | null;
 }
 
 interface FolhaPagamento {
