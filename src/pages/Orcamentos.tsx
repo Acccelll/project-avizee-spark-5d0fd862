@@ -532,6 +532,20 @@ const Orcamentos = () => {
                     <ArrowRightCircle className="w-3 h-3" /> Converter em Pedido
                   </Button>
                 )}
+                {normalizeOrcamentoStatus(o.status) === "convertido" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/pedidos?cotacao=${o.id}`);
+                    }}
+                    title="Abrir pedido gerado a partir deste orçamento"
+                  >
+                    <ArrowRightCircle className="w-3 h-3" /> Abrir pedido
+                  </Button>
+                )}
               </>
             )}
             mobileStatusKey="status"
