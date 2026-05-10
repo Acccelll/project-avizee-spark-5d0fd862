@@ -1,77 +1,55 @@
-## Onda 42d — Refino do form Editar/Novo Funcionário
+## Onda 42e — Refino mobile do form Editar/Novo Funcionário
 
-Escopo: apenas `src/pages/Funcionarios.tsx` (form e cabeçalho do `FormModal`). Sem migração de schema.
+Escopo: apenas `src/pages/Funcionarios.tsx` (form). Sem migração, sem mudanças desktop relevantes.
+
+Vários itens da revisão já foram entregues na Onda 42d (máscara CPF + validação inline, salário em moeda, desligamento condicional, "Situação do colaborador", `confirmOnDirty`, `disabledReason` no Salvar, `CPF ###.###.###-##` no header, contador em Observações). Esta onda foca no que sobrou — quase tudo é layout mobile.
 
 ### Alta prioridade
 
-1. **CPF com máscara e validação visual inline**
-   - Trocar `<Input>` do CPF por `<MaskedInput mask="cpf">` (já existe em `@/components/ui/MaskedInput`).
-   - Indicador inline ao lado/abaixo do campo:
-     - vazio → sem ícone
-     - dígitos < 11 → hint "Digite os 11 dígitos"
-     - inválido (`!isValidCpf`) → ✕ vermelho "CPF inválido"
-     - verificando unicidade (`cpfChecking`) → spinner "Verificando…"
-     - duplicado (`cpfUnico === false`) → ✕ "CPF já cadastrado"
-     - válido e único → ✓ verde "CPF válido"
-   - Borda do input em `border-destructive` quando inválido/duplicado.
+1. **Empilhar grids 2-col no mobile**
+   - Trocar `grid grid-cols-2 gap-4` por `grid grid-cols-1 sm:grid-cols-2 gap-4` nos blocos:
+     - Identificação (CPF + Situação)
+     - Vínculo (Admissão + Desligamento)
+     - Estrutura Interna (Cargo + Departamento)
+   - Mantém densidade no desktop, dá respiro no mobile.
 
-2. **Salário formatado como moeda (R$ 5.200,00)**
-   - Substituir `<Input type="number">` por input texto com máscara monetária BR.
-   - Exibir o valor formatado enquanto digita; armazenar `salario_base` como `number` no estado.
-   - Adicionar gating de permissão: se `!isAdmin`, exibir somente leitura mascarado como `R$ ••••` com tooltip "Sem permissão para visualizar salário" — não bloqueia edição dos demais campos.
-
-3. **Botão "Salvar Alterações" com estado claro**
-   - Já existe `noChanges` no `FormModalFooter`; adicionar `disabledReason` explícito vindo do form quando aplicável:
-     - sem alterações → "Sem alterações para salvar" (já default)
-     - CPF inválido → "Corrija o CPF antes de salvar"
-     - CPF duplicado → "CPF já cadastrado em outro funcionário"
-     - validação CPF em andamento → "Aguarde a verificação do CPF"
-   - Passar `disabled` + `disabledReason` ao `FormModalFooter`.
-
-4. **Data de Desligamento condicional ao status**
-   - Quando `form.ativo === true`: ocultar o input e mostrar linha discreta "Não aplicável — colaborador ativo".
-   - Quando `form.ativo === false`: mostrar input obrigatório (`required`) + novo campo opcional **Motivo do desligamento** (textarea curto) gravado em `motivo_inativacao` (campo já existente na tabela conforme `FuncionarioView`).
-   - Default `data_demissao = hoje` ao alternar para inativo (se vazio).
+2. **Estado do botão Salvar mais visível no mobile**
+   - O botão já tem `max-sm:h-11` no `FormModalFooter`. Garantir que o motivo do disabled apareça como hint visível (não só `title=`) em mobile, já que tooltip nativo não funciona bem em touch:
+     - Renderizar uma linha de hint pequena `text-[11px] text-muted-foreground` acima do footer interno **somente quando `noChanges` ou `disabledReason` ativo e o usuário está em mobile**.
+   - Implementar via prop opcional `disabledHint?: ReactNode` no `FormModalFooter` (ou render inline no `Funcionarios.tsx` passando como `secondaryActions` mobile-only). Preferência: adicionar `disabledHint` no `FormModalFooter` para reuso.
 
 ### Média prioridade
 
-5. **Cabeçalho do FormModal mais informativo**
-   - `identifier`: trocar `selected.cpf` cru por `cpfMask(selected.cpf)` com prefixo "CPF" (usar utilitário `cpfMask` de `@/utils/masks`).
-   - `meta`: manter cargo · departamento · admissão; adicionar tempo de casa quando ativo.
+3. **Hierarquia do cabeçalho do FormModal**
+   - Já temos badge + identifier `CPF ...` + meta cargo/depto/admissão/tempo de casa.
+   - No mobile (`max-sm`), garantir que `meta` quebre linha e que o `identifier` apareça em linha própria abaixo do título (atualmente vai inline). Pequeno ajuste de classe no `FormModal`: o header já é `flex-wrap`, então só precisamos validar visualmente; se ficar amontoado, adicionar `max-sm:basis-full` no `identifier` chip.
 
-6. **Renomear label "Status do colaborador" → "Situação do colaborador"**
-   - Único ajuste de microcopy no `Select` de `ativo`.
+4. **Texto de apoio da Remuneração com mais peso**
+   - Hoje: `text-[11px] text-muted-foreground`.
+   - Mobile: trocar por bloco discreto com fundo `bg-muted/40 border rounded-md px-2.5 py-2` e texto `text-xs text-foreground/80`. Mantém ícone $.
 
-7. **Indicador "alterações não salvas"**
-   - Já existe via `isDirty` no header e footer do `FormModal`. Adicionar `confirmOnDirty` ao `<FormModal>` para reforçar a confirmação no ESC/click-outside (já há `handleCloseModal` para o X).
-
-8. **Contador de caracteres em Observações**
-   - `maxLength={1000}` + label discreto `{form.observacoes.length}/1000` à direita do label.
+5. **Observações mobile**
+   - `rows={3}` → `rows={4}` (apenas via classe `min-h-[120px]` para manter desktop estável).
+   - Placeholder mais curto no mobile via `useIsMobile`: "Notas internas, acordos, histórico..."
 
 ### Baixa prioridade
 
-9. **Tipo de contrato compactado nas options**
-   - `SelectItem` mostra apenas `CLT` / `PJ` / `Estágio` / `Temporário`; descrição completa fica no tooltip já existente.
+6. **Hint do CPF inline mais legível no mobile**
+   - Validação já existe (`text-[11px]`); aumentar para `text-xs` no mobile para tap-targets/leitura.
 
-10. **Microcopy da Remuneração**
-    - Trocar "Impacta o cálculo da folha…" por "Usado no cálculo da folha e na geração de lançamentos financeiros (salário + FGTS 8%). Não inclui demais encargos."
+### Fora de escopo (já entregue ou demanda backend)
 
-### Fora de escopo (requer migração + UI nova — não fazer agora)
-
-- Matrícula / código interno (campo `matricula`).
-- Centro de custo, filial/unidade, gestor responsável.
-- Histórico de alteração salarial (auditoria dedicada).
-- Histórico de observações com autor/data.
-- Permissão granular `funcionarios:salario_view` (hoje gateamos por `isAdmin`).
+- Máscara/validação CPF, salário em moeda, desligamento condicional, motivo do desligamento, contador em Obs., header com `CPF ...`, `confirmOnDirty`, motivo de bloqueio do Salvar — entregues na Onda 42d.
+- Matrícula, centro de custo, filial, gestor — exigem migração + UI nova; permanecem fora.
 
 ### Arquivos
 
-- `src/pages/Funcionarios.tsx` — único arquivo editado.
-- Reaproveitar: `MaskedInput`, `cpfMask` (`@/utils/masks`), `isValidCpf` (já no arquivo), `useDocumentoUnico` (já em uso).
+- `src/pages/Funcionarios.tsx` — grids, hint da remuneração, placeholder/altura de Obs.
+- `src/components/FormModalFooter.tsx` — adicionar prop opcional `disabledHint?: ReactNode` renderizada acima dos botões quando o primário estiver desabilitado (mobile-friendly, substitui o `title=` invisível em touch).
 
-### Checks após implementar
+### Checks
 
-- Build + tsc passam.
-- Toggle ativo→inativo mostra Data/Motivo de desligamento; voltar para ativo limpa visualmente sem perder valores no estado até salvar.
-- CPF "111.111.111-11" sinaliza inválido; CPF duplicado bloqueia salvar com tooltip claro.
-- Salário renderiza "R$ 5.200,00" enquanto edita.
+- Build + `tsc` passam.
+- Em 390x844: cada par de campos passa a ocupar uma coluna; toques confortáveis.
+- Em ≥640px (`sm`): layout permanece 2 colunas (sem regressão desktop).
+- Botão Salvar com hint visível "Sem alterações para salvar" / "Corrija o CPF antes de salvar" no mobile.

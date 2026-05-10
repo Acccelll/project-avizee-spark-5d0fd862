@@ -489,7 +489,7 @@ export default function Funcionarios() {
               <Label htmlFor="emp-nome" className="font-medium">Nome completo *</Label>
               <Input id="emp-nome" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Nome do colaborador" required className="text-base" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="emp-cpf">CPF <span className="text-muted-foreground text-xs font-normal">— identificador</span></Label>
                 <MaskedInput
