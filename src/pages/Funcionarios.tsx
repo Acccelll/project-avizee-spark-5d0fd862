@@ -350,14 +350,14 @@ export default function Funcionarios() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <SummaryCard title="Total de Funcionários" value={String(kpis.total)} icon={Users} />
-            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
+            <SummaryCard title="Total de Funcionários" shortTitle="Total" value={String(kpis.total)} icon={Users} />
+            <SummaryCard title="Ativos" shortTitle="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativos" shortTitle="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
             <SummaryCard
               title="Salários (ativos)"
-              shortTitle="Salários"
+              shortTitle="Folha"
               subtitle="Soma de salários-base de ativos. Não inclui encargos."
-              value={formatCurrency(kpis.totalSalarios)}
+              value={isMobile ? formatCurrencyCompact(kpis.totalSalarios) : formatCurrency(kpis.totalSalarios)}
               icon={DollarSign}
             />
           </>
@@ -366,7 +366,7 @@ export default function Funcionarios() {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nome, cargo, CPF, departamento..."
+          searchPlaceholder={isMobile ? "Buscar funcionário..." : "Buscar por nome, cargo, CPF, departamento..."}
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => clearFilters(["ativo", "contrato", "departamento"])}
