@@ -489,11 +489,37 @@ export default function Funcionarios() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="emp-cpf">CPF <span className="text-muted-foreground text-xs font-normal">— identificador</span></Label>
-                <Input id="emp-cpf" value={form.cpf} onChange={e => setForm({ ...form, cpf: e.target.value })} placeholder="000.000.000-00" />
+                <MaskedInput
+                  id="emp-cpf"
+                  mask="cpf"
+                  value={form.cpf}
+                  onChange={(v) => setForm({ ...form, cpf: v })}
+                  placeholder="000.000.000-00"
+                />
+                {(() => {
+                  const d = form.cpf.replace(/\D/g, "");
+                  if (!d) return null;
+                  if (d.length < 11) {
+                    return <p className="text-[11px] text-muted-foreground">Digite os 11 dígitos do CPF</p>;
+                  }
+                  if (!isValidCpf(d)) {
+                    return <p className="text-[11px] text-destructive flex items-center gap-1"><XCircle className="w-3 h-3" /> CPF inválido</p>;
+                  }
+                  if (cpfChecking) {
+                    return <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Verificando…</p>;
+                  }
+                  if (cpfUnico === false) {
+                    return <p className="text-[11px] text-destructive flex items-center gap-1"><XCircle className="w-3 h-3" /> CPF já cadastrado</p>;
+                  }
+                  if (cpfUnico === true) {
+                    return <p className="text-[11px] text-success flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> CPF válido</p>;
+                  }
+                  return null;
+                })()}
               </div>
               {mode === "edit" && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="emp-status">Status do colaborador</Label>
+                  <Label htmlFor="emp-status">Situação do colaborador</Label>
                   <Select value={form.ativo ? "ativo" : "inativo"} onValueChange={v => setForm({ ...form, ativo: v === "ativo" })}>
                     <SelectTrigger id="emp-status"><SelectValue /></SelectTrigger>
                     <SelectContent>
