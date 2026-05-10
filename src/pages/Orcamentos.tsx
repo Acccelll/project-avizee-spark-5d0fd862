@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
 import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
@@ -67,9 +68,9 @@ const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado", "expirado"];
 const PROXIMA_VENCER_DIAS = 7;
 
 const historicoOptions: { label: string; value: string }[] = [
+  { label: "Todos", value: "todos" },
   { label: "Excluir legados", value: "excluir" },
   { label: "Apenas legados", value: "apenas" },
-  { label: "Todos", value: "todos" },
 ];
 
 const validadeOptions: { label: string; value: string }[] = [
@@ -87,8 +88,15 @@ function getValidadeStatus(validade: string | null, status: string): "vencida" |
   return "vigente";
 }
 
-function ValidadeBadge({ validade, status }: { validade: string | null; status: string }) {
-  if (!validade) return <span className="text-muted-foreground">—</span>;
+function ValidadeBadge({ validade, status, origem }: { validade: string | null; status: string; origem?: string | null }) {
+  if (!validade) {
+    const isLegado = origem === "importacao_historica" || status === "historico";
+    return (
+      <span className="text-xs text-muted-foreground italic">
+        {isLegado ? "Legado sem validade" : "Sem validade"}
+      </span>
+    );
+  }
   const vs = getValidadeStatus(validade, status);
   const daysLeft = calculateDaysBetween(new Date(), validade);
   if (vs === "vencida") {
@@ -311,7 +319,7 @@ const Orcamentos = () => {
     const approved = filteredData.filter(o => o.status === "aprovado").length;
     const converted = filteredData.filter(o => o.status === "convertido").length;
     const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(1) : "0";
-    return { total, totalValue, approved, conversionRate };
+    return { total, totalValue, approved, converted, conversionRate };
   }, [filteredData]);
 
   const columns = [
@@ -333,7 +341,7 @@ const Orcamentos = () => {
     },
     {
       key: "validade", label: "Validade",
-      render: (o: Orcamento) => <ValidadeBadge validade={o.validade} status={o.status} />,
+      render: (o: Orcamento) => <ValidadeBadge validade={o.validade} status={o.status} origem={o.origem} />,
     },
     {
       key: "valor_total",
@@ -350,7 +358,17 @@ const Orcamentos = () => {
         // (status canônico após Fase 3.2 — antes era "enviado", removido).
         const effectiveStatus =
           vs === "vencida" && normalizedStatus === "pendente" ? "expirado" : normalizedStatus;
-        return <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />;
+        const badge = (
+          <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />
+        );
+        if (effectiveStatus === "historico") {
+          return (
+            <span title="Orçamento legado importado, sem fluxo comercial ativo." className="inline-block">
+              {badge}
+            </span>
+          );
+        }
+        return badge;
       },
     },
     {
@@ -415,10 +433,18 @@ const Orcamentos = () => {
         addButtonHelpId="orcamentos.novoBtn"
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard title="Total de Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
-          <SummaryCard title="Valor Total" value={formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="acumulado" />
-          <SummaryCard title="Aprovadas" value={String(kpis.approved)} icon={CheckCircle} variationType="positive" variation="aguardando geração de pedido" />
-          <SummaryCard title="Taxa de Conversão" value={`${kpis.conversionRate}%`} icon={BarChart3} variationType="positive" variation="orçamentos → Pedido" />
+          <SummaryCard title="Total de Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="no período filtrado" />
+          <SummaryCard title="Valor Total" value={formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="soma do filtro atual" />
+          <SummaryCard title="Aguardando pedido" value={String(kpis.approved)} icon={CheckCircle} variationType="positive" variation="aprovados, ainda não convertidos" />
+          <div title="Convertidos em pedido ÷ total de orçamentos no filtro">
+            <SummaryCard
+              title="Taxa de Conversão"
+              value={`${kpis.conversionRate}%`}
+              icon={BarChart3}
+              variationType="positive"
+              variation={`${kpis.converted} de ${kpis.total} convertidos`}
+            />
+          </div>
         </div>
 
         <div data-help-id="orcamentos.filtros">
@@ -431,47 +457,46 @@ const Orcamentos = () => {
           onClearAll={() => { setStatusFilters([]); setClienteFilters([]); setValidadeFilters([]); setDataInicio(""); setDataFim(""); setSearchTerm(""); }}
           count={filteredData.length}
         >
-          <MultiSelect
-            options={statusOptions}
-            selected={statusFilters}
-            onChange={setStatusFilters}
-            placeholder="Status"
-            className="w-[200px]"
-          />
-          <MultiSelect
-            options={validadeOptions}
-            selected={validadeFilters}
-            onChange={setValidadeFilters}
-            placeholder="Validade"
-            className="w-[200px]"
-          />
-          {/* M-08: filtro de legados em chips (alinha ao padrão AdvancedFilterBar). */}
-          <div className="inline-flex items-center gap-1 rounded-md border border-input bg-background p-1" role="group" aria-label="Filtro de legados">
-            {historicoOptions.map((opt) => {
-              const active = historicoFilter === opt.value;
-              return (
-                <Button
-                  key={opt.value}
-                  type="button"
-                  size="sm"
-                  variant={active ? "default" : "ghost"}
-                  className="h-7 px-2 text-xs"
-                  aria-pressed={active}
-                  onClick={() => setHistoricoFilter(opt.value)}
-                >
-                  {opt.label}
-                </Button>
-              );
-            })}
+          <div className="flex flex-col gap-2 w-full">
+            <div className="flex flex-wrap gap-2 items-center">
+              <MultiSelect
+                options={statusOptions}
+                selected={statusFilters}
+                onChange={setStatusFilters}
+                placeholder="Status do orçamento"
+                className="w-[220px]"
+              />
+              <MultiSelect
+                options={clienteOptions}
+                selected={clienteFilters}
+                onChange={setClienteFilters}
+                placeholder="Clientes"
+                className="w-[250px]"
+              />
+              <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} direction="past" />
+            </div>
+            <div className="flex flex-wrap gap-2 items-center">
+              <MultiSelect
+                options={validadeOptions}
+                selected={validadeFilters}
+                onChange={setValidadeFilters}
+                placeholder="Validade"
+                className="w-[200px]"
+              />
+              <Select value={historicoFilter} onValueChange={setHistoricoFilter}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Legados" />
+                </SelectTrigger>
+                <SelectContent>
+                  {historicoOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      Legados: {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <MultiSelect
-            options={clienteOptions}
-            selected={clienteFilters}
-            onChange={setClienteFilters}
-            placeholder="Clientes"
-            className="w-[250px]"
-          />
-          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} direction="past" />
         </AdvancedFilterBar>
         </div>
 
@@ -505,6 +530,20 @@ const Orcamentos = () => {
                     setConvertingId(o.id);
                   }}>
                     <ArrowRightCircle className="w-3 h-3" /> Converter em Pedido
+                  </Button>
+                )}
+                {normalizeOrcamentoStatus(o.status) === "convertido" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/pedidos?cotacao=${o.id}`);
+                    }}
+                    title="Abrir pedido gerado a partir deste orçamento"
+                  >
+                    <ArrowRightCircle className="w-3 h-3" /> Abrir pedido
                   </Button>
                 )}
               </>
