@@ -1,77 +1,77 @@
-## Onda 42c — Drawer de Funcionário
+## Onda 42d — Refino do form Editar/Novo Funcionário
 
-Escopo: apenas `src/components/views/FuncionarioView.tsx`. Sem alterações de schema. A tabela `funcionarios` tem hoje apenas `nome, cpf, cargo, departamento, data_admissao, data_demissao, salario_base, tipo_contrato, observacoes, ativo, motivo_inativacao` — então "enriquecer com matrícula, gestor, centro de custo, filial, e-mail, telefone, jornada" fica fora deste plano (exigiria migração e novos campos no formulário de edição). Foco em **compactar, reorganizar e derivar** o que já existe, e em tornar os empty states acionáveis.
+Escopo: apenas `src/pages/Funcionarios.tsx` (form e cabeçalho do `FormModal`). Sem migração de schema.
 
-### 1. Compactar e reorganizar a aba Resumo (alta prioridade)
+### Alta prioridade
 
-Substituir o grid plano de 6 campos por **3 seções nomeadas** com `ViewSection`/`ViewField` (já usadas em outros drawers), em layout 2 colunas mais denso:
+1. **CPF com máscara e validação visual inline**
+   - Trocar `<Input>` do CPF por `<MaskedInput mask="cpf">` (já existe em `@/components/ui/MaskedInput`).
+   - Indicador inline ao lado/abaixo do campo:
+     - vazio → sem ícone
+     - dígitos < 11 → hint "Digite os 11 dígitos"
+     - inválido (`!isValidCpf`) → ✕ vermelho "CPF inválido"
+     - verificando unicidade (`cpfChecking`) → spinner "Verificando…"
+     - duplicado (`cpfUnico === false`) → ✕ "CPF já cadastrado"
+     - válido e único → ✓ verde "CPF válido"
+   - Borda do input em `border-destructive` quando inválido/duplicado.
 
-- **Identificação** — CPF, tipo de contrato, situação (Ativo / Desligado em / Motivo)
-- **Lotação** — cargo, departamento
-- **Vínculo** — admissão, desligamento, **tempo de casa** (derivado via `tempoDeCasa()` já existente em `Funcionarios.tsx` — mover utilitário para `src/lib/format.ts` ou inlinar local)
+2. **Salário formatado como moeda (R$ 5.200,00)**
+   - Substituir `<Input type="number">` por input texto com máscara monetária BR.
+   - Exibir o valor formatado enquanto digita; armazenar `salario_base` como `number` no estado.
+   - Adicionar gating de permissão: se `!isAdmin`, exibir somente leitura mascarado como `R$ ••••` com tooltip "Sem permissão para visualizar salário" — não bloqueia edição dos demais campos.
 
-Reduzir `space-y-5` → `space-y-4` no container raiz e `gap-y-3` → `gap-y-2` no grid para diminuir altura útil.
+3. **Botão "Salvar Alterações" com estado claro**
+   - Já existe `noChanges` no `FormModalFooter`; adicionar `disabledReason` explícito vindo do form quando aplicável:
+     - sem alterações → "Sem alterações para salvar" (já default)
+     - CPF inválido → "Corrija o CPF antes de salvar"
+     - CPF duplicado → "CPF já cadastrado em outro funcionário"
+     - validação CPF em andamento → "Aguarde a verificação do CPF"
+   - Passar `disabled` + `disabledReason` ao `FormModalFooter`.
 
-Manter CPF na ficha (é o dado documental canônico) mas **remover do `RecordIdentityCard`** (cabeçalho) — fica menos duplicado e libera espaço no topo. Em compensação, manter no cabeçalho cargo + departamento.
+4. **Data de Desligamento condicional ao status**
+   - Quando `form.ativo === true`: ocultar o input e mostrar linha discreta "Não aplicável — colaborador ativo".
+   - Quando `form.ativo === false`: mostrar input obrigatório (`required`) + novo campo opcional **Motivo do desligamento** (textarea curto) gravado em `motivo_inativacao` (campo já existente na tabela conforme `FuncionarioView`).
+   - Default `data_demissao = hoje` ao alternar para inativo (se vazio).
 
-### 2. Revisar os 4 KPIs (alta prioridade)
+### Média prioridade
 
-Substituir os cards atuais por um conjunto mais útil mesmo sem dados de folha:
+5. **Cabeçalho do FormModal mais informativo**
+   - `identifier`: trocar `selected.cpf` cru por `cpfMask(selected.cpf)` com prefixo "CPF" (usar utilitário `cpfMask` de `@/utils/masks`).
+   - `meta`: manter cargo · departamento · admissão; adicionar tempo de casa quando ativo.
 
-| Antes | Depois |
-|---|---|
-| Salário Base | **Salário Base** (mantém) |
-| Admissão | **Tempo de casa** (derivado; "—" se desligado e queremos mostrar período) |
-| Última Comp. | **Última competência** (mantém, tone neutro quando vazio) |
-| Líquido Recente | **Último líquido** (mantém) |
+6. **Renomear label "Status do colaborador" → "Situação do colaborador"**
+   - Único ajuste de microcopy no `Select` de `ativo`.
 
-Quando `ultimaFolha` é `null`, exibir `subtitle="Sem folha registrada"` no card "Última competência" para empty state explicativo (DrawerSummaryCard suporta `tone` e usar `value="—"` com hint visual mais discreto).
+7. **Indicador "alterações não salvas"**
+   - Já existe via `isDirty` no header e footer do `FormModal`. Adicionar `confirmOnDirty` ao `<FormModal>` para reforçar a confirmação no ESC/click-outside (já há `handleCloseModal` para o X).
 
-Admissão sai dos KPIs e migra para a seção Vínculo do Resumo.
+8. **Contador de caracteres em Observações**
+   - `maxLength={1000}` + label discreto `{form.observacoes.length}/1000` à direita do label.
 
-### 3. Empty states acionáveis (alta prioridade)
+### Baixa prioridade
 
-`DetailEmpty` aceita `action` (botão). Adicionar CTAs:
+9. **Tipo de contrato compactado nas options**
+   - `SelectItem` mostra apenas `CLT` / `PJ` / `Estágio` / `Temporário`; descrição completa fica no tooltip já existente.
 
-- **Folha (0)** → Botão "Registrar competência" que navega para `/funcionarios?openFolha=${id}` (ou abre o modal já existente; verificar `Funcionarios.tsx` — se não houver deep-link, navegar para a página com `editId` e tab folha; iteração futura).
-- **Financeiro (0)** → Botão "Abrir financeiro" que navega para `/financeiro?funcionarioId=${id}` (filtro já existe via `useUrlListState`).
-- **Obs.** → Substituir parágrafo "Nenhuma observação registrada." por `DetailEmpty` com CTA "Adicionar observação" que abre `/funcionarios?editId=${id}` focando aba de observações.
+10. **Microcopy da Remuneração**
+    - Trocar "Impacta o cálculo da folha…" por "Usado no cálculo da folha e na geração de lançamentos financeiros (salário + FGTS 8%). Não inclui demais encargos."
 
-Os CTAs apenas navegam — não há nova lógica de negócio.
+### Fora de escopo (requer migração + UI nova — não fazer agora)
 
-### 4. Suavizar badge "Sem folha" (média prioridade)
+- Matrícula / código interno (campo `matricula`).
+- Centro de custo, filial/unidade, gestor responsável.
+- Histórico de alteração salarial (auditoria dedicada).
+- Histórico de observações com autor/data.
+- Permissão granular `funcionarios:salario_view` (hoje gateamos por `isAdmin`).
 
-No bloco `situacao`, "Sem folha" hoje vira `Badge` com mesmo peso visual. Tornar mais discreto:
+### Arquivos
 
-- usar `variant="outline"` sem fundo colorido,
-- texto `text-[10px] text-muted-foreground border-dashed`,
-- sem ícone.
+- `src/pages/Funcionarios.tsx` — único arquivo editado.
+- Reaproveitar: `MaskedInput`, `cpfMask` (`@/utils/masks`), `isValidCpf` (já no arquivo), `useDocumentoUnico` (já em uso).
 
-Manter "Folha pendente" / "Financeiro pendente" / "Desligado" no peso atual (são acionáveis).
+### Checks após implementar
 
-### 5. Truncamento elegante (média prioridade)
-
-`RecordIdentityCard` já trunca via `truncate` em `title`. Adicionar `Tooltip` em volta do título quando o nome ultrapassa ~30 chars (conditional wrapper). Breadcrumb usa `usePublishDrawerSlots` — a string vai para `DrawerStackBreadcrumb`, que já trunca via CSS; não mexer aqui.
-
-### 6. Reforçar separação identidade × ações × KPIs (média prioridade)
-
-`DrawerSummaryGrid` recebe um wrapper com `border-t pt-4` para criar linha sutil entre o bloco de cabeçalho/ações (renderizado pelo shell) e os KPIs. Aumentar `space-y` entre KPIs e Tabs de 5 → 6.
-
-### 7. Confirmação de inativação (média prioridade)
-
-Já usa `ConfirmDialog`. Ação é reversível e a descrição já explica a preservação do histórico — manter como está. **Sem mudança.**
-
----
-
-### Fora de escopo (precisaria backend / produto)
-
-- Adicionar matrícula, gestor, centro de custo, filial, e-mail/telefone corporativo, jornada → exige migração + nova UI no form de edição.
-- Timeline de observações com autor/data → exige nova tabela `funcionario_observacoes`.
-- Categoria de observação (RH/financeiro/desempenho) → idem.
-- Permissão de leitura de salário (`funcionarios:salario_view`) já está na lista de TODOs anterior.
-
-### Arquivos a editar
-
-- `src/components/views/FuncionarioView.tsx` (todas as mudanças)
-
-Sem mudanças em schema, services ou hooks.
+- Build + tsc passam.
+- Toggle ativo→inativo mostra Data/Motivo de desligamento; voltar para ativo limpa visualmente sem perder valores no estado até salvar.
+- CPF "111.111.111-11" sinaliza inválido; CPF duplicado bloqueia salvar com tooltip claro.
+- Salário renderiza "R$ 5.200,00" enquanto edita.

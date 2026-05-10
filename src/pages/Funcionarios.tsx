@@ -35,11 +35,15 @@ import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MaskedInput } from "@/components/ui/MaskedInput";
+import { cpfMask } from "@/utils/masks";
+import { CheckCircle2, XCircle, Loader2, EyeOff } from "lucide-react";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
   data_admissao: string; data_demissao: string | null; salario_base: number;
   tipo_contrato: string; observacoes: string; ativo: boolean; created_at: string;
+  motivo_inativacao?: string | null;
 }
 
 const tipoContratoLabel: Record<string, string> = { clt: "CLT", pj: "PJ", estagio: "Estágio", temporario: "Temporário" };
@@ -95,11 +99,13 @@ interface FuncionarioForm {
   nome: string; cpf: string; cargo: string; departamento: string;
   data_admissao: string; data_demissao: string | null; salario_base: number;
   tipo_contrato: string; observacoes: string; ativo: boolean;
+  motivo_inativacao: string;
 }
 
 const emptyForm: FuncionarioForm = {
   nome: "", cpf: "", cargo: "", departamento: "", data_admissao: new Date().toISOString().split("T")[0],
   data_demissao: null, salario_base: 0, tipo_contrato: "clt", observacoes: "", ativo: true,
+  motivo_inativacao: "",
 };
 
 function isValidCpf(cpf: string): boolean {
@@ -174,7 +180,7 @@ export default function Funcionarios() {
   };
   const openEdit = (f: Funcionario) => {
     setMode("edit"); setSelected(f);
-    const next: FuncionarioForm = { nome: f.nome, cpf: f.cpf || "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo };
+    const next: FuncionarioForm = { nome: f.nome, cpf: f.cpf ? cpfMask(f.cpf) : "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo, motivo_inativacao: f.motivo_inativacao || "" };
     reset(next);
     setModalOpen(true);
   };
@@ -208,7 +214,11 @@ export default function Funcionarios() {
       return;
     }
     await submit(async () => {
-      const payload = { ...form, data_demissao: form.data_demissao || null };
+      const payload = {
+        ...form,
+        cpf: cpfDigits,
+        data_demissao: form.ativo ? null : (form.data_demissao || null),
+      };
       if (mode === "create") await create(payload as Partial<Funcionario>);
       else if (selected) {
         await update(selected.id, payload as Partial<Funcionario>);
@@ -430,14 +440,18 @@ export default function Funcionarios() {
         size="lg"
         mode={mode}
         createHint="Informe nome, CPF, cargo e admissão. Folha e financeiro ficam disponíveis após o cadastro."
-        identifier={mode === "edit" && selected?.cpf ? selected.cpf : undefined}
+        identifier={mode === "edit" && selected?.cpf ? `CPF ${cpfMask(selected.cpf)}` : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.cargo ? [{ label: selected.cargo }] : []),
           ...(selected.departamento ? [{ label: selected.departamento }] : []),
           ...(selected.data_admissao ? [{ label: `Admissão: ${formatDate(selected.data_admissao)}` }] : []),
+          ...(selected.ativo && selected.data_admissao && tempoDeCasa(selected.data_admissao)
+            ? [{ label: tempoDeCasa(selected.data_admissao) }]
+            : []),
         ] : undefined}
         isDirty={isFormDirty}
+        confirmOnDirty
         footer={
           <FormModalFooter
             saving={submitting}
@@ -446,6 +460,20 @@ export default function Funcionarios() {
             submitAsForm
             formId="funcionario-form"
             mode={mode}
+            disabled={(() => {
+              const d = form.cpf.replace(/\D/g, "");
+              if (form.cpf && d.length === 11 && !isValidCpf(d)) return true;
+              if (cpfChecking) return true;
+              if (cpfUnico === false) return true;
+              return false;
+            })()}
+            disabledReason={(() => {
+              const d = form.cpf.replace(/\D/g, "");
+              if (form.cpf && d.length === 11 && !isValidCpf(d)) return "Corrija o CPF antes de salvar";
+              if (cpfChecking) return "Aguarde a verificação do CPF";
+              if (cpfUnico === false) return "CPF já cadastrado em outro funcionário";
+              return undefined;
+            })()}
           />
         }
       >
@@ -464,11 +492,37 @@ export default function Funcionarios() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="emp-cpf">CPF <span className="text-muted-foreground text-xs font-normal">— identificador</span></Label>
-                <Input id="emp-cpf" value={form.cpf} onChange={e => setForm({ ...form, cpf: e.target.value })} placeholder="000.000.000-00" />
+                <MaskedInput
+                  id="emp-cpf"
+                  mask="cpf"
+                  value={form.cpf}
+                  onChange={(v) => setForm({ ...form, cpf: v })}
+                  placeholder="000.000.000-00"
+                />
+                {(() => {
+                  const d = form.cpf.replace(/\D/g, "");
+                  if (!d) return null;
+                  if (d.length < 11) {
+                    return <p className="text-[11px] text-muted-foreground">Digite os 11 dígitos do CPF</p>;
+                  }
+                  if (!isValidCpf(d)) {
+                    return <p className="text-[11px] text-destructive flex items-center gap-1"><XCircle className="w-3 h-3" /> CPF inválido</p>;
+                  }
+                  if (cpfChecking) {
+                    return <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Verificando…</p>;
+                  }
+                  if (cpfUnico === false) {
+                    return <p className="text-[11px] text-destructive flex items-center gap-1"><XCircle className="w-3 h-3" /> CPF já cadastrado</p>;
+                  }
+                  if (cpfUnico === true) {
+                    return <p className="text-[11px] text-success flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> CPF válido</p>;
+                  }
+                  return null;
+                })()}
               </div>
               {mode === "edit" && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="emp-status">Status do colaborador</Label>
+                  <Label htmlFor="emp-status">Situação do colaborador</Label>
                   <Select value={form.ativo ? "ativo" : "inativo"} onValueChange={v => setForm({ ...form, ativo: v === "ativo" })}>
                     <SelectTrigger id="emp-status"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -502,10 +556,10 @@ export default function Funcionarios() {
               <Select value={form.tipo_contrato} onValueChange={v => setForm({ ...form, tipo_contrato: v })}>
                 <SelectTrigger id="emp-tipo-contrato"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="clt">CLT — Consolidação das Leis do Trabalho</SelectItem>
-                  <SelectItem value="pj">PJ — Pessoa Jurídica</SelectItem>
+                  <SelectItem value="clt">CLT</SelectItem>
+                  <SelectItem value="pj">PJ</SelectItem>
                   <SelectItem value="estagio">Estágio</SelectItem>
-                  <SelectItem value="temporario">Temporário — prazo determinado</SelectItem>
+                  <SelectItem value="temporario">Temporário</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -514,12 +568,38 @@ export default function Funcionarios() {
                 <Label htmlFor="emp-admissao">Data de Admissão *</Label>
                 <Input id="emp-admissao" type="date" value={form.data_admissao} onChange={e => setForm({ ...form, data_admissao: e.target.value })} required />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="emp-demissao">Data de Desligamento</Label>
-                <Input id="emp-demissao" type="date" value={form.data_demissao ?? ""} onChange={e => setForm({ ...form, data_demissao: e.target.value || null })} />
-                {!form.data_demissao && <p className="text-[11px] text-muted-foreground">Preencher apenas se houver desligamento</p>}
-              </div>
+              {form.ativo ? (
+                <div className="space-y-1.5">
+                  <Label className="text-muted-foreground">Data de Desligamento</Label>
+                  <div className="h-10 flex items-center px-3 rounded-md border border-dashed border-border/60 text-sm text-muted-foreground">
+                    Não aplicável — colaborador ativo
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label htmlFor="emp-demissao">Data de Desligamento *</Label>
+                  <Input
+                    id="emp-demissao"
+                    type="date"
+                    value={form.data_demissao ?? new Date().toISOString().split("T")[0]}
+                    onChange={e => setForm({ ...form, data_demissao: e.target.value || null })}
+                    required
+                  />
+                </div>
+              )}
             </div>
+            {!form.ativo && (
+              <div className="space-y-1.5">
+                <Label htmlFor="emp-motivo-deslig">Motivo do desligamento</Label>
+                <Textarea
+                  id="emp-motivo-deslig"
+                  value={form.motivo_inativacao}
+                  onChange={e => setForm({ ...form, motivo_inativacao: e.target.value })}
+                  placeholder="Pedido de demissão, término de contrato, etc."
+                  rows={2}
+                />
+              </div>
+            )}
           </div>
 
           {/* BLOCO: ESTRUTURA INTERNA */}
@@ -558,11 +638,36 @@ export default function Funcionarios() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <Input id="emp-salario" type="number" step="0.01" min={0} value={form.salario_base} onChange={e => setForm({ ...form, salario_base: Number(e.target.value) })} required className="font-mono font-semibold text-base" />
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <DollarSign className="w-3 h-3 shrink-0" />
-                Impacta o cálculo da folha e os lançamentos financeiros (salário + FGTS).
-              </p>
+              {isAdmin ? (
+                <>
+                  <Input
+                    id="emp-salario"
+                    inputMode="numeric"
+                    value={formatCurrency(form.salario_base || 0)}
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      const cents = digits ? Number(digits) : 0;
+                      setForm({ ...form, salario_base: cents / 100 });
+                    }}
+                    onFocus={e => e.target.select()}
+                    required
+                    className="font-mono font-semibold text-base"
+                  />
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 shrink-0" />
+                    Usado no cálculo da folha e na geração de lançamentos financeiros (salário + FGTS 8%). Não inclui demais encargos.
+                  </p>
+                </>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="h-10 flex items-center gap-2 px-3 rounded-md border bg-muted/40 text-sm text-muted-foreground font-mono cursor-help">
+                      <EyeOff className="w-3.5 h-3.5" /> R$ ••••
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-xs">Sem permissão para visualizar salário</TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </div>
 
@@ -575,8 +680,11 @@ export default function Funcionarios() {
               <div className="flex-1 h-px bg-border" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="emp-obs">Notas internas <span className="text-muted-foreground text-xs font-normal">— visível apenas internamente</span></Label>
-              <Textarea id="emp-obs" value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} placeholder="Notas sobre o colaborador, histórico relevante, acordos específicos..." rows={3} />
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="emp-obs">Notas internas <span className="text-muted-foreground text-xs font-normal">— visível apenas internamente</span></Label>
+                <span className="text-[11px] text-muted-foreground tabular-nums">{form.observacoes.length}/1000</span>
+              </div>
+              <Textarea id="emp-obs" value={form.observacoes} maxLength={1000} onChange={e => setForm({ ...form, observacoes: e.target.value })} placeholder="Notas sobre o colaborador, histórico relevante, acordos específicos..." rows={3} />
             </div>
           </div>
 
