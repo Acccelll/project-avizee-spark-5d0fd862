@@ -5,7 +5,9 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil } from "lucide-react";
+import { Pencil, Wallet, FileText, Inbox } from "lucide-react";
+import { DetailEmpty } from "@/components/ui/DetailStates";
+import { cpfMask } from "@/utils/masks";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useSocioParticipacoes, useSociosRetiradas } from "@/hooks/useSocios";
 import type { Socio, SocioParticipacao, SocioRetirada } from "@/types/domain";
@@ -47,17 +49,40 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
   if (!socio) return null;
 
   const participacaoVigente = participacoes.find((p) => !p.vigencia_fim) ?? participacoes[0];
+  const vigenteAberta = participacoes.find((p) => !p.vigencia_fim);
+  const cpfFmt = socio.cpf ? cpfMask(socio.cpf) : "";
+
+  const empty = (txt: string) => (
+    <span className="text-muted-foreground italic">{txt}</span>
+  );
+
+  const subtitleNode = (
+    <div className="flex flex-col gap-1.5">
+      <span>{cpfFmt ? `CPF ${cpfFmt}` : "Sócio"}</span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <StatusBadge status={socio.ativo ? "ativo" : "inativo"} />
+        {vigenteAberta && (
+          <Badge variant="secondary">
+            Participação vigente · {Number(vigenteAberta.percentual).toFixed(2)}%
+          </Badge>
+        )}
+        {socio.data_entrada && (
+          <Badge variant="outline">Desde {formatDate(socio.data_entrada)}</Badge>
+        )}
+      </div>
+    </div>
+  );
 
   const summary = (
     <DrawerSummaryGrid cols={4}>
       <DrawerSummaryCard
-        label="Participação atual"
+        label="Participação"
         value={`${Number(socio.percentual_participacao_atual ?? 0).toFixed(2)}%`}
         tone="primary"
       />
-      <DrawerSummaryCard label="Pró-labore (acum.)" value={formatCurrency(totais.proLabore)} />
+      <DrawerSummaryCard label="Pró-labore" value={formatCurrency(totais.proLabore)} />
       <DrawerSummaryCard
-        label="Bônus + Distribuição"
+        label="Bônus / Distrib."
         value={formatCurrency(totais.bonus + totais.distribuicao)}
       />
       <DrawerSummaryCard
@@ -73,18 +98,17 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
       value: "resumo",
       label: "Resumo",
       content: (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <ViewSection title="Identificação">
             <div className="grid grid-cols-2 gap-4">
-              <ViewField label="Nome">{socio.nome}</ViewField>
-              <ViewField label="CPF">{socio.cpf || "—"}</ViewField>
-              <ViewField label="E-mail">{socio.email || "—"}</ViewField>
-              <ViewField label="Telefone">{socio.telefone || "—"}</ViewField>
+              <ViewField label="CPF">{cpfFmt || empty("Não informado")}</ViewField>
+              <ViewField label="E-mail">{socio.email || empty("Não informado")}</ViewField>
+              <ViewField label="Telefone">{socio.telefone || empty("Não informado")}</ViewField>
               <ViewField label="Data de entrada">
-                {socio.data_entrada ? formatDate(socio.data_entrada) : "—"}
+                {socio.data_entrada ? formatDate(socio.data_entrada) : empty("Não informado")}
               </ViewField>
               <ViewField label="Data de saída">
-                {socio.data_saida ? formatDate(socio.data_saida) : "—"}
+                {socio.data_saida ? formatDate(socio.data_saida) : empty("—")}
               </ViewField>
             </div>
           </ViewSection>
@@ -92,14 +116,14 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
           <ViewSection title="Recebimento">
             <div className="grid grid-cols-2 gap-4">
               <ViewField label="Forma padrão">
-                {socio.forma_recebimento_padrao || "—"}
+                {socio.forma_recebimento_padrao || empty("Não definida")}
               </ViewField>
-              <ViewField label="Chave Pix">{socio.chave_pix || "—"}</ViewField>
-              <ViewField label="Banco">{socio.banco || "—"}</ViewField>
+              <ViewField label="Chave Pix">{socio.chave_pix || empty("Não informada")}</ViewField>
+              <ViewField label="Banco">{socio.banco || empty("Não cadastrado")}</ViewField>
               <ViewField label="Agência / Conta">
-                {[socio.agencia, socio.conta].filter(Boolean).join(" / ") || "—"}
+                {[socio.agencia, socio.conta].filter(Boolean).join(" / ") || empty("Não cadastrado")}
               </ViewField>
-              <ViewField label="Tipo de conta">{socio.tipo_conta || "—"}</ViewField>
+              <ViewField label="Tipo de conta">{socio.tipo_conta || empty("Não definido")}</ViewField>
               <ViewField label="Status">
                 <StatusBadge status={socio.ativo ? "ativo" : "inativo"} />
               </ViewField>
@@ -130,30 +154,33 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
       value: "participacoes",
       label: `Participações (${participacoes.length})`,
       content: (
+        participacoes.length === 0 ? (
+          <DetailEmpty
+            title="Nenhum histórico de participação"
+            message="Quando vigências de participação societária forem registradas, elas aparecem aqui."
+          />
+        ) : (
         <div className="rounded-lg border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50">
               <tr>
                 <th className="text-left p-3 font-medium">Percentual</th>
                 <th className="text-left p-3 font-medium">Início</th>
-                <th className="text-left p-3 font-medium">Fim</th>
+                <th className="text-left p-3 font-medium">Situação</th>
                 <th className="text-left p-3 font-medium">Observações</th>
               </tr>
             </thead>
             <tbody>
-              {participacoes.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
-                    Nenhum histórico de participação
-                  </td>
-                </tr>
-              )}
               {participacoes.map((p: SocioParticipacao) => (
                 <tr key={p.id} className="border-b last:border-0">
                   <td className="p-3 font-mono">{Number(p.percentual).toFixed(2)}%</td>
                   <td className="p-3">{formatDate(p.vigencia_inicio)}</td>
                   <td className="p-3">
-                    {p.vigencia_fim ? formatDate(p.vigencia_fim) : <Badge variant="outline">Vigente</Badge>}
+                    {p.vigencia_fim ? (
+                      <span className="text-muted-foreground">Encerrada em {formatDate(p.vigencia_fim)}</span>
+                    ) : (
+                      <Badge>Vigente</Badge>
+                    )}
                   </td>
                   <td className="p-3 text-muted-foreground">{p.observacoes || "—"}</td>
                 </tr>
@@ -161,12 +188,24 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
             </tbody>
           </table>
         </div>
+        )
       ),
     },
     {
       value: "retiradas",
       label: `Retiradas (${retiradas.length})`,
-      content: (
+      content: retiradas.length === 0 ? (
+        <DetailEmpty
+          icon={Wallet}
+          title="Sem retiradas registradas"
+          message="Pró-labore, bônus e distribuição aparecem aqui quando forem lançados."
+          action={
+            <RelationalLink to="/socios-participacoes" behavior="route">
+              Abrir Sócios e Participações
+            </RelationalLink>
+          }
+        />
+      ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
@@ -188,13 +227,6 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {retiradas.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-6 text-center text-muted-foreground">
-                      Nenhuma retirada registrada
-                    </td>
-                  </tr>
-                )}
                 {retiradas.map((r: SocioRetirada) => {
                   const valor = Number(r.valor_aprovado ?? r.valor_calculado ?? 0);
                   return (
@@ -229,12 +261,23 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
     {
       value: "observacoes",
       label: "Observações",
-      content: (
+      content: socio.observacoes?.trim() ? (
         <div className="rounded-lg border bg-muted/20 p-4 text-sm whitespace-pre-wrap text-foreground/90 min-h-[120px]">
-          {socio.observacoes?.trim() || (
-            <span className="text-muted-foreground">Sem observações cadastradas.</span>
-          )}
+          {socio.observacoes}
         </div>
+      ) : (
+        <DetailEmpty
+          icon={FileText}
+          title="Nenhuma observação registrada"
+          message="Use observações para armazenar acordos, histórico ou notas relevantes sobre o sócio."
+          action={
+            onEdit ? (
+              <Button size="sm" variant="outline" onClick={() => onEdit(socio)} className="gap-2">
+                <Pencil className="h-3.5 w-3.5" /> Editar sócio
+              </Button>
+            ) : undefined
+          }
+        />
       ),
     },
   ];
@@ -244,11 +287,11 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
       open={open}
       onClose={onClose}
       title={socio.nome}
-      subtitle={socio.cpf ? `CPF ${socio.cpf}` : "Sócio"}
+      subtitle={subtitleNode}
       summary={summary}
       actions={
         onEdit && (
-          <Button size="sm" variant="outline" onClick={() => onEdit(socio)} className="gap-2">
+          <Button size="sm" onClick={() => onEdit(socio)} className="gap-2">
             <Pencil className="h-3.5 w-3.5" /> Editar
           </Button>
         )
