@@ -55,6 +55,7 @@ export default function Socios() {
   const { socios, loading, create, update, remove } = useSocios();
   const { isAdmin } = useIsAdmin();
   const [search, setSearch] = useState("");
+  const [quickFilter, setQuickFilter] = useState<"all" | "ativos" | "cpf_pendente">("all");
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
   const [modalOpen, setModalOpen] = useState(false);
@@ -98,16 +99,19 @@ export default function Socios() {
   }, [kpis.soma]);
 
   const filteredSocios = useMemo(() => {
+    let base = socios;
+    if (quickFilter === "ativos") base = base.filter((s) => s.ativo);
+    else if (quickFilter === "cpf_pendente") base = base.filter((s) => !s.cpf || !String(s.cpf).trim());
     const q = search.trim().toLowerCase();
-    if (!q) return socios;
+    if (!q) return base;
     const qDigits = q.replace(/\D/g, "");
-    return socios.filter((s) => {
+    return base.filter((s) => {
       const nomeMatch = s.nome?.toLowerCase().includes(q);
       const cpfDigits = (s.cpf ?? "").replace(/\D/g, "");
       const cpfMatch = qDigits.length > 0 && cpfDigits.includes(qDigits);
       return nomeMatch || cpfMatch;
     });
-  }, [socios, search]);
+  }, [socios, search, quickFilter]);
 
   const renderCpfCell = (s: Socio) => {
     const digits = (s.cpf ?? "").replace(/\D/g, "");
@@ -194,13 +198,23 @@ export default function Socios() {
   };
 
   const columns = [
-    { key: "nome", label: "Nome" },
+    { key: "nome", label: "Nome", mobilePrimary: true },
     { key: "cpf", label: "CPF", render: renderCpfCell },
     { key: "percentual_participacao_atual", label: "Participação atual", render: (s: Socio) => formatPercent(Number(s.percentual_participacao_atual ?? 0)) },
     { key: "ativo", label: "Status", render: (s: Socio) => <StatusBadge status={s.ativo ? "ativo" : "inativo"} /> },
     { key: "data_entrada", label: "Entrada societária", render: (s: Socio) => s.data_entrada ? formatDate(s.data_entrada) : "—" },
     { key: "email", label: "E-mail", hidden: true, render: (s: Socio) => s.email || "—" },
     { key: "telefone", label: "Telefone", hidden: true, render: (s: Socio) => s.telefone || "—" },
+    {
+      key: "_mobile_part",
+      label: "Participação",
+      hidden: true,
+      mobileCard: true,
+      render: (s: Socio) => {
+        const pct = formatPercent(Number(s.percentual_participacao_atual ?? 0));
+        return s.data_entrada ? `${pct} · desde ${formatDate(s.data_entrada)}` : `${pct} · entrada não informada`;
+      },
+    },
   ];
 
   return (
@@ -215,10 +229,28 @@ export default function Socios() {
         searchPlaceholder="Buscar por nome ou CPF..."
         summaryCards={
           <>
-            <SummaryCard title="Total de Sócios" value={String(kpis.total)} icon={Briefcase} />
-            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
+            <SummaryCard
+              title="Total de Sócios"
+              shortTitle="Sócios"
+              value={String(kpis.total)}
+              icon={Briefcase}
+              onClick={() => setQuickFilter("all")}
+              active={quickFilter === "all"}
+              aria-label="Mostrar todos os sócios"
+            />
+            <SummaryCard
+              title="Ativos"
+              shortTitle="Ativos"
+              value={String(kpis.ativos)}
+              icon={UserCheck}
+              variant="success"
+              onClick={() => setQuickFilter((q) => (q === "ativos" ? "all" : "ativos"))}
+              active={quickFilter === "ativos"}
+              aria-label="Filtrar sócios ativos"
+            />
             <SummaryCard
               title="Soma de participações"
+              shortTitle="Participação"
               value={formatPercent(kpis.soma)}
               subtitle={composicaoInfo.subtitle}
               icon={Percent}
@@ -227,9 +259,13 @@ export default function Socios() {
             {kpis.cpfPendentes > 0 && (
               <SummaryCard
                 title="CPF pendente"
+                shortTitle="CPF pend."
                 value={String(kpis.cpfPendentes)}
                 icon={AlertTriangle}
                 variant="warning"
+                onClick={() => setQuickFilter((q) => (q === "cpf_pendente" ? "all" : "cpf_pendente"))}
+                active={quickFilter === "cpf_pendente"}
+                aria-label="Filtrar sócios com CPF pendente"
               />
             )}
           </>

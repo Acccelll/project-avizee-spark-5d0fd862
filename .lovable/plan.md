@@ -1,60 +1,57 @@
-## Onda 42f — Refino do grid de Sócios (`/socios`)
+## Onda 42g — Refino mobile do grid de Sócios
 
-Escopo: apenas `src/pages/Socios.tsx` (grid + KPIs). Sem migração, sem alterar drawer/form. Foca em CPF sensível, percentual pt-BR, validação visual da composição e clareza das colunas.
+Escopo: apenas `src/pages/Socios.tsx`. Sem migração, sem alterar SummaryCard/DataTable/MobileCardList. Aproveita props já existentes (`shortTitle`, `onClick`, `active`, `mobileCard`, `mobilePrimary`).
 
 ### Alta prioridade
 
-1. **CPF formatado e mascarado por permissão**
-   - Coluna "CPF" passa a renderizar:
-     - Sem CPF → badge `outline` discreto "CPF pendente" (`text-muted-foreground`).
-     - Admin (`useIsAdmin`) → CPF completo via `cpfMask` (`446.790.278-35`).
-     - Não-admin → mascarado parcialmente: `***.790.278-**` (mantém os 6 dígitos do meio).
-   - Helper local `partialCpf(digits)`; a versão completa só é montada se `isAdmin`.
+1. **Títulos curtos nos KPIs (sem truncar)**
+   - Passar `shortTitle` aos 4 cards (`SummaryCard` já troca para ele em mobile via `useIsMobile`):
+     - "Total de Sócios" → `Sócios`
+     - "Ativos" → `Ativos` (sem mudança)
+     - "Soma de participações" → `Participação`
+     - "CPF pendente" → `CPF pend.`
 
-2. **Percentual em padrão pt-BR**
-   - Coluna "Participação atual" usa `formatPercent(Number(s.percentual_participacao_atual ?? 0))` → `20,00%`.
-   - SummaryCard "Soma de participações" também usa `formatPercent(kpis.soma)`.
+2. **Linha "Participação · desde dd/mm/aaaa" no card mobile**
+   - Substituir as duas colunas separadas (`percentual_participacao_atual` e `data_entrada`) por uma coluna virtual extra **só para mobile**:
+     - Acrescentar coluna `{ key: "_mobile_part", label: "Participação", mobileCard: true, render: (s) => `${formatPercent(...)} · desde ${formatDate(s.data_entrada)}` ou `${formatPercent(...)} · entrada não informada` }`.
+     - Marcar a coluna principal `nome` como `mobilePrimary: true`.
+     - Marcar `percentual_participacao_atual` e `data_entrada` com `hidden: true` em mobile? Como `hidden` é estático, em vez disso fazer: deixar essas duas colunas **sem** `mobileCard`, garantindo que apenas `_mobile_part` apareça no card. (`renderMobileCards` só pega colunas com `mobileCard` quando há ao menos uma marcada — se houver `_mobile_part` marcada, o fallback de 3 não dispara. Validar comportamento; se necessário marcar ambas como `mobileCard: false` explicitamente — não há essa flag, então basta omitir o flag nas demais.)
+   - A coluna `_mobile_part` recebe `hidden: true` para não aparecer no desktop.
 
-3. **Validação visual da composição (KPI)**
-   - SummaryCard "Soma de participações" ganha `description` dinâmica:
-     - `Math.abs(soma - 100) < 0.01` → "Composição válida" (variant `success`).
-     - `soma < 100` → `Faltam X,XX%` (variant `warning`).
-     - `soma > 100` → `Excede X,XX%` (variant `danger`).
-   - Reutiliza `formatPercent` para o delta.
+3. **CPF como identifier mobile já funciona**
+   - `mobileIdentifierKey="cpf"` já chama `render` da coluna CPF (que entrega badge "CPF pendente" ou CPF mascarado). Manter.
 
-4. **Renomear coluna "Entrada" → "Entrada societária"**
-   - Apenas o `label`. `key` continua `data_entrada`.
-
-5. **Coluna CPF: estado "—" → "CPF pendente"**
-   - Coberto por (1); reforço explícito de UX.
+4. **KPI cards clicáveis como filtros rápidos**
+   - Estado novo: `quickFilter: "all" | "ativos" | "cpf_pendente"`.
+   - `Sócios` → reset (`all`).
+   - `Ativos` → `ativos` (filtra `ativo === true`).
+   - `CPF pend.` → `cpf_pendente` (filtra `!cpf`).
+   - `Participação` → não vira filtro (não há critério natural).
+   - `filteredSocios` aplica `quickFilter` antes do `search`.
+   - Cada `SummaryCard` envolvido recebe `onClick` (toggle: clicar de novo volta para `all`) e `active={quickFilter === ...}` para a indicação visual já existente.
 
 ### Média prioridade
 
-6. **Card de pendência de CPF (condicional)**
-   - Calcular `kpis.cpfPendentes = socios.filter(s => !s.cpf).length`.
-   - Quando `> 0`, renderizar 4º `SummaryCard` "CPF pendente" com `variant="warning"` e ícone `AlertTriangle`. Quando `0`, não renderiza (mantém o layout enxuto).
+5. **Reduzir peso do badge de status no card mobile**
+   - Hoje o `StatusBadge` da coluna `ativo` é entregue como `statusBadge` do `MobileCardList`. Ajustar a cor/peso do `StatusBadge` saindo do escopo (componente compartilhado). Em vez disso, no `render` da coluna `ativo` apenas para `socios`, usar `<StatusBadge status={...} size="sm" />` se a prop existir; caso contrário, manter como está (não criar variante nova).
+   - Verificar via leitura rápida do `StatusBadge`. Se não houver `size="sm"`, **desistir desta sub-tarefa** para não criar variantes — registrar no plano que ficou fora.
 
-7. **Busca por nome/CPF no DataTable**
-   - `DataTable` já aceita busca padrão do `ModulePage` (verificar via `searchKey`/props existentes; se não houver, expor `searchPlaceholder="Buscar por nome ou CPF..."` — ajuste mínimo, sem refator).
-   - Filtro por dígitos do CPF: na coluna `cpf`, prover `searchValue: (s) => `${s.nome} ${(s.cpf ?? "").replace(/\D/g,"")}`` se a API do `DataTable` permitir; caso contrário, deixar busca no `nome` apenas (a sondagem ao implementar definirá).
+### Fora de escopo / não fazer agora
 
-### Fora de escopo (necessitam migração ou outras telas)
-
-- **Coluna "Papel/tipo do sócio"** — tabela `socios` não tem campo `papel`/`tipo_socio`. Requer migração + UI. Fica para onda futura.
-- **Histórico/última alteração no grid** — já existe a aba "Participações" no drawer/modal; coluna extra exigiria join e sai do escopo de UI.
-- **Ações específicas** ("alterar participação", "registrar saída") — drawer já oferece edição e a aba Participações; ações específicas exigem refactor de `RowActions` e novos fluxos.
-- **Filtros por papel/status** — depende de (papel) acima; filtro por status pode entrar em onda dedicada se demandado.
+- **Filtro/ordenação completo no header mobile** — exigiria adicionar `AdvancedFilterBar` ou novo controle ao `ModulePage`. Os atalhos via KPI (item 4) cobrem o essencial (status + CPF pendente). Ordenação fica para onda dedicada.
+- **Nome em 2 linhas** — depende de mudar `MobileCardList` (componente compartilhado, regra do design system de truncamento). Não tocar agora.
+- **Trocar paginação por scroll infinito / "Carregar mais"** — mudança transversal no `DataTable`, fora de escopo.
+- **Reduzir padding interno do card KPI** — ajuste global de `SummaryCard`, sai do escopo da tela.
 
 ### Arquivos
 
-- `src/pages/Socios.tsx` — colunas (`cpf`, `percentual_participacao_atual`, `data_entrada`), `kpis` (cpfPendentes + label dinâmico da soma), card adicional, busca.
-- Novo helper inline `partialCpf` (não cria arquivo).
-- Imports adicionais: `cpfMask` (`@/utils/masks`), `formatPercent` (`@/lib/format`), `useIsAdmin` (`@/hooks/useIsAdmin`).
+- `src/pages/Socios.tsx` — `shortTitle` nos 4 cards, coluna virtual `_mobile_part`, estado `quickFilter`, `onClick`/`active` nos cards.
 
 ### Checks
 
+- 390x844: cards KPI com títulos completos (`Sócios`, `Ativos`, `Participação`, `CPF pend.`).
+- Cada card sócio mostra: Nome (primary) · CPF (identifier) · `20,00% · desde 22/04/2026`.
+- Tap em "Ativos" filtra para ativos e o card fica com ring (active). Tap de novo volta ao todos.
+- Tap em "CPF pend." filtra para sócios sem CPF.
+- Desktop inalterado: colunas atuais permanecem visíveis; `_mobile_part` fica oculta.
 - `tsc` passa.
-- Admin vê CPF completo formatado; não-admin vê `***.xxx.xxx-**`.
-- Soma 100,00% → card verde "Composição válida"; soma divergente → warning/danger com delta em pt-BR.
-- Coluna renomeada para "Entrada societária".
-- Card "CPF pendente" só aparece quando há sócios sem CPF.
