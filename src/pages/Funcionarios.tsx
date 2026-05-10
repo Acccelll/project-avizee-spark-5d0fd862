@@ -30,8 +30,10 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCan } from "@/hooks/useCan";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
+import { cn } from "@/lib/utils";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -40,6 +42,37 @@ interface Funcionario {
 }
 
 const tipoContratoLabel: Record<string, string> = { clt: "CLT", pj: "PJ", estagio: "Estágio", temporario: "Temporário" };
+
+const tipoContratoBadgeClass: Record<string, string> = {
+  clt: "border-border bg-muted/40 text-foreground",
+  pj: "border-primary/30 bg-primary/10 text-primary",
+  estagio: "border-warning/30 bg-warning/10 text-warning",
+  temporario: "border-muted-foreground/30 bg-muted/30 text-muted-foreground",
+};
+
+/** Mascara CPF preservando apenas os 3 últimos dígitos + DV. Ex.: ***.***.789-01 */
+function maskCpfPartial(cpf: string | null | undefined): string {
+  const digits = (cpf || "").replace(/\D/g, "");
+  if (digits.length !== 11) return cpf || "";
+  return `***.***.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+}
+
+/** Calcula tempo de casa em "X anos e Y meses" (ou "Z meses" / "menos de 1 mês"). */
+function tempoDeCasa(admissao: string | null | undefined, demissao?: string | null): string {
+  if (!admissao) return "";
+  const start = new Date(admissao);
+  const end = demissao ? new Date(demissao) : new Date();
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "";
+  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  if (end.getDate() < start.getDate()) months -= 1;
+  if (months < 1) return "menos de 1 mês";
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (years === 0) return `${rem} ${rem === 1 ? "mês" : "meses"}`;
+  const yLabel = `${years} ${years === 1 ? "ano" : "anos"}`;
+  if (rem === 0) return yLabel;
+  return `${yLabel} e ${rem} ${rem === 1 ? "mês" : "meses"}`;
+}
 
 /** Typed form for create/edit — avoids `Record<string, any>`. */
 interface FuncionarioForm {
@@ -74,6 +107,7 @@ export default function Funcionarios() {
       q: { type: "string" },
       ativo: { type: "stringArray" },
       contrato: { type: "stringArray" },
+      departamento: { type: "stringArray" },
     },
   });
   const searchTerm = filterValue.q;
@@ -82,6 +116,8 @@ export default function Funcionarios() {
   const setAtivoFilters = (v: string[]) => setFilter({ ativo: v });
   const tipoContratoFilters = filterValue.contrato;
   const setTipoContratoFilters = (v: string[]) => setFilter({ contrato: v });
+  const departamentoFilters = filterValue.departamento;
+  const setDepartamentoFilters = (v: string[]) => setFilter({ departamento: v });
   const debouncedSearch = useDebounce(searchTerm, 350);
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Funcionario>({
     table: "funcionarios",
@@ -176,20 +212,23 @@ export default function Funcionarios() {
         if (!ativoFilters.includes(status)) return false;
       }
       if (tipoContratoFilters.length > 0 && !tipoContratoFilters.includes(f.tipo_contrato)) return false;
+      if (departamentoFilters.length > 0 && !departamentoFilters.includes(f.departamento || "")) return false;
       return true;
     });
-  }, [data, ativoFilters, tipoContratoFilters]);
+  }, [data, ativoFilters, tipoContratoFilters, departamentoFilters]);
 
   const activeFilters = useMemo<FilterChip[]>(() => {
     const chips: FilterChip[] = [];
     ativoFilters.forEach(f => chips.push({ key: "ativo", label: "Status", value: [f], displayValue: f === "ativo" ? "Ativo" : "Inativo" }));
     tipoContratoFilters.forEach(f => chips.push({ key: "tipo_contrato", label: "Contrato", value: [f], displayValue: tipoContratoLabel[f] || f }));
+    departamentoFilters.forEach(f => chips.push({ key: "departamento", label: "Depto.", value: [f], displayValue: f }));
     return chips;
-  }, [ativoFilters, tipoContratoFilters]);
+  }, [ativoFilters, tipoContratoFilters, departamentoFilters]);
 
   const handleRemoveFilter = (key: string, value?: string) => {
     if (key === "ativo") setAtivoFilters(ativoFilters.filter(v => v !== value));
     else if (key === "tipo_contrato") setTipoContratoFilters(tipoContratoFilters.filter(v => v !== value));
+    else if (key === "departamento") setDepartamentoFilters(departamentoFilters.filter(v => v !== value));
   };
 
   const ativoOptions: MultiSelectOption[] = [
@@ -204,15 +243,70 @@ export default function Funcionarios() {
     { label: "Temporário", value: "temporario" },
   ];
 
+  const departamentoOptions: MultiSelectOption[] = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach(f => { if (f.departamento) set.add(f.departamento); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map(d => ({ label: d, value: d }));
+  }, [data]);
+
+  const isAdmin = useIsAdmin();
+
   const columns = [
-    { key: "nome", label: "Nome" },
+    {
+      key: "nome",
+      label: "Funcionário",
+      render: (f: Funcionario) => (
+        <div className="flex flex-col leading-tight">
+          <span className="font-medium">{f.nome}</span>
+          {f.cpf && (
+            <span className="text-xs text-muted-foreground font-mono">
+              {maskCpfPartial(f.cpf)}
+            </span>
+          )}
+        </div>
+      ),
+    },
     { key: "ativo", label: "Status", render: (f: Funcionario) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
     { key: "cargo", label: "Cargo", render: (f: Funcionario) => f.cargo || "—" },
     { key: "departamento", label: "Depto.", render: (f: Funcionario) => f.departamento || "—" },
-    { key: "tipo_contrato", label: "Contrato", render: (f: Funcionario) => tipoContratoLabel[f.tipo_contrato] || f.tipo_contrato },
-    { key: "data_admissao", label: "Admissão", render: (f: Funcionario) => formatDate(f.data_admissao) },
+    {
+      key: "tipo_contrato",
+      label: "Contrato",
+      render: (f: Funcionario) => (
+        <Badge
+          variant="outline"
+          className={cn("font-normal", tipoContratoBadgeClass[f.tipo_contrato] || "")}
+        >
+          {tipoContratoLabel[f.tipo_contrato] || f.tipo_contrato}
+        </Badge>
+      ),
+    },
+    {
+      key: "data_admissao",
+      label: "Admissão",
+      render: (f: Funcionario) => {
+        const tempo = tempoDeCasa(f.data_admissao, f.data_demissao);
+        return (
+          <div className="flex flex-col leading-tight">
+            <span>{formatDate(f.data_admissao)}</span>
+            {tempo && <span className="text-xs text-muted-foreground">{tempo}</span>}
+          </div>
+        );
+      },
+    },
     { key: "cpf", label: "CPF", hidden: true, render: (f: Funcionario) => f.cpf || "—" },
-    { key: "salario_base", label: "Salário Base", hidden: true, render: (f: Funcionario) => <span className="font-mono">{formatCurrency(Number(f.salario_base))}</span> },
+    // Coluna sensível — só disponível para admins (TODO: granular `funcionarios:salario_view`).
+    ...(isAdmin
+      ? [{
+          key: "salario_base",
+          label: "Salário Base",
+          hidden: true,
+          render: (f: Funcionario) => (
+            <span className="font-mono">{formatCurrency(Number(f.salario_base))}</span>
+          ),
+        }]
+      : []),
   ];
 
   return (
@@ -226,7 +320,13 @@ export default function Funcionarios() {
             <SummaryCard title="Total de Funcionários" value={String(kpis.total)} icon={Users} />
             <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
             <SummaryCard title="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
-            <SummaryCard title="Folha Mensal" value={formatCurrency(kpis.totalSalarios)} icon={DollarSign} />
+            <SummaryCard
+              title="Salários (ativos)"
+              shortTitle="Salários"
+              subtitle="Soma de salários-base de ativos. Não inclui encargos."
+              value={formatCurrency(kpis.totalSalarios)}
+              icon={DollarSign}
+            />
           </>
         }
       >
@@ -236,7 +336,7 @@ export default function Funcionarios() {
           searchPlaceholder="Buscar por nome, cargo, CPF, departamento..."
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => clearFilters(["ativo", "contrato"])}
+          onClearAll={() => clearFilters(["ativo", "contrato", "departamento"])}
           count={filteredData.length}
         >
           <MultiSelect
@@ -253,6 +353,15 @@ export default function Funcionarios() {
             placeholder="Contrato"
             className="w-[150px]"
           />
+          {departamentoOptions.length > 0 && (
+            <MultiSelect
+              options={departamentoOptions}
+              selected={departamentoFilters}
+              onChange={setDepartamentoFilters}
+              placeholder="Departamento"
+              className="w-[170px]"
+            />
+          )}
         </AdvancedFilterBar>
 
         <PullToRefresh onRefresh={fetchData}>
