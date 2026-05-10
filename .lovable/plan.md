@@ -1,57 +1,71 @@
-## Onda 42g — Refino mobile do grid de Sócios
+# Onda 42h — Drawer de Sócios (refinamento UX/UI)
 
-Escopo: apenas `src/pages/Socios.tsx`. Sem migração, sem alterar SummaryCard/DataTable/MobileCardList. Aproveita props já existentes (`shortTitle`, `onClick`, `active`, `mobileCard`, `mobilePrimary`).
+Escopo: apenas `src/components/socios/SocioDrawer.tsx`. Sem alterações em `ViewDrawerV2`, `DrawerSummaryCard`, `StatusBadge` ou serviços/hooks.
 
-### Alta prioridade
+## Alta prioridade
 
-1. **Títulos curtos nos KPIs (sem truncar)**
-   - Passar `shortTitle` aos 4 cards (`SummaryCard` já troca para ele em mobile via `useIsMobile`):
-     - "Total de Sócios" → `Sócios`
-     - "Ativos" → `Ativos` (sem mudança)
-     - "Soma de participações" → `Participação`
-     - "CPF pendente" → `CPF pend.`
+### 1. Chips de contexto no topo (status + vigência + entrada)
+Logo abaixo do CPF (via `subtitle` do `ViewDrawerV2`), exibir uma linha de chips:
+- `StatusBadge` com `socio.ativo ? "ativo" : "inativo"`
+- Se houver `participacaoVigente` sem `vigencia_fim`: chip "Participação vigente · X,XX%" (Badge `secondary`)
+- Se houver `data_entrada`: chip "Desde dd/mm/aaaa" (Badge `outline`)
 
-2. **Linha "Participação · desde dd/mm/aaaa" no card mobile**
-   - Substituir as duas colunas separadas (`percentual_participacao_atual` e `data_entrada`) por uma coluna virtual extra **só para mobile**:
-     - Acrescentar coluna `{ key: "_mobile_part", label: "Participação", mobileCard: true, render: (s) => `${formatPercent(...)} · desde ${formatDate(s.data_entrada)}` ou `${formatPercent(...)} · entrada não informada` }`.
-     - Marcar a coluna principal `nome` como `mobilePrimary: true`.
-     - Marcar `percentual_participacao_atual` e `data_entrada` com `hidden: true` em mobile? Como `hidden` é estático, em vez disso fazer: deixar essas duas colunas **sem** `mobileCard`, garantindo que apenas `_mobile_part` apareça no card. (`renderMobileCards` só pega colunas com `mobileCard` quando há ao menos uma marcada — se houver `_mobile_part` marcada, o fallback de 3 não dispara. Validar comportamento; se necessário marcar ambas como `mobileCard: false` explicitamente — não há essa flag, então basta omitir o flag nas demais.)
-   - A coluna `_mobile_part` recebe `hidden: true` para não aparecer no desktop.
+O subtitle continuará carregando o CPF (formatado via `cpfMask` quando válido), e abaixo dele a linha de chips.
 
-3. **CPF como identifier mobile já funciona**
-   - `mobileIdentifierKey="cpf"` já chama `render` da coluna CPF (que entrega badge "CPF pendente" ou CPF mascarado). Manter.
+### 2. KPIs sem truncamento
+Renomear labels dos `DrawerSummaryCard`:
+- "Participação atual" → "Participação"
+- "Pró-labore (acum.)" → "Pró-labore"
+- "Bônus + Distribuição" → "Bônus / Distrib."
+- "Total retirado" → "Total retirado" (mantém)
 
-4. **KPI cards clicáveis como filtros rápidos**
-   - Estado novo: `quickFilter: "all" | "ativos" | "cpf_pendente"`.
-   - `Sócios` → reset (`all`).
-   - `Ativos` → `ativos` (filtra `ativo === true`).
-   - `CPF pend.` → `cpf_pendente` (filtra `!cpf`).
-   - `Participação` → não vira filtro (não há critério natural).
-   - `filteredSocios` aplica `quickFilter` antes do `search`.
-   - Cada `SummaryCard` envolvido recebe `onClick` (toggle: clicar de novo volta para `all`) e `active={quickFilter === ...}` para a indicação visual já existente.
+### 3. Aba Participações — coluna "Fim" → "Situação"
+Trocar o cabeçalho `Fim` por `Situação`. Render:
+- Sem `vigencia_fim`: `<Badge variant="default">Vigente</Badge>`
+- Com `vigencia_fim`: texto "Encerrada em dd/mm/aaaa" (muted)
 
-### Média prioridade
+### 4. Empty states melhores
 
-5. **Reduzir peso do badge de status no card mobile**
-   - Hoje o `StatusBadge` da coluna `ativo` é entregue como `statusBadge` do `MobileCardList`. Ajustar a cor/peso do `StatusBadge` saindo do escopo (componente compartilhado). Em vez disso, no `render` da coluna `ativo` apenas para `socios`, usar `<StatusBadge status={...} size="sm" />` se a prop existir; caso contrário, manter como está (não criar variante nova).
-   - Verificar via leitura rápida do `StatusBadge`. Se não houver `size="sm"`, **desistir desta sub-tarefa** para não criar variantes — registrar no plano que ficou fora.
+**Retiradas vazias:** substituir a `<tr>` de "Nenhuma retirada registrada" por `DetailEmpty` (importado de `@/components/ui/DetailStates`) com:
+- title: "Sem retiradas registradas"
+- description: "Pró-labore, bônus e distribuição aparecem aqui quando forem lançados."
+- action: botão `Abrir Sócios e Participações` (mantém o `RelationalLink` atual, mas migrado para dentro do empty state). O texto auxiliar e o link superior são removidos quando a lista está vazia, eliminando a competição visual.
 
-### Fora de escopo / não fazer agora
+**Observações vazias:** substituir o bloco atual por `DetailEmpty`:
+- title: "Nenhuma observação registrada"
+- description: "Use observações para armazenar acordos, histórico ou notas relevantes sobre o sócio."
+- action: se `onEdit`, botão "Editar sócio".
 
-- **Filtro/ordenação completo no header mobile** — exigiria adicionar `AdvancedFilterBar` ou novo controle ao `ModulePage`. Os atalhos via KPI (item 4) cobrem o essencial (status + CPF pendente). Ordenação fica para onda dedicada.
-- **Nome em 2 linhas** — depende de mudar `MobileCardList` (componente compartilhado, regra do design system de truncamento). Não tocar agora.
-- **Trocar paginação por scroll infinito / "Carregar mais"** — mudança transversal no `DataTable`, fora de escopo.
-- **Reduzir padding interno do card KPI** — ajuste global de `SummaryCard`, sai do escopo da tela.
+**Participações vazias:** trocar a `<tr>` por `DetailEmpty` no lugar da tabela quando `participacoes.length === 0`.
 
-### Arquivos
+## Média prioridade
 
-- `src/pages/Socios.tsx` — `shortTitle` nos 4 cards, coluna virtual `_mobile_part`, estado `quickFilter`, `onClick`/`active` nos cards.
+### 5. Reduzir redundância no Resumo
+- Remover o `ViewField` "Nome" do bloco "Identificação" (já está no header).
+- Aplicar `cpfMask` no campo "CPF".
+- No grid restante de Identificação, manter 2 colunas com: CPF, E-mail, Telefone, Data de entrada, Data de saída.
 
-### Checks
+### 6. Estados vazios em "Recebimento"
+Substituir o fallback `"—"` por textos mais claros, mantendo a semântica:
+- E-mail/Telefone/Chave Pix: "Não informado"
+- Banco/Agência/Conta/Tipo de conta: "Não cadastrado"
 
-- 390x844: cards KPI com títulos completos (`Sócios`, `Ativos`, `Participação`, `CPF pend.`).
-- Cada card sócio mostra: Nome (primary) · CPF (identifier) · `20,00% · desde 22/04/2026`.
-- Tap em "Ativos" filtra para ativos e o card fica com ring (active). Tap de novo volta ao todos.
-- Tap em "CPF pend." filtra para sócios sem CPF.
-- Desktop inalterado: colunas atuais permanecem visíveis; `_mobile_part` fica oculta.
-- `tsc` passa.
+Os valores vazios passam a ser renderizados como `<span className="text-muted-foreground italic">Não informado</span>` para diferenciar visualmente de dados preenchidos.
+
+### 7. Hierarquia do botão Editar
+Manter o botão em `actions` do `ViewDrawerV2` (já alinhado ao header), porém:
+- Promover de `variant="outline"` para `variant="default"` (ou `secondary`) para reforçar protagonismo, mantendo `size="sm"`.
+- Sem mudança estrutural — o slot `actions` já posiciona ao lado do bloco do header.
+
+## Baixa prioridade
+- Hierarquia visual: aumentar `space-y-5` → `space-y-6` entre `ViewSection`s do Resumo (mudança mínima, sem CSS novo).
+
+## Fora de escopo
+- Mudanças em `ViewDrawerV2`, `DrawerSummaryCard`, `StatusBadge` ou no contrato de status global.
+- Ícones por seção (depende de revisão do design system para `ViewSection`).
+- Prévia de observação no Resumo (cross-tab, fica para onda futura).
+- Histórico de retiradas com agrupamento por competência (mudança estrutural).
+
+## Verificação
+- `tsc --noEmit` limpo (build automático do harness).
+- Inspeção visual em `/socios` abrindo um sócio com e sem retiradas/observações.
