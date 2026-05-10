@@ -244,26 +244,35 @@ export function FuncionarioView({ id }: Props) {
   if (error) return <DetailError message={error.message} />;
   if (!funcionario) return <DetailEmpty title="Funcionário não encontrado" icon={Users} />;
 
+  const tempoCasa = tempoDeCasa(funcionario.data_admissao, funcionario.data_demissao);
+
   return (
-    <div className="space-y-5">
-      <DrawerSummaryGrid cols={4}>
+    <div className="space-y-4">
+      <DrawerSummaryGrid cols={4} className="border-t pt-4">
         <DrawerSummaryCard
           label="Salário Base"
           value={formatCurrency(Number(funcionario.salario_base))}
         />
-        <DrawerSummaryCard label="Admissão" value={formatDate(funcionario.data_admissao)} />
         <DrawerSummaryCard
-          label="Última Comp."
-          value={ultimaFolha ? ultimaFolha.competencia : "—"}
-          tone={ultimaFolha ? "primary" : "neutral"}
+          label="Tempo de casa"
+          value={tempoCasa || "—"}
+          mono={false}
+          hint={funcionario.data_demissao ? "até desligamento" : undefined}
         />
         <DrawerSummaryCard
-          label="Líquido Recente"
+          label="Última competência"
+          value={ultimaFolha ? ultimaFolha.competencia : "—"}
+          tone={ultimaFolha ? "primary" : "neutral"}
+          hint={ultimaFolha ? undefined : "Sem folha registrada"}
+        />
+        <DrawerSummaryCard
+          label="Último líquido"
           value={ultimaFolha ? formatCurrency(Number(ultimaFolha.valor_liquido)) : "—"}
+          hint={ultimaFolha ? undefined : "Sem folha registrada"}
         />
       </DrawerSummaryGrid>
 
-      <Tabs defaultValue="resumo" className="w-full">
+      <Tabs defaultValue="resumo" className="w-full pt-1">
         <TabsList className="w-full grid grid-cols-4">
           <TabsTrigger value="resumo" className="text-xs">Resumo</TabsTrigger>
           <TabsTrigger value="folha" className="text-xs">Folha ({folhas.length})</TabsTrigger>
@@ -271,33 +280,41 @@ export function FuncionarioView({ id }: Props) {
           <TabsTrigger value="obs" className="text-xs">Obs.</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="resumo" className="space-y-4 mt-3 text-sm">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">CPF</p>
-              <p className="font-mono">{funcionario.cpf || "—"}</p>
+        <TabsContent value="resumo" className="space-y-5 mt-3 text-sm">
+          <ViewSection title="Identificação">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <ViewField label="CPF">
+                <span className="font-mono">{funcionario.cpf || "—"}</span>
+              </ViewField>
+              <ViewField label="Tipo de contrato">
+                {tipoContratoLabel[funcionario.tipo_contrato] || funcionario.tipo_contrato}
+              </ViewField>
             </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Tipo de contrato</p>
-              <p className="font-medium">{tipoContratoLabel[funcionario.tipo_contrato] || funcionario.tipo_contrato}</p>
+          </ViewSection>
+
+          <ViewSection title="Lotação">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <ViewField label="Cargo">{funcionario.cargo || "—"}</ViewField>
+              <ViewField label="Departamento">{funcionario.departamento || "—"}</ViewField>
             </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Cargo</p>
-              <p className="font-medium">{funcionario.cargo || "—"}</p>
+          </ViewSection>
+
+          <ViewSection title="Vínculo">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <ViewField label="Admissão">
+                <span className="font-mono">{formatDate(funcionario.data_admissao)}</span>
+              </ViewField>
+              <ViewField label="Desligamento">
+                <span className="font-mono">
+                  {funcionario.data_demissao ? formatDate(funcionario.data_demissao) : "—"}
+                </span>
+              </ViewField>
+              <ViewField label="Tempo de casa">{tempoCasa || "—"}</ViewField>
+              {!funcionario.ativo && funcionario.motivo_inativacao && (
+                <ViewField label="Motivo de inativação">{funcionario.motivo_inativacao}</ViewField>
+              )}
             </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Departamento</p>
-              <p className="font-medium">{funcionario.departamento || "—"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Admissão</p>
-              <p className="font-mono">{formatDate(funcionario.data_admissao)}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Desligamento</p>
-              <p className="font-mono">{funcionario.data_demissao ? formatDate(funcionario.data_demissao) : "—"}</p>
-            </div>
-          </div>
+          </ViewSection>
         </TabsContent>
 
         <TabsContent value="folha" className="space-y-2 mt-3">
@@ -305,7 +322,20 @@ export function FuncionarioView({ id }: Props) {
             <DetailEmpty
               icon={FileText}
               title="Nenhuma folha registrada"
-              message="Registre uma competência na página de Funcionários."
+              message="Registre uma competência para iniciar o histórico de folha deste funcionário."
+              action={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    navigate(`/funcionarios?folhaId=${id}`);
+                    window.setTimeout(() => clearStack(), 0);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Registrar competência
+                </Button>
+              }
             />
           ) : (
             <div className="space-y-2">
