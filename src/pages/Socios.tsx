@@ -350,6 +350,7 @@ export default function Socios() {
             submitAsForm
             formId="socio-form"
             mode={mode}
+            disabledHint={!isDirty ? "Faça uma alteração para habilitar." : undefined}
           />
         }
       >
@@ -366,7 +367,6 @@ export default function Socios() {
             <form
               id="socio-form"
               onSubmit={handleSubmit}
-              tabIndex={-1}
               className="space-y-6 outline-none focus:outline-none focus-visible:ring-0 focus-visible:outline-none"
             >
               <section className="space-y-3">
@@ -378,7 +378,7 @@ export default function Socios() {
                   <Label htmlFor="soc-nome">Nome completo *</Label>
                   <Input id="soc-nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-cpf">CPF</Label>
                     <MaskedInput id="soc-cpf" mask="cpf" showValidation value={form.cpf} onChange={(v) => setForm({ ...form, cpf: v })} placeholder="000.000.000-00" />
@@ -397,7 +397,7 @@ export default function Socios() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-email">E-mail</Label>
                     <Input id="soc-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -407,7 +407,7 @@ export default function Socios() {
                     <Input id="soc-tel" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="soc-entrada">Data de entrada</Label>
                     <Input id="soc-entrada" type="date" value={form.data_entrada ?? ""} onChange={(e) => setForm({ ...form, data_entrada: e.target.value || null })} />
@@ -424,7 +424,7 @@ export default function Socios() {
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recebimento</span>
                   <div className="flex-1 h-px bg-border" />
                 </header>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Forma padrão de recebimento</Label>
                     <Select value={form.forma_recebimento_padrao} onValueChange={(v) => setForm({ ...form, forma_recebimento_padrao: v })}>
@@ -445,7 +445,7 @@ export default function Socios() {
                   )}
                 </div>
                 {showBanco && (
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="space-y-1.5">
                       <Label>Banco</Label>
                       <Input value={form.banco} onChange={(e) => setForm({ ...form, banco: e.target.value })} />
@@ -487,7 +487,7 @@ export default function Socios() {
 
           {mode === "edit" && (
             <TabsContent value="participacoes" className="space-y-4">
-              <div className="rounded-lg border bg-muted/20 p-4 grid grid-cols-3 gap-4 text-sm">
+              <div className="rounded-lg border bg-muted/20 p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div>
                   <div className="text-xs text-muted-foreground">Participação atual</div>
                   <div className="font-mono text-base">
@@ -495,17 +495,27 @@ export default function Socios() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">Soma vigente (este sócio)</div>
-                  <div className="font-mono text-base">{formatPercent(somaVigentes)}</div>
+                  <div className="text-xs text-muted-foreground">Total do quadro societário</div>
+                  <div className="font-mono text-base">{formatPercent(somaVigentes)} <span className="text-muted-foreground text-xs">/ 100,00%</span></div>
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground">Status</div>
                   <Badge variant={composicaoStatus.variant}>{composicaoStatus.label}</Badge>
                 </div>
               </div>
+              {composicaoStatus.label === "Incompleta" && (
+                <p className="text-xs text-muted-foreground -mt-2">
+                  A soma vigente de todos os sócios ainda não totaliza 100,00%.
+                </p>
+              )}
+              {composicaoStatus.label === "Excedida" && (
+                <p className="text-xs text-destructive -mt-2">
+                  A soma vigente ultrapassa 100,00%. Ajuste os períodos.
+                </p>
+              )}
               <div className="rounded-lg border p-4 space-y-3">
                 <h4 className="font-medium text-sm">Adicionar período de participação</h4>
-                <div className="grid grid-cols-4 gap-3 items-end">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:items-end">
                   <div className="space-y-1.5">
                     <Label>Percentual (%)</Label>
                     <Input type="number" step="0.01" min="0" max="100" value={novaPart.percentual} onChange={(e) => setNovaPart({ ...novaPart, percentual: Number(e.target.value) })} />
@@ -518,7 +528,7 @@ export default function Socios() {
                     <Label title="Deixe em branco para manter o período em aberto. Períodos não podem se sobrepor.">Vigência fim (opcional)</Label>
                     <Input type="date" value={novaPart.vigencia_fim} onChange={(e) => setNovaPart({ ...novaPart, vigencia_fim: e.target.value })} />
                   </div>
-                  <Button type="button" onClick={adicionarParticipacao}><Plus className="h-4 w-4 mr-1" />Adicionar</Button>
+                  <Button type="button" onClick={adicionarParticipacao} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-1" />Adicionar</Button>
                 </div>
                 {somaProjetada > 100.0001 && (
                   <p className="text-xs text-destructive flex items-start gap-1.5">
@@ -532,7 +542,7 @@ export default function Socios() {
                 </p>
               </div>
 
-              <div className="rounded-lg border">
+              <div className="rounded-lg border hidden sm:block">
                 <table className="w-full text-sm">
                   <thead className="border-b bg-muted/50">
                     <tr>
@@ -566,6 +576,30 @@ export default function Socios() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="space-y-2 sm:hidden">
+                {participacoes.length === 0 && (
+                  <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">Nenhum histórico</div>
+                )}
+                {participacoes.map((p: SocioParticipacao) => (
+                  <div key={p.id} className="rounded-lg border p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-base">{formatPercent(Number(p.percentual))}</span>
+                      {p.vigencia_fim ? (
+                        <span className="text-xs text-muted-foreground">Encerrada em {formatDate(p.vigencia_fim)}</span>
+                      ) : (
+                        <Badge>Vigente</Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Início: {formatDate(p.vigencia_inicio)}</div>
+                    <div className="flex justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => removePart.mutate(p.id)} className="text-destructive">
+                        <Trash2 className="h-4 w-4 mr-1" />Excluir
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </TabsContent>
           )}
