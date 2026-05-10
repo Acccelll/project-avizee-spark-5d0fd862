@@ -64,6 +64,7 @@ export default function Socios() {
   const [selected, setSelected] = useState<Socio | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<SocioForm>(emptyForm);
+  const [initialForm, setInitialForm] = useState<SocioForm>(emptyForm);
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? "identificacao");
   const { saving, submit } = useSubmitLock();
 
@@ -125,6 +126,7 @@ export default function Socios() {
   const openCreate = () => {
     setMode("create");
     setForm(emptyForm);
+    setInitialForm(emptyForm);
     setSelected(null);
     setActiveTab("identificacao");
     setModalOpen(true);
@@ -133,15 +135,20 @@ export default function Socios() {
   const openEdit = (s: Socio) => {
     setMode("edit");
     setSelected(s);
-    setForm({
-      nome: s.nome, cpf: s.cpf ?? "", email: s.email ?? "", telefone: s.telefone ?? "",
+    const next: SocioForm = {
+      nome: s.nome,
+      cpf: s.cpf ? cpfMask(s.cpf) : "",
+      email: s.email ?? "",
+      telefone: s.telefone ?? "",
       ativo: s.ativo,
       data_entrada: s.data_entrada, data_saida: s.data_saida,
       forma_recebimento_padrao: s.forma_recebimento_padrao ?? "pix",
       chave_pix: s.chave_pix ?? "", banco: s.banco ?? "", agencia: s.agencia ?? "",
       conta: s.conta ?? "", tipo_conta: s.tipo_conta ?? "corrente",
       observacoes: s.observacoes ?? "",
-    });
+    };
+    setForm(next);
+    setInitialForm(next);
     setActiveTab("identificacao");
     setModalOpen(true);
   };
@@ -187,7 +194,16 @@ export default function Socios() {
   const adicionarParticipacao = async () => {
     if (!selected) return;
     if (novaPart.percentual <= 0) { toast.error("Informe um percentual maior que zero"); return; }
+    if (novaPart.percentual > 100) { toast.error("Percentual não pode ultrapassar 100%"); return; }
     if (!novaPart.vigencia_inicio) { toast.error("Informe a vigência inicial"); return; }
+    const somaVigentes = participacoes
+      .filter((p) => !p.vigencia_fim)
+      .reduce((acc, p) => acc + Number(p.percentual), 0);
+    const projetada = somaVigentes + novaPart.percentual;
+    if (projetada > 100.0001) {
+      toast.error(`A soma das participações ficará em ${formatPercent(projetada)}. Ajuste antes de salvar.`);
+      return;
+    }
     await createPart.mutateAsync({
       socio_id: selected.id,
       percentual: novaPart.percentual,
@@ -196,6 +212,25 @@ export default function Socios() {
     });
     setNovaPart({ percentual: 0, vigencia_inicio: new Date().toISOString().split("T")[0], vigencia_fim: "" });
   };
+
+  const isDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(initialForm),
+    [form, initialForm],
+  );
+
+  const somaVigentes = useMemo(
+    () => participacoes.filter((p) => !p.vigencia_fim).reduce((a, p) => a + Number(p.percentual), 0),
+    [participacoes],
+  );
+  const somaProjetada = somaVigentes + (Number(novaPart.percentual) || 0);
+  const composicaoStatus = (() => {
+    if (Math.abs(somaVigentes - 100) < 0.01) return { label: "Composição válida", variant: "default" as const };
+    if (somaVigentes < 100) return { label: "Incompleta", variant: "secondary" as const };
+    return { label: "Excedida", variant: "destructive" as const };
+  })();
+  const formaRec = form.forma_recebimento_padrao;
+  const showPix = formaRec === "pix";
+  const showBanco = formaRec === "ted";
 
   const columns = [
     { key: "nome", label: "Nome", mobilePrimary: true },
