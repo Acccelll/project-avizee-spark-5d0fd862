@@ -394,7 +394,7 @@ const Estoque = () => {
     }},
     { key: "saldo_atual", label: "Saldo", mobileCard: true, render: (m: Movimento) => <span className="font-semibold font-mono">{formatNumber(m.saldo_atual)}</span> },
     { key: "origem", label: "Origem", mobileCard: true, render: (m: Movimento) => {
-      const origem = getOrigemConfig(m.documento_tipo);
+      const origem = getOrigemConfigFull(m.documento_tipo, m.motivo);
       return <Badge variant="outline" className={`text-xs ${origem.className}`}>{origem.label}</Badge>;
     } },
     { key: "motivo", label: "Motivo / Observação", render: (m: Movimento) => m.motivo || <span className="text-muted-foreground">—</span> },
