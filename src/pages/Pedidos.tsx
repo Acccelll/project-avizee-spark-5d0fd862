@@ -43,7 +43,7 @@ import { notifyError } from "@/utils/errorMessages";
 import { useAppConfig } from "@/hooks/useAppConfig";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { PedidoEditDrawer } from "@/components/views/PedidoEditDrawer";
+import { PedidoEditModal } from "@/components/views/PedidoEditModal";
 
 interface Pedido {
   id: string;
@@ -692,7 +692,7 @@ const Pedidos = () => {
           </ul>
         )}
       </ConfirmDialog>
-      <PedidoEditDrawer
+      <PedidoEditModal
         open={!!editingPedidoId}
         pedidoId={editingPedidoId}
         onClose={() => setEditingPedidoId(null)}
