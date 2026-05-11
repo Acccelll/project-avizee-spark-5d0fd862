@@ -67,6 +67,7 @@ export function useCotacoesEnrichment(data: CotacaoCompra[]) {
           map[id] = {
             itens_count: cItens.length,
             fornecedores_count: fornUniq,
+            propostas_count: cPropostas.length,
             vencedor_nome: vencNome,
             tem_vencedor: selecionadas.length > 0,
             fornecedor_ids: fornecedorIds,
