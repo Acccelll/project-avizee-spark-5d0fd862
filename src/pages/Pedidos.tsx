@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { FileOutput, AlertTriangle, Eye, Pencil } from "lucide-react";
+import { FileOutput, AlertTriangle, MoreVertical } from "lucide-react";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,15 @@ import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilte
 import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
+import { formatCurrency, formatCurrencyCompact, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
 import { FileText, DollarSign, Truck } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
 import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
@@ -120,6 +127,7 @@ function pedidoTooltipFor(p: { status: string; status_faturamento: string | null
 const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const faturarPedido = useFaturarPedido();
   const { can } = useCan();
   const canFaturar = can("faturamento_fiscal:criar") || can("pedidos:editar");
@@ -365,7 +373,7 @@ const Pedidos = () => {
   const columns = [
     {
       key: "numero",
-      mobileCard: true, label: "Nº Pedido", sortable: true,
+      label: "Nº Pedido", sortable: true,
       render: (p: Pedido) => (
         <div className="flex flex-col gap-0.5 leading-tight">
           <span className="font-mono text-xs font-semibold text-primary">{p.numero}</span>
@@ -390,8 +398,13 @@ const Pedidos = () => {
     },
     {
       key: "cliente", label: "Cliente",
+      mobilePrimary: true,
       sortValue: (p: Pedido) => p.clientes?.nome_razao_social ?? "",
-      render: (p: Pedido) => <span className="font-medium text-sm">{p.clientes?.nome_razao_social || "—"}</span>,
+      render: (p: Pedido) => (
+        <span className="font-semibold text-sm truncate" title={p.clientes?.nome_razao_social || undefined}>
+          {p.clientes?.nome_razao_social || "Cliente não informado"}
+        </span>
+      ),
     },
     {
       key: "data_emissao", label: "Data Pedido", sortable: true,
@@ -399,6 +412,7 @@ const Pedidos = () => {
     },
     {
       key: "prazo", label: "Prazo Despacho",
+      mobileCard: true,
       sortValue: (p: Pedido) => p.data_prometida_despacho ?? "",
       render: (p: Pedido) => <PrazoBadge dataPrazo={p.data_prometida_despacho} status={p.status} alertaDias={prazoAlertaDias} />,
     },
@@ -471,33 +485,50 @@ const Pedidos = () => {
         }
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard title="Total de Pedidos" value={formatNumber(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
-          <SummaryCard title="Valor Total" value={formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="acumulado" />
+          <SummaryCard title="Total de Pedidos" shortTitle="Pedidos" value={formatNumber(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
+          <SummaryCard
+            title="Valor Total"
+            shortTitle="Valor"
+            value={isMobile ? formatCurrencyCompact(kpis.totalValue) : formatCurrency(kpis.totalValue)}
+            icon={DollarSign}
+            variationType="neutral"
+            variation="acumulado"
+          />
           <SummaryCard
             title="Aguardando faturamento"
+            shortTitle="Prontos p/ NF"
             value={formatNumber(kpis.aguardandoFat)}
             icon={FileOutput}
             variationType="positive"
             variation={kpis.aguardandoFat > 0 ? "prontos para gerar NF" : "nenhum pendente"}
           />
-          <SummaryCard
-            title="Atrasados"
-            value={formatNumber(kpis.atrasados)}
-            icon={AlertTriangle}
-            variationType={kpis.atrasados > 0 ? "negative" as const : "neutral" as const}
-            variation={
-              kpis.atrasados === 0 && kpis.semPrazo > 0
-                ? `${kpis.semPrazo} sem prazo definido`
-                : "fora do prazo de despacho"
-            }
-          />
+          {kpis.atrasados === 0 && kpis.semPrazo > 0 ? (
+            <SummaryCard
+              title="Sem prazo"
+              shortTitle="Sem prazo"
+              value={formatNumber(kpis.semPrazo)}
+              icon={AlertTriangle}
+              variant="warning"
+              variationType="neutral"
+              variation="aguardando definição"
+            />
+          ) : (
+            <SummaryCard
+              title="Atrasados"
+              shortTitle="Atrasados"
+              value={formatNumber(kpis.atrasados)}
+              icon={AlertTriangle}
+              variationType={kpis.atrasados > 0 ? "negative" as const : "neutral" as const}
+              variation={kpis.atrasados > 0 ? "fora do prazo" : "no prazo"}
+            />
+          )}
         </div>
 
         <div data-help-id="pedidos.filtros">
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por número, PO, cliente ou orçamento..."
+          searchPlaceholder={isMobile ? "Buscar pedido…" : "Buscar pedido, cliente, PO ou orçamento…"}
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => clearFilters()}
@@ -546,6 +577,7 @@ const Pedidos = () => {
           hideSinglePagePagination
           onView={handleView}
           onEdit={(p) => navigate(`/pedidos/${p.id}`)}
+          mobileLabeledDetails
           rowExtraActions={(p) => (
             canFaturarPedido(p) && canFaturar ? (
               <Button
@@ -562,28 +594,43 @@ const Pedidos = () => {
           )}
           mobileStatusKey="status"
           mobileIdentifierKey="numero"
-          mobileInlineActions={(p) => (
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-10 w-10 p-0"
-                onClick={(e) => { e.stopPropagation(); handleView(p); }}
-                aria-label="Ver detalhes"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-10 w-10 p-0"
-                onClick={(e) => { e.stopPropagation(); navigate(`/pedidos/${p.id}`); }}
-                aria-label="Editar"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          mobileInlineActions={(p) => {
+            const showFaturar = canFaturarPedido(p) && canFaturar;
+            const orcamentoId = p.orcamentos?.id;
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-10 w-10 p-0 ml-auto"
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Mais ações"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleView(p); }}>
+                    Visualizar pedido
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/pedidos/${p.id}`); }}>
+                    Editar pedido
+                  </DropdownMenuItem>
+                  {showFaturar && (
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}>
+                      {p.status_faturamento === "parcial" ? "Gerar NF complementar" : "Gerar NF"}
+                    </DropdownMenuItem>
+                  )}
+                  {orcamentoId && (
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); pushView("orcamento", orcamentoId); }}>
+                      Ver orçamento de origem
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          }}
           mobilePrimaryAction={(p) => {
             if (!canFaturarPedido(p) || !canFaturar) return null;
             return (
