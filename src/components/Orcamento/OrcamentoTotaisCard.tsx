@@ -36,8 +36,23 @@ export function OrcamentoTotaisCard({ totalProdutos, pesoTotal, pesoOverride, on
   return (
     <div className="bg-card rounded-xl border shadow-soft p-5">
       <h3 className="font-semibold text-foreground mb-4">Totais e Ajustes</h3>
+      {freteSimulacaoId && (
+        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">Frete aplicado ao orçamento</p>
+            <p className="text-sm font-medium truncate">
+              {freteServico || "Cotação"} · <span className="font-mono">{formatCurrency(form.frete_valor)}</span>
+            </p>
+          </div>
+          {onClearFrete && (
+            <Button type="button" variant="ghost" size="sm" className="h-8 shrink-0" onClick={onClearFrete}>
+              <X className="h-3.5 w-3.5 mr-1" />Limpar
+            </Button>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="space-y-1.5">
+        <div className="col-span-2 md:col-span-1 space-y-1.5">
           <Label className="text-xs">Total Produtos</Label>
           <div className="h-10 flex items-center px-3 bg-accent/30 rounded-md font-mono text-sm font-semibold">
             {formatCurrency(totalProdutos)}
@@ -55,19 +70,9 @@ export function OrcamentoTotaisCard({ totalProdutos, pesoTotal, pesoOverride, on
           <Label className="text-xs">(+) Imposto IPI</Label>
           <Input type="number" step="0.01" min="0" className="font-mono text-sm" value={form.imposto_ipi || ""} onChange={(e) => onChange("imposto_ipi", Number(e.target.value))} />
         </div>
-        <div className="space-y-1.5">
+        <div className="col-span-2 md:col-span-1 space-y-1.5">
           <Label className="text-xs">(+) Frete</Label>
           <Input type="number" step="0.01" min="0" className="font-mono text-sm" value={form.frete_valor || ""} onChange={(e) => onChange("frete_valor", Number(e.target.value))} />
-          {freteSimulacaoId && (
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground bg-accent/30 rounded px-2 py-1">
-              <span className="truncate">Aplicado: <strong className="text-foreground">{freteServico || "cotação"}</strong> — {formatCurrency(form.frete_valor)}</span>
-              {onClearFrete && (
-                <Button type="button" variant="ghost" size="icon" className="h-5 w-5 ml-auto shrink-0" onClick={onClearFrete} aria-label="Limpar frete aplicado" title="Limpar frete aplicado">
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-          )}
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">(+) Outras Despesas</Label>
@@ -108,7 +113,7 @@ export function OrcamentoTotaisCard({ totalProdutos, pesoTotal, pesoOverride, on
             <span className="text-sm text-muted-foreground font-mono">Peso total: <strong>{formatWeightKg(pesoEffective)}</strong></span>
           )
         )}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 rounded-lg bg-primary/5 px-3 py-2 sm:bg-transparent sm:px-0 sm:py-0">
           <span className="text-sm font-semibold text-foreground">Total Final</span>
           <span className="text-2xl font-bold font-mono text-primary">{formatCurrency(valorTotal)}</span>
         </div>
