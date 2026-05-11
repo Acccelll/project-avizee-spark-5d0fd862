@@ -776,7 +776,7 @@ export function OrdemVendaView({ id }: Props) {
           ) : (
             <div className="py-4 text-center border rounded-lg bg-muted/10">
               <Receipt className="w-7 h-7 mx-auto text-muted-foreground/40 mb-2" />
-              <p className="text-xs text-muted-foreground">Nenhuma Nota Fiscal emitida ainda.</p>
+              <p className="text-xs text-muted-foreground">Pedido ainda não foi faturado.</p>
               {canGenerateNF && (
                 <Button
                   size="sm"
