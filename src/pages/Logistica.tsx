@@ -835,13 +835,13 @@ export default function Logistica() {
           {/* ── Tab: Recebimentos ── */}
           <TabsContent value="recebimentos">
             <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
-              Recebimentos nesta tela são de acompanhamento logístico. A consolidação quantitativa oficial continua no módulo <strong>Compras</strong>.
+              Esta aba acompanha a logística dos recebimentos. A conferência quantitativa oficial permanece em <strong>Compras</strong>.
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <SummaryCard title="Total de Recebimentos" value={formatNumber(recebimentosKpis.total)} icon={Package} variationType="neutral" variation="pedidos de compra" />
-              <SummaryCard title="Em Trânsito" value={formatNumber(recebimentosKpis.emTransito)} icon={Truck} variationType="positive" variation="a caminho do armazém" />
-              <SummaryCard title="Atrasados" value={formatNumber(recebimentosKpis.atrasados)} icon={AlertTriangle} variationType={recebimentosKpis.atrasados > 0 ? "negative" : "neutral"} variation="fora do prazo" />
-              <SummaryCard title="Recebidos" value={formatNumber(recebimentosKpis.recebidos)} icon={CheckCheck} variationType="positive" variation="concluídos" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <SummaryCard title="Total de Recebimentos" value={formatNumber(recebimentosKpis.total)} icon={Package} variationType="neutral" variation="pedidos de compra" onClick={() => { setStatusFiltersReceb([]); setPrazoFiltersReceb([]); }} />
+              <SummaryCard title="Em Trânsito" value={formatNumber(recebimentosKpis.emTransito)} icon={Truck} variationType="positive" variation="a caminho do armazém" onClick={() => { setStatusFiltersReceb(["em_transito"]); setPrazoFiltersReceb([]); }} />
+              <SummaryCard title="Atrasados" value={formatNumber(recebimentosKpis.atrasados)} icon={AlertTriangle} variationType={recebimentosKpis.atrasados > 0 ? "negative" : "neutral"} variation="fora do prazo" onClick={() => { setStatusFiltersReceb([]); setPrazoFiltersReceb(["atrasado"]); }} />
+              <SummaryCard title="Recebidos" value={formatNumber(recebimentosKpis.recebidos)} icon={CheckCheck} variationType="positive" variation="concluídos" onClick={() => { setStatusFiltersReceb(["recebido"]); setPrazoFiltersReceb([]); }} />
             </div>
             <AdvancedFilterBar searchValue={searchTermReceb} onSearchChange={setSearchTermReceb} searchPlaceholder="Buscar por número da compra ou fornecedor..." activeFilters={activeRecebimentoFilters} onRemoveFilter={handleRemoveRecebimentoFilter} onClearAll={() => { setStatusFiltersReceb([]); setFornecedorFilters([]); setPrazoFiltersReceb([]); setDataInicioReceb(""); setDataFimReceb(""); }} count={filteredRecebimentos.length}>
               <MultiSelect options={recebimentoStatusMultiOptions} selected={statusFiltersReceb} onChange={setStatusFiltersReceb} placeholder="Status" className="w-[180px]" />
