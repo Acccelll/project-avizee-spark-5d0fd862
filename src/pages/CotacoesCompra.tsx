@@ -181,13 +181,13 @@ export default function CotacoesCompra() {
       {/* Create/Edit Modal */}
       <FormModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={requestCloseModal}
         title={mode === "create" ? "Nova Cotação de Compra" : "Editar Cotação de Compra"}
         size="xl"
         mode={mode}
         createHint="Defina o número, fornecedores e itens a cotar. Você poderá registrar propostas após criar."
       >
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form id="cotacao-compra-form" onSubmit={handleSubmit} className="space-y-5">
           {mode === "edit" && selected && (
             <div className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3">
               <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -200,27 +200,49 @@ export default function CotacoesCompra() {
                   Criada em {formatDate(selected.data_cotacao)}
                 </p>
               </div>
-              <StatusBadge status={selected.status} label={statusLabels[selected.status] || selected.status} />
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <StatusBadge status={selected.status} label={statusLabels[selected.status] || selected.status} />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    Status controlado pelo fluxo da cotação (aprovação, conversão, cancelamento).
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label>Número *</Label>
-              <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} required className="font-mono" disabled={mode === "edit"} />
+              <Label>Número {mode === "create" && "*"}</Label>
+              {mode === "edit" ? (
+                <div className="flex h-10 items-center rounded-md border border-dashed bg-muted/40 px-3 font-mono text-sm text-foreground">
+                  {form.numero}
+                </div>
+              ) : (
+                <Input
+                  value={form.numero}
+                  onChange={(e) => setForm({ ...form, numero: e.target.value })}
+                  required
+                  className="font-mono"
+                />
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Identificador da cotação (somente leitura).
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Data Cotação</Label>
               <Input type="date" value={form.data_cotacao} onChange={(e) => setForm({ ...form, data_cotacao: e.target.value })} />
+              <p className="text-[11px] text-muted-foreground">Data de abertura da cotação.</p>
             </div>
             <div className="space-y-2">
               <Label>Validade</Label>
               <Input type="date" value={form.data_validade} onChange={(e) => setForm({ ...form, data_validade: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Input value={statusLabels[form.status] || form.status} disabled />
               <p className="text-[11px] text-muted-foreground">
-                O status é controlado pelas ações de fluxo na visualização detalhada.
+                Data limite para recebimento das propostas (opcional).
               </p>
             </div>
           </div>
@@ -307,14 +329,45 @@ export default function CotacoesCompra() {
           </div>
 
           <div className="space-y-2">
-            <Label>Observações</Label>
-            <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+            <div className="flex items-center justify-between">
+              <Label>Observações internas</Label>
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {(form.observacoes || "").length}/1000
+              </span>
+            </div>
+            <Textarea
+              value={form.observacoes}
+              onChange={(e) => setForm({ ...form, observacoes: e.target.value.slice(0, 1000) })}
+              maxLength={1000}
+              placeholder="Notas para sua equipe sobre esta cotação..."
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Visível apenas para sua equipe. Não é enviado aos fornecedores.
+            </p>
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
-          </div>
+          {showSaveAndAddProposal && (
+            <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 px-4 py-3">
+              <ArrowRight className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground">Próximo passo</p>
+                <p className="mt-0.5">
+                  Após salvar, registre as propostas dos fornecedores na visualização da cotação.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <FormModalFooter
+            mode={mode}
+            saving={saving}
+            isDirty={isDirty}
+            onCancel={requestCloseModal}
+            submitAsForm
+            formId="cotacao-compra-form"
+            onSaveAndNew={showSaveAndAddProposal ? handleSaveAndAddProposal : undefined}
+            saveAndNewLabel="Salvar e adicionar proposta"
+          />
         </form>
       </FormModal>
 
@@ -350,6 +403,7 @@ export default function CotacoesCompra() {
         title="Excluir cotação"
         description={`Tem certeza que deseja excluir a cotação ${selected?.numero || ""}? Esta ação não pode ser desfeita.`}
       />
+      {discardDialog}
     </>
   );
 }
