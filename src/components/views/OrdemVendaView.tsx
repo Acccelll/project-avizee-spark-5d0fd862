@@ -55,6 +55,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { PedidoEditDrawer } from "@/components/views/PedidoEditDrawer";
 import {
   verificarPrerequisitosNF,
   type NFPrerequisiteIssue,
