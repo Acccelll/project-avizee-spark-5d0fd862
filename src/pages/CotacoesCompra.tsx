@@ -4,13 +4,15 @@ import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { FormModal } from "@/components/FormModal";
 import { StatusBadge } from "@/components/StatusBadge";
+import { FormModalFooter } from "@/components/FormModalFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Info, Plus, X, ShoppingCart, Clock, FileSearch, AlertCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info, Plus, X, ShoppingCart, Clock, FileSearch, AlertCircle, ArrowRight } from "lucide-react";
 import { formatNumber, formatDate } from "@/lib/format";
 import { useCotacoesCompra } from "@/hooks/useCotacoesCompra";
 import { CotacaoCompraFilters } from "@/components/compras/CotacaoCompraFilters";
@@ -19,7 +21,9 @@ import { CotacaoCompraTable } from "@/components/compras/CotacaoCompraTable";
 import { CotacaoCompraDrawer } from "@/components/compras/CotacaoCompraDrawer";
 import { statusLabels } from "@/components/compras/cotacaoCompraTypes";
 import { useComprasRealtime } from "@/hooks/useComprasRealtime";
-import { useMemo } from "react";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function CotacoesCompra() {
   const navigate = useNavigate();
