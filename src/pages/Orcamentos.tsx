@@ -573,15 +573,17 @@ const Orcamentos = () => {
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-10 w-10 p-0"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/orcamentos/${o.id}`); }}
-                  aria-label="Editar"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                {normalizeOrcamentoStatus(o.status) !== "historico" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-10 w-10 p-0"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/orcamentos/${o.id}`); }}
+                    aria-label="Editar"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
             mobilePrimaryAction={(o) => {
@@ -627,6 +629,31 @@ const Orcamentos = () => {
                     onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}
                   >
                     <Send className="w-4 h-4" /> Enviar para aprovação
+                  </Button>
+                );
+              }
+              const ns = normalizeOrcamentoStatus(o.status);
+              if (ns === "convertido") {
+                return (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-11 w-full gap-2 text-sm"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/pedidos?cotacao=${o.id}`); }}
+                  >
+                    <ArrowRightCircle className="w-4 h-4" /> Abrir pedido
+                  </Button>
+                );
+              }
+              if (ns === "historico") {
+                return (
+                  <Button
+                    size="lg"
+                    variant="ghost"
+                    className="h-11 w-full gap-2 text-sm"
+                    onClick={(e) => { e.stopPropagation(); pushView("orcamento", o.id); }}
+                  >
+                    <Eye className="w-4 h-4" /> Visualizar
                   </Button>
                 );
               }
