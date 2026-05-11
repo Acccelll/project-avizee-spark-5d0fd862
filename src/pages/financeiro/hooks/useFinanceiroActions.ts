@@ -154,8 +154,9 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
   }, [estornoTarget, estornoMotivo, fetchData]);
 
   const handleExportar = useCallback(
-    async (formato: "excel" | "pdf") => {
-      const rows = filteredData.map((item) => ({
+    async (formato: "excel" | "pdf", subset?: Lancamento[]) => {
+      const source = subset && subset.length > 0 ? subset : filteredData;
+      const rows = source.map((item) => ({
         Tipo: item.tipo === "receber" ? "A Receber" : "A Pagar",
         Descrição: item.descricao,
         Pessoa:
