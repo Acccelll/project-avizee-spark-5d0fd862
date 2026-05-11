@@ -46,7 +46,26 @@ export function getTipoMovConfig(tipo: string) {
 }
 
 export function getOrigemConfig(origem: string | null | undefined) {
+  return getOrigemConfigFull(origem, null);
+}
+
+/**
+ * Variante que considera o motivo para inferir origem "Saldo inicial"
+ * quando não há `documento_tipo` registrado (ex.: importação inicial).
+ */
+export function getOrigemConfigFull(
+  origem: string | null | undefined,
+  motivo: string | null | undefined,
+) {
   if (!origem) {
+    const m = String(motivo ?? "").trim().toLowerCase();
+    if (m.startsWith("saldo inicial") || m.includes("importação inicial") || m.includes("importacao inicial")) {
+      return {
+        label: "Saldo inicial",
+        className: "bg-info/10 text-info border-info/30",
+        emphasis: "low" as const,
+      };
+    }
     return {
       label: "Sem origem",
       className: "bg-muted text-muted-foreground border-border",

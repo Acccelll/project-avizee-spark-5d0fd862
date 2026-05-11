@@ -36,7 +36,8 @@ import { AlertTriangle, ArrowDownCircle, RotateCcw,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
-import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
+import { getOrigemConfigFull, getTipoMovConfig, tipoMovConfig, origemConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
 import { useCan } from "@/hooks/useCan";
@@ -57,7 +58,7 @@ type ProdutoPosicao = ProdutoRow & {
   estoque_reservado?: number | null;
 };
 
-type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado";
+type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado" | "sem_minimo";
 
 function getSituacao(p: ProdutoPosicao): SituacaoEstoque {
   const atual = Number(p.estoque_atual ?? 0);
@@ -65,6 +66,7 @@ function getSituacao(p: ProdutoPosicao): SituacaoEstoque {
   if (atual <= 0) return "zerado";
   if (minimo > 0 && atual <= minimo) return "critico";
   if (minimo > 0 && atual <= minimo * 1.2) return "atencao";
+  if (minimo === 0) return "sem_minimo";
   return "normal";
 }
 
@@ -73,6 +75,7 @@ const situacaoConfig: Record<SituacaoEstoque, { label: string; icon: typeof Chec
   atencao: { label: "Em Atenção",        icon: AlertTriangle, cls: "bg-warning/10 text-warning border-warning/20" },
   critico: { label: "Abaixo do Mínimo", icon: TrendingDown,  cls: "bg-destructive/10 text-destructive border-destructive/20" },
   zerado:  { label: "Sem Estoque",       icon: XCircle,       cls: "bg-destructive/10 text-destructive border-destructive/20" },
+  sem_minimo: { label: "Sem mínimo",     icon: Info,          cls: "bg-muted text-muted-foreground border-border" },
 };
 
 function SituacaoEstoqueBadge({ situacao }: { situacao: SituacaoEstoque }) {
@@ -145,12 +148,13 @@ const Estoque = () => {
   // Movimentações filters
   const [searchMovimentacao, setSearchMovimentacao] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
+  const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
   // Produtos abaixo do mínimo
   const abaixoMinimo = useMemo(() =>
-    produtosCrud.data.filter((p) => p.ativo && (p.estoque_minimo ?? 0) > 0 && Number(p.estoque_atual ?? 0) <= Number(p.estoque_minimo ?? 0)),
+    produtosCrud.data.filter((p) => p.ativo && (p.estoque_minimo ?? 0) > 0 && Number(p.estoque_atual ?? 0) <= Number(p.estoque_minimo ?? 0) && Number(p.estoque_atual ?? 0) > 0),
     [produtosCrud.data]
   );
 
@@ -165,8 +169,9 @@ const Estoque = () => {
     );
     const itensZerados = ativos.filter((p) => Number(p.estoque_atual ?? 0) <= 0).length;
     const itensCriticos = abaixoMinimo.length + itensZerados;
+    const semMinimo = ativos.filter((p) => Number(p.estoque_minimo ?? 0) === 0 && Number(p.estoque_atual ?? 0) > 0).length;
     const ajustesManuais = data.filter((m) => m.tipo === "ajuste").length;
-    return { totalItens, valorEstoque, itensCriticos, ajustesManuais };
+    return { totalItens, valorEstoque, itensCriticos, ajustesManuais, itensZerados, abaixoMin: abaixoMinimo.length, semMinimo };
   }, [produtosCrud.data, abaixoMinimo, data]);
 
   // Sparklines: contagem diária dos últimos 14 dias por tipo de movimento.
@@ -234,6 +239,16 @@ const Estoque = () => {
     const q = searchMovimentacao.toLowerCase();
     return data.filter((m) => {
       if (tipoFilters.length > 0 && !tipoFilters.includes(m.tipo)) return false;
+      if (origemFilters.length > 0) {
+        const origemKey = m.documento_tipo
+          ? m.documento_tipo
+          : (String(m.motivo ?? "").trim().toLowerCase().startsWith("saldo inicial")
+              || String(m.motivo ?? "").toLowerCase().includes("importação inicial")
+              || String(m.motivo ?? "").toLowerCase().includes("importacao inicial"))
+            ? "saldo_inicial"
+            : "sem_origem";
+        if (!origemFilters.includes(origemKey)) return false;
+      }
       if (dataInicio && m.created_at < dataInicio) return false;
       if (dataFim && m.created_at > dataFim + "T23:59:59") return false;
       if (q) {
@@ -243,7 +258,7 @@ const Estoque = () => {
       }
       return true;
     });
-  }, [data, tipoFilters, dataInicio, dataFim, searchMovimentacao]);
+  }, [data, tipoFilters, origemFilters, dataInicio, dataFim, searchMovimentacao]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -336,16 +351,25 @@ const Estoque = () => {
 
   // Movimentações filter chips
   const movActiveFilters = useMemo((): FilterChip[] => {
-    return tipoFilters.map((f) => ({
+    const chips: FilterChip[] = tipoFilters.map((f) => ({
       key: "tipo",
       label: "Tipo",
       value: [f],
       displayValue: tipoMovConfig[f]?.label ?? f,
     }));
-  }, [tipoFilters]);
+    origemFilters.forEach((f) => {
+      const label =
+        f === "saldo_inicial" ? "Saldo inicial" :
+        f === "sem_origem" ? "Sem origem" :
+        (origemConfig[f]?.label ?? f);
+      chips.push({ key: "origem", label: "Origem", value: [f], displayValue: label });
+    });
+    return chips;
+  }, [tipoFilters, origemFilters]);
 
   const handleRemoveMovFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters((prev) => prev.filter((v) => v !== value));
+    if (key === "origem") setOrigemFilters((prev) => prev.filter((v) => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [
@@ -365,6 +389,19 @@ const Estoque = () => {
     { label: "Em Atenção", value: "atencao" },
     { label: "Abaixo do Mínimo", value: "critico" },
     { label: "Sem Estoque", value: "zerado" },
+    { label: "Sem mínimo", value: "sem_minimo" },
+  ];
+
+  const origemOptions: MultiSelectOption[] = [
+    { label: "Manual", value: "manual" },
+    { label: "Saldo inicial", value: "saldo_inicial" },
+    { label: "Compra", value: "compra" },
+    { label: "Pedido de Compra", value: "pedido_compra" },
+    { label: "Venda", value: "venda" },
+    { label: "Pedido de Venda", value: "pedido" },
+    { label: "Nota Fiscal", value: "nota_fiscal" },
+    { label: "Ajuste", value: "ajuste" },
+    { label: "Sem origem", value: "sem_origem" },
   ];
 
   const movColumns = [
@@ -387,15 +424,20 @@ const Estoque = () => {
       const qtyTextClass =
         cfg.className.split(" ").find((c) => c.startsWith("text-")) ??
         (neg ? "text-destructive" : "text-success");
-      return <span className={`font-mono font-semibold ${qtyTextClass}`}>{neg ? "-" : "+"}{formatNumber(m.quantidade)}</span>;
+      return <span className={`font-mono font-semibold ${qtyTextClass}`}>{neg ? "−" : "+"}{formatNumber(Math.abs(Number(m.quantidade)))}</span>;
     }},
     { key: "saldo_atual", label: "Saldo", mobileCard: true, render: (m: Movimento) => <span className="font-semibold font-mono">{formatNumber(m.saldo_atual)}</span> },
     { key: "origem", label: "Origem", mobileCard: true, render: (m: Movimento) => {
-      const origem = getOrigemConfig(m.documento_tipo);
+      const origem = getOrigemConfigFull(m.documento_tipo, m.motivo);
       return <Badge variant="outline" className={`text-xs ${origem.className}`}>{origem.label}</Badge>;
     } },
     { key: "motivo", label: "Motivo / Observação", render: (m: Movimento) => m.motivo || <span className="text-muted-foreground">—</span> },
     { key: "created_at", label: "Data", mobileCard: true, render: (m: Movimento) => new Date(m.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) },
+    { key: "responsavel", label: "Responsável", render: (m: Movimento) => {
+      const uid = m.usuario_id ?? null;
+      if (!uid) return <span className="text-muted-foreground">—</span>;
+      return <span className="text-xs font-mono text-muted-foreground" title={uid}>{uid.slice(0, 8)}…</span>;
+    }, hidden: true },
   ];
 
   const posColumns = [
@@ -403,12 +445,14 @@ const Estoque = () => {
       <div><span className="font-medium">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>{p.sku && <><br/><span className="text-xs text-muted-foreground font-mono">{p.sku}</span></>}</div>
     )},
     { key: "unidade", label: "Unid.", render: (p: ProdutoPosicao) => p.unidade_medida ?? "UN" },
-    { key: "estoque_atual", label: "Estoque Atual", render: (p: ProdutoPosicao) => <span className="font-semibold font-mono">{formatNumber(Number(p.estoque_atual ?? 0))}</span> },
+    { key: "estoque_atual", label: "Estoque Atual", headerTooltip: "Saldo físico/sistêmico do produto.", render: (p: ProdutoPosicao) => <span className="font-semibold font-mono">{formatNumber(Number(p.estoque_atual ?? 0))}</span> },
     { key: "estoque_reservado", label: "Reservado", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{formatNumber(Number(p.estoque_reservado ?? 0))}</span>, hidden: true },
-    { key: "estoque_disponivel", label: "Disponível", render: (p: ProdutoPosicao) => <span className="font-mono font-semibold">{formatNumber(Number(p.estoque_atual ?? 0) - Number(p.estoque_reservado ?? 0))}</span> },
-    { key: "estoque_minimo", label: "Mínimo", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{(p.estoque_minimo ?? 0) > 0 ? formatNumber(p.estoque_minimo ?? 0) : "—"}</span> },
+    { key: "estoque_disponivel", label: "Disponível", headerTooltip: "Saldo livre = Estoque atual − Reservado. Reservas vêm de pedidos em separação.", render: (p: ProdutoPosicao) => <span className="font-mono font-semibold">{formatNumber(Number(p.estoque_atual ?? 0) - Number(p.estoque_reservado ?? 0))}</span> },
+    { key: "estoque_minimo", label: "Mínimo", render: (p: ProdutoPosicao) => (p.estoque_minimo ?? 0) > 0
+      ? <span className="font-mono text-muted-foreground">{formatNumber(p.estoque_minimo ?? 0)}</span>
+      : <span className="text-[11px] text-muted-foreground italic">Sem mínimo</span> },
     { key: "situacao", label: "Situação", render: (p: ProdutoPosicao) => <SituacaoEstoqueBadge situacao={getSituacao(p)} /> },
-    { key: "valor_estoque", label: "Valor Est.", render: (p: ProdutoPosicao) => {
+    { key: "valor_estoque", label: "Custo total (saldo × custo)", render: (p: ProdutoPosicao) => {
       // Use preco_custo for valuation; fallback to preco_venda when cost is unavailable.
       const custo = Number(p.preco_custo ?? p.preco_venda ?? 0);
       return <span className="font-mono font-medium">{formatCurrency(Number(p.estoque_atual ?? 0) * custo)}</span>;
@@ -443,23 +487,24 @@ const Estoque = () => {
               icon={Package}
               variation="produtos ativos"
               variationType="neutral"
+              onClick={() => { setActiveTab("saldos"); setSituacaoFilters([]); }}
             />
             <SummaryCard
               title="Valor em Estoque"
               value={formatCurrency(kpis.valorEstoque)}
               icon={DollarSign}
-              variation="pelo preço de custo"
+              variation="Σ saldo × custo (fallback venda)"
               variationType="neutral"
               variant="info"
             />
             <SummaryCard
-              title="Itens Críticos"
-              value={formatNumber(kpis.itensCriticos)}
+              title="Abaixo do mínimo"
+              value={formatNumber(kpis.abaixoMin)}
               icon={TrendingDown}
-              variation={kpis.itensCriticos > 0 ? "exigem atenção" : "estoque saudável"}
-              variationType={kpis.itensCriticos > 0 ? "negative" : "positive"}
-              variant={kpis.itensCriticos > 0 ? "danger" : undefined}
-              onClick={kpis.itensCriticos > 0 ? () => { setActiveTab("saldos"); setSituacaoFilters(["critico", "zerado"]); } : undefined}
+              variation={kpis.itensZerados > 0 ? `+ ${formatNumber(kpis.itensZerados)} zerado(s)` : (kpis.semMinimo > 0 ? `${formatNumber(kpis.semMinimo)} sem mínimo` : "estoque saudável")}
+              variationType={(kpis.abaixoMin + kpis.itensZerados) > 0 ? "negative" : "positive"}
+              variant={(kpis.abaixoMin + kpis.itensZerados) > 0 ? "danger" : undefined}
+              onClick={() => { setActiveTab("saldos"); setSituacaoFilters(["critico", "zerado"]); }}
               sparklineData={sparklines.saida}
             />
             <SummaryCard
@@ -470,6 +515,7 @@ const Estoque = () => {
               variationType="negative"
               variant="warning"
               sparklineData={sparklines.ajuste}
+              onClick={() => { setActiveTab("movimentacoes"); setTipoFilters(["ajuste"]); }}
             />
           </>
         }
@@ -517,7 +563,7 @@ const Estoque = () => {
               <RotateCcw className="h-3.5 w-3.5" />Movimentações
             </TabsTrigger>
             <TabsTrigger value="ajuste" className="gap-1.5">
-              <SlidersHorizontal className="h-3.5 w-3.5" />Ajuste Manual
+              <SlidersHorizontal className="h-3.5 w-3.5" />Ajustes
             </TabsTrigger>
           </ScrollableTabsList>
 
@@ -602,7 +648,7 @@ const Estoque = () => {
               searchPlaceholder="Buscar produto por nome ou SKU..."
               activeFilters={movActiveFilters}
               onRemoveFilter={handleRemoveMovFilter}
-              onClearAll={() => { setTipoFilters([]); setSearchMovimentacao(""); setDataInicio(""); setDataFim(""); }}
+              onClearAll={() => { setTipoFilters([]); setOrigemFilters([]); setSearchMovimentacao(""); setDataInicio(""); setDataFim(""); }}
               count={filteredData.length}
             >
               <MultiSelect
@@ -611,6 +657,13 @@ const Estoque = () => {
                 onChange={setTipoFilters}
                 placeholder="Tipo de Movimento"
                 className="w-[200px]"
+              />
+              <MultiSelect
+                options={origemOptions}
+                selected={origemFilters}
+                onChange={setOrigemFilters}
+                placeholder="Origem"
+                className="w-[180px]"
               />
               <PeriodFilter
                 mode="both"
@@ -968,7 +1021,41 @@ const Estoque = () => {
         confirmLabel="Confirmar"
         confirmVariant="default"
         loading={saving || pendingSubmit}
-      />
+      >
+        {pendingMovForm && pendingMovForm.tipo === "ajuste" && (() => {
+          const produto = produtosCrud.data.find((p) => p.id === pendingMovForm.produto_id);
+          const un = produto?.unidade_medida || "UN";
+          const saldoAtual = Number(produto?.estoque_atual ?? 0);
+          const novo = pendingMovForm.quantidade;
+          const diff = novo - saldoAtual;
+          const diffSign = diff > 0 ? "+" : diff < 0 ? "−" : "";
+          const diffAbs = formatNumber(Math.abs(diff));
+          const catLabels: Record<string, string> = {
+            correcao_inventario: "Correção de inventário",
+            perda: "Perda",
+            avaria: "Avaria",
+            vencimento: "Vencimento",
+            furto_extravio: "Furto / extravio",
+            divergencia_recebimento: "Divergência de recebimento",
+            outro: "Outro",
+          };
+          return (
+            <div className="rounded-md border bg-muted/30 px-3 py-2.5 text-xs space-y-1.5 font-mono">
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Produto:</span><span className="font-semibold text-right">{produto?.nome ?? "—"}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Saldo atual:</span><span>{formatNumber(saldoAtual)} {un}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Novo saldo:</span><span className="font-semibold">{formatNumber(novo)} {un}</span></div>
+              <div className="flex justify-between gap-4 border-t pt-1.5">
+                <span className="text-muted-foreground">Diferença:</span>
+                <span className={cn("font-bold", diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground")}>
+                  {diffSign}{diffAbs} {un}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Categoria:</span><span>{catLabels[pendingMovForm.categoria_ajuste] ?? pendingMovForm.categoria_ajuste}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Justificativa:</span><span className="text-right max-w-[60%] truncate" title={pendingMovForm.motivo || "—"}>{pendingMovForm.motivo || "—"}</span></div>
+            </div>
+          );
+        })()}
+      </ConfirmDialog>
 
       <EstoqueAjusteSheet
         open={ajusteSheetOpen}
