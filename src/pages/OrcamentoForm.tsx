@@ -1191,7 +1191,7 @@ export default function OrcamentoForm() {
                     </Select>
                   )}
                 />
-                <p className="text-[11px] text-muted-foreground">Fluxo: Rascunho → Aguardando aprovação → Aprovado → Convertido em pedido</p>
+                <StatusStepper status={status} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Validade</Label>
