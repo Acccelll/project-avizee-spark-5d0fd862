@@ -994,9 +994,9 @@ export default function OrcamentoForm() {
           </DropdownMenu>
         </div>
         <div className="hidden items-center gap-2 md:flex md:flex-wrap">
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
+          <Button onClick={handleSave} disabled={saving} className="gap-2" title={isEdit ? "Salvar alterações neste orçamento" : "Salvar novo orçamento"}>
             <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : isEdit && status !== "rascunho" ? "Salvar" : "Salvar"}
+            {saving ? "Salvando..." : "Salvar"}
           </Button>
           <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2"><Eye className="w-4 h-4" />Visualizar</Button>
           <Button variant="secondary" onClick={handleGeneratePdf} className="gap-2"><FileText className="w-4 h-4" />Gerar PDF</Button>
