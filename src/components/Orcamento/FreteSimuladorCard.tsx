@@ -12,7 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Package, Truck, Plus, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/format';
 import { useFreteSimulador, type UseFreteSimuladorProps } from './useFreteSimulador';
 import { FreteSimuladorForm } from './FreteSimuladorForm';
 import { FreteOpcoesList } from './FreteSimuladorResultados';
