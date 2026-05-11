@@ -69,15 +69,14 @@ interface Props {
 
 export function OrcamentoView({ id }: Props) {
   const navigate = useNavigate();
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
   const [convertConfirmOpen, setConvertConfirmOpen] = useState(false);
   const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
-  const [cancelMotivo, setCancelMotivo] = useState("");
   const { pushView, clearStack } = useRelationalNavigation();
   const { isAdmin } = useIsAdmin();
+  const { canHardDelete } = useCanHardDelete();
   const { can } = useCan();
   const canAprovar = can("orcamentos:aprovar") || isAdmin;
   const canCancelar = can("orcamentos:cancelar") || isAdmin;
@@ -87,6 +86,7 @@ export function OrcamentoView({ id }: Props) {
   const converterOrcamento = useConverterOrcamento();
   const aprovarOrcamentoMut = useAprovarOrcamento();
   const crossToast = useCrossModuleToast();
+  const { confirm: confirmCancel, dialog: cancelDialog } = useConfirmDestructive({ verb: "Cancelar" });
   // B-03: motivo obrigatório de cancelamento de orçamento (paralelo ao do pedido).
   const { value: comercialFlags } = useAppConfig<{
     exigir_motivo_cancelamento_orcamento?: boolean;
