@@ -487,12 +487,13 @@ const Estoque = () => {
               icon={Package}
               variation="produtos ativos"
               variationType="neutral"
+              onClick={() => { setActiveTab("saldos"); setSituacaoFilters([]); }}
             />
             <SummaryCard
               title="Valor em Estoque"
               value={formatCurrency(kpis.valorEstoque)}
               icon={DollarSign}
-              variation="pelo preço de custo"
+              variation="Σ saldo × custo (fallback venda)"
               variationType="neutral"
               variant="info"
             />
