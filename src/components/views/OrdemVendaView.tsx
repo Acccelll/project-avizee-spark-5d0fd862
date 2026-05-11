@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -114,7 +113,6 @@ export function OrdemVendaView({ id }: Props) {
   const [nfIssues, setNfIssues] = useState<NFPrerequisiteIssue[]>([]);
   const [nfIssuesLoading, setNfIssuesLoading] = useState(false);
   const { pushView } = useRelationalNavigation();
-  const navigate = useNavigate();
   const { run, locked } = useDetailActions();
   const faturarPedido = useFaturarPedido();
   const cancelarPedido = useCancelarPedido();
