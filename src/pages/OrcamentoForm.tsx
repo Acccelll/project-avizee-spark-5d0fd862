@@ -1347,12 +1347,9 @@ export default function OrcamentoForm() {
 
         <div className="hidden lg:col-span-4 lg:block">
           <OrcamentoSidebarSummary
-            status={status} numero={numero} clienteNome={clienteSnapshot.nome_razao_social}
             qtdItens={items.filter(i => i.produto_id).length} totalProdutos={totalProdutos}
             freteValor={freteValor} valorTotal={valorTotal}
-            pesoTotal={pesoTotal} validade={validade} isEdit={isEdit}
-            onSave={handleSave} onPreview={() => setPreviewOpen(true)}
-            onGeneratePdf={handleGeneratePdf} saving={saving}
+            pesoTotal={pesoTotal} validade={validade}
           />
           <div className="mt-4 rounded-xl border bg-card p-4 space-y-3">
             <h4 className="font-semibold">Simulador de Condições</h4>
