@@ -424,7 +424,7 @@ const Estoque = () => {
       const qtyTextClass =
         cfg.className.split(" ").find((c) => c.startsWith("text-")) ??
         (neg ? "text-destructive" : "text-success");
-      return <span className={`font-mono font-semibold ${qtyTextClass}`}>{neg ? "-" : "+"}{formatNumber(m.quantidade)}</span>;
+      return <span className={`font-mono font-semibold ${qtyTextClass}`}>{neg ? "−" : "+"}{formatNumber(Math.abs(Number(m.quantidade)))}</span>;
     }},
     { key: "saldo_atual", label: "Saldo", mobileCard: true, render: (m: Movimento) => <span className="font-semibold font-mono">{formatNumber(m.saldo_atual)}</span> },
     { key: "origem", label: "Origem", mobileCard: true, render: (m: Movimento) => {
@@ -433,6 +433,11 @@ const Estoque = () => {
     } },
     { key: "motivo", label: "Motivo / Observação", render: (m: Movimento) => m.motivo || <span className="text-muted-foreground">—</span> },
     { key: "created_at", label: "Data", mobileCard: true, render: (m: Movimento) => new Date(m.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) },
+    { key: "responsavel", label: "Responsável", render: (m: Movimento) => {
+      const uid = m.usuario_id ?? null;
+      if (!uid) return <span className="text-muted-foreground">—</span>;
+      return <span className="text-xs font-mono text-muted-foreground" title={uid}>{uid.slice(0, 8)}…</span>;
+    }, hidden: true },
   ];
 
   const posColumns = [
