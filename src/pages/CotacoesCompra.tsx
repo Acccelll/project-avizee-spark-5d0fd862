@@ -75,6 +75,59 @@ export default function CotacoesCompra() {
     [fornecedorOptions],
   );
 
+  // Snapshot baseline para detectar alterações não salvas no modal de edição.
+  type Snapshot = { form: typeof form; items: typeof localItems };
+  const [baseline, setBaseline] = useState<Snapshot | null>(null);
+  useEffect(() => {
+    if (modalOpen) {
+      setBaseline({
+        form: { ...form },
+        items: localItems.map((i) => ({ ...i })),
+      });
+    } else {
+      setBaseline(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalOpen, mode, selected?.id]);
+
+  const isDirty = useMemo(() => {
+    if (!baseline) return false;
+    if (JSON.stringify(baseline.form) !== JSON.stringify(form)) return true;
+    if (JSON.stringify(baseline.items) !== JSON.stringify(localItems)) return true;
+    return false;
+  }, [baseline, form, localItems]);
+
+  useBeforeUnloadGuard(modalOpen && isDirty);
+
+  const { confirm, dialog: discardDialog } = useConfirmDialog();
+  const requestCloseModal = async () => {
+    if (isDirty) {
+      const ok = await confirm();
+      if (!ok) return;
+    }
+    setModalOpen(false);
+  };
+
+  const propostasCount = selected ? summaries[selected.id]?.propostas_count ?? 0 : 0;
+  const showSaveAndAddProposal = mode === "edit" && propostasCount === 0;
+
+  // "Salvar e adicionar proposta": após salvar com sucesso (modal fecha),
+  // reabre o drawer da cotação para o usuário registrar propostas.
+  const wantOpenPropostasRef = useRef(false);
+  const wasModalOpenRef = useRef(modalOpen);
+  useEffect(() => {
+    if (wasModalOpenRef.current && !modalOpen && wantOpenPropostasRef.current && selected) {
+      wantOpenPropostasRef.current = false;
+      openView(selected);
+    }
+    wasModalOpenRef.current = modalOpen;
+  }, [modalOpen, selected, openView]);
+
+  const handleSaveAndAddProposal = async () => {
+    wantOpenPropostasRef.current = true;
+    await handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+  };
+
   return (
     <><ModulePage
         title="Cotações de Compra"
