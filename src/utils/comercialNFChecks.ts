@@ -22,7 +22,7 @@ export async function verificarPrerequisitosNF(
   const { data: pedido, error: pedidoErr } = await supabase
     .from("ordens_venda")
     .select(
-      "id, condicao_pagamento, prazo_pagamento, clientes(nome_razao_social, inscricao_estadual, indicador_ie)",
+      "id, cotacao_id, clientes(nome_razao_social, inscricao_estadual, indicador_ie), orcamentos:cotacao_id(pagamento, prazo_pagamento)",
     )
     .eq("id", pedidoId)
     .maybeSingle();
@@ -42,7 +42,10 @@ export async function verificarPrerequisitosNF(
     });
   }
 
-  if (!pedido.condicao_pagamento && !pedido.prazo_pagamento) {
+  const orc = pedido.orcamentos as
+    | { pagamento?: string | null; prazo_pagamento?: string | null }
+    | null;
+  if (!orc?.pagamento && !orc?.prazo_pagamento) {
     issues.push({
       code: "sem_condicao_pagamento",
       label: "Pedido sem condição de pagamento definida",
