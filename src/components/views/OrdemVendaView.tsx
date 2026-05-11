@@ -431,6 +431,7 @@ export function OrdemVendaView({ id }: Props) {
             label: selected.orcamentos?.numero
               ? `Orçamento ${selected.orcamentos.numero}`
               : "Sem orçamento",
+            shortLabel: "Orçamento",
             done: !!selected.cotacao_id,
             hint: selected.cotacao_id ? "Abrir orçamento de origem" : "Pedido criado sem orçamento",
             onClick: selected.cotacao_id
@@ -440,6 +441,7 @@ export function OrdemVendaView({ id }: Props) {
           {
             key: "pedido",
             label: `Pedido ${selected.numero}`,
+            shortLabel: "Pedido",
             done: true,
             current: notasFiscais.length === 0,
             hint: "Etapa atual",
@@ -452,6 +454,7 @@ export function OrdemVendaView({ id }: Props) {
                 : notasFiscais.length === 1
                   ? `NF ${notasFiscais[0].numero}`
                   : `${notasFiscais.length} NFs`,
+            shortLabel: "NF",
             done: notasFiscais.some((n) => ["confirmada", "autorizada"].includes(n.status || "")),
             current: notasFiscais.length > 0,
             hint:
