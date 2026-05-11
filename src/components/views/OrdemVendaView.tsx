@@ -522,88 +522,99 @@ export function OrdemVendaView({ id }: Props) {
         {/* ── Resumo ─────────────────────────────────────── */}
         <TabsContent value="resumo" className="space-y-4 mt-3 text-sm">
           <div className="space-y-3">
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Status Operacional</p>
-              <div className="mt-0.5">
-                <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold">Status</span>
+              <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
             </div>
-            <div className="rounded-md border bg-muted/20 px-3 py-2">
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Escopo de edição do pedido</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                A edição do pedido altera apenas dados operacionais (status, prazos, PO e observações). Itens, valores e vínculos com orçamento/NF permanecem no fluxo original.
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Cliente</p>
-              <RelationalLink onClick={() => pushView("cliente", selected.clientes?.id)}>
-                {selected.clientes?.nome_razao_social || "—"}
-              </RelationalLink>
-            </div>
-            {selected.cotacao_id && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Orçamento de Origem</p>
-                <RelationalLink type="orcamento" id={selected.cotacao_id}>
-                  {selected.orcamentos?.numero ? `Orçamento ${selected.orcamentos.numero}` : "Ver orçamento"}
+
+            {/* Escopo compactado em 1 linha */}
+            <p className="text-[11px] text-muted-foreground italic">
+              Edição operacional · itens, valores e vínculos permanecem no fluxo original.
+            </p>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              {/* Cliente */}
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Cliente</p>
+                <RelationalLink onClick={() => pushView("cliente", selected.clientes?.id)}>
+                  {selected.clientes?.nome_razao_social || "—"}
                 </RelationalLink>
               </div>
-            )}
-            {selected.po_number && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">PO do Cliente</p>
-                <p className="font-mono">{selected.po_number}</p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Data de Emissão</p>
-                <p>{formatDate(selected.data_emissao)}</p>
-              </div>
-              {selected.data_aprovacao && (
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Data de Aprovação</p>
-                  <p>{formatDate(selected.data_aprovacao)}</p>
-                </div>
-              )}
-              {selected.data_prometida_despacho && (
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">
-                    <CalendarClock className="inline h-3 w-3 mr-0.5" /> Despacho Prometido
+
+              {/* Origem (Orçamento + PO) */}
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Origem</p>
+                {selected.cotacao_id ? (
+                  <RelationalLink type="orcamento" id={selected.cotacao_id}>
+                    {selected.orcamentos?.numero ? `Orçamento ${selected.orcamentos.numero}` : "Ver orçamento"}
+                  </RelationalLink>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Sem orçamento de origem</p>
+                )}
+                {selected.po_number && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    PO <span className="font-mono">{selected.po_number}</span>
                   </p>
-                  <p>{formatDate(selected.data_prometida_despacho)}</p>
+                )}
+              </div>
+
+              {/* Operação (frete + prazos + pagamento) */}
+              <div className="rounded-lg border bg-card p-3 sm:col-span-2 space-y-1.5">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Operação</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {selected.orcamentos?.frete_tipo && (
+                    <div>
+                      <span className="text-muted-foreground">Frete: </span>
+                      <span>{freteTipoLabels[selected.orcamentos.frete_tipo] || selected.orcamentos.frete_tipo}</span>
+                    </div>
+                  )}
+                  {selected.orcamentos?.pagamento && (
+                    <div>
+                      <span className="text-muted-foreground">Pagamento: </span>
+                      <span>
+                        {pagamentoLabels[selected.orcamentos.pagamento] || selected.orcamentos.pagamento}
+                        {selected.orcamentos.prazo_pagamento ? ` — ${selected.orcamentos.prazo_pagamento}` : ""}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-muted-foreground">Emissão: </span>
+                    <span>{formatDate(selected.data_emissao)}</span>
+                  </div>
+                  {selected.data_aprovacao && (
+                    <div>
+                      <span className="text-muted-foreground">Aprovação: </span>
+                      <span>{formatDate(selected.data_aprovacao)}</span>
+                    </div>
+                  )}
+                  {selected.data_prometida_despacho && (
+                    <div>
+                      <span className="text-muted-foreground inline-flex items-center gap-0.5">
+                        <CalendarClock className="h-3 w-3" /> Despacho:
+                      </span>{" "}
+                      <span>{formatDate(selected.data_prometida_despacho)}</span>
+                    </div>
+                  )}
+                  {selected.prazo_despacho_dias != null && (
+                    <div>
+                      <span className="text-muted-foreground">Prazo despacho: </span>
+                      <span>{selected.prazo_despacho_dias} dias</span>
+                    </div>
+                  )}
+                  {selected.orcamentos?.prazo_entrega && (
+                    <div>
+                      <span className="text-muted-foreground">Prazo entrega: </span>
+                      <span>{selected.orcamentos.prazo_entrega}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {selected.prazo_despacho_dias != null && (
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo Despacho</p>
-                  <p>{selected.prazo_despacho_dias} dias</p>
-                </div>
-              )}
+              </div>
             </div>
-            {selected.orcamentos?.pagamento && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Condição de Pagamento</p>
-                <p>{pagamentoLabels[selected.orcamentos.pagamento] || selected.orcamentos.pagamento}
-                  {selected.orcamentos.prazo_pagamento ? ` — ${selected.orcamentos.prazo_pagamento}` : ""}
-                </p>
-              </div>
-            )}
-            {selected.orcamentos?.frete_tipo && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Tipo de Frete</p>
-                <p>{freteTipoLabels[selected.orcamentos.frete_tipo] || selected.orcamentos.frete_tipo}</p>
-              </div>
-            )}
-            {selected.orcamentos?.prazo_entrega && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de Entrega (Orçamento)</p>
-                <p>{selected.orcamentos.prazo_entrega}</p>
-              </div>
-            )}
+
             {selected.observacoes && (
-              <div>
+              <div className="rounded-lg border bg-muted/10 px-3 py-2">
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold">Observações</p>
-                <p className="text-xs text-muted-foreground italic">{selected.observacoes}</p>
+                <p className="text-xs text-muted-foreground italic mt-0.5">{selected.observacoes}</p>
               </div>
             )}
             {selected.status === "cancelada" && (
