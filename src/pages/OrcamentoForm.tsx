@@ -145,7 +145,7 @@ function StatusStepper({ status }: { status: string }) {
     );
   }
   return (
-    <div className="flex items-center gap-1 mt-1" aria-label="Fluxo do orçamento">
+    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1" aria-label="Fluxo do orçamento">
       {steps.map((s, i) => {
         const active = i === currentIdx;
         const done = currentIdx >= 0 && i < currentIdx;
@@ -160,13 +160,24 @@ function StatusStepper({ status }: { status: string }) {
             <span className={"text-[10px] " + (active ? "font-semibold text-foreground" : "text-muted-foreground")}>
               {s.label}
             </span>
-            {i < steps.length - 1 && <span className="text-muted-foreground/40 text-[10px]">›</span>}
+            {i < steps.length - 1 && <span className="hidden sm:inline text-muted-foreground/40 text-[10px]">›</span>}
           </div>
         );
       })}
     </div>
   );
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  rascunho: "Rascunho",
+  pendente: "Aguardando aprovação",
+  aprovado: "Aprovado",
+  convertido: "Convertido",
+  rejeitado: "Rejeitado",
+  expirado: "Expirado",
+  cancelado: "Cancelado",
+  historico: "Histórico",
+};
 
 export default function OrcamentoForm() {
   const { id } = useParams();
