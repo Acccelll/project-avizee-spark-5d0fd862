@@ -731,13 +731,13 @@ export default function Logistica() {
           {/* ── Tab: Entregas ── */}
           <TabsContent value="entregas">
             <div className="mb-4 rounded-md border border-info/30/40 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
-              Entregas é uma visão consolidada por pedido. Quando houver múltiplas remessas, o status exibido reflete somente a última atualização — gerencie com precisão na aba <strong>Remessas</strong>.
+              Visão consolidada por pedido. Para múltiplas remessas, gerencie status na aba <strong>Remessas</strong>.
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              <SummaryCard title="Total de Entregas" value={formatNumber(entregasKpis.total)} icon={Package} variationType="neutral" variation="operações ativas" />
-              <SummaryCard title="Em Transporte" value={formatNumber(entregasKpis.emTransporte)} icon={Truck} variationType="positive" variation="a caminho do cliente" />
-              <SummaryCard title="Atrasadas" value={formatNumber(entregasKpis.atrasadas)} icon={AlertTriangle} variationType={entregasKpis.atrasadas > 0 ? "negative" : "neutral"} variation="fora do prazo" />
-              <SummaryCard title="Entregues" value={formatNumber(entregasKpis.entregues)} icon={CheckCheck} variationType="positive" variation="concluídas" />
+              <SummaryCard title="Pedidos em entrega" value={formatNumber(entregasKpis.total)} icon={Package} variationType="neutral" variation="operações ativas" onClick={() => { setStatusFilters([]); setPrazoFilters([]); }} />
+              <SummaryCard title="Em Transporte" value={formatNumber(entregasKpis.emTransporte)} icon={Truck} variationType="positive" variation="a caminho do cliente" onClick={() => { setStatusFilters(["em_transporte"]); setPrazoFilters([]); }} />
+              <SummaryCard title="Atrasadas" value={formatNumber(entregasKpis.atrasadas)} icon={AlertTriangle} variationType={entregasKpis.atrasadas > 0 ? "negative" : "neutral"} variation="fora do prazo" onClick={() => { setStatusFilters([]); setPrazoFilters(["atrasado"]); }} />
+              <SummaryCard title="Entregues" value={formatNumber(entregasKpis.entregues)} icon={CheckCheck} variationType="positive" variation="concluídas" onClick={() => { setStatusFilters(["entregue"]); setPrazoFilters([]); }} />
             </div>
             {/* Métricas secundárias: visíveis sempre em desktop; collapsible em mobile para reduzir scroll. */}
             <Collapsible defaultOpen={false} className="mb-6 md:!block">
