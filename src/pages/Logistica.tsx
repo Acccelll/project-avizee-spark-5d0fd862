@@ -889,6 +889,20 @@ export default function Logistica() {
 
           {/* ── Tab: Remessas ── */}
           <TabsContent value="remessas">
+            {(() => {
+              const total = (remessasData ?? []).length;
+              const aguardandoPostagem = (remessasData ?? []).filter((r) => !r.data_postagem && (r.status_transporte === "pendente" || r.status_transporte === "coletado")).length;
+              const emTransporte = (remessasData ?? []).filter((r) => r.status_transporte === "em_transito" || r.status_transporte === "postado").length;
+              const entregues = (remessasData ?? []).filter((r) => r.status_transporte === "entregue").length;
+              return (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <SummaryCard title="Total de Remessas" value={formatNumber(total)} icon={Package} variationType="neutral" variation="cadastradas" onClick={() => setRemStatusFilters([])} />
+                  <SummaryCard title="Aguardando postagem" value={formatNumber(aguardandoPostagem)} icon={Clock} variationType="neutral" variation="prontas para envio" onClick={() => setRemStatusFilters(["pendente", "coletado"])} />
+                  <SummaryCard title="Em transporte" value={formatNumber(emTransporte)} icon={Truck} variationType="positive" variation="a caminho" onClick={() => setRemStatusFilters(["postado", "em_transito"])} />
+                  <SummaryCard title="Entregues" value={formatNumber(entregues)} icon={CheckCheck} variationType="positive" variation="concluídas" onClick={() => setRemStatusFilters(["entregue"])} />
+                </div>
+              );
+            })()}
             <AdvancedFilterBar searchValue={remSearchTerm} onSearchChange={setRemSearchTerm} searchPlaceholder="Buscar por rastreio, cliente ou transportadora..." activeFilters={remActiveFilters} onRemoveFilter={handleRemoveRemFilter} onClearAll={() => { setRemStatusFilters([]); setRemTranspFilters([]); }} count={filteredRemessas.length}>
               <MultiSelect options={remStatusOptions} selected={remStatusFilters} onChange={setRemStatusFilters} placeholder="Status" className="w-[180px]" />
               <MultiSelect options={remTranspOptions} selected={remTranspFilters} onChange={setRemTranspFilters} placeholder="Transportadoras" className="w-[220px]" />
