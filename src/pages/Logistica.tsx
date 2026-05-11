@@ -578,11 +578,11 @@ export default function Logistica() {
       return (<span className="inline-flex flex-col items-start gap-0.5"><StatusBadge status={cfg.badgeStatus} label={cfg.label} />{atrasado && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1"><AlertTriangle className="h-2.5 w-2.5" />Atrasado</Badge>}</span>);
     }},
     { key: "previsao_entrega", label: "Prev. Entrega", mobileCard: true, render: (item: Recebimento) => {
-      if (!item.previsao_entrega) return <span className="text-muted-foreground text-xs">—</span>;
+      if (!item.previsao_entrega) return <MissingChip label="Sem previsão" />;
       const atrasado = isAtrasadoRecebimento(item);
       return <span className={`text-xs ${atrasado ? "text-destructive font-medium" : ""}`}>{formatDate(item.previsao_entrega)}</span>;
     }},
-    { key: "data_recebimento", label: "Recebido em", render: (item: Recebimento) => item.data_recebimento ? <span className="text-xs">{formatDate(item.data_recebimento)}</span> : <span className="text-muted-foreground text-xs">—</span> },
+    { key: "data_recebimento", label: "Recebido em", render: (item: Recebimento) => item.data_recebimento ? <span className="text-xs">{formatDate(item.data_recebimento)}</span> : <MissingChip label="Aguardando" /> },
     { key: "quantidade_pedida", label: "Qtd. Pedida", render: (item: Recebimento) => <span className="text-xs">{formatNumber(item.quantidade_pedida)}</span> },
     { key: "quantidade_recebida", label: "Qtd. Recebida", mobileCard: true, render: (item: Recebimento) => (
       <div className="inline-flex flex-col items-start gap-0.5">
