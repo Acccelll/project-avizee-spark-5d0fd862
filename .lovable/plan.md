@@ -1,77 +1,61 @@
-# Onda 42k — Grid de Orçamentos: clareza semântica e organização
+# Onda 42l — Grid de Orçamentos (mobile)
 
-Escopo restrito a `src/pages/Orcamentos.tsx`. Sem mudanças em schema, RPC, design system, `StatusBadge`, `AdvancedFilterBar` ou `DataTable`. Foco em microcopy, agrupamento visual e ações contextuais — nada de regra de negócio nova.
+Escopo: apenas `src/pages/Orcamentos.tsx` + 1 helper de formatação em `src/lib/format.ts`. Sem mudanças em schema, RPC, `SummaryCard`, `DataTable`, `MobileCardList`, `AdvancedFilterBar` ou `StatusBadge`. Sem mudanças no desktop além do necessário para reusar os mesmos componentes.
 
-## 1. KPIs mais inequívocos (prioridade alta)
+## Alta prioridade
 
-Reescrever os 4 cards para separar conceitos hoje sobrepostos ("Aprovadas" × "Convertido em pedido"):
+### 1. KPIs sem truncar no mobile
+Usar a prop já existente `shortTitle` do `SummaryCard` (renderizada quando `useIsMobile()` é `true`):
 
-- **Total de Orçamentos** — mantém. Subtítulo: "no período filtrado".
-- **Valor Total** — mantém. Subtítulo: "soma do filtro atual".
-- **Aguardando pedido** — substitui "Aprovadas". Conta `status === "aprovado"`. Subtítulo: "aprovados, ainda não convertidos".
-- **Taxa de Conversão** — mantém valor, mas subtítulo passa a ser dinâmico: `"{converted} de {total} convertidos"` (ex.: "1 de 210 convertidos"). Adicionar `title` no card com a fórmula completa: "Convertidos em pedido ÷ total de orçamentos no filtro".
+- "Total de Orçamentos" → `shortTitle="Orçamentos"`
+- "Valor Total" → `shortTitle="Valor total"`
+- "Aguardando pedido" → mantém (já curto)
+- "Taxa de Conversão" → `shortTitle="Conversão"`
 
-Manter o `kpis` memo; apenas trocar labels/variation. Sem novas queries.
+### 2. Valor Total não pode aparecer cortado
+Adicionar helper `formatCurrencyCompact(value)` em `src/lib/format.ts` usando `Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1, style: 'currency', currency: 'BRL' })`. Resultado típico: `R$ 731,8 mil`, `R$ 1,2 mi`.
 
-## 2. Validade: estado vazio mais claro (prioridade alta)
+No card "Valor Total", usar `formatCurrencyCompact` quando `useIsMobile()` for `true` e `formatCurrency` no desktop. Manter `title` com o valor completo (o `SummaryCard` já passa `title={String(value)}` no `<p>`).
 
-Em `ValidadeBadge`, quando `validade` for nula:
-- Se `origem === "importacao_historica"` ou `status === "historico"`: render "Legado sem validade" (`text-muted-foreground text-xs`).
-- Caso contrário: "Sem validade" (`text-muted-foreground text-xs`).
+### 3. Validade visível no card mobile
+Adicionar coluna virtual `mobileCard: true` para validade — render reutiliza `<ValidadeBadge>`. Hoje só `numero`, `valor_total` e `status` têm `mobileCard: true`; isso traz "Vencida / Xd restantes / data" para dentro do card sem afetar o desktop (`mobileCard` só é lido pelo `renderMobileCards`).
 
-Assinatura passa a receber `orc` (ou `origem`) em vez de só `validade/status`. Substituir no `render` da coluna.
+### 4. "Histórico" mais explícito no mobile
+Quando `effectiveStatus === "historico"`, renderizar `<StatusBadge status="historico" label="Legado" />` (mantém ícone e cor; só troca o rótulo). O `title` com a explicação continua. Desktop também ganha "Legado" — alinhado com o pedido do usuário.
 
-## 3. Status "Histórico" com tooltip (prioridade alta)
+### 5. Ação principal mobile por status (cobrir "convertido" e "histórico")
+Estender `mobilePrimaryAction`:
 
-Na célula de status, quando `effectiveStatus === "historico"`, envolver o `StatusBadge` num `<span title="Orçamento legado importado, sem fluxo comercial ativo.">`. Não muda o label exibido (mantém contrato de status).
+- `rascunho` → "Enviar para aprovação" (já existe)
+- `pendente` → ação atual (Aprovar) — sem mudança
+- `aprovado` → "Converter em Pedido" (já existe)
+- `convertido` → novo botão `variant="outline"` "Abrir pedido" → `navigate('/pedidos?cotacao=' + o.id)` (mesma rota usada no desktop)
+- `historico` → novo botão `variant="ghost"` "Visualizar" → `pushView("orcamento", o.id)`
+- demais → `null` (mantém)
 
-## 4. Filtro de legados como `MultiSelect` simples (prioridade alta)
+## Média prioridade
 
-Trocar o grupo segmentado de 3 botões "Excluir legados / Apenas legados / Todos" por um `MultiSelect` single-pick (ou `Select`) com placeholder "Legados" e opções equivalentes. Ocupa menos espaço e fica visualmente equivalente aos demais filtros de Status/Validade/Cliente.
+### 6. Filtros ativos sempre visíveis
+`AdvancedFilterBar` já recebe `activeFilters` e renderiza os chips. Sem mudança de código — apenas confirmar via QA visual no mobile. Se não estiverem aparecendo, é porque `orcActiveFilters` não cobre `historico`: adicionar chip `{ key: "historico", label: "Legados", value: [historicoFilter], displayValue: historicoOptions.find(o => o.value === historicoFilter)?.label }` quando `historicoFilter !== "todos"` e tratar remoção em `handleRemoveOrcFilter` setando `setHistoricoFilter("todos")`.
 
-Internamente continua gravando em `filterState.historico` (mesmos valores `excluir | apenas | todos`).
-
-## 5. Reordenar filtros em duas linhas (prioridade alta)
-
-Dentro do `AdvancedFilterBar`, agrupar filhos em duas linhas via wrappers `<div className="flex flex-wrap gap-2 items-center">`:
-
-- **Linha principal**: Status, Cliente, Período (`PeriodFilter`).
-- **Linha secundária**: Validade, Legados.
-
-Sem alterar o `AdvancedFilterBar` em si — apenas o markup interno passado como `children`.
-
-## 6. Ações contextuais por status na linha (prioridade média)
-
-`rowExtraActions` continua, mas com a regra:
-
-- `rascunho` → botão "Enviar" (já existe, mantém).
-- `pendente` → "Aprovar" (já existe).
-- `aprovado` → "Converter em pedido" (já existe).
-- `convertido` → novo botão `outline` "Abrir pedido" que busca `ordens_venda` por `cotacao_id` via `pushView("ordem_venda", ovId)`. Para evitar nova query por linha aqui, **versão simples**: navegar para `/pedidos?cotacao={orc.id}` e deixar a página de pedidos resolver. Sem mudar `pedidos`. (Se a rota não suportar esse filtro, fallback: `navigate("/pedidos")` com `toast.info` "Localize o pedido gerado a partir de {numero}.")
-
-Demais botões já são condicionais (`canSendOrcamento`, `canApproveOrcamento`, `canConvertOrcamento`), então não vão aparecer simultaneamente. Sem reescrever lógica.
-
-## 7. Microcopy menores (prioridade baixa, no mesmo passe)
-
-- Placeholder do `MultiSelect` de Status: "Status do orçamento".
-- Placeholder do `MultiSelect` de Validade: "Validade".
-- `subtitle` do `ModulePage`: manter.
+### 7. Ações inline mais claras (legado não edita)
+No `mobileInlineActions`, ocultar o botão "Editar" (lápis) quando `normalizeOrcamentoStatus(o.status) === "historico"` (legado não tem fluxo ativo). Manter "Ver detalhes" (olho) sempre.
 
 ## Fora de escopo
 
-- Coluna de responsável/vendedor (depende de FK ainda não consultada na query atual).
-- Coluna de margem/lucro (precisaria de cálculo via itens — fora do escopo de UI).
-- Modo compacto/confortável.
-- Refactor de `AdvancedFilterBar`, `DataTable`, `SummaryCard` ou `StatusBadge`.
-- Mudanças em mobile (`mobilePrimaryAction`, `mobileInlineActions`) — já cobertas em ondas anteriores.
-- Alterações de RPC, schema ou contrato de status.
+- Mudar estrutura de `MobileCardList` / `SummaryCard` / `AdvancedFilterBar`.
+- Coluna de responsável/vendedor (FK não é selecionada hoje).
+- Substituir paginação por scroll infinito.
+- Mudar layout/composição da busca + botão de filtros (vive no `AdvancedFilterBar`, compartilhado por outras grids).
+- Mudanças em desktop além das implícitas em (4) e (6).
 
-## Arquivos afetados
+## Arquivos alterados
 
-- `src/pages/Orcamentos.tsx` — único arquivo.
-- `.lovable/plan.md` — registrar a onda.
+- `src/lib/format.ts` — adiciona `formatCurrencyCompact`.
+- `src/pages/Orcamentos.tsx` — itens 1, 2, 3, 4, 5, 6, 7.
 
 ## Validação
 
-- `tsc --noEmit` limpo (build automática do harness).
-- Conferência visual em `/orcamentos` (1552px e mobile) após approve.
+- `tsc` limpo.
+- QA visual no mobile (375px): KPIs sem truncar, valor compacto, card mostra validade, "Legado" no badge, botões "Abrir pedido" e "Visualizar" no rodapé, chip "Legados: …" abaixo da busca quando filtro != Todos.
+- Desktop: nenhuma regressão visível além do badge "Legado" (intencional).
