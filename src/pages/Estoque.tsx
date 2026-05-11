@@ -148,6 +148,7 @@ const Estoque = () => {
   // Movimentações filters
   const [searchMovimentacao, setSearchMovimentacao] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
+  const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
@@ -238,6 +239,16 @@ const Estoque = () => {
     const q = searchMovimentacao.toLowerCase();
     return data.filter((m) => {
       if (tipoFilters.length > 0 && !tipoFilters.includes(m.tipo)) return false;
+      if (origemFilters.length > 0) {
+        const origemKey = m.documento_tipo
+          ? m.documento_tipo
+          : (String(m.motivo ?? "").trim().toLowerCase().startsWith("saldo inicial")
+              || String(m.motivo ?? "").toLowerCase().includes("importação inicial")
+              || String(m.motivo ?? "").toLowerCase().includes("importacao inicial"))
+            ? "saldo_inicial"
+            : "sem_origem";
+        if (!origemFilters.includes(origemKey)) return false;
+      }
       if (dataInicio && m.created_at < dataInicio) return false;
       if (dataFim && m.created_at > dataFim + "T23:59:59") return false;
       if (q) {
@@ -247,7 +258,7 @@ const Estoque = () => {
       }
       return true;
     });
-  }, [data, tipoFilters, dataInicio, dataFim, searchMovimentacao]);
+  }, [data, tipoFilters, origemFilters, dataInicio, dataFim, searchMovimentacao]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
