@@ -43,6 +43,7 @@ import { notifyError } from "@/utils/errorMessages";
 import { useAppConfig } from "@/hooks/useAppConfig";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PedidoEditDrawer } from "@/components/views/PedidoEditDrawer";
 
 interface Pedido {
   id: string;
@@ -128,6 +129,7 @@ const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [editingPedidoId, setEditingPedidoId] = useState<string | null>(null);
   const faturarPedido = useFaturarPedido();
   const { can } = useCan();
   const canFaturar = can("faturamento_fiscal:criar") || can("pedidos:editar");
@@ -576,7 +578,7 @@ const Pedidos = () => {
           showColumnToggle={true}
           hideSinglePagePagination
           onView={handleView}
-          onEdit={(p) => navigate(`/pedidos/${p.id}`)}
+          onEdit={(p) => setEditingPedidoId(p.id)}
           mobileLabeledDetails
           rowExtraActions={(p) => (
             canFaturarPedido(p) && canFaturar ? (
@@ -614,7 +616,7 @@ const Pedidos = () => {
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleView(p); }}>
                     Visualizar pedido
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/pedidos/${p.id}`); }}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingPedidoId(p.id); }}>
                     Editar pedido
                   </DropdownMenuItem>
                   {showFaturar && (
@@ -690,6 +692,12 @@ const Pedidos = () => {
           </ul>
         )}
       </ConfirmDialog>
+      <PedidoEditDrawer
+        open={!!editingPedidoId}
+        pedidoId={editingPedidoId}
+        onClose={() => setEditingPedidoId(null)}
+        onSaved={() => { void pedidosQuery.refetch(); }}
+      />
     </>
   );
 };

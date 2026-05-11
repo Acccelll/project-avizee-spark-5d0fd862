@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -55,6 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { PedidoEditDrawer } from "@/components/views/PedidoEditDrawer";
 import {
   verificarPrerequisitosNF,
   type NFPrerequisiteIssue,
@@ -108,11 +108,11 @@ const statusFaturamentoTooltip: Record<string, string> = {
 export function OrdemVendaView({ id }: Props) {
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [nfIssues, setNfIssues] = useState<NFPrerequisiteIssue[]>([]);
   const [nfIssuesLoading, setNfIssuesLoading] = useState(false);
   const { pushView } = useRelationalNavigation();
-  const navigate = useNavigate();
   const { run, locked } = useDetailActions();
   const faturarPedido = useFaturarPedido();
   const cancelarPedido = useCancelarPedido();
@@ -315,7 +315,7 @@ export function OrdemVendaView({ id }: Props) {
       <>
         {/* MB-02: ações primárias visíveis em mobile (Gerar NF). Secundárias
             (Editar, Cancelar, NFs vinculadas) movidas para dropdown em <md. */}
-        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={() => navigate(`/pedidos/${selected.id}`)}>
+        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={() => setEditOpen(true)}>
           <Edit className="h-3.5 w-3.5" /> Editar Pedido
         </Button>
         {canGenerateNF && (
@@ -349,7 +349,7 @@ export function OrdemVendaView({ id }: Props) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => navigate(`/pedidos/${selected.id}`)}>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Edit className="h-4 w-4 mr-2" /> Editar Pedido
             </DropdownMenuItem>
             {notasFiscais.map((nf) => (
@@ -1007,6 +1007,13 @@ export function OrdemVendaView({ id }: Props) {
           </div>
         </div>
       )}
+
+      <PedidoEditDrawer
+        open={editOpen}
+        pedidoId={selected?.id ?? null}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => { void reload(); }}
+      />
     </div>
   );
 }
