@@ -119,11 +119,29 @@ export function useCotacoesCompra() {
   };
 
   const openEdit = async (c: CotacaoCompra) => {
-    // Caminho único de edição: rota dedicada.
-    // O modal foi aposentado para edição (race delete+insert client-side).
-    // O form de rota usa `replace_cotacao_compra_itens` (RPC transacional).
+    // Edição em modal (mesmo padrão do create), usando o RPC transacional
+    // `replace_cotacao_compra_itens` no submit para evitar a race delete+insert.
     setDrawerOpen(false);
-    navigate(`/cotacoes-compra/${c.id}`);
+    setMode("edit");
+    setSelected({ ...c, status: canonicalCotacaoStatus(c.status) });
+    setForm({
+      numero: c.numero,
+      data_cotacao: c.data_cotacao,
+      data_validade: c.data_validade || "",
+      observacoes: c.observacoes || "",
+      status: canonicalCotacaoStatus(c.status),
+    });
+    const itens = await ccs.listCotacaoItens(c.id).catch(() => []);
+    setLocalItems(
+      (itens || []).map((i: CotacaoItem) => ({
+        _localId: i.id,
+        id: i.id,
+        produto_id: i.produto_id,
+        quantidade: i.quantidade,
+        unidade: i.unidade || "UN",
+      })),
+    );
+    setModalOpen(true);
   };
 
   const openView = async (c: CotacaoCompra) => {
@@ -162,17 +180,27 @@ export function useCotacoesCompra() {
       if (mode === "create") {
         const newC = await ccs.insertCotacaoHeader(payload);
         cotacaoId = (newC as CotacaoCompra).id;
+        if (cotacaoId) {
+          const itemsPayload = localItems
+            .filter((i) => i.produto_id)
+            .map((i) => ({
+              cotacao_compra_id: cotacaoId as string,
+              produto_id: i.produto_id,
+              quantidade: i.quantidade,
+              unidade: i.unidade,
+            }));
+          if (itemsPayload.length === 0) {
+            toast.error("A cotação precisa de pelo menos 1 item.");
+            throw new Error("Cotação sem itens válidos");
+          }
+          await ccs.insertCotacaoItens(itemsPayload);
+        }
       } else if (selected) {
-        // Sequential update -> delete: evita race onde Promise.all
-        // apaga itens mesmo se o update do cabeçalho falhar.
+        // Edição: header + replace transacional (RPC) — sem race delete+insert.
         await ccs.updateCotacaoHeader(selected.id, payload);
-        await ccs.deleteCotacaoItens(selected.id);
-      }
-      if (cotacaoId) {
         const itemsPayload = localItems
           .filter((i) => i.produto_id)
           .map((i) => ({
-            cotacao_compra_id: cotacaoId as string,
             produto_id: i.produto_id,
             quantidade: i.quantidade,
             unidade: i.unidade,
@@ -181,7 +209,7 @@ export function useCotacoesCompra() {
           toast.error("A cotação precisa de pelo menos 1 item.");
           throw new Error("Cotação sem itens válidos");
         }
-        await ccs.insertCotacaoItens(itemsPayload);
+        await ccs.replaceCotacaoItens(selected.id, itemsPayload);
       }
       toast.success("Cotação de compra salva!");
       setModalOpen(false);
