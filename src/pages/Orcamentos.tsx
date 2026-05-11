@@ -131,6 +131,7 @@ const statusLabels: Record<string, string> = Object.fromEntries(
 const Orcamentos = () => {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
+  const isMobile = useIsMobile();
   const { data: rawData, loading, fetchData } = useSupabaseCrud({ table: "orcamentos", select: "*, clientes(nome_razao_social)" });
   const data = rawData as unknown as Orcamento[];
   const [convertingId, setConvertingId] = useState<string | null>(null);
