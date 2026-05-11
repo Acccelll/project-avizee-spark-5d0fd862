@@ -19,7 +19,17 @@ import { useActionLock } from "@/hooks/useActionLock";
 import { useCan } from "@/hooks/useCan";
 import { useEstornarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
-import { getOrigemLabel } from "@/lib/financeiro";
+import {
+  getOrigemLabel,
+  normalizeFormaPagamento,
+  FORMA_PAGAMENTO_LABELS,
+} from "@/lib/financeiro";
+import {
+  displayObservacoes,
+  labelEventoAuditoria,
+  getOrigemModulo,
+} from "@/lib/displayLancamento";
+import { PrazoChip } from "@/components/financeiro/PrazoChip";
 
 interface Baixa {
   id: string;
@@ -92,6 +102,9 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const { confirm: confirmEstorno, dialog: estornoDialog } = useConfirmDestructive({
     verb: "Estornar",
   });
+  const { confirm: confirmCancelar, dialog: cancelarDialog } = useConfirmDestructive({
+    verb: "Cancelar",
+  });
 
   // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
   if (!open || !selected) return null;
@@ -122,6 +135,21 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const totalBaixado = baixasList.reduce((sum, b) => sum + Number(b.valor_pago || 0), 0);
 
   const origemLabel = getOrigemLabel(selected);
+  const origemModulo = getOrigemModulo(selected.origem_tipo);
+
+  const formaPagamentoLabel = (() => {
+    const raw = selected.forma_pagamento;
+    if (!raw) return "—";
+    const norm = normalizeFormaPagamento(raw);
+    return (norm && FORMA_PAGAMENTO_LABELS[norm]) || raw;
+  })();
+
+  const observacoesLegivel = displayObservacoes(selected.observacoes);
+
+  const hojeStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   const summary = (
     <DrawerSummaryGrid cols={4}>
@@ -132,9 +160,10 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
         tone="success"
       />
       <DrawerSummaryCard
-        label="Saldo em Aberto"
+        label="Em Aberto"
         value={formatCurrency(saldoRestante)}
         tone={saldoRestante > 0 ? "destructive" : "success"}
+        hint="Saldo restante"
       />
       <DrawerSummaryCard
         label="Vencimento"
@@ -163,7 +192,12 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
           </span>
         );
       })()}
-      badge={<StatusBadge status={effectiveStatus} />}
+      badge={
+        <span className="inline-flex items-center gap-1.5">
+          <StatusBadge status={effectiveStatus} />
+          <PrazoChip l={selected} hoje={hoje} hojeStr={hojeStr} effectiveStatus={effectiveStatus} />
+        </span>
+      }
       summary={summary}
       actions={
         <DrawerActionBar
@@ -190,8 +224,22 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
           ]}
           destructive={canPermCancelar ? {
             icon: Trash2,
-            tooltip: "Cancelar",
-            onClick: () => runAction(() => { onDelete(selected.id); onClose(); }),
+            tooltip: "Cancelar lançamento",
+            onClick: () =>
+              confirmCancelar(
+                {
+                  verb: "Cancelar",
+                  entity: `${tipoLabel} de ${formatCurrency(valorTotal)} — ${pessoa}`,
+                  sideEffects: [
+                    "Lançamento sai do contas a pagar/receber",
+                    "Pode afetar relatórios e conciliações bancárias",
+                    "Se houver baixa registrada, será necessário estornar antes",
+                  ],
+                },
+                async () => {
+                  await runAction(async () => { onDelete(selected.id); onClose(); });
+                },
+              ),
             pending: actionPending,
           } : undefined}
         />
@@ -235,18 +283,25 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
             </ViewSection>
             <ViewSection title="Pagamento">
               <div className="grid grid-cols-2 gap-4">
-                <ViewField label="Forma de Pagamento">{selected.forma_pagamento || "—"}</ViewField>
+                <ViewField label="Forma de Pagamento">{formaPagamentoLabel}</ViewField>
                 {selected.parcela_numero ? (
                   <ViewField label="Parcela"><span className="font-mono">{selected.parcela_numero}/{selected.parcela_total}</span></ViewField>
                 ) : null}
+                {selected.titulo ? (
+                  <ViewField label="Documento"><span className="font-mono">{selected.titulo}</span></ViewField>
+                ) : null}
+                {selected.data_emissao ? (
+                  <ViewField label="Emissão">{new Date(selected.data_emissao + "T00:00:00").toLocaleDateString("pt-BR")}</ViewField>
+                ) : null}
+                <ViewField label="Vencimento">{vencimento ? vencimento.toLocaleDateString("pt-BR") : "—"}</ViewField>
               </div>
               {selected.data_pagamento && (
                 <ViewField label="Data do Pagamento">{new Date(selected.data_pagamento).toLocaleDateString("pt-BR")}</ViewField>
               )}
             </ViewSection>
-            {selected.observacoes && (
+            {observacoesLegivel && (
               <ViewSection title="Observações">
-                <p className="text-sm text-foreground whitespace-pre-wrap">{selected.observacoes}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{observacoesLegivel}</p>
               </ViewSection>
             )}
           </div>
@@ -255,7 +310,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
           <div className="space-y-4">
             <DrawerSummaryGrid cols={2}>
               <DrawerSummaryCard label={`Total ${isCR ? "Recebido" : "Pago"}`} value={formatCurrency(valorBaixado)} tone="success" />
-              <DrawerSummaryCard label="Saldo em Aberto" value={formatCurrency(saldoRestante)} tone={saldoRestante > 0 ? "destructive" : "success"} />
+              <DrawerSummaryCard label="Em Aberto" value={formatCurrency(saldoRestante)} tone={saldoRestante > 0 ? "destructive" : "success"} hint="Saldo restante" />
             </DrawerSummaryGrid>
             {loadingBaixas ? (
               <p className="text-sm text-muted-foreground text-center py-4">Carregando baixas...</p>
@@ -289,7 +344,11 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                         <tr key={b.id ?? `tmp-${i}`} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
                           <td className="px-3 py-2">{new Date(b.data_baixa).toLocaleDateString("pt-BR")}</td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-success">{formatCurrency(Number(b.valor_pago))}</td>
-                          <td className="px-3 py-2">{b.forma_pagamento || "—"}</td>
+                          <td className="px-3 py-2">{(() => {
+                            if (!b.forma_pagamento) return "—";
+                            const norm = normalizeFormaPagamento(b.forma_pagamento);
+                            return (norm && FORMA_PAGAMENTO_LABELS[norm]) || b.forma_pagamento;
+                          })()}</td>
                           <td className="px-3 py-2 text-muted-foreground truncate max-w-[100px]">{b.observacoes || "—"}</td>
                           <td className="px-3 py-2 text-right">
                             {canPermBaixar ? (
@@ -336,6 +395,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
           <div className="space-y-4">
             <ViewSection title="Origem do Lançamento">
               <ViewField label="Tipo de Origem">{origemLabel}</ViewField>
+              <ViewField label="Módulo de Origem">{origemModulo}</ViewField>
               {selected.nota_fiscal_id && (
                 <ViewField label="Nota Fiscal Vinculada">
                   <RelationalLink type="nota_fiscal" id={selected.nota_fiscal_id}>Ver NF vinculada</RelationalLink>
@@ -424,20 +484,27 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                     </thead>
                     <tbody>
                       {auditoriaList.map((e, i) => {
-                        const motivo = (e.payload && typeof e.payload === "object"
-                          ? (e.payload as Record<string, unknown>).motivo
-                            ?? (e.payload as Record<string, unknown>).motivo_estorno
-                          : null) as string | undefined;
+                        const payload = (e.payload && typeof e.payload === "object"
+                          ? (e.payload as Record<string, unknown>)
+                          : {}) as Record<string, unknown>;
+                        const motivo = (payload.motivo ?? payload.motivo_estorno) as string | undefined;
+                        const responsavel = (payload.user_email ?? payload.responsavel ?? payload.user_name) as
+                          | string
+                          | undefined;
+                        const detalheLegivel = displayObservacoes(motivo);
                         return (
                           <tr key={e.id} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
                             <td className="px-3 py-2 whitespace-nowrap">
-                              {new Date(e.created_at).toLocaleString("pt-BR")}
+                              {new Date(e.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                             </td>
                             <td className="px-3 py-2">
-                              <Badge variant="outline" className="text-[10px]">{e.evento}</Badge>
+                              <Badge variant="outline" className="text-[10px]">{labelEventoAuditoria(e.evento)}</Badge>
                             </td>
-                            <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]">
-                              {motivo || "—"}
+                            <td className="px-3 py-2 text-muted-foreground max-w-[240px]">
+                              <div className="truncate">{detalheLegivel || "—"}</div>
+                              {responsavel && (
+                                <div className="text-[10px] text-muted-foreground/80 truncate">por {responsavel}</div>
+                              )}
                             </td>
                           </tr>
                         );
@@ -447,9 +514,9 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                 </div>
               )}
             </ViewSection>
-            {selected.observacoes && (
+            {observacoesLegivel && (
               <ViewSection title="Observações Internas">
-                <p className="text-sm text-foreground whitespace-pre-wrap">{selected.observacoes}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{observacoesLegivel}</p>
               </ViewSection>
             )}
           </div>
@@ -457,6 +524,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
       ]}
     />
       {estornoDialog}
+      {cancelarDialog}
     </>
   );
 }
