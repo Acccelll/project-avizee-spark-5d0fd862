@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Search, Tag, Info, AlertTriangle, CheckCircle2, Copy, GripVertical, Upload, Maximize2 } from "lucide-react";
+import { Plus, Trash2, Search, Tag, Info, AlertTriangle, CheckCircle2, Copy, GripVertical, Upload, Maximize2, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ProductSelector } from "@/components/ui/DataSelector";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { Tables } from "@/integrations/supabase/types";
@@ -423,17 +424,26 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                 ) : null}
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                {item.produto_id && (
-                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDetailProductId(item.produto_id)} aria-label="Detalhes do produto">
-                    <Info className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => duplicateItem(idx)} aria-label="Duplicar item">
-                  <Copy className="h-4 w-4" />
-                </Button>
                 <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeItem(idx)} aria-label="Remover item">
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Mais ações do item">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    {item.produto_id && (
+                      <DropdownMenuItem onSelect={() => setDetailProductId(item.produto_id)}>
+                        <Info className="h-4 w-4 mr-2" />Ver detalhes
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onSelect={() => duplicateItem(idx)}>
+                      <Copy className="h-4 w-4 mr-2" />Duplicar item
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
@@ -517,7 +527,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         <h3 className="font-semibold text-foreground">Itens do Orçamento</h3>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium">Subtotal dos itens: {formatCurrency(subtotal)}</div>
-          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1"><Upload className="h-3.5 w-3.5" /><span className="hidden sm:inline">Importar texto</span></Button>
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1" aria-label="Importar texto"><Upload className="h-3.5 w-3.5" /><span>Importar</span></Button>
           <Button size="sm" variant="outline" onClick={() => setExpandedOpen(true)} className="gap-1 hidden md:inline-flex"><Maximize2 className="h-3.5 w-3.5" />Tela cheia</Button>
           <Button size="sm" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
         </div>
