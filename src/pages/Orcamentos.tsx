@@ -23,6 +23,8 @@ import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
+import { formatCurrencyCompact } from "@/lib/format";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCan } from "@/hooks/useCan";
 import { Send } from "lucide-react";
