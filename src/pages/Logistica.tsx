@@ -537,23 +537,23 @@ export default function Logistica() {
       </div>
     ) },
     { key: "cliente", label: "Cliente", sortable: true, render: (item: Entrega) => <span className="font-medium text-sm">{item.cliente}</span> },
-    { key: "transportadora", label: "Transportadora", render: (item: Entrega) => item.transportadora === "—" ? <span className="text-muted-foreground text-xs">—</span> : <span className="text-sm">{item.transportadora}</span> },
+    { key: "transportadora", label: "Transportadora", render: (item: Entrega) => item.transportadora === "—" || !item.transportadora ? <MissingChip label="Sem transportadora" /> : <span className="text-sm">{item.transportadora}</span> },
     { key: "status_logistico", label: "Status", sortable: true, render: (item: Entrega) => {
       const cfg = getEntregaStatusCfg(item.status_logistico);
       const atrasado = isAtrasadoEntrega(item);
       return (<span className="inline-flex flex-col items-start gap-0.5"><StatusBadge status={cfg.badgeStatus} label={cfg.label} />{atrasado && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1"><AlertTriangle className="h-2.5 w-2.5" />Atrasada</Badge>}{item.exibicao_remessas === "multipla" && <span className="text-[10px] text-muted-foreground">status reflete última remessa</span>}</span>);
     }},
     { key: "previsao_entrega", label: "Prev. Entrega", render: (item: Entrega) => {
-      if (!item.previsao_entrega) return <span className="text-muted-foreground text-xs">—</span>;
+      if (!item.previsao_entrega) return <MissingChip label="Sem previsão" />;
       const atrasado = isAtrasadoEntrega(item);
       return <span className={`text-xs ${atrasado ? "text-destructive font-medium" : ""}`}>{formatDate(item.previsao_entrega)}</span>;
     }},
-    { key: "data_expedicao", label: "Expedição", render: (item: Entrega) => item.data_expedicao ? <span className="text-xs">{formatDate(item.data_expedicao)}</span> : <span className="text-muted-foreground text-xs">—</span> },
+    { key: "data_expedicao", label: "Expedição", render: (item: Entrega) => item.data_expedicao ? <span className="text-xs">{formatDate(item.data_expedicao)}</span> : <MissingChip label="Sem expedição" /> },
     { key: "cidade_uf", label: "Cidade/UF", hidden: true, render: (item: Entrega) => <span className="text-xs">{item.cidade_uf}</span> },
     { key: "volumes", label: "Volumes", hidden: true, render: (item: Entrega) => <span className="text-xs">{formatNumber(item.volumes || 0)}</span> },
     { key: "peso_total", label: "Peso", hidden: true, render: (item: Entrega) => <span className="text-xs">{formatNumber(item.peso_total || 0)} kg</span> },
-    { key: "previsao_envio", label: "Prev. Envio", hidden: true, render: (item: Entrega) => item.previsao_envio ? <span className="text-xs">{formatDate(item.previsao_envio)}</span> : <span className="text-muted-foreground text-xs">—</span> },
-    { key: "codigo_rastreio", label: "Rastreio", hidden: true, render: (item: Entrega) => item.codigo_rastreio ? <span className="font-mono text-xs">{item.codigo_rastreio}</span> : <span className="text-muted-foreground text-xs">—</span> },
+    { key: "previsao_envio", label: "Prev. Envio", hidden: true, render: (item: Entrega) => item.previsao_envio ? <span className="text-xs">{formatDate(item.previsao_envio)}</span> : <MissingChip label="Sem previsão" /> },
+    { key: "codigo_rastreio", label: "Rastreio", hidden: true, render: (item: Entrega) => item.codigo_rastreio ? <span className="font-mono text-xs">{item.codigo_rastreio}</span> : <MissingChip label="Sem rastreio" /> },
     { key: "status_select", label: "Atualizar status", sortable: false, hidden: !canEdit, render: (item: Entrega) => (
       canEdit ? (
         <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
