@@ -883,7 +883,12 @@ export default function Logistica() {
                 );
               }}
               emptyTitle="Nenhum recebimento encontrado"
-              emptyDescription="Tente ajustar os filtros de status ou período."
+              emptyDescription="Os recebimentos logísticos aparecem quando houver pedidos de compra aguardando entrega."
+              emptyAction={
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate("/compras")}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Ver pedidos de compra
+                </Button>
+              }
             />
           </TabsContent>
 
@@ -988,6 +993,11 @@ export default function Logistica() {
               }}
               emptyTitle="Nenhuma remessa encontrada"
               emptyDescription="Tente ajustar os filtros ou crie uma nova remessa."
+              emptyAction={canEdit ? (
+                <Button variant="default" size="sm" className="gap-1.5" onClick={() => navigate("/remessas/new")}>
+                  <Plus className="h-3.5 w-3.5" /> Nova Remessa
+                </Button>
+              ) : undefined}
             />
           </TabsContent>
         </Tabs>
