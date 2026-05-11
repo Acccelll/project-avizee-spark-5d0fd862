@@ -22,19 +22,27 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
   return (
     <div className="bg-card rounded-xl border shadow-soft p-5">
       <h3 className="font-semibold text-foreground mb-4">Condições Comerciais</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs h-4 flex items-center">Quantidade Total</Label>
-          <div className="h-10 flex items-center px-3 bg-accent/30 rounded-md font-mono text-sm">
-            {form.quantidade_total}
+      <div className="space-y-4">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Resumo calculado</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs h-4 flex items-center">Quantidade Total</Label>
+              <div className="h-10 flex items-center px-3 bg-accent/30 rounded-md font-mono text-sm">
+                {form.quantidade_total}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs h-4 flex items-center">Peso total</Label>
+              <div className="h-10 flex items-center px-3 bg-accent/30 rounded-md font-mono text-sm">
+                {formatWeightKg(form.peso_total)}
+              </div>
+            </div>
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs h-4 flex items-center">Peso total</Label>
-          <div className="h-10 flex items-center px-3 bg-accent/30 rounded-md font-mono text-sm">
-            {formatWeightKg(form.peso_total)}
-          </div>
-        </div>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Condições editáveis</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="space-y-1.5">
           <Label className="text-xs h-4 flex items-center">Pagamento</Label>
           <Select value={form.pagamento} onValueChange={(v) => onChange("pagamento", v)}>
@@ -88,6 +96,8 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
               <SelectItem value="sem_frete">Sem frete</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+          </div>
         </div>
       </div>
     </div>
