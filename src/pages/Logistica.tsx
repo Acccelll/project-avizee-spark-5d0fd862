@@ -98,6 +98,16 @@ const recebimentoStatusMultiOptions: MultiSelectOption[] = Object.entries(RECEBI
 const prazoOptions: MultiSelectOption[] = [{ label: "Atrasadas", value: "atrasado" }, { label: "No prazo", value: "ok" }];
 const prazoOptionsReceb: MultiSelectOption[] = [{ label: "Atrasados", value: "atrasado" }, { label: "No prazo", value: "ok" }];
 
+/**
+ * Chip discreto para indicar campo vazio com semântica de pendência
+ * (ex.: "Sem rastreio", "Postagem pendente"). Substitui o `—` cru.
+ */
+function MissingChip({ label }: { label: string }) {
+  return (
+    <span className="text-[11px] italic text-muted-foreground/80">{label}</span>
+  );
+}
+
 export default function Logistica() {
   const navigate = useNavigate();
   const { can } = useCan();
@@ -357,6 +367,31 @@ export default function Logistica() {
       toast.warning("Entrega em estado terminal. Atualize pela remessa se necessário.");
       return;
     }
+    // Avisos contextuais antes de transições críticas (rastreabilidade UX).
+    if (status === "em_transporte" && (!entrega.transportadora || entrega.transportadora === "—")) {
+      const ok = await confirm({
+        title: "Sem transportadora vinculada",
+        description: "Recomendado vincular uma transportadora antes de marcar como Em Transporte. Continuar mesmo assim?",
+        confirmLabel: "Continuar",
+      });
+      if (!ok) return;
+    }
+    if (status === "entregue") {
+      const ok = await confirm({
+        title: "Confirmar entrega",
+        description: "Marcar entrega como concluída? A data de entrega registrada será a de hoje.",
+        confirmLabel: "Confirmar entrega",
+      });
+      if (!ok) return;
+    }
+    if (status === "devolvido") {
+      const ok = await confirm({
+        title: "Marcar como devolvida",
+        description: "Confirma a devolução? O estoque pode ser revertido conforme regra da remessa.",
+        confirmLabel: "Confirmar devolução",
+      });
+      if (!ok) return;
+    }
     if (ENTREGA_STATUS_META[status]?.sensivel) {
       const ok = await confirm({
         title: "Confirmar mudança de status",
@@ -527,23 +562,23 @@ export default function Logistica() {
       </div>
     ) },
     { key: "cliente", label: "Cliente", sortable: true, render: (item: Entrega) => <span className="font-medium text-sm">{item.cliente}</span> },
-    { key: "transportadora", label: "Transportadora", render: (item: Entrega) => item.transportadora === "—" ? <span className="text-muted-foreground text-xs">—</span> : <span className="text-sm">{item.transportadora}</span> },
+    { key: "transportadora", label: "Transportadora", render: (item: Entrega) => item.transportadora === "—" || !item.transportadora ? <MissingChip label="Sem transportadora" /> : <span className="text-sm">{item.transportadora}</span> },
     { key: "status_logistico", label: "Status", sortable: true, render: (item: Entrega) => {
       const cfg = getEntregaStatusCfg(item.status_logistico);
       const atrasado = isAtrasadoEntrega(item);
       return (<span className="inline-flex flex-col items-start gap-0.5"><StatusBadge status={cfg.badgeStatus} label={cfg.label} />{atrasado && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1"><AlertTriangle className="h-2.5 w-2.5" />Atrasada</Badge>}{item.exibicao_remessas === "multipla" && <span className="text-[10px] text-muted-foreground">status reflete última remessa</span>}</span>);
     }},
     { key: "previsao_entrega", label: "Prev. Entrega", render: (item: Entrega) => {
-      if (!item.previsao_entrega) return <span className="text-muted-foreground text-xs">—</span>;
+      if (!item.previsao_entrega) return <MissingChip label="Sem previsão" />;
       const atrasado = isAtrasadoEntrega(item);
       return <span className={`text-xs ${atrasado ? "text-destructive font-medium" : ""}`}>{formatDate(item.previsao_entrega)}</span>;
     }},
-    { key: "data_expedicao", label: "Expedição", render: (item: Entrega) => item.data_expedicao ? <span className="text-xs">{formatDate(item.data_expedicao)}</span> : <span className="text-muted-foreground text-xs">—</span> },
+    { key: "data_expedicao", label: "Expedição", render: (item: Entrega) => item.data_expedicao ? <span className="text-xs">{formatDate(item.data_expedicao)}</span> : <MissingChip label="Sem expedição" /> },
     { key: "cidade_uf", label: "Cidade/UF", hidden: true, render: (item: Entrega) => <span className="text-xs">{item.cidade_uf}</span> },
     { key: "volumes", label: "Volumes", hidden: true, render: (item: Entrega) => <span className="text-xs">{formatNumber(item.volumes || 0)}</span> },
     { key: "peso_total", label: "Peso", hidden: true, render: (item: Entrega) => <span className="text-xs">{formatNumber(item.peso_total || 0)} kg</span> },
-    { key: "previsao_envio", label: "Prev. Envio", hidden: true, render: (item: Entrega) => item.previsao_envio ? <span className="text-xs">{formatDate(item.previsao_envio)}</span> : <span className="text-muted-foreground text-xs">—</span> },
-    { key: "codigo_rastreio", label: "Rastreio", hidden: true, render: (item: Entrega) => item.codigo_rastreio ? <span className="font-mono text-xs">{item.codigo_rastreio}</span> : <span className="text-muted-foreground text-xs">—</span> },
+    { key: "previsao_envio", label: "Prev. Envio", hidden: true, render: (item: Entrega) => item.previsao_envio ? <span className="text-xs">{formatDate(item.previsao_envio)}</span> : <MissingChip label="Sem previsão" /> },
+    { key: "codigo_rastreio", label: "Rastreio", hidden: true, render: (item: Entrega) => item.codigo_rastreio ? <span className="font-mono text-xs">{item.codigo_rastreio}</span> : <MissingChip label="Sem rastreio" /> },
     { key: "status_select", label: "Atualizar status", sortable: false, hidden: !canEdit, render: (item: Entrega) => (
       canEdit ? (
         <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
@@ -568,11 +603,11 @@ export default function Logistica() {
       return (<span className="inline-flex flex-col items-start gap-0.5"><StatusBadge status={cfg.badgeStatus} label={cfg.label} />{atrasado && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1"><AlertTriangle className="h-2.5 w-2.5" />Atrasado</Badge>}</span>);
     }},
     { key: "previsao_entrega", label: "Prev. Entrega", mobileCard: true, render: (item: Recebimento) => {
-      if (!item.previsao_entrega) return <span className="text-muted-foreground text-xs">—</span>;
+      if (!item.previsao_entrega) return <MissingChip label="Sem previsão" />;
       const atrasado = isAtrasadoRecebimento(item);
       return <span className={`text-xs ${atrasado ? "text-destructive font-medium" : ""}`}>{formatDate(item.previsao_entrega)}</span>;
     }},
-    { key: "data_recebimento", label: "Recebido em", render: (item: Recebimento) => item.data_recebimento ? <span className="text-xs">{formatDate(item.data_recebimento)}</span> : <span className="text-muted-foreground text-xs">—</span> },
+    { key: "data_recebimento", label: "Recebido em", render: (item: Recebimento) => item.data_recebimento ? <span className="text-xs">{formatDate(item.data_recebimento)}</span> : <MissingChip label="Aguardando" /> },
     { key: "quantidade_pedida", label: "Qtd. Pedida", render: (item: Recebimento) => <span className="text-xs">{formatNumber(item.quantidade_pedida)}</span> },
     { key: "quantidade_recebida", label: "Qtd. Recebida", mobileCard: true, render: (item: Recebimento) => (
       <div className="inline-flex flex-col items-start gap-0.5">
@@ -596,18 +631,37 @@ export default function Logistica() {
   ];
 
   const remessaColumns = [
-    { key: "codigo_rastreio", label: "Rastreio", mobilePrimary: true, render: (r: Remessa) => <span className="font-mono text-xs">{r.codigo_rastreio || "—"}</span> },
-    { key: "cliente_id", label: "Cliente", render: (r: Remessa) => clienteMapLookup[r.cliente_id ?? ""] ?? "—" },
-    { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => transpMapLookup[r.transportadora_id ?? ""] ?? "—" },
-    { key: "data_postagem", label: "Postagem", render: (r: Remessa) => r.data_postagem ? format(new Date(r.data_postagem + "T00:00:00"), "dd/MM/yyyy") : "—" },
+    { key: "codigo_rastreio", label: "Rastreio", mobilePrimary: true, render: (r: Remessa) => r.codigo_rastreio ? <span className="font-mono text-xs">{r.codigo_rastreio}</span> : <MissingChip label="Sem rastreio" /> },
+    { key: "cliente_id", label: "Cliente", render: (r: Remessa) => {
+      const nome = clienteMapLookup[r.cliente_id ?? ""];
+      return nome ? <span className="text-sm">{nome}</span> : <MissingChip label="Não definido" />;
+    } },
+    { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => {
+      const nome = transpMapLookup[r.transportadora_id ?? ""];
+      return nome ? <span className="text-sm">{nome}</span> : <MissingChip label="Não definida" />;
+    } },
+    { key: "data_postagem", label: "Postagem", render: (r: Remessa) => r.data_postagem ? <span className="text-xs">{format(new Date(r.data_postagem + "T00:00:00"), "dd/MM/yyyy")}</span> : <MissingChip label="Postagem pendente" /> },
     { key: "status_transporte", label: "Status", render: (r: Remessa) => {
       const s = r.status_transporte ?? "";
       // E8: passar a chave canônica do status; StatusBadge resolve cor via STATUS_VARIANT_MAP.
-      return <StatusBadge status={s} label={remessaStatusMap[s]?.label} />;
+      // Quando o status genérico é "pendente", anotamos o motivo real abaixo do badge.
+      let pendingHint: string | null = null;
+      if (s === "pendente") {
+        const et = etiquetasMap[r.id];
+        if (!et || et.status !== "emitida") pendingHint = "Etiqueta pendente";
+        else if (!r.data_postagem) pendingHint = "Aguardando postagem";
+        else if (!r.codigo_rastreio) pendingHint = "Aguardando coleta";
+      }
+      return (
+        <span className="inline-flex flex-col items-start gap-0.5">
+          <StatusBadge status={s} label={remessaStatusMap[s]?.label} />
+          {pendingHint && <span className="text-[10px] text-muted-foreground">{pendingHint}</span>}
+        </span>
+      );
     }},
     { key: "etiqueta", label: "Etiqueta", render: (r: Remessa) => {
       const et = etiquetasMap[r.id];
-      if (!et) return <span className="text-muted-foreground text-xs">—</span>;
+      if (!et) return <MissingChip label="Etiqueta pendente" />;
       const labelMap: Record<string, string> = { emitida: "Emitida", pendente: "Pendente", erro: "Erro", cancelada: "Cancelada" };
       const colorMap: Record<string, string> = { emitida: "success", pendente: "warning", erro: "destructive", cancelada: "muted" };
       return (
@@ -633,7 +687,7 @@ export default function Logistica() {
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setTrackingTarget({ codigo: r.codigo_rastreio!, remessaId: r.id })}>
         <Search className="h-3.5 w-3.5" />Rastrear
       </Button>
-    ) : <span className="text-muted-foreground text-xs">—</span> },
+    ) : <MissingChip label="Sem rastreio" /> },
     { key: "etiqueta_simples", label: "Etiqueta simples", render: (r: Remessa) => (
       <Button
         variant="ghost"
@@ -645,6 +699,10 @@ export default function Logistica() {
         <Printer className="h-3.5 w-3.5" />Etiqueta
       </Button>
     )},
+    { key: "updated_at", label: "Atualizada em", hidden: true, render: (r: Remessa) => {
+      const upd = (r as Remessa & { updated_at?: string | null }).updated_at;
+      return upd ? <span className="text-xs text-muted-foreground">{format(new Date(upd), "dd/MM/yyyy HH:mm")}</span> : <MissingChip label="—" />;
+    } },
   ];
 
   const remSummaryItems = remSelected ? [
@@ -698,13 +756,13 @@ export default function Logistica() {
           {/* ── Tab: Entregas ── */}
           <TabsContent value="entregas">
             <div className="mb-4 rounded-md border border-info/30/40 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
-              Entregas é uma visão consolidada por pedido. Quando houver múltiplas remessas, o status exibido reflete somente a última atualização — gerencie com precisão na aba <strong>Remessas</strong>.
+              Visão consolidada por pedido. Para múltiplas remessas, gerencie status na aba <strong>Remessas</strong>.
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              <SummaryCard title="Total de Entregas" value={formatNumber(entregasKpis.total)} icon={Package} variationType="neutral" variation="operações ativas" />
-              <SummaryCard title="Em Transporte" value={formatNumber(entregasKpis.emTransporte)} icon={Truck} variationType="positive" variation="a caminho do cliente" />
-              <SummaryCard title="Atrasadas" value={formatNumber(entregasKpis.atrasadas)} icon={AlertTriangle} variationType={entregasKpis.atrasadas > 0 ? "negative" : "neutral"} variation="fora do prazo" />
-              <SummaryCard title="Entregues" value={formatNumber(entregasKpis.entregues)} icon={CheckCheck} variationType="positive" variation="concluídas" />
+              <SummaryCard title="Pedidos em entrega" value={formatNumber(entregasKpis.total)} icon={Package} variationType="neutral" variation="operações ativas" onClick={() => { setStatusFilters([]); setPrazoFilters([]); }} />
+              <SummaryCard title="Em Transporte" value={formatNumber(entregasKpis.emTransporte)} icon={Truck} variationType="positive" variation="a caminho do cliente" onClick={() => { setStatusFilters(["em_transporte"]); setPrazoFilters([]); }} />
+              <SummaryCard title="Atrasadas" value={formatNumber(entregasKpis.atrasadas)} icon={AlertTriangle} variationType={entregasKpis.atrasadas > 0 ? "negative" : "neutral"} variation="fora do prazo" onClick={() => { setStatusFilters([]); setPrazoFilters(["atrasado"]); }} />
+              <SummaryCard title="Entregues" value={formatNumber(entregasKpis.entregues)} icon={CheckCheck} variationType="positive" variation="concluídas" onClick={() => { setStatusFilters(["entregue"]); setPrazoFilters([]); }} />
             </div>
             {/* Métricas secundárias: visíveis sempre em desktop; collapsible em mobile para reduzir scroll. */}
             <Collapsible defaultOpen={false} className="mb-6 md:!block">
@@ -748,6 +806,7 @@ export default function Logistica() {
                 icon={Clock}
                 variationType="neutral"
                 variation="aguardando saída"
+                onClick={() => { setStatusFilters(["aguardando_separacao", "em_separacao", "separado", "aguardando_expedicao"]); setPrazoFilters([]); }}
               />
               </div>
               </CollapsibleContent>
@@ -801,13 +860,13 @@ export default function Logistica() {
           {/* ── Tab: Recebimentos ── */}
           <TabsContent value="recebimentos">
             <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
-              Recebimentos nesta tela são de acompanhamento logístico. A consolidação quantitativa oficial continua no módulo <strong>Compras</strong>.
+              Esta aba acompanha a logística dos recebimentos. A conferência quantitativa oficial permanece em <strong>Compras</strong>.
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <SummaryCard title="Total de Recebimentos" value={formatNumber(recebimentosKpis.total)} icon={Package} variationType="neutral" variation="pedidos de compra" />
-              <SummaryCard title="Em Trânsito" value={formatNumber(recebimentosKpis.emTransito)} icon={Truck} variationType="positive" variation="a caminho do armazém" />
-              <SummaryCard title="Atrasados" value={formatNumber(recebimentosKpis.atrasados)} icon={AlertTriangle} variationType={recebimentosKpis.atrasados > 0 ? "negative" : "neutral"} variation="fora do prazo" />
-              <SummaryCard title="Recebidos" value={formatNumber(recebimentosKpis.recebidos)} icon={CheckCheck} variationType="positive" variation="concluídos" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <SummaryCard title="Total de Recebimentos" value={formatNumber(recebimentosKpis.total)} icon={Package} variationType="neutral" variation="pedidos de compra" onClick={() => { setStatusFiltersReceb([]); setPrazoFiltersReceb([]); }} />
+              <SummaryCard title="Em Trânsito" value={formatNumber(recebimentosKpis.emTransito)} icon={Truck} variationType="positive" variation="a caminho do armazém" onClick={() => { setStatusFiltersReceb(["em_transito"]); setPrazoFiltersReceb([]); }} />
+              <SummaryCard title="Atrasados" value={formatNumber(recebimentosKpis.atrasados)} icon={AlertTriangle} variationType={recebimentosKpis.atrasados > 0 ? "negative" : "neutral"} variation="fora do prazo" onClick={() => { setStatusFiltersReceb([]); setPrazoFiltersReceb(["atrasado"]); }} />
+              <SummaryCard title="Recebidos" value={formatNumber(recebimentosKpis.recebidos)} icon={CheckCheck} variationType="positive" variation="concluídos" onClick={() => { setStatusFiltersReceb(["recebido"]); setPrazoFiltersReceb([]); }} />
             </div>
             <AdvancedFilterBar searchValue={searchTermReceb} onSearchChange={setSearchTermReceb} searchPlaceholder="Buscar por número da compra ou fornecedor..." activeFilters={activeRecebimentoFilters} onRemoveFilter={handleRemoveRecebimentoFilter} onClearAll={() => { setStatusFiltersReceb([]); setFornecedorFilters([]); setPrazoFiltersReceb([]); setDataInicioReceb(""); setDataFimReceb(""); }} count={filteredRecebimentos.length}>
               <MultiSelect options={recebimentoStatusMultiOptions} selected={statusFiltersReceb} onChange={setStatusFiltersReceb} placeholder="Status" className="w-[180px]" />
@@ -849,12 +908,31 @@ export default function Logistica() {
                 );
               }}
               emptyTitle="Nenhum recebimento encontrado"
-              emptyDescription="Tente ajustar os filtros de status ou período."
+              emptyDescription="Os recebimentos logísticos aparecem quando houver pedidos de compra aguardando entrega."
+              emptyAction={
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate("/compras")}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Ver pedidos de compra
+                </Button>
+              }
             />
           </TabsContent>
 
           {/* ── Tab: Remessas ── */}
           <TabsContent value="remessas">
+            {(() => {
+              const total = (remessasData ?? []).length;
+              const aguardandoPostagem = (remessasData ?? []).filter((r) => !r.data_postagem && (r.status_transporte === "pendente" || r.status_transporte === "coletado")).length;
+              const emTransporte = (remessasData ?? []).filter((r) => r.status_transporte === "em_transito" || r.status_transporte === "postado").length;
+              const entregues = (remessasData ?? []).filter((r) => r.status_transporte === "entregue").length;
+              return (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <SummaryCard title="Total de Remessas" value={formatNumber(total)} icon={Package} variationType="neutral" variation="cadastradas" onClick={() => setRemStatusFilters([])} />
+                  <SummaryCard title="Aguardando postagem" value={formatNumber(aguardandoPostagem)} icon={Clock} variationType="neutral" variation="prontas para envio" onClick={() => setRemStatusFilters(["pendente", "coletado"])} />
+                  <SummaryCard title="Em transporte" value={formatNumber(emTransporte)} icon={Truck} variationType="positive" variation="a caminho" onClick={() => setRemStatusFilters(["postado", "em_transito"])} />
+                  <SummaryCard title="Entregues" value={formatNumber(entregues)} icon={CheckCheck} variationType="positive" variation="concluídas" onClick={() => setRemStatusFilters(["entregue"])} />
+                </div>
+              );
+            })()}
             <AdvancedFilterBar searchValue={remSearchTerm} onSearchChange={setRemSearchTerm} searchPlaceholder="Buscar por rastreio, cliente ou transportadora..." activeFilters={remActiveFilters} onRemoveFilter={handleRemoveRemFilter} onClearAll={() => { setRemStatusFilters([]); setRemTranspFilters([]); }} count={filteredRemessas.length}>
               <MultiSelect options={remStatusOptions} selected={remStatusFilters} onChange={setRemStatusFilters} placeholder="Status" className="w-[180px]" />
               <MultiSelect options={remTranspOptions} selected={remTranspFilters} onChange={setRemTranspFilters} placeholder="Transportadoras" className="w-[220px]" />
@@ -865,17 +943,23 @@ export default function Logistica() {
                   size="sm"
                   disabled={selectedRemessaIds.length === 0}
                   onClick={() => setEtiquetaSimplesIds(selectedRemessaIds)}
-                  title="Gerar etiqueta simples (A4) das remessas selecionadas"
+                  title={selectedRemessaIds.length === 0 ? "Selecione remessas para gerar etiquetas A4" : "Gerar etiqueta simples (A4) das remessas selecionadas"}
                 >
                   <Printer className="h-3.5 w-3.5 mr-1.5" />
                   Etiquetas simples{selectedRemessaIds.length > 0 ? ` (${selectedRemessaIds.length})` : ""}
                 </Button>
               )}
-              <Button
+              {(() => {
+                const emitidasFiltradas = filteredRemessas
+                  .map((r) => etiquetasMap[r.id])
+                  .filter((e) => e?.status === "emitida" && e.pdf_path).length;
+                return (
+                <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={printingBatch}
+                disabled={printingBatch || emitidasFiltradas === 0}
+                title={emitidasFiltradas === 0 ? "Nenhuma etiqueta emitida nas remessas filtradas" : `Imprimir ${emitidasFiltradas} etiqueta(s) emitidas — 4 por A4`}
                 onClick={async () => {
                   const paths = filteredRemessas
                     .map((r) => etiquetasMap[r.id])
@@ -907,8 +991,10 @@ export default function Logistica() {
                 }}
               >
                 {printingBatch ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Printer className="h-3.5 w-3.5 mr-1.5" />}
-                Imprimir etiquetas (4/A4)
+                Imprimir etiquetas filtradas{emitidasFiltradas > 0 ? ` (${emitidasFiltradas})` : ""}
               </Button>
+                );
+              })()}
             </AdvancedFilterBar>
             <DataTable
               columns={remessaColumns}
@@ -932,6 +1018,11 @@ export default function Logistica() {
               }}
               emptyTitle="Nenhuma remessa encontrada"
               emptyDescription="Tente ajustar os filtros ou crie uma nova remessa."
+              emptyAction={canEdit ? (
+                <Button variant="default" size="sm" className="gap-1.5" onClick={() => navigate("/remessas/new")}>
+                  <Plus className="h-3.5 w-3.5" /> Nova Remessa
+                </Button>
+              ) : undefined}
             />
           </TabsContent>
         </Tabs>

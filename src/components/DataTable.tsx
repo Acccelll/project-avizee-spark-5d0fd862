@@ -115,6 +115,11 @@ interface DataTableProps<T> {
   emptyTitle?: string;
   emptyDescription?: string;
   /**
+   * Ação opcional renderizada dentro do `<EmptyState>` quando a lista está
+   * vazia (sem filtros ativos). Útil para CTAs de descobrimento.
+   */
+  emptyAction?: React.ReactNode;
+  /**
    * Indica que filtros estão ativos. Quando true e a lista está vazia,
    * o DataTable renderiza `<NoResultsState>` (com ação "Limpar filtros")
    * em vez do `<EmptyState>` genérico.
@@ -253,6 +258,7 @@ export function DataTable<T extends Record<string, any>>({
   onSelectionChange,
   emptyTitle = 'Nenhum registro encontrado',
   emptyDescription = 'Tente ajustar os filtros ou adicione um novo registro.',
+  emptyAction,
   showColumnToggle = false,
   showInternalFilters = false,
   onBatchDelete,
@@ -943,7 +949,7 @@ export function DataTable<T extends Record<string, any>>({
               onClearFilters={onClearFilters}
             />
           ) : (
-            <EmptyState title={emptyTitle} description={emptyDescription} />
+            <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />
           )
         ) : (
           <>
@@ -997,7 +1003,7 @@ export function DataTable<T extends Record<string, any>>({
                 onClearFilters={onClearFilters}
               />
             ) : (
-              <EmptyState title={emptyTitle} description={emptyDescription} />
+              <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />
             )
           ) : (
             <>
