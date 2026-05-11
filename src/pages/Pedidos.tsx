@@ -19,7 +19,7 @@ import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatCurrencyCompact, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
-import { FileText, DollarSign, Truck } from "lucide-react";
+import { FileText, DollarSign } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
