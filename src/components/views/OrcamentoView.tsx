@@ -290,44 +290,14 @@ export function OrcamentoView({ id }: Props) {
             <Edit className="h-3.5 w-3.5" /> Editar
           </Button>
         )}
-        {canCancelar && (
-        <Button
-          variant="ghost" size="sm"
-          className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
-          aria-label="Cancelar orçamento"
-          onClick={() => {
-            if (linkedOVAtivo) {
-              toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
-                description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
-              });
-              return;
-            }
-            setDeleteConfirmOpen(true);
-          }}
-          disabled={linkedOVAtivo}
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Cancelar
-        </Button>
-        )}
-        {isAdmin && (
-          <Button
-            variant="ghost" size="sm"
-            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
-            aria-label="Excluir orçamento definitivamente"
-            onClick={() => setPermDeleteOpen(true)}
-            title="Remove o orçamento e seus vínculos do banco de dados (admin)"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
-          </Button>
-        )}
 
-        {/* Mobile: dropdown único com ações secundárias (Editar, PDF, Revisão, Cancelar...) */}
+        {/* Kebab para ações destrutivas (desktop e mobile). Em mobile, também agrega Editar/PDF/Revisão. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 md:hidden"
+              className="h-8 w-8"
               aria-label="Mais ações"
               disabled={isAnyLocked}
             >
@@ -336,50 +306,52 @@ export function OrcamentoView({ id }: Props) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {canEditar && (
-              <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+              <DropdownMenuItem className="md:hidden" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
                 <Edit className="h-4 w-4 mr-2" /> Editar
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
+            <DropdownMenuItem className="md:hidden" onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
               <FileText className="h-4 w-4 mr-2" /> PDF
             </DropdownMenuItem>
             {canSendOrcamento(selected.status) && (
-              <DropdownMenuItem onClick={handleSendForApproval}>
-                <Send className="h-4 w-4 mr-2" /> Enviar p/ Aprovação
+              <DropdownMenuItem className="md:hidden" onClick={handleSendForApproval}>
+                <Send className="h-4 w-4 mr-2" /> Enviar para aprovação
               </DropdownMenuItem>
             )}
             {["pendente", "aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
-              <DropdownMenuItem onClick={handleCriarRevisao}>
+              <DropdownMenuItem className="md:hidden" onClick={handleCriarRevisao}>
                 <GitBranch className="h-4 w-4 mr-2" /> Criar revisão
               </DropdownMenuItem>
             )}
             {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
-              <DropdownMenuItem onClick={() => pushView("ordem_venda", linkedOV.id)}>
+              <DropdownMenuItem className="md:hidden" onClick={() => pushView("ordem_venda", linkedOV.id)}>
                 <ExternalLink className="h-4 w-4 mr-2" /> Ver Pedido {linkedOV.numero}
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="md:hidden" />
             {canCancelar && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               disabled={linkedOVAtivo}
-              onClick={() => {
-                if (linkedOVAtivo) {
-                  toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
-                    description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
-                  });
-                  return;
-                }
-                setDeleteConfirmOpen(true);
-              }}
+              onClick={handleCancelOrcamento}
             >
-              <Trash2 className="h-4 w-4 mr-2" /> Cancelar
+              <Trash2 className="h-4 w-4 mr-2" /> Cancelar orçamento
             </DropdownMenuItem>
             )}
-            {isAdmin && (
+            {canHardDelete && (
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
-                onClick={() => setPermDeleteOpen(true)}
+                disabled={!!linkedOV}
+                title={linkedOV ? "Existe pedido vinculado — não é possível excluir definitivamente" : undefined}
+                onClick={() => {
+                  if (linkedOV) {
+                    toast.error("Existe pedido vinculado — não é possível excluir definitivamente.", {
+                      description: `Pedido ${linkedOV.numero}.`,
+                    });
+                    return;
+                  }
+                  setPermDeleteOpen(true);
+                }}
               >
                 <Trash2 className="h-4 w-4 mr-2" /> Excluir definitivamente
               </DropdownMenuItem>
