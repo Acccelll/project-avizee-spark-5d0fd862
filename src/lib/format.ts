@@ -32,6 +32,15 @@ export function formatNumber(value: number): string {
   return numberFormatter.format(Number.isFinite(value) ? value : 0);
 }
 
+/** Formata peso em kg no padrão pt-BR: ex. `6,00 kg`, `1.234,50 kg`. */
+export function formatWeightKg(value: number): string {
+  const safe = Number.isFinite(value) ? value : 0;
+  return `${safe.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} kg`;
+}
+
 function normalizeDate(value: string | Date) {
   if (value instanceof Date) return value;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
