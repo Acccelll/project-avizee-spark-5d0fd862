@@ -543,6 +543,7 @@ const Pedidos = () => {
           loading={loading}
           moduleKey="pedidos"
           showColumnToggle={true}
+          hideSinglePagePagination
           onView={handleView}
           onEdit={(p) => navigate(`/pedidos/${p.id}`)}
           rowExtraActions={(p) => (
