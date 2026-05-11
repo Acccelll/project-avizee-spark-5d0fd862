@@ -54,7 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { PedidoEditDrawer } from "@/components/views/PedidoEditDrawer";
+import { PedidoEditModal } from "@/components/views/PedidoEditModal";
 import {
   verificarPrerequisitosNF,
   type NFPrerequisiteIssue,
@@ -1008,7 +1008,7 @@ export function OrdemVendaView({ id }: Props) {
         </div>
       )}
 
-      <PedidoEditDrawer
+      <PedidoEditModal
         open={editOpen}
         pedidoId={selected?.id ?? null}
         onClose={() => setEditOpen(false)}
