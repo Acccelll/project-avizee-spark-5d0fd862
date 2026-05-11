@@ -497,13 +497,13 @@ const Estoque = () => {
               variant="info"
             />
             <SummaryCard
-              title="Itens Críticos"
-              value={formatNumber(kpis.itensCriticos)}
+              title="Abaixo do mínimo"
+              value={formatNumber(kpis.abaixoMin)}
               icon={TrendingDown}
-              variation={kpis.itensCriticos > 0 ? "exigem atenção" : "estoque saudável"}
-              variationType={kpis.itensCriticos > 0 ? "negative" : "positive"}
-              variant={kpis.itensCriticos > 0 ? "danger" : undefined}
-              onClick={kpis.itensCriticos > 0 ? () => { setActiveTab("saldos"); setSituacaoFilters(["critico", "zerado"]); } : undefined}
+              variation={kpis.itensZerados > 0 ? `+ ${formatNumber(kpis.itensZerados)} zerado(s)` : (kpis.semMinimo > 0 ? `${formatNumber(kpis.semMinimo)} sem mínimo` : "estoque saudável")}
+              variationType={(kpis.abaixoMin + kpis.itensZerados) > 0 ? "negative" : "positive"}
+              variant={(kpis.abaixoMin + kpis.itensZerados) > 0 ? "danger" : undefined}
+              onClick={() => { setActiveTab("saldos"); setSituacaoFilters(["critico", "zerado"]); }}
               sparklineData={sparklines.saida}
             />
             <SummaryCard
@@ -514,6 +514,7 @@ const Estoque = () => {
               variationType="negative"
               variant="warning"
               sparklineData={sparklines.ajuste}
+              onClick={() => { setActiveTab("movimentacoes"); setTipoFilters(["ajuste"]); }}
             />
           </>
         }
