@@ -1009,6 +1009,13 @@ export function OrdemVendaView({ id }: Props) {
           </div>
         </div>
       )}
+
+      <PedidoEditDrawer
+        open={editOpen}
+        pedidoId={selected?.id ?? null}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => { void reload(); }}
+      />
     </div>
   );
 }
