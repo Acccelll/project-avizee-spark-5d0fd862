@@ -283,18 +283,25 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
             </ViewSection>
             <ViewSection title="Pagamento">
               <div className="grid grid-cols-2 gap-4">
-                <ViewField label="Forma de Pagamento">{selected.forma_pagamento || "—"}</ViewField>
+                <ViewField label="Forma de Pagamento">{formaPagamentoLabel}</ViewField>
                 {selected.parcela_numero ? (
                   <ViewField label="Parcela"><span className="font-mono">{selected.parcela_numero}/{selected.parcela_total}</span></ViewField>
                 ) : null}
+                {selected.titulo ? (
+                  <ViewField label="Documento"><span className="font-mono">{selected.titulo}</span></ViewField>
+                ) : null}
+                {selected.data_emissao ? (
+                  <ViewField label="Emissão">{new Date(selected.data_emissao + "T00:00:00").toLocaleDateString("pt-BR")}</ViewField>
+                ) : null}
+                <ViewField label="Vencimento">{vencimento ? vencimento.toLocaleDateString("pt-BR") : "—"}</ViewField>
               </div>
               {selected.data_pagamento && (
                 <ViewField label="Data do Pagamento">{new Date(selected.data_pagamento).toLocaleDateString("pt-BR")}</ViewField>
               )}
             </ViewSection>
-            {selected.observacoes && (
+            {observacoesLegivel && (
               <ViewSection title="Observações">
-                <p className="text-sm text-foreground whitespace-pre-wrap">{selected.observacoes}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{observacoesLegivel}</p>
               </ViewSection>
             )}
           </div>
@@ -303,7 +310,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
           <div className="space-y-4">
             <DrawerSummaryGrid cols={2}>
               <DrawerSummaryCard label={`Total ${isCR ? "Recebido" : "Pago"}`} value={formatCurrency(valorBaixado)} tone="success" />
-              <DrawerSummaryCard label="Saldo em Aberto" value={formatCurrency(saldoRestante)} tone={saldoRestante > 0 ? "destructive" : "success"} />
+              <DrawerSummaryCard label="Em Aberto" value={formatCurrency(saldoRestante)} tone={saldoRestante > 0 ? "destructive" : "success"} hint="Saldo restante" />
             </DrawerSummaryGrid>
             {loadingBaixas ? (
               <p className="text-sm text-muted-foreground text-center py-4">Carregando baixas...</p>
