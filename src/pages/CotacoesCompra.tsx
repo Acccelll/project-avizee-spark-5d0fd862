@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Info, Plus, X, ShoppingCart, Clock, FileSearch, CheckCircle2 } from "lucide-react";
+import { Info, Plus, X, ShoppingCart, Clock, FileSearch, AlertCircle } from "lucide-react";
 import { formatNumber, formatDate } from "@/lib/format";
 import { useCotacoesCompra } from "@/hooks/useCotacoesCompra";
 import { CotacaoCompraFilters } from "@/components/compras/CotacaoCompraFilters";
@@ -59,6 +59,7 @@ export default function CotacoesCompra() {
     fornecedorFilters, setFornecedorFilters,
     dataInicio, setDataInicio,
     dataFim, setDataFim,
+    validadeFilter, setValidadeFilter,
     filteredData, activeFilters, handleRemoveFilter, statusOptions,
   } = useCotacaoCompraFilters(data, statusLabels, {
     summaries,
@@ -80,9 +81,9 @@ export default function CotacoesCompra() {
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard title="Total" value={formatNumber(kpis.total)} icon={ShoppingCart} variationType="neutral" variation="cotações" />
-          <SummaryCard title="Em Cotação" value={formatNumber(kpis.emCotacao)} icon={Clock} variationType={kpis.emCotacao > 0 ? "negative" : "positive"} variation="abertas ou em análise" />
-          <SummaryCard title="Aguardando Aprovação" value={formatNumber(kpis.aguardandoAprovacao)} icon={FileSearch} variationType={kpis.aguardandoAprovacao > 0 ? "negative" : "positive"} variation="pendentes de decisão" />
-          <SummaryCard title="Convertidas" value={formatNumber(kpis.convertidas)} icon={CheckCircle2} variationType="positive" variation="viraram pedidos" />
+          <SummaryCard title="Em Cotação" value={formatNumber(kpis.emCotacao)} icon={Clock} variationType="neutral" variation="abertas ou em análise" />
+          <SummaryCard title="Sem propostas" value={formatNumber(kpis.semPropostas)} icon={AlertCircle} variationType={kpis.semPropostas > 0 ? "negative" : "positive"} variation="ações em aberto" />
+          <SummaryCard title="Aguardando Aprovação" value={formatNumber(kpis.aguardandoAprovacao)} icon={FileSearch} variationType={kpis.aguardandoAprovacao > 0 ? "negative" : "neutral"} variation="pendentes de decisão" />
         </div>
 
         <CotacaoCompraFilters
@@ -107,6 +108,8 @@ export default function CotacoesCompra() {
           onDataInicioChange={setDataInicio}
           dataFim={dataFim}
           onDataFimChange={setDataFim}
+          validadeFilter={validadeFilter}
+          onValidadeChange={setValidadeFilter}
         />
 
         <CotacaoCompraTable

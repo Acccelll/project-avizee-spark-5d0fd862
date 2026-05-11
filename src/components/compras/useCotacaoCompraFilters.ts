@@ -83,7 +83,7 @@ export function useCotacaoCompraFilters(
       }
       return true;
     });
-  }, [data, statusFilters, fornecedorFilters, dataInicio, dataFim, searchTerm, options?.summaries]);
+  }, [data, statusFilters, fornecedorFilters, dataInicio, dataFim, validadeFilter, searchTerm, options?.summaries]);
 
   const activeFilters = useMemo<FilterChip[]>(() => {
     const chips = statusFilters.map((s) => ({
