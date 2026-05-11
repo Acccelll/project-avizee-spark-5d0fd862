@@ -1021,7 +1021,41 @@ const Estoque = () => {
         confirmLabel="Confirmar"
         confirmVariant="default"
         loading={saving || pendingSubmit}
-      />
+      >
+        {pendingMovForm && pendingMovForm.tipo === "ajuste" && (() => {
+          const produto = produtosCrud.data.find((p) => p.id === pendingMovForm.produto_id);
+          const un = produto?.unidade_medida || "UN";
+          const saldoAtual = Number(produto?.estoque_atual ?? 0);
+          const novo = pendingMovForm.quantidade;
+          const diff = novo - saldoAtual;
+          const diffSign = diff > 0 ? "+" : diff < 0 ? "−" : "";
+          const diffAbs = formatNumber(Math.abs(diff));
+          const catLabels: Record<string, string> = {
+            correcao_inventario: "Correção de inventário",
+            perda: "Perda",
+            avaria: "Avaria",
+            vencimento: "Vencimento",
+            furto_extravio: "Furto / extravio",
+            divergencia_recebimento: "Divergência de recebimento",
+            outro: "Outro",
+          };
+          return (
+            <div className="rounded-md border bg-muted/30 px-3 py-2.5 text-xs space-y-1.5 font-mono">
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Produto:</span><span className="font-semibold text-right">{produto?.nome ?? "—"}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Saldo atual:</span><span>{formatNumber(saldoAtual)} {un}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Novo saldo:</span><span className="font-semibold">{formatNumber(novo)} {un}</span></div>
+              <div className="flex justify-between gap-4 border-t pt-1.5">
+                <span className="text-muted-foreground">Diferença:</span>
+                <span className={cn("font-bold", diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground")}>
+                  {diffSign}{diffAbs} {un}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Categoria:</span><span>{catLabels[pendingMovForm.categoria_ajuste] ?? pendingMovForm.categoria_ajuste}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Justificativa:</span><span className="text-right max-w-[60%] truncate" title={pendingMovForm.motivo || "—"}>{pendingMovForm.motivo || "—"}</span></div>
+            </div>
+          );
+        })()}
+      </ConfirmDialog>
 
       <EstoqueAjusteSheet
         open={ajusteSheetOpen}
