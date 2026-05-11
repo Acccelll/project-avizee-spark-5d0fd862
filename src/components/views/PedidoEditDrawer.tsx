@@ -15,7 +15,6 @@ import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
 import { getPedidoStatusLabel, validarTransicaoPedido } from "@/lib/comercialWorkflow";
-import { closeOnly } from "@/lib/overlay";
 
 /**
  * Drawer de edição operacional do pedido — substitui a navegação para a
@@ -296,6 +295,3 @@ export function PedidoEditDrawer({ open, pedidoId, onClose, onSaved }: Props) {
     </>
   );
 }
-
-// helper kept for tree-shake friendliness against the closeOnly utility usage hint
-void closeOnly;
