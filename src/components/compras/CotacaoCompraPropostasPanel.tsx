@@ -359,10 +359,11 @@ export function CotacaoCompraPropostasPanel({
                     </div>
                   ) : (
                     <Button
-                      type="button" variant="outline" size="sm" className="w-full gap-1.5 text-xs max-sm:h-11 max-sm:text-sm"
+                      type="button" variant={itemPropostas.length === 0 ? "default" : "outline"} size="sm"
+                      className="w-full gap-1.5 text-xs max-sm:h-11 max-sm:text-sm"
                       onClick={() => { setAddingProposal(item.id); setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" }); }}
                     >
-                      <Plus className="h-3 w-3" /> Adicionar Proposta
+                      <Plus className="h-3 w-3" /> {itemPropostas.length === 0 ? "Adicionar proposta" : "Adicionar outra proposta"}
                     </Button>
                   )}
                 </>
