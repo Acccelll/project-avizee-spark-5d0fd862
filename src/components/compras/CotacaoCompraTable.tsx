@@ -40,20 +40,27 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
     },
     {
       key: "fornecedores",
-      label: "Fornecedores",
+      label: "Fornecedores / Propostas",
       render: (c: CotacaoCompra) => {
         const s = summaries[c.id];
         if (!s) return <span className="text-muted-foreground/40 text-xs">—</span>;
-        if (s.fornecedores_count === 0) {
-          return <span className="text-xs text-muted-foreground italic">Sem propostas</span>;
+        if (s.fornecedores_count === 0 && s.propostas_count === 0) {
+          return (
+            <span className="text-xs text-muted-foreground italic">
+              Sem fornecedores · sem propostas
+            </span>
+          );
         }
         return (
           <div className="space-y-0.5">
-            <span className="text-sm font-mono font-semibold">{s.fornecedores_count}</span>
+            <span className="text-xs font-mono font-medium">
+              {s.fornecedores_count} {s.fornecedores_count === 1 ? "fornecedor" : "fornecedores"} ·{" "}
+              {s.propostas_count} {s.propostas_count === 1 ? "proposta" : "propostas"}
+            </span>
             {s.vencedor_nome ? (
               <p className="text-[10px] text-success dark:text-success flex items-center gap-0.5 mt-0.5">
                 <Trophy className="h-2.5 w-2.5 shrink-0" />
-                <span className="truncate max-w-[110px]">{s.vencedor_nome}</span>
+                <span className="truncate max-w-[140px]">{s.vencedor_nome}</span>
               </p>
             ) : (
               <p className="text-[10px] text-muted-foreground mt-0.5">Sem vencedor definido</p>
@@ -69,15 +76,19 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
     },
     {
       key: "prontidao",
-      label: "Prontidão",
+      label: "Próxima ação",
       render: (c: CotacaoCompra) => {
         const s = summaries[c.id];
         const status = canonicalCotacaoStatus(c.status);
         if (!s) return <span className="text-xs text-muted-foreground">Carregando…</span>;
         if (status === "convertida") return <StatusBadge status="recebido" label="Pedido gerado" />;
-        if (status === "aguardando_aprovacao") return <StatusBadge status="aguardando" label="Aguardando decisão" />;
-        if (s.tem_vencedor && s.itens_count > 0) return <StatusBadge status="aprovado" label="Pronta para aprovação" />;
-        return <StatusBadge status="rascunho" label="Aguardando seleção" />;
+        if (status === "cancelada") return <StatusBadge status="cancelado" label="Cancelada" />;
+        if (status === "rejeitada") return <StatusBadge status="cancelado" label="Rejeitada" />;
+        if (status === "aguardando_aprovacao") return <StatusBadge status="aguardando" label="Aprovar cotação" />;
+        if (s.itens_count === 0) return <StatusBadge status="rascunho" label="Adicionar itens" />;
+        if (s.propostas_count === 0) return <StatusBadge status="rascunho" label="Adicionar proposta" />;
+        if (s.tem_vencedor) return <StatusBadge status="aprovado" label="Pronta p/ aprovação" />;
+        return <StatusBadge status="aguardando" label="Selecionar fornecedor" />;
       },
     },
     {
