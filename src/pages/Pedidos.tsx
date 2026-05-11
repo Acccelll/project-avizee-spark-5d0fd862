@@ -43,6 +43,7 @@ import { notifyError } from "@/utils/errorMessages";
 import { useAppConfig } from "@/hooks/useAppConfig";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PedidoEditDrawer } from "@/components/views/PedidoEditDrawer";
 
 interface Pedido {
   id: string;
@@ -128,6 +129,7 @@ const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [editingPedidoId, setEditingPedidoId] = useState<string | null>(null);
   const faturarPedido = useFaturarPedido();
   const { can } = useCan();
   const canFaturar = can("faturamento_fiscal:criar") || can("pedidos:editar");
