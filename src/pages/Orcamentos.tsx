@@ -411,8 +411,12 @@ const Orcamentos = () => {
     });
     if (dataInicio) chips.push({ key: "dataInicio", label: "Emissão desde", value: [dataInicio], displayValue: formatDate(dataInicio) });
     if (dataFim) chips.push({ key: "dataFim", label: "Emissão até", value: [dataFim], displayValue: formatDate(dataFim) });
+    if (historicoFilter && historicoFilter !== "todos") {
+      const opt = historicoOptions.find(x => x.value === historicoFilter);
+      chips.push({ key: "historico", label: "Legados", value: [historicoFilter], displayValue: opt?.label || historicoFilter });
+    }
     return chips;
-  }, [statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim, clientesList]);
+  }, [statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim, historicoFilter, clientesList]);
 
   const handleRemoveOrcFilter = (key: string, value?: string) => {
     if (key === "status") setStatusFilters(prev => prev.filter(v => v !== value));
@@ -420,6 +424,7 @@ const Orcamentos = () => {
     if (key === "validade") setValidadeFilters(prev => prev.filter(v => v !== value));
     if (key === "dataInicio") setDataInicio("");
     if (key === "dataFim") setDataFim("");
+    if (key === "historico") setHistoricoFilter("todos");
   };
 
   const statusOptions: MultiSelectOption[] = Object.entries(statusLabels).map(([k, v]) => ({
