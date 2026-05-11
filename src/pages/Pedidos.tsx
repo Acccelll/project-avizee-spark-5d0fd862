@@ -578,7 +578,7 @@ const Pedidos = () => {
           showColumnToggle={true}
           hideSinglePagePagination
           onView={handleView}
-          onEdit={(p) => navigate(`/pedidos/${p.id}`)}
+          onEdit={(p) => setEditingPedidoId(p.id)}
           mobileLabeledDetails
           rowExtraActions={(p) => (
             canFaturarPedido(p) && canFaturar ? (
@@ -616,7 +616,7 @@ const Pedidos = () => {
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleView(p); }}>
                     Visualizar pedido
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/pedidos/${p.id}`); }}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingPedidoId(p.id); }}>
                     Editar pedido
                   </DropdownMenuItem>
                   {showFaturar && (
