@@ -1882,7 +1882,7 @@ export default function OrcamentoForm() {
           </div>
           <div className="text-right text-[10px] text-muted-foreground leading-tight">
             <p>{items.filter(i => i.produto_id).length} item(ns)</p>
-            {pesoTotal > 0 && <p>{pesoTotal.toFixed(2)} kg</p>}
+            {pesoTotal > 0 && <p>{formatWeightKg(pesoTotal)}</p>}
           </div>
         </div>
         <div className="grid grid-cols-[1fr_auto_auto] gap-2">
