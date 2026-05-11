@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/MultiSelect";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -34,6 +35,7 @@ import {
   CreditCard,
   Eye,
   Pencil,
+  X,
 } from "lucide-react";
 import { FinanceiroCalendar } from "@/components/financeiro/FinanceiroCalendar";
 import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
@@ -52,6 +54,8 @@ import { FinanceiroLancamentoForm } from "@/pages/financeiro/components/Financei
 import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/types";
 import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import { normalizeFormaPagamento } from "@/lib/financeiro";
+
+const FORMAS_CARTAO = new Set(["cartao_credito", "cartao_debito"]);
 
 const PAGE_SIZE = 50;
 
@@ -87,6 +91,9 @@ const Financeiro = () => {
   const [cancelTarget, setCancelTarget] = useState<Lancamento | null>(null);
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [cancelProcessing, setCancelProcessing] = useState(false);
+  const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
+  const [bulkCancelMotivo, setBulkCancelMotivo] = useState("");
+  const [bulkCancelProcessing, setBulkCancelProcessing] = useState(false);
 
   // Atalho do Dashboard: `/financeiro?baixa=lote` abre o modal de baixa em lote.
   const baixaAutoOpenedRef = useRef(false);
@@ -332,6 +339,35 @@ const Financeiro = () => {
     [data, selectedIds],
   );
 
+  const showCartaoFilter = useMemo(
+    () => cartaoOpts.length > 0 && formaPagamentoFilters.some((f) => FORMAS_CARTAO.has(f)),
+    [cartaoOpts.length, formaPagamentoFilters],
+  );
+  // Limpa cartões selecionados quando o filtro de cartão deixa de ser visível.
+  useEffect(() => {
+    if (!showCartaoFilter && cartaoFilters.length > 0) {
+      setCartaoFilters([]);
+    }
+  }, [showCartaoFilter, cartaoFilters.length, setCartaoFilters]);
+
+  const bulkCancel = useCallback(async () => {
+    if (selectedForBaixa.length === 0) return;
+    setBulkCancelProcessing(true);
+    const motivo = bulkCancelMotivo.trim();
+    const results = await Promise.allSettled(
+      selectedForBaixa.map((l) => cancelarLancamento(l.id, motivo)),
+    );
+    setBulkCancelProcessing(false);
+    const ok = results.filter((r) => r.status === "fulfilled" && r.value === true).length;
+    const fail = results.length - ok;
+    if (ok > 0) toast.success(`${ok} lançamento(s) cancelado(s)`);
+    if (fail > 0) toast.error(`${fail} falharam — verifique permissões/origem`);
+    setBulkCancelOpen(false);
+    setBulkCancelMotivo("");
+    setSelectedIds([]);
+    await fetchData();
+  }, [selectedForBaixa, bulkCancelMotivo, setSelectedIds, fetchData]);
+
   const columns = useMemo(
     () =>
       buildFinanceiroColumns({
@@ -353,22 +389,32 @@ const Financeiro = () => {
           />
           <MonthFilter value={mes} onChange={setMes} direction="future" />
           <div className="flex gap-1 ml-auto rounded-lg border p-0.5" data-help-id="financeiro.viewToggle">
-            <Button
-              size="sm"
-              variant={viewMode === "lista" ? "default" : "ghost"}
-              className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
-              onClick={() => setViewMode("lista")}
-            >
-              <List className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Lista
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "calendario" ? "default" : "ghost"}
-              className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
-              onClick={() => setViewMode("calendario")}
-            >
-              <CalendarDays className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Calendário
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={viewMode === "lista" ? "default" : "ghost"}
+                  className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
+                  onClick={() => setViewMode("lista")}
+                >
+                  <List className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Lista
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Gestão operacional — baixas, edição em lote</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={viewMode === "calendario" ? "default" : "ghost"}
+                  className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
+                  onClick={() => setViewMode("calendario")}
+                >
+                  <CalendarDays className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Calendário
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Visão por vencimentos no mês</TooltipContent>
+            </Tooltip>
           </div>
           <Button
             size="sm"
@@ -402,12 +448,37 @@ const Financeiro = () => {
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6" data-help-id="financeiro.kpis">
-          <SummaryCard title="A Vencer" value={kpis.aVencer.toString()} subtitle={formatCurrency(kpis.totalAVencer)} icon={CalendarClock} variant="info" onClick={() => setStatusFilters(["aberto"])} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div><SummaryCard title="A Vencer" value={kpis.aVencer.toString()} subtitle={formatCurrency(kpis.totalAVencer)} icon={CalendarClock} variant="info" onClick={() => setStatusFilters(["aberto"])} /></div>
+            </TooltipTrigger>
+            <TooltipContent>Abertos com vencimento futuro no período filtrado</TooltipContent>
+          </Tooltip>
           {/* Em mobile, "Vence Hoje" vira banner acima — esconder card duplicado */}
-          <SummaryCard title="Vence Hoje" value={kpis.venceHoje.toString()} icon={Clock} variant="warning" className="hidden md:block" />
-          <SummaryCard title="Vencidos" value={kpis.vencido.toString()} subtitle={formatCurrency(kpis.totalVencido)} icon={AlertTriangle} variant="danger" onClick={() => setStatusFilters(["vencido"])} />
-          <SummaryCard title="Parcialmente Baixados" value={kpis.parcialCount.toString()} subtitle={formatCurrency(kpis.totalParcial)} icon={DollarSign} variant="info" onClick={() => setStatusFilters(["parcial"])} />
-          <SummaryCard title="Pagos" value={kpis.pagoNoPeriodo.toString()} subtitle={formatCurrency(kpis.totalPago)} icon={CheckCircle} variant="success" onClick={() => setStatusFilters(["pago"])} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="hidden md:block"><SummaryCard title="Vence Hoje" value={kpis.venceHoje.toString()} icon={Clock} variant="warning" /></div>
+            </TooltipTrigger>
+            <TooltipContent>Abertos com vencimento na data de hoje</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div><SummaryCard title="Vencidos" value={kpis.vencido.toString()} subtitle={formatCurrency(kpis.totalVencido)} icon={AlertTriangle} variant="danger" onClick={() => setStatusFilters(["vencido"])} /></div>
+            </TooltipTrigger>
+            <TooltipContent>Abertos com data de vencimento anterior a hoje</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div><SummaryCard title="Parcialmente Baixados" value={kpis.parcialCount.toString()} subtitle={formatCurrency(kpis.totalParcial)} icon={DollarSign} variant="info" onClick={() => setStatusFilters(["parcial"])} /></div>
+            </TooltipTrigger>
+            <TooltipContent>Saldo em aberto com pelo menos uma baixa registrada</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div><SummaryCard title="Baixados" value={kpis.pagoNoPeriodo.toString()} subtitle={formatCurrency(kpis.totalPago)} icon={CheckCircle} variant="success" onClick={() => setStatusFilters(["pago"])} /></div>
+            </TooltipTrigger>
+            <TooltipContent>Liquidados no período — inclui pagos (CP) e recebidos (CR)</TooltipContent>
+          </Tooltip>
         </div>
 
         <div data-help-id="financeiro.filtros">
@@ -427,23 +498,27 @@ const Financeiro = () => {
           }}
           count={data.length}
           extra={selectedIds.length > 0 ? (
-            <Button size="sm" variant="default" className="gap-2" onClick={() => {
-              if (selectedIds.length === 0) {
-                toast.error("Selecione os lançamentos");
-                return;
-              }
-              setBaixaLoteOpen(true);
-            }}>
-              <Download className="w-3.5 h-3.5" /> Baixar {selectedIds.length} selecionado(s)
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" variant="default" className="gap-2" onClick={() => setBaixaLoteOpen(true)}>
+                <Download className="w-3.5 h-3.5" /> Baixar {selectedIds.length} selecionado(s)
+              </Button>
+              <Button size="sm" variant="outline" className="gap-2" onClick={() => handleExportar("excel", selectedForBaixa)}>
+                <FileDown className="w-3.5 h-3.5" /> Exportar selecionados
+              </Button>
+              <PermissionGate resource="financeiro" action="excluir" mode="hide">
+                <Button size="sm" variant="outline" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => { setBulkCancelMotivo(""); setBulkCancelOpen(true); }}>
+                  <X className="w-3.5 h-3.5" /> Cancelar selecionados
+                </Button>
+              </PermissionGate>
+            </div>
           ) : undefined}
         >
-          <MultiSelect options={tipoOpts} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />
           <MultiSelect options={statusOpts} selected={statusFilters} onChange={setStatusFilters} placeholder="Status" className="w-[180px]" />
+          <MultiSelect options={tipoOpts} selected={tipoFilters} onChange={setTipoFilters} placeholder="Natureza" className="w-[150px]" />
           <MultiSelect options={bancoOpts} selected={bancoFilters} onChange={setBancoFilters} placeholder="Bancos" className="w-[200px]" />
-          <MultiSelect options={origemOpts} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[200px]" />
           <MultiSelect options={formaPagamentoOpts} selected={formaPagamentoFilters} onChange={setFormaPagamentoFilters} placeholder="Forma de pagamento" className="w-[220px]" />
-          {cartaoOpts.length > 0 && (
+          <MultiSelect options={origemOpts} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[200px]" />
+          {showCartaoFilter && (
             <MultiSelect options={cartaoOpts} selected={cartaoFilters} onChange={setCartaoFilters} placeholder="Cartão" className="w-[200px]" />
           )}
         </AdvancedFilterBar>
