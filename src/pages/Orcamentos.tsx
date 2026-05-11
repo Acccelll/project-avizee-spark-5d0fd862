@@ -343,7 +343,7 @@ const Orcamentos = () => {
       render: (o: Orcamento) => <span className="text-xs">{formatDate(o.data_orcamento)}</span>,
     },
     {
-      key: "validade", label: "Validade",
+      key: "validade", mobileCard: true, label: "Validade",
       render: (o: Orcamento) => <ValidadeBadge validade={o.validade} status={o.status} origem={o.origem} />,
     },
     {
@@ -362,7 +362,10 @@ const Orcamentos = () => {
         const effectiveStatus =
           vs === "vencida" && normalizedStatus === "pendente" ? "expirado" : normalizedStatus;
         const badge = (
-          <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />
+          <StatusBadge
+            status={effectiveStatus}
+            label={effectiveStatus === "historico" ? "Legado" : (statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status))}
+          />
         );
         if (effectiveStatus === "historico") {
           return (
