@@ -60,7 +60,7 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Info } from 'lucide-react';
 
 export interface Column<T> {
   key: string;
