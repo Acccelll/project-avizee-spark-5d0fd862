@@ -606,18 +606,37 @@ export default function Logistica() {
   ];
 
   const remessaColumns = [
-    { key: "codigo_rastreio", label: "Rastreio", mobilePrimary: true, render: (r: Remessa) => <span className="font-mono text-xs">{r.codigo_rastreio || "—"}</span> },
-    { key: "cliente_id", label: "Cliente", render: (r: Remessa) => clienteMapLookup[r.cliente_id ?? ""] ?? "—" },
-    { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => transpMapLookup[r.transportadora_id ?? ""] ?? "—" },
-    { key: "data_postagem", label: "Postagem", render: (r: Remessa) => r.data_postagem ? format(new Date(r.data_postagem + "T00:00:00"), "dd/MM/yyyy") : "—" },
+    { key: "codigo_rastreio", label: "Rastreio", mobilePrimary: true, render: (r: Remessa) => r.codigo_rastreio ? <span className="font-mono text-xs">{r.codigo_rastreio}</span> : <MissingChip label="Sem rastreio" /> },
+    { key: "cliente_id", label: "Cliente", render: (r: Remessa) => {
+      const nome = clienteMapLookup[r.cliente_id ?? ""];
+      return nome ? <span className="text-sm">{nome}</span> : <MissingChip label="Não definido" />;
+    } },
+    { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => {
+      const nome = transpMapLookup[r.transportadora_id ?? ""];
+      return nome ? <span className="text-sm">{nome}</span> : <MissingChip label="Não definida" />;
+    } },
+    { key: "data_postagem", label: "Postagem", render: (r: Remessa) => r.data_postagem ? <span className="text-xs">{format(new Date(r.data_postagem + "T00:00:00"), "dd/MM/yyyy")}</span> : <MissingChip label="Postagem pendente" /> },
     { key: "status_transporte", label: "Status", render: (r: Remessa) => {
       const s = r.status_transporte ?? "";
       // E8: passar a chave canônica do status; StatusBadge resolve cor via STATUS_VARIANT_MAP.
-      return <StatusBadge status={s} label={remessaStatusMap[s]?.label} />;
+      // Quando o status genérico é "pendente", anotamos o motivo real abaixo do badge.
+      let pendingHint: string | null = null;
+      if (s === "pendente") {
+        const et = etiquetasMap[r.id];
+        if (!et || et.status !== "emitida") pendingHint = "Etiqueta pendente";
+        else if (!r.data_postagem) pendingHint = "Aguardando postagem";
+        else if (!r.codigo_rastreio) pendingHint = "Aguardando coleta";
+      }
+      return (
+        <span className="inline-flex flex-col items-start gap-0.5">
+          <StatusBadge status={s} label={remessaStatusMap[s]?.label} />
+          {pendingHint && <span className="text-[10px] text-muted-foreground">{pendingHint}</span>}
+        </span>
+      );
     }},
     { key: "etiqueta", label: "Etiqueta", render: (r: Remessa) => {
       const et = etiquetasMap[r.id];
-      if (!et) return <span className="text-muted-foreground text-xs">—</span>;
+      if (!et) return <MissingChip label="Etiqueta pendente" />;
       const labelMap: Record<string, string> = { emitida: "Emitida", pendente: "Pendente", erro: "Erro", cancelada: "Cancelada" };
       const colorMap: Record<string, string> = { emitida: "success", pendente: "warning", erro: "destructive", cancelada: "muted" };
       return (
@@ -643,7 +662,7 @@ export default function Logistica() {
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setTrackingTarget({ codigo: r.codigo_rastreio!, remessaId: r.id })}>
         <Search className="h-3.5 w-3.5" />Rastrear
       </Button>
-    ) : <span className="text-muted-foreground text-xs">—</span> },
+    ) : <MissingChip label="Sem rastreio" /> },
     { key: "etiqueta_simples", label: "Etiqueta simples", render: (r: Remessa) => (
       <Button
         variant="ghost"
@@ -655,6 +674,10 @@ export default function Logistica() {
         <Printer className="h-3.5 w-3.5" />Etiqueta
       </Button>
     )},
+    { key: "updated_at", label: "Atualizada em", hidden: true, render: (r: Remessa) => {
+      const upd = (r as Remessa & { updated_at?: string | null }).updated_at;
+      return upd ? <span className="text-xs text-muted-foreground">{format(new Date(upd), "dd/MM/yyyy HH:mm")}</span> : <MissingChip label="—" />;
+    } },
   ];
 
   const remSummaryItems = remSelected ? [
