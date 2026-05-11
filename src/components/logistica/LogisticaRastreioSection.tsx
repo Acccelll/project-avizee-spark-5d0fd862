@@ -99,9 +99,23 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
       <div className="py-8 text-center border rounded-lg bg-muted/20">
         <Truck className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
         <p className="text-sm text-muted-foreground">Nenhuma remessa vinculada.</p>
-        <Button variant="link" size="sm" className="mt-1" onClick={() => navigate('/logistica')}>
-          Ir para Remessas
-        </Button>
+        <div className="mt-2 flex flex-col items-center gap-1">
+          {ordemVendaId ? (
+            <Button
+              size="sm"
+              variant="default"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() =>
+                navigate(`/logistica?tab=remessas&from_pedido=${ordemVendaId}`)
+              }
+            >
+              <Truck className="w-3.5 h-3.5" /> Criar remessa
+            </Button>
+          ) : null}
+          <Button variant="link" size="sm" onClick={() => navigate('/logistica')}>
+            Ir para Remessas
+          </Button>
+        </div>
       </div>
     );
   }
