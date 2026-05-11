@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { FormTabsList } from "@/components/FormTabsList";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatWeightKg } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
@@ -13,11 +13,13 @@ import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCanHardDelete } from "@/hooks/useCanHardDelete";
 import { useCan } from "@/hooks/useCan";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { useAppConfig } from "@/hooks/useAppConfig";
+import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { notifyError } from "@/utils/errorMessages";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
@@ -67,15 +69,14 @@ interface Props {
 
 export function OrcamentoView({ id }: Props) {
   const navigate = useNavigate();
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
   const [convertConfirmOpen, setConvertConfirmOpen] = useState(false);
   const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
-  const [cancelMotivo, setCancelMotivo] = useState("");
   const { pushView, clearStack } = useRelationalNavigation();
   const { isAdmin } = useIsAdmin();
+  const { canHardDelete } = useCanHardDelete();
   const { can } = useCan();
   const canAprovar = can("orcamentos:aprovar") || isAdmin;
   const canCancelar = can("orcamentos:cancelar") || isAdmin;
@@ -85,6 +86,7 @@ export function OrcamentoView({ id }: Props) {
   const converterOrcamento = useConverterOrcamento();
   const aprovarOrcamentoMut = useAprovarOrcamento();
   const crossToast = useCrossModuleToast();
+  const { confirm: confirmCancel, dialog: cancelDialog } = useConfirmDestructive({ verb: "Cancelar" });
   // B-03: motivo obrigatório de cancelamento de orçamento (paralelo ao do pedido).
   const { value: comercialFlags } = useAppConfig<{
     exigir_motivo_cancelamento_orcamento?: boolean;
@@ -181,6 +183,45 @@ export function OrcamentoView({ id }: Props) {
       if (novoId) navigate(`/orcamentos/${novoId}`);
     }).catch(() => {});
 
+  const handleCancelOrcamento = () => {
+    if (!selected) return;
+    if (linkedOVAtivo) {
+      toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
+        description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
+      });
+      return;
+    }
+    const sideEffects: React.ReactNode[] = [
+      "Status muda para Cancelado e não pode mais avançar no fluxo comercial.",
+    ];
+    if (selected.public_token) {
+      sideEffects.push("O link público continuará válido — revogue manualmente se necessário.");
+    }
+    if (normalizeOrcamentoStatus(selected.status) === "aprovado") {
+      sideEffects.push("A aprovação atual será descartada.");
+    }
+    void confirmCancel(
+      {
+        verb: "Cancelar",
+        entity: `orçamento ${selected.numero}`,
+        sideEffects,
+        requireReason: exigirMotivoCancel,
+        confirmLabel: "Cancelar orçamento",
+      },
+      async (motivo) => {
+        try {
+          await cancelarOrcamento(selected.id, motivo || undefined);
+          invalidate(["orcamentos"]);
+          await reload();
+        } catch (err) {
+          console.error("[OrcamentoView] erro ao cancelar:", err);
+          notifyError(err);
+          throw err;
+        }
+      },
+    );
+  };
+
   const itemsSubtotal = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const kpiItens = items.length;
   const kpiQtd = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
@@ -216,7 +257,7 @@ export function OrcamentoView({ id }: Props) {
         {/* MB-02: em mobile só mostra ações primárias; secundárias vão para dropdown abaixo. */}
         {canSendOrcamento(selected.status) && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={handleSendForApproval} disabled={isAnyLocked}>
-            <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
+            <Send className="h-3.5 w-3.5" /> Enviar para aprovação
           </Button>
         )}
         {canApproveOrcamento(selected.status) && canAprovar && (
@@ -249,44 +290,14 @@ export function OrcamentoView({ id }: Props) {
             <Edit className="h-3.5 w-3.5" /> Editar
           </Button>
         )}
-        {canCancelar && (
-        <Button
-          variant="ghost" size="sm"
-          className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
-          aria-label="Cancelar orçamento"
-          onClick={() => {
-            if (linkedOVAtivo) {
-              toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
-                description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
-              });
-              return;
-            }
-            setDeleteConfirmOpen(true);
-          }}
-          disabled={linkedOVAtivo}
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Cancelar
-        </Button>
-        )}
-        {isAdmin && (
-          <Button
-            variant="ghost" size="sm"
-            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 hidden md:inline-flex"
-            aria-label="Excluir orçamento definitivamente"
-            onClick={() => setPermDeleteOpen(true)}
-            title="Remove o orçamento e seus vínculos do banco de dados (admin)"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
-          </Button>
-        )}
 
-        {/* Mobile: dropdown único com ações secundárias (Editar, PDF, Revisão, Cancelar...) */}
+        {/* Kebab para ações destrutivas (desktop e mobile). Em mobile, também agrega Editar/PDF/Revisão. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 md:hidden"
+              className="h-8 w-8"
               aria-label="Mais ações"
               disabled={isAnyLocked}
             >
@@ -295,50 +306,52 @@ export function OrcamentoView({ id }: Props) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {canEditar && (
-              <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+              <DropdownMenuItem className="md:hidden" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
                 <Edit className="h-4 w-4 mr-2" /> Editar
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
+            <DropdownMenuItem className="md:hidden" onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
               <FileText className="h-4 w-4 mr-2" /> PDF
             </DropdownMenuItem>
             {canSendOrcamento(selected.status) && (
-              <DropdownMenuItem onClick={handleSendForApproval}>
-                <Send className="h-4 w-4 mr-2" /> Enviar p/ Aprovação
+              <DropdownMenuItem className="md:hidden" onClick={handleSendForApproval}>
+                <Send className="h-4 w-4 mr-2" /> Enviar para aprovação
               </DropdownMenuItem>
             )}
             {["pendente", "aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
-              <DropdownMenuItem onClick={handleCriarRevisao}>
+              <DropdownMenuItem className="md:hidden" onClick={handleCriarRevisao}>
                 <GitBranch className="h-4 w-4 mr-2" /> Criar revisão
               </DropdownMenuItem>
             )}
             {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
-              <DropdownMenuItem onClick={() => pushView("ordem_venda", linkedOV.id)}>
+              <DropdownMenuItem className="md:hidden" onClick={() => pushView("ordem_venda", linkedOV.id)}>
                 <ExternalLink className="h-4 w-4 mr-2" /> Ver Pedido {linkedOV.numero}
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="md:hidden" />
             {canCancelar && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               disabled={linkedOVAtivo}
-              onClick={() => {
-                if (linkedOVAtivo) {
-                  toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
-                    description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
-                  });
-                  return;
-                }
-                setDeleteConfirmOpen(true);
-              }}
+              onClick={handleCancelOrcamento}
             >
-              <Trash2 className="h-4 w-4 mr-2" /> Cancelar
+              <Trash2 className="h-4 w-4 mr-2" /> Cancelar orçamento
             </DropdownMenuItem>
             )}
-            {isAdmin && (
+            {canHardDelete && (
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
-                onClick={() => setPermDeleteOpen(true)}
+                disabled={!!linkedOV}
+                title={linkedOV ? "Existe pedido vinculado — não é possível excluir definitivamente" : undefined}
+                onClick={() => {
+                  if (linkedOV) {
+                    toast.error("Existe pedido vinculado — não é possível excluir definitivamente.", {
+                      description: `Pedido ${linkedOV.numero}.`,
+                    });
+                    return;
+                  }
+                  setPermDeleteOpen(true);
+                }}
               >
                 <Trash2 className="h-4 w-4 mr-2" /> Excluir definitivamente
               </DropdownMenuItem>
@@ -361,6 +374,7 @@ export function OrcamentoView({ id }: Props) {
           {
             key: "orcamento",
             label: `Orçamento ${selected.numero}`,
+            shortLabel: "Orçamento",
             done: true,
             current: !linkedOV,
             hint: "Etapa atual",
@@ -368,6 +382,7 @@ export function OrcamentoView({ id }: Props) {
           {
             key: "pedido",
             label: linkedOV ? `Pedido ${linkedOV.numero}` : "Pedido de Venda",
+            shortLabel: "Pedido",
             done: !!linkedOV,
             hint: linkedOV ? "Abrir pedido vinculado" : "Use 'Converter em Pedido' para avançar",
             onClick: linkedOV ? () => pushView("ordem_venda", linkedOV.id) : undefined,
@@ -375,6 +390,7 @@ export function OrcamentoView({ id }: Props) {
           {
             key: "nf",
             label: "Nota Fiscal",
+            shortLabel: "NF",
             done: false,
             hint: "Emitida a partir do Pedido (módulo Faturamento)",
           },
@@ -385,7 +401,7 @@ export function OrcamentoView({ id }: Props) {
       <DrawerSummaryGrid cols={4}>
         <DrawerSummaryCard label="Itens" value={String(kpiItens)} align="center" />
         <DrawerSummaryCard label="Qtd Total" value={String(kpiQtd)} align="center" />
-        <DrawerSummaryCard label="Peso (kg)" value={kpiPeso.toFixed(2)} align="center" />
+        <DrawerSummaryCard label="Peso" value={formatWeightKg(kpiPeso)} align="center" />
         <DrawerSummaryCard label="Total" value={formatCurrency(kpiValor)} tone="primary" align="center" />
       </DrawerSummaryGrid>
 
@@ -425,31 +441,77 @@ export function OrcamentoView({ id }: Props) {
               </div>
             </div>
           )}
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Número</span>
-              <span className="font-mono font-medium">{selected.numero}</span>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+            <div className="flex justify-between sm:block">
+              <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Número</dt>
+              <dd className="font-mono font-medium">{selected.numero}</dd>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Data</span>
-              <span>{formatDate(selected.data_orcamento)}</span>
+            <div className="flex justify-between sm:block">
+              <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Data</dt>
+              <dd>{formatDate(selected.data_orcamento)}</dd>
+            </div>
+            {selected.clientes && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Cliente</dt>
+                <dd className="text-right sm:text-left">
+                  <RelationalLink onClick={() => pushView("cliente", selected.clientes?.id)}>
+                    {selected.clientes.nome_razao_social || "—"}
+                  </RelationalLink>
+                </dd>
+              </div>
+            )}
+            <div className="flex justify-between sm:block">
+              <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Status</dt>
+              <dd><StatusBadge status={selected.status} /></dd>
             </div>
             {selected.validade && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Validade</span>
-                <span className={isExpired ? "text-warning font-medium" : ""}>{formatDate(selected.validade)}</span>
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Validade</dt>
+                <dd className={isExpired ? "text-warning font-medium" : ""}>{formatDate(selected.validade)}</dd>
               </div>
             )}
-            {/* M-02: status já aparece no header (RecordIdentityCard). Removido daqui para evitar duplicação. */}
+            {(selected.pagamento || selected.prazo_pagamento) && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Pagamento</dt>
+                <dd>
+                  {selected.pagamento
+                    ? `${pagamentoLabels[selected.pagamento] || selected.pagamento}${selected.prazo_pagamento ? ` · ${selected.prazo_pagamento}` : ""}`
+                    : selected.prazo_pagamento}
+                </dd>
+              </div>
+            )}
+            {selected.prazo_entrega && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Entrega</dt>
+                <dd>{selected.prazo_entrega}</dd>
+              </div>
+            )}
+            {selected.frete_tipo && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Frete</dt>
+                <dd>
+                  {freteTipoLabels[selected.frete_tipo] || selected.frete_tipo}
+                  {selected.modalidade ? ` · ${selected.modalidade}` : ""}
+                </dd>
+              </div>
+            )}
+            {selected.updated_at && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Atualizado</dt>
+                <dd>{formatDate(selected.updated_at)}</dd>
+              </div>
+            )}
             {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Convertido em Pedido</span>
-                <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
-                  {linkedOV.numero}
-                </RelationalLink>
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Convertido em Pedido</dt>
+                <dd>
+                  <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
+                    {linkedOV.numero}
+                  </RelationalLink>
+                </dd>
               </div>
             )}
-          </div>
+          </dl>
           {selected.observacoes && (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Observações</p>
@@ -460,7 +522,8 @@ export function OrcamentoView({ id }: Props) {
 
         {/* --- ITENS --- */}
         <TabsContent value="itens" className="space-y-3 mt-3">
-          <div className="rounded-lg border overflow-hidden">
+          {/* Tabela: telas ≥sm */}
+          <div className="rounded-lg border overflow-hidden hidden sm:block">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-muted/50 border-b">
@@ -507,6 +570,39 @@ export function OrcamentoView({ id }: Props) {
               </tbody>
             </table>
           </div>
+          {/* Cards: telas estreitas */}
+          <div className="sm:hidden space-y-2">
+            {items.length === 0 && (
+              <div className="rounded-lg border p-4 text-center text-xs text-muted-foreground">
+                Nenhum item
+              </div>
+            )}
+            {items.map((i, idx) => (
+              <button
+                key={idx}
+                onClick={() => i.produtos?.id && pushView("produto", i.produtos.id)}
+                className="w-full text-left rounded-lg border bg-card p-3 space-y-1.5 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {i.codigo_snapshot || i.produtos?.sku || "—"}
+                  </span>
+                  <span className="font-mono text-sm font-semibold">
+                    {formatCurrency(i.valor_total)}
+                  </span>
+                </div>
+                <p className="text-xs line-clamp-2">
+                  {i.descricao_snapshot || i.produtos?.nome || "—"}
+                </p>
+                {i.variacao && (
+                  <p className="text-[10px] text-muted-foreground">{i.variacao}</p>
+                )}
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  Qtd: {i.quantidade}{i.unidade ? ` ${i.unidade}` : ""} · Unit.: {formatCurrency(i.valor_unitario)}
+                </p>
+              </button>
+            ))}
+          </div>
         </TabsContent>
 
         {/* --- TOTAIS --- */}
@@ -539,14 +635,29 @@ export function OrcamentoView({ id }: Props) {
         {/* --- CONDIÇÕES --- */}
         <TabsContent value="condicoes" className="space-y-4 mt-3 text-sm">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Pagamento</p>
-              <p>{pagamentoLabels[selected.pagamento] || selected.pagamento || "—"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de Pagamento</p>
-              <p>{selected.prazo_pagamento || "—"}</p>
-            </div>
+            {selected.pagamento ? (
+              <>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Forma de pagamento</p>
+                  <p>{pagamentoLabels[selected.pagamento] || selected.pagamento}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de pagamento</p>
+                  <p>{selected.prazo_pagamento || "—"}</p>
+                </div>
+              </>
+            ) : selected.prazo_pagamento ? (
+              <div className="col-span-2">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Condição de pagamento</p>
+                <p>{selected.prazo_pagamento}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Forma de pagamento não definida.</p>
+              </div>
+            ) : (
+              <div className="col-span-2">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Pagamento</p>
+                <p className="text-muted-foreground">Não definida</p>
+              </div>
+            )}
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de Entrega</p>
               <p>{selected.prazo_entrega || "—"}</p>
@@ -586,8 +697,25 @@ export function OrcamentoView({ id }: Props) {
                 <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
                   {linkedOV.numero}
                 </RelationalLink>
+              ) : canConvertOrcamento(selected.status) ? (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Nenhum pedido vinculado.</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={() => setConvertConfirmOpen(true)}
+                    disabled={isAnyLocked}
+                  >
+                    <ArrowRightCircle className="h-3 w-3" /> Gerar pedido a partir deste orçamento
+                  </Button>
+                </div>
+              ) : ["rascunho", "pendente"].includes(normalizeOrcamentoStatus(selected.status)) ? (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum pedido vinculado. O pedido será liberado após aprovação.
+                </p>
               ) : (
-                <p className="text-xs text-muted-foreground">Nenhum pedido vinculado</p>
+                <p className="text-xs text-muted-foreground">Nenhum pedido vinculado.</p>
               )}
             </div>
 
@@ -595,7 +723,12 @@ export function OrcamentoView({ id }: Props) {
               <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-2">Link Público</p>
               {publicLink ? (
                 <div className="space-y-2">
-                  <p className="text-xs font-mono bg-muted rounded px-2 py-1.5 break-all">{publicLink}</p>
+                  <p className="text-xs font-mono bg-muted rounded px-2 py-1.5 break-all" title="Token mascarado por segurança. Use Copiar/Abrir.">
+                    {`${window.location.origin}/orcamento-publico?token=••••••••${(selected.public_token || "").slice(-8)}`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" /> Link ativo
+                  </p>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 flex-1" onClick={handleCopyLink}>
                       <Copy className="h-3 w-3" /> Copiar link
@@ -652,51 +785,8 @@ export function OrcamentoView({ id }: Props) {
         </TabsContent>
       </Tabs>
 
-      {/* Cancel confirm */}
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onClose={() => {
-          setDeleteConfirmOpen(false);
-          setCancelMotivo("");
-        }}
-        onConfirm={async () => {
-          try {
-            // Usa a RPC oficial `cancelar_orcamento` para garantir auditoria.
-            const motivo = cancelMotivo.trim();
-            if (exigirMotivoCancel && !motivo) {
-              toast.error("Informe o motivo do cancelamento.");
-              return;
-            }
-            await cancelarOrcamento(id, motivo || undefined);
-            invalidate(["orcamentos"]);
-            await reload();
-            setCancelMotivo("");
-          } catch (err: unknown) {
-            console.error("[OrcamentoView] erro ao cancelar:", err);
-            notifyError(err);
-          } finally {
-            setDeleteConfirmOpen(false);
-          }
-        }}
-        title="Cancelar orçamento"
-        description={`Tem certeza que deseja cancelar o orçamento ${selected?.numero || ""}? Ele permanecerá no histórico e não poderá avançar no fluxo comercial.`}
-        confirmLabel="Cancelar orçamento"
-        confirmVariant="destructive"
-      >
-        <div className="space-y-2 mt-2">
-          <Label className="text-xs">
-            Motivo {exigirMotivoCancel ? <span className="text-destructive">*</span> : "(opcional)"}
-          </Label>
-          <Input
-            value={cancelMotivo}
-            onChange={(e) => setCancelMotivo(e.target.value)}
-            placeholder="Ex: cliente desistiu, valor fora do orçado..."
-            className="h-9"
-            required={exigirMotivoCancel}
-          />
-          <p className="text-[10px] text-muted-foreground">O motivo é registrado na auditoria do orçamento.</p>
-        </div>
-      </ConfirmDialog>
+      {/* Cancel confirm — padronizado via ConfirmDestructiveDialog */}
+      {cancelDialog}
 
       {/* Approve confirm */}
       <ConfirmDialog

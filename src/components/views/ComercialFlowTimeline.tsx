@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 export interface FlowStep {
   key: "orcamento" | "pedido" | "nf";
   label: string;
+  /** Rótulo curto exibido em telas estreitas (<sm). Default: `label`. */
+  shortLabel?: string;
   hint?: string;
   done: boolean;
   current?: boolean;
@@ -38,7 +40,7 @@ export function ComercialFlowTimeline({ steps }: { steps: FlowStep[] }) {
                 disabled={!clickable}
                 onClick={step.onClick}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-colors",
+                  "flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-colors",
                   step.done
                     ? "border-success/40 bg-success/10 text-success"
                     : step.current
@@ -51,7 +53,12 @@ export function ComercialFlowTimeline({ steps }: { steps: FlowStep[] }) {
               >
                 <Status className="h-3.5 w-3.5" />
                 <Icon className="h-3.5 w-3.5" />
-                <span className="font-medium whitespace-nowrap">{step.label}</span>
+                <span className="font-medium whitespace-nowrap hidden sm:inline">
+                  {step.label}
+                </span>
+                <span className="font-medium whitespace-nowrap sm:hidden">
+                  {step.shortLabel ?? step.label}
+                </span>
               </button>
               {i < steps.length - 1 && (
                 <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
