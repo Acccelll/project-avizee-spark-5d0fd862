@@ -951,7 +951,7 @@ export function DataTable<T extends Record<string, any>>({
                 ? (totalPages > 1 || serverPagination.hasMore)
                 : viewMode === 'infinite'
                 ? sortedData.length > visibleCount
-                : (hideSinglePagePagination ? totalPages > 1 : totalPages > 1);
+                : totalPages > 1;
               if (!mobilePagerVisible) return <div className="pb-24 md:pb-0" />;
               return (
             <div className="mt-3 flex items-center justify-between px-1 py-2 pb-24 md:pb-2">
