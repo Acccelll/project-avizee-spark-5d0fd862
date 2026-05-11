@@ -1833,7 +1833,7 @@ export default function OrcamentoForm() {
         <div className="grid grid-cols-[1fr_auto_auto] gap-2">
           <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
             <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : isEdit && status !== "rascunho" ? "Salvar Alt." : "Salvar"}
+            {saving ? "Salvando..." : "Salvar"}
           </Button>
           <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
             <Eye className="w-4 h-4" />
