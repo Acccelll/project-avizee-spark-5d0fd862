@@ -662,6 +662,11 @@ export function OrdemVendaView({ id }: Props) {
                               <span className="text-[10px] text-muted-foreground"> · {i.variacao}</span>
                             )}
                           </button>
+                          {notasFiscais.some((n) => ["confirmada", "autorizada"].includes(n.status || "")) && (
+                            <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] uppercase font-semibold text-success">
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Faturado
+                            </span>
+                          )}
                         </td>
                         <td className="px-2 py-2 text-xs text-muted-foreground hidden sm:table-cell">
                           {i.unidade || "—"}
@@ -678,9 +683,23 @@ export function OrdemVendaView({ id }: Props) {
                   </tbody>
                 </table>
               </div>
-              <div className="flex justify-between items-center rounded-lg border bg-muted/30 px-3 py-2">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase">Total do Pedido</span>
-                <span className="font-mono text-sm font-bold text-primary">{formatCurrency(selected.valor_total || 0)}</span>
+              <div className="rounded-lg border bg-muted/30 divide-y">
+                <div className="flex justify-between items-center px-3 py-1.5 text-xs">
+                  <span className="text-muted-foreground">Subtotal dos itens</span>
+                  <span className="font-mono">{formatCurrency(subtotalItens)}</span>
+                </div>
+                {Math.abs(Number(selected.valor_total || 0) - subtotalItens) > 0.005 && (
+                  <div className="flex justify-between items-center px-3 py-1.5 text-xs">
+                    <span className="text-muted-foreground">Ajustes / Frete / Impostos</span>
+                    <span className="font-mono">
+                      {formatCurrency(Number(selected.valor_total || 0) - subtotalItens)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center px-3 py-2">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Total do Pedido</span>
+                  <span className="font-mono text-sm font-bold text-primary">{formatCurrency(selected.valor_total || 0)}</span>
+                </div>
               </div>
             </>
           )}
