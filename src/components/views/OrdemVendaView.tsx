@@ -44,6 +44,8 @@ import {
   Edit,
   XCircle,
   MoreHorizontal,
+  ExternalLink,
+  CheckCircle2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -52,6 +54,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  verificarPrerequisitosNF,
+  type NFPrerequisiteIssue,
+} from "@/utils/comercialNFChecks";
 
 interface Props {
   id: string;
@@ -82,10 +89,28 @@ const statusNFLabels: Record<string, string> = {
   denegada: "Denegada",
 };
 
+/**
+ * Onda 42r — fora do contexto de Faturamento, "Aguardando" sozinho é genérico.
+ * Aqui devolvemos "Aguardando NF" para uso no header e KPI.
+ */
+function fatLabelOutOfContext(key: string | null | undefined): string {
+  const k = key || "";
+  if (k === "aguardando") return "Aguardando NF";
+  return statusFaturamentoLabels[k] || k || "—";
+}
+
+const statusFaturamentoTooltip: Record<string, string> = {
+  aguardando: "Pedido aprovado aguardando emissão de Nota Fiscal.",
+  parcial: "Pedido parcialmente faturado — emita NF complementar.",
+  total: "Todas as NFs deste pedido já foram emitidas.",
+};
+
 export function OrdemVendaView({ id }: Props) {
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState("");
+  const [nfIssues, setNfIssues] = useState<NFPrerequisiteIssue[]>([]);
+  const [nfIssuesLoading, setNfIssuesLoading] = useState(false);
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const { run, locked } = useDetailActions();
