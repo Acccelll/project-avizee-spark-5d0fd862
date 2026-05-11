@@ -219,6 +219,24 @@ export function OrdemVendaView({ id }: Props) {
     });
   };
 
+  // Onda 42r — pré-validação leve antes de Gerar NF (não bloqueia, só alerta).
+  useEffect(() => {
+    if (!generateNfOpen || !selected) return;
+    let cancelled = false;
+    setNfIssuesLoading(true);
+    setNfIssues([]);
+    verificarPrerequisitosNF(selected.id)
+      .then((res) => {
+        if (!cancelled) setNfIssues(res);
+      })
+      .finally(() => {
+        if (!cancelled) setNfIssuesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [generateNfOpen, selected]);
+
   const pesoTotal = items.reduce((s, i) => s + Number(i.peso_total || 0), 0);
   const qtdTotal = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
   const { can } = useCan();
