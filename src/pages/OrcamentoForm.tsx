@@ -145,7 +145,7 @@ function StatusStepper({ status }: { status: string }) {
     );
   }
   return (
-    <div className="flex items-center gap-1 mt-1" aria-label="Fluxo do orçamento">
+    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1" aria-label="Fluxo do orçamento">
       {steps.map((s, i) => {
         const active = i === currentIdx;
         const done = currentIdx >= 0 && i < currentIdx;
@@ -160,13 +160,24 @@ function StatusStepper({ status }: { status: string }) {
             <span className={"text-[10px] " + (active ? "font-semibold text-foreground" : "text-muted-foreground")}>
               {s.label}
             </span>
-            {i < steps.length - 1 && <span className="text-muted-foreground/40 text-[10px]">›</span>}
+            {i < steps.length - 1 && <span className="hidden sm:inline text-muted-foreground/40 text-[10px]">›</span>}
           </div>
         );
       })}
     </div>
   );
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  rascunho: "Rascunho",
+  pendente: "Aguardando aprovação",
+  aprovado: "Aprovado",
+  convertido: "Convertido",
+  rejeitado: "Rejeitado",
+  expirado: "Expirado",
+  cancelado: "Cancelado",
+  historico: "Histórico",
+};
 
 export default function OrcamentoForm() {
   const { id } = useParams();
@@ -982,8 +993,14 @@ export default function OrcamentoForm() {
   return (
     <PageShell
       backTo="/orcamentos"
-      title={isEdit ? `Editando Orçamento${numero ? ` — ${numero}` : ""}` : "Novo Orçamento"}
-      subtitle={isEdit ? "Revisão e ajuste da proposta comercial" : "Criação e emissão da proposta comercial"}
+      title={isEdit ? (isMobile ? "Editar Orçamento" : `Editando Orçamento${numero ? ` — ${numero}` : ""}`) : "Novo Orçamento"}
+      subtitle={
+        isMobile && isEdit && numero
+          ? `${numero} · ${STATUS_LABEL[status] || status}`
+          : isEdit
+          ? "Revisão e ajuste da proposta comercial"
+          : "Criação e emissão da proposta comercial"
+      }
       actions={
         <>
         {/* Mobile: Salvar + menu "Mais" */}
@@ -1000,8 +1017,9 @@ export default function OrcamentoForm() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Visualização</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
-                <Eye className="w-4 h-4 mr-2" />Visualizar
+                <Eye className="w-4 h-4 mr-2" />Visualizar proposta
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={handleGeneratePdf}>
                 <FileText className="w-4 h-4 mr-2" />Gerar PDF
@@ -1015,12 +1033,12 @@ export default function OrcamentoForm() {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Edição</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('usuario'); }}>
                 <Wand2 className="w-4 h-4 mr-2" />Salvar como meu template
               </DropdownMenuItem>
               {isEdit && (
                 <>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={handleDuplicate}>
                     <Copy className="w-4 h-4 mr-2" />Duplicar
                   </DropdownMenuItem>
@@ -1126,28 +1144,21 @@ export default function OrcamentoForm() {
           )}
 
           {isMobile && (
-            <div className="grid grid-cols-2 gap-3 rounded-2xl border bg-card p-4 shadow-sm">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Orçamento</p>
-                <p className="mt-1 font-mono text-sm font-semibold">{numero || '—'}</p>
+            <div className="rounded-2xl border bg-card p-4 shadow-sm space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-mono text-sm font-semibold">{numero || '—'}</p>
+                {isEdit && <StatusBadge status={status} />}
               </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
-                <p className="mt-1 text-base font-semibold">{formatCurrency(valorTotal)}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
-                <p className="mt-1 truncate text-sm">{clienteSnapshot.nome_razao_social || 'Selecione um cliente'}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Itens</p>
-                <p className="mt-1 text-sm">{items.filter(i => i.produto_id).length} item(ns)</p>
-              </div>
-              {isEdit && (
-                <div className="col-span-2 flex items-center gap-2 pt-1 border-t">
-                  <StatusBadge status={status} />
-                  {validade && <span className="text-xs text-muted-foreground">Válido até {formatDate(validade)}</span>}
-                </div>
+              <p className="truncate text-sm font-medium" title={clienteSnapshot.nome_razao_social || ''}>
+                {clienteSnapshot.nome_razao_social || 'Selecione um cliente'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{formatCurrency(valorTotal)}</span>
+                <span> · {items.filter(i => i.produto_id).length} {items.filter(i => i.produto_id).length === 1 ? 'item' : 'itens'}</span>
+                {pesoTotal > 0 && <span> · {formatWeightKg(pesoTotal)}</span>}
+              </p>
+              {isEdit && validade && (
+                <p className="text-[11px] text-muted-foreground">Válido até {formatDate(validade)}</p>
               )}
             </div>
           )}
@@ -1182,7 +1193,7 @@ export default function OrcamentoForm() {
           </AlertDescription>
         </Alert>
       )}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-40 lg:pb-0">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
         <div className="lg:col-span-8 space-y-5">
           {/* Identificação do Orçamento */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
@@ -1245,7 +1256,7 @@ export default function OrcamentoForm() {
             <h3 className="font-semibold text-foreground mb-4">Cliente</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2 space-y-1.5">
+                <div className="col-span-2 md:col-span-2 space-y-1.5">
                   <Label className="text-xs">Buscar Cliente</Label>
                   <div className="flex gap-2">
                     <AutocompleteSearch
@@ -1262,17 +1273,17 @@ export default function OrcamentoForm() {
                       clientes={clientes}
                       onSelect={(c) => handleClienteChange(c.id)}
                       trigger={
-                        <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Ver lista completa de clientes" title="Ver lista completa">
+                        <Button type="button" variant="outline" size="icon" className="hidden md:inline-flex h-10 w-10 shrink-0" aria-label="Ver lista completa de clientes" title="Ver lista completa">
                           <Search className="h-4 w-4" />
                         </Button>
                       }
                     />
-                    <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setQuickAddOpen(true)} aria-label="Cadastrar novo cliente" title="Cadastrar novo cliente">
+                    <Button type="button" variant="outline" size="icon" className="hidden md:inline-flex h-10 w-10 shrink-0" onClick={() => setQuickAddOpen(true)} aria-label="Cadastrar novo cliente" title="Cadastrar novo cliente">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <div className="space-y-1.5"><Label className="text-xs" title="Identificador interno (cód. legado/ERP)">Código do cliente</Label><Input value={clienteSnapshot.codigo} readOnly className="bg-accent/30 font-mono text-xs" /></div>
+                <div className="hidden md:block space-y-1.5"><Label className="text-xs" title="Identificador interno (cód. legado/ERP)">Código do cliente</Label><Input value={clienteSnapshot.codigo} readOnly className="bg-accent/30 font-mono text-xs" /></div>
               </div>
               {fieldErrors.clienteId && <p className="text-[11px] text-destructive">{fieldErrors.clienteId.message}</p>}
               {clienteId && (
@@ -1282,6 +1293,9 @@ export default function OrcamentoForm() {
                   <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Cidade/UF</Label><p className="text-sm">{clienteSnapshot.cidade ? `${clienteSnapshot.cidade}/${clienteSnapshot.uf}` : "—"}</p></div>
                   {clienteSnapshot.email && <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Email</Label><p className="text-xs truncate">{clienteSnapshot.email}</p></div>}
                   {clienteSnapshot.telefone && <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Telefone</Label><p className="text-xs">{clienteSnapshot.telefone}</p></div>}
+                  {clienteSnapshot.codigo && (
+                    <div className="md:hidden space-y-0.5"><Label className="text-xs text-muted-foreground">Código do cliente</Label><p className="font-mono text-xs">{clienteSnapshot.codigo}</p></div>
+                  )}
                 </div>
               )}
               {clienteId && (clienteSnapshot.logradouro || clienteSnapshot.bairro || clienteSnapshot.cep) && (
@@ -1866,34 +1880,26 @@ export default function OrcamentoForm() {
           "md:hidden fixed inset-x-0 z-30",
           "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85",
           "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.10)]",
-          "px-3 pt-2.5 pb-2.5",
+          "px-3 py-2",
         )}
         style={{
           // MobileBottomNav ≈ 64px + safe-area; deixar o footer logo acima dele
           bottom: "calc(64px + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Total</p>
-            <p className="mt-0.5 text-base font-bold text-primary font-mono leading-tight truncate">
-              {formatCurrency(valorTotal)}
-            </p>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="text-base font-bold text-primary font-mono truncate">{formatCurrency(valorTotal)}</p>
+            <p className="text-[10px] text-muted-foreground">{items.filter(i => i.produto_id).length} {items.filter(i => i.produto_id).length === 1 ? 'item' : 'itens'}</p>
           </div>
-          <div className="text-right text-[10px] text-muted-foreground leading-tight">
-            <p>{items.filter(i => i.produto_id).length} item(ns)</p>
-            {pesoTotal > 0 && <p>{formatWeightKg(pesoTotal)}</p>}
-          </div>
-        </div>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-          <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
+          <Button onClick={handleSave} disabled={saving} className="h-10 gap-2 flex-1 max-w-[160px]">
             <Save className="w-4 h-4" />
             {saving ? "Salvando..." : "Salvar"}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
+          <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-10 w-10" aria-label="Visualizar">
             <Eye className="w-4 h-4" />
           </Button>
-          <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-11 w-11" aria-label="Gerar PDF">
+          <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-10 w-10" aria-label="Gerar PDF">
             <FileText className="w-4 h-4" />
           </Button>
         </div>
