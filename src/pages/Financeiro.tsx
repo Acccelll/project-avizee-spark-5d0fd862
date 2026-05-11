@@ -551,9 +551,10 @@ const Financeiro = () => {
                   <PermissionGate resource="financeiro" action="baixar" mode="disable">
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5 whitespace-nowrap"
+                      variant="ghost"
+                      className="h-7 text-xs gap-1 text-primary hover:bg-primary/5 whitespace-nowrap"
                       aria-label={`Baixar lançamento: ${l.descricao}`}
+                      title="Baixar"
                       onClick={(e) => {
                         e.stopPropagation();
                         setBaixaParcialTarget(l);
@@ -741,6 +742,27 @@ const Financeiro = () => {
           <p className="text-xs text-muted-foreground">
             A exclusão definitiva não é permitida quando há baixas ou origem fora de “manual”. Use o cancelamento para preservar a trilha de auditoria.
           </p>
+        </div>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={bulkCancelOpen}
+        onClose={() => { setBulkCancelOpen(false); setBulkCancelMotivo(""); }}
+        onConfirm={bulkCancel}
+        title={`Cancelar ${selectedForBaixa.length} lançamento(s)`}
+        description="Os títulos permanecerão no histórico com status Cancelado. Itens com baixas registradas ou origem não-manual podem falhar."
+        confirmLabel="Cancelar selecionados"
+        loading={bulkCancelProcessing}
+        confirmDisabled={bulkCancelMotivo.trim().length < 5}
+      >
+        <div className="space-y-2 mt-2">
+          <Label className="text-sm font-medium">Motivo do cancelamento *</Label>
+          <Textarea
+            value={bulkCancelMotivo}
+            onChange={(e) => setBulkCancelMotivo(e.target.value)}
+            placeholder="Mínimo de 5 caracteres. Será aplicado a todos os selecionados."
+            rows={3}
+          />
         </div>
       </ConfirmDialog>
     </>
