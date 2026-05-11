@@ -397,17 +397,29 @@ export function OrdemVendaView({ id }: Props) {
           <p className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center justify-center gap-1 mb-1">
             <Scale className="h-3 w-3" /> Peso Total
           </p>
-          <p className="text-sm font-bold font-mono">{pesoTotal > 0 ? `${pesoTotal.toFixed(2)} kg` : "—"}</p>
+          <p className="text-sm font-bold font-mono">{pesoTotal.toFixed(2)} kg</p>
+          {pesoTotal === 0 && (
+            <p className="text-[10px] text-warning mt-0.5">peso não informado</p>
+          )}
         </div>
         <div className="bg-muted/30 rounded-lg p-3 text-center">
           <p className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center justify-center gap-1 mb-1">
             <Receipt className="h-3 w-3" /> Faturamento
           </p>
-          <StatusBadge
-            status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
-            label={statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
-            className="text-[10px] px-1.5 py-0.5"
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <StatusBadge
+                  status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
+                  label={fatLabelOutOfContext(selected.status_faturamento)}
+                  className="text-[10px] px-1.5 py-0.5"
+                />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {statusFaturamentoTooltip[selected.status_faturamento || "aguardando"] || "Situação fiscal do pedido."}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
