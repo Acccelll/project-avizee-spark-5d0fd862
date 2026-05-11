@@ -21,6 +21,8 @@ export interface CotacaoItem {
 export interface CotacaoSummary {
   itens_count: number;
   fornecedores_count: number;
+  /** Total de propostas registradas (não único por fornecedor). */
+  propostas_count: number;
   vencedor_nome: string | null;
   tem_vencedor: boolean;
   /** IDs de fornecedores presentes em alguma proposta (para filtro). */

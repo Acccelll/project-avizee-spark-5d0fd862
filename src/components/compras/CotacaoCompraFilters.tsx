@@ -21,6 +21,8 @@ interface CotacaoCompraFiltersProps {
   onDataInicioChange: (v: string) => void;
   dataFim: string;
   onDataFimChange: (v: string) => void;
+  validadeFilter: string;
+  onValidadeChange: (v: string) => void;
 }
 
 export function CotacaoCompraFilters({
@@ -40,6 +42,8 @@ export function CotacaoCompraFilters({
   onDataInicioChange,
   dataFim,
   onDataFimChange,
+  validadeFilter,
+  onValidadeChange,
 }: CotacaoCompraFiltersProps) {
   return (
     <AdvancedFilterBar
@@ -63,16 +67,28 @@ export function CotacaoCompraFilters({
         options={fornecedorOptions}
         selected={fornecedorFilters}
         onChange={onFornecedorChange}
-        placeholder="Fornecedor (proposta)"
+        placeholder="Fornecedor"
         className={FILTER_W_LG}
       />
+      <MultiSelect
+        options={[
+          { value: "vencidas", label: "Vencidas" },
+          { value: "vencendo", label: "Vencendo (≤7d)" },
+          { value: "sem_validade", label: "Sem validade" },
+        ]}
+        selected={validadeFilter ? [validadeFilter] : []}
+        onChange={(v) => onValidadeChange(v[v.length - 1] ?? "")}
+        placeholder="Validade"
+        className={FILTER_W_MD}
+      />
       <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Abertura:</span>
         <Input
           type="date"
           value={dataInicio}
           onChange={(e) => onDataInicioChange(e.target.value)}
           className={`h-9 text-xs ${FILTER_W_DATE}`}
-          title="Cotação desde"
+          title="Período de abertura — desde"
         />
         <span className="text-xs text-muted-foreground">até</span>
         <Input
@@ -80,7 +96,7 @@ export function CotacaoCompraFilters({
           value={dataFim}
           onChange={(e) => onDataFimChange(e.target.value)}
           className={`h-9 text-xs ${FILTER_W_DATE}`}
-          title="Cotação até"
+          title="Período de abertura — até"
         />
       </div>
     </AdvancedFilterBar>

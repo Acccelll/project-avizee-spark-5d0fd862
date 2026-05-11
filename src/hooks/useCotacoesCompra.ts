@@ -46,15 +46,21 @@ export function useCotacoesCompra() {
   const [viewItems, setViewItems] = useState<CotacaoItem[]>([]);
   const [viewPropostas, setViewPropostas] = useState<Proposta[]>([]);
 
+  const summaries = useCotacoesEnrichment(data);
+
   // KPIs
   const kpis = useMemo(() => {
     const emCotacao = data.filter((c) => ["aberta", "em_analise"].includes(canonicalCotacaoStatus(c.status))).length;
     const aguardandoAprovacao = data.filter((c) => canonicalCotacaoStatus(c.status) === "aguardando_aprovacao").length;
     const convertidas = data.filter((c) => canonicalCotacaoStatus(c.status) === "convertida").length;
-    return { total: data.length, emCotacao, aguardandoAprovacao, convertidas };
-  }, [data]);
-
-  const summaries = useCotacoesEnrichment(data);
+    const semPropostas = data.filter((c) => {
+      const st = canonicalCotacaoStatus(c.status);
+      if (["convertida", "cancelada", "rejeitada"].includes(st)) return false;
+      const s = summaries[c.id];
+      return s ? s.propostas_count === 0 : false;
+    }).length;
+    return { total: data.length, emCotacao, aguardandoAprovacao, convertidas, semPropostas };
+  }, [data, summaries]);
 
   const propostasOps = useCotacaoPropostas({
     selected,
