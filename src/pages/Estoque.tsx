@@ -153,7 +153,7 @@ const Estoque = () => {
 
   // Produtos abaixo do mínimo
   const abaixoMinimo = useMemo(() =>
-    produtosCrud.data.filter((p) => p.ativo && (p.estoque_minimo ?? 0) > 0 && Number(p.estoque_atual ?? 0) <= Number(p.estoque_minimo ?? 0)),
+    produtosCrud.data.filter((p) => p.ativo && (p.estoque_minimo ?? 0) > 0 && Number(p.estoque_atual ?? 0) <= Number(p.estoque_minimo ?? 0) && Number(p.estoque_atual ?? 0) > 0),
     [produtosCrud.data]
   );
 
@@ -168,8 +168,9 @@ const Estoque = () => {
     );
     const itensZerados = ativos.filter((p) => Number(p.estoque_atual ?? 0) <= 0).length;
     const itensCriticos = abaixoMinimo.length + itensZerados;
+    const semMinimo = ativos.filter((p) => Number(p.estoque_minimo ?? 0) === 0 && Number(p.estoque_atual ?? 0) > 0).length;
     const ajustesManuais = data.filter((m) => m.tipo === "ajuste").length;
-    return { totalItens, valorEstoque, itensCriticos, ajustesManuais };
+    return { totalItens, valorEstoque, itensCriticos, ajustesManuais, itensZerados, abaixoMin: abaixoMinimo.length, semMinimo };
   }, [produtosCrud.data, abaixoMinimo, data]);
 
   // Sparklines: contagem diária dos últimos 14 dias por tipo de movimento.
