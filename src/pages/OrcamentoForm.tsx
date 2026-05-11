@@ -1193,7 +1193,7 @@ export default function OrcamentoForm() {
           </AlertDescription>
         </Alert>
       )}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-40 lg:pb-0">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-32 lg:pb-0">
         <div className="lg:col-span-8 space-y-5">
           {/* Identificação do Orçamento */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
@@ -1880,34 +1880,26 @@ export default function OrcamentoForm() {
           "md:hidden fixed inset-x-0 z-30",
           "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85",
           "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.10)]",
-          "px-3 pt-2.5 pb-2.5",
+          "px-3 py-2",
         )}
         style={{
           // MobileBottomNav ≈ 64px + safe-area; deixar o footer logo acima dele
           bottom: "calc(64px + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Total</p>
-            <p className="mt-0.5 text-base font-bold text-primary font-mono leading-tight truncate">
-              {formatCurrency(valorTotal)}
-            </p>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="text-base font-bold text-primary font-mono truncate">{formatCurrency(valorTotal)}</p>
+            <p className="text-[10px] text-muted-foreground">{items.filter(i => i.produto_id).length} {items.filter(i => i.produto_id).length === 1 ? 'item' : 'itens'}</p>
           </div>
-          <div className="text-right text-[10px] text-muted-foreground leading-tight">
-            <p>{items.filter(i => i.produto_id).length} item(ns)</p>
-            {pesoTotal > 0 && <p>{formatWeightKg(pesoTotal)}</p>}
-          </div>
-        </div>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-          <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
+          <Button onClick={handleSave} disabled={saving} className="h-10 gap-2 flex-1 max-w-[160px]">
             <Save className="w-4 h-4" />
             {saving ? "Salvando..." : "Salvar"}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
+          <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-10 w-10" aria-label="Visualizar">
             <Eye className="w-4 h-4" />
           </Button>
-          <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-11 w-11" aria-label="Gerar PDF">
+          <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-10 w-10" aria-label="Gerar PDF">
             <FileText className="w-4 h-4" />
           </Button>
         </div>
