@@ -484,20 +484,27 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                     </thead>
                     <tbody>
                       {auditoriaList.map((e, i) => {
-                        const motivo = (e.payload && typeof e.payload === "object"
-                          ? (e.payload as Record<string, unknown>).motivo
-                            ?? (e.payload as Record<string, unknown>).motivo_estorno
-                          : null) as string | undefined;
+                        const payload = (e.payload && typeof e.payload === "object"
+                          ? (e.payload as Record<string, unknown>)
+                          : {}) as Record<string, unknown>;
+                        const motivo = (payload.motivo ?? payload.motivo_estorno) as string | undefined;
+                        const responsavel = (payload.user_email ?? payload.responsavel ?? payload.user_name) as
+                          | string
+                          | undefined;
+                        const detalheLegivel = displayObservacoes(motivo);
                         return (
                           <tr key={e.id} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
                             <td className="px-3 py-2 whitespace-nowrap">
-                              {new Date(e.created_at).toLocaleString("pt-BR")}
+                              {new Date(e.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                             </td>
                             <td className="px-3 py-2">
-                              <Badge variant="outline" className="text-[10px]">{e.evento}</Badge>
+                              <Badge variant="outline" className="text-[10px]">{labelEventoAuditoria(e.evento)}</Badge>
                             </td>
-                            <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]">
-                              {motivo || "—"}
+                            <td className="px-3 py-2 text-muted-foreground max-w-[240px]">
+                              <div className="truncate">{detalheLegivel || "—"}</div>
+                              {responsavel && (
+                                <div className="text-[10px] text-muted-foreground/80 truncate">por {responsavel}</div>
+                              )}
                             </td>
                           </tr>
                         );
@@ -507,9 +514,9 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                 </div>
               )}
             </ViewSection>
-            {selected.observacoes && (
+            {observacoesLegivel && (
               <ViewSection title="Observações Internas">
-                <p className="text-sm text-foreground whitespace-pre-wrap">{selected.observacoes}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{observacoesLegivel}</p>
               </ViewSection>
             )}
           </div>
@@ -517,6 +524,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
       ]}
     />
       {estornoDialog}
+      {cancelarDialog}
     </>
   );
 }
