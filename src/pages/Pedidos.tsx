@@ -26,6 +26,7 @@ import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from 
 import { useCan } from "@/hooks/useCan";
 import { statusPedido } from "@/lib/statusSchema";
 import { verificarEstoquePedido } from "@/utils/comercialStock";
+import { verificarPrerequisitosNF, type NFPrerequisiteIssue } from "@/utils/comercialNFChecks";
 import type { StockShortfall } from "@/types/comercial";
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
@@ -33,6 +34,8 @@ import { useUrlListState } from "@/hooks/useUrlListState";
 import { comercialKeys } from "@/lib/queryKeys/comercial";
 import { notifyError } from "@/utils/errorMessages";
 import { useAppConfig } from "@/hooks/useAppConfig";
+
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Pedido {
   id: string;
@@ -50,7 +53,7 @@ interface Pedido {
   po_number: string | null;
   ativo: boolean;
   clientes?: { nome_razao_social: string } | null;
-  orcamentos?: { numero: string } | null;
+  orcamentos?: { id: string; numero: string } | null;
 }
 
 const TERMINAL_STATUSES_PEDIDO = ["entregue", "faturado", "cancelada"];
@@ -68,7 +71,16 @@ function getPrazoStatus(dataPrazo: string | null, statusOp: string, alertaDias: 
 }
 
 function PrazoBadge({ dataPrazo, status, alertaDias }: { dataPrazo: string | null; status: string; alertaDias: number }) {
-  if (!dataPrazo) return <span className="text-muted-foreground text-xs">—</span>;
+  if (!dataPrazo) {
+    return (
+      <span
+        className="text-xs text-muted-foreground italic"
+        title="Sem prazo de despacho definido"
+      >
+        Sem prazo
+      </span>
+    );
+  }
   const ps = getPrazoStatus(dataPrazo, status, alertaDias);
   const daysLeft = calculateDaysBetween(new Date(), dataPrazo);
 
@@ -89,6 +101,20 @@ function PrazoBadge({ dataPrazo, status, alertaDias }: { dataPrazo: string | nul
     );
   }
   return <span className="text-xs">{formatDate(dataPrazo)}</span>;
+}
+
+function pedidoTooltipFor(p: { status: string; status_faturamento: string | null }): string {
+  const s = p.status;
+  const f = p.status_faturamento ?? "";
+  if (s === "aprovada" && f === "aguardando") return "Pedido aprovado, aguardando emissão de NF";
+  if (s === "aprovada" && f === "parcial") return "Aguardando NF complementar";
+  if (s === "em_separacao") return "Pedido em separação no estoque";
+  if (s === "separado") return "Pedido separado, pronto para faturar";
+  if (s === "em_transporte") return "Pedido a caminho do cliente";
+  if (s === "entregue") return "Pedido entregue ao cliente";
+  if (s === "faturada" || f === "total") return "Pedido faturado integralmente";
+  if (s === "cancelada") return "Pedido cancelado";
+  return getPedidoStatusLabel(s);
 }
 
 const Pedidos = () => {
@@ -119,7 +145,7 @@ const Pedidos = () => {
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from("ordens_venda")
-        .select("*, clientes(nome_razao_social), orcamentos(numero)")
+        .select("*, clientes(nome_razao_social), orcamentos(id, numero)")
         .eq("ativo", true)
         .order("created_at", { ascending: false });
       if (error) {
@@ -221,6 +247,7 @@ const Pedidos = () => {
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
   const [insufficientStock, setInsufficientStock] = useState<StockShortfall[]>([]);
   const [stockCheckPending, setStockCheckPending] = useState(false);
+  const [nfChecklist, setNfChecklist] = useState<NFPrerequisiteIssue[]>([]);
 
   // KPIs computed over the filtered list so they reflect what the user sees.
   // (filteredData is defined below; the memo deps include it.)
@@ -233,9 +260,12 @@ const Pedidos = () => {
     if (stockCheckPending || generatingNfId) return; // prevent double-click
     setStockCheckPending(true);
     try {
-      // Util compartilhada com `OrdemVendaView`/scripts — evita duplicação.
-      const shortfall = await verificarEstoquePedido(pedido.id);
+      const [shortfall, prereqs] = await Promise.all([
+        verificarEstoquePedido(pedido.id),
+        verificarPrerequisitosNF(pedido.id),
+      ]);
       setInsufficientStock(shortfall);
+      setNfChecklist(prereqs);
       setGeneratingNfId(pedido.id);
     } finally {
       setStockCheckPending(false);
@@ -288,9 +318,12 @@ const Pedidos = () => {
   const kpis = useMemo(() => {
     const total = filteredData.length;
     const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
-    const emAndamento = filteredData.filter(o => ["em_separacao", "separado", "em_transporte"].includes(o.status)).length;
+    const aguardandoFat = filteredData.filter(o => canFaturarPedido(o)).length;
     const atrasados = filteredData.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status, prazoAlertaDias) === "atrasado").length;
-    return { total, totalValue, emAndamento, atrasados };
+    const semPrazo = filteredData.filter(o =>
+      !TERMINAL_STATUSES_PEDIDO.includes(o.status) && !o.data_prometida_despacho,
+    ).length;
+    return { total, totalValue, aguardandoFat, atrasados, semPrazo };
   }, [filteredData, prazoAlertaDias]);
 
   const activeFilters = useMemo(() => {
@@ -333,7 +366,27 @@ const Pedidos = () => {
     {
       key: "numero",
       mobileCard: true, label: "Nº Pedido", sortable: true,
-      render: (p: Pedido) => <span className="font-mono text-xs font-semibold text-primary">{p.numero}</span>,
+      render: (p: Pedido) => (
+        <div className="flex flex-col gap-0.5 leading-tight">
+          <span className="font-mono text-xs font-semibold text-primary">{p.numero}</span>
+          {(p.orcamentos?.numero || p.po_number) && (
+            <span className="text-[11px] text-muted-foreground">
+              {p.orcamentos?.numero && p.orcamentos.id && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); pushView("orcamento", p.orcamentos!.id); }}
+                  className="font-mono hover:underline hover:text-primary"
+                  title="Abrir orçamento de origem"
+                >
+                  Origem: {p.orcamentos.numero}
+                </button>
+              )}
+              {p.orcamentos?.numero && p.po_number && <span> · </span>}
+              {p.po_number && <span className="font-mono">PO {p.po_number}</span>}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "cliente", label: "Cliente",
@@ -351,7 +404,16 @@ const Pedidos = () => {
     },
     {
       key: "status", label: "Status", sortable: true,
-      render: (p: Pedido) => <StatusBadge status={p.status} label={getPedidoStatusLabel(p.status)} />,
+      render: (p: Pedido) => (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span><StatusBadge status={p.status} label={getPedidoStatusLabel(p.status)} /></span>
+            </TooltipTrigger>
+            <TooltipContent>{pedidoTooltipFor(p)}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
     },
     {
       key: "faturamento", label: "Faturamento",
@@ -359,9 +421,17 @@ const Pedidos = () => {
       render: (p: Pedido) => {
         const sf = p.status_faturamento ?? "";
         if (!sf) return <span className="text-muted-foreground text-xs">—</span>;
-        // Map faturamento statuses to central StatusBadge tones.
         const statusKey = sf === "total" ? "faturado" : sf;
-        return <StatusBadge status={statusKey} label={statusFaturamentoLabels[sf] || sf} />;
+        return (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span><StatusBadge status={statusKey} label={statusFaturamentoLabels[sf] || sf} /></span>
+              </TooltipTrigger>
+              <TooltipContent>{pedidoTooltipFor(p)}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
       },
     },
     {
@@ -389,13 +459,38 @@ const Pedidos = () => {
   return (
     <><ModulePage
         title="Pedidos"
-        subtitle="Central de consulta e acompanhamento operacional do ciclo de venda"
+        subtitle="Pedidos gerados a partir de orçamentos aprovados — acompanhe o ciclo até a emissão da NF"
+        headerActions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/orcamentos?status=aprovado")}
+          >
+            Ver orçamentos aprovados
+          </Button>
+        }
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard title="Total de Pedidos" value={formatNumber(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
           <SummaryCard title="Valor Total" value={formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="acumulado" />
-          <SummaryCard title="Em Andamento" value={formatNumber(kpis.emAndamento)} icon={Truck} variationType="positive" variation="separação / transporte" />
-          <SummaryCard title="Atrasados" value={formatNumber(kpis.atrasados)} icon={AlertTriangle} variationType={kpis.atrasados > 0 ? "negative" as const : "neutral" as const} variation="fora do prazo de despacho" />
+          <SummaryCard
+            title="Aguardando faturamento"
+            value={formatNumber(kpis.aguardandoFat)}
+            icon={FileOutput}
+            variationType="positive"
+            variation={kpis.aguardandoFat > 0 ? "prontos para gerar NF" : "nenhum pendente"}
+          />
+          <SummaryCard
+            title="Atrasados"
+            value={formatNumber(kpis.atrasados)}
+            icon={AlertTriangle}
+            variationType={kpis.atrasados > 0 ? "negative" as const : "neutral" as const}
+            variation={
+              kpis.atrasados === 0 && kpis.semPrazo > 0
+                ? `${kpis.semPrazo} sem prazo definido`
+                : "fora do prazo de despacho"
+            }
+          />
         </div>
 
         <div data-help-id="pedidos.filtros">
@@ -448,6 +543,7 @@ const Pedidos = () => {
           loading={loading}
           moduleKey="pedidos"
           showColumnToggle={true}
+          hideSinglePagePagination
           onView={handleView}
           onEdit={(p) => navigate(`/pedidos/${p.id}`)}
           rowExtraActions={(p) => (
@@ -512,7 +608,7 @@ const Pedidos = () => {
 
       <ConfirmDialog
         open={!!generatingNfId}
-        onClose={() => setGeneratingNfId(null)}
+        onClose={() => { setGeneratingNfId(null); setNfChecklist([]); setInsufficientStock([]); }}
         onConfirm={() => {
           const pedido = data.find(o => o.id === generatingNfId);
           if (pedido) handleGenerateNF(pedido);
@@ -520,10 +616,22 @@ const Pedidos = () => {
         title="Gerar Nota Fiscal"
         description={insufficientStock.length > 0
           ? `O pedido ${data.find(o => o.id === generatingNfId)?.numero || ""} possui itens com estoque insuficiente. A NF pode gerar saldo negativo no estoque. Deseja continuar?`
-          : `Deseja gerar uma Nota Fiscal de saída para o Pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}? Todos os itens serão incluídos.`}
-        confirmLabel={insufficientStock.length > 0 ? "Gerar NF mesmo assim" : "Gerar NF"}
-        confirmVariant={insufficientStock.length > 0 ? "destructive" : "default"}
+          : nfChecklist.length > 0
+            ? `Antes de gerar a NF do pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}, revise as pendências fiscais abaixo. Você ainda pode prosseguir.`
+            : `Deseja gerar uma Nota Fiscal de saída para o Pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}? Todos os itens serão incluídos.`}
+        confirmLabel={(insufficientStock.length > 0 || nfChecklist.length > 0) ? "Gerar NF assim mesmo" : "Gerar NF"}
+        confirmVariant={(insufficientStock.length > 0 || nfChecklist.length > 0) ? "destructive" : "default"}
       >
+        {nfChecklist.length > 0 && (
+          <ul className="mt-2 space-y-1 text-sm rounded-md border border-warning/40 bg-warning/5 p-3">
+            {nfChecklist.map((it) => (
+              <li key={it.code} className="flex items-start gap-2 text-warning-foreground">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-warning" />
+                <span>{it.label}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {insufficientStock.length > 0 && (
           <ul className="mt-2 space-y-1 text-sm">
             {insufficientStock.map((item, idx) => (

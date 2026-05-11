@@ -223,6 +223,11 @@ interface DataTableProps<T> {
   serverSortKey?: string | null;
   /** Estado controlado de ordenação server-side (direção atual). */
   serverSortDir?: 'asc' | 'desc' | null;
+  /**
+   * Quando `true`, esconde o rodapé de paginação se houver apenas
+   * uma página de resultados (não aplicável a `serverPagination`).
+   */
+  hideSinglePagePagination?: boolean;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -274,6 +279,7 @@ export function DataTable<T extends Record<string, any>>({
   onServerSort,
   serverSortKey,
   serverSortDir,
+  hideSinglePagePagination = false,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
@@ -1097,7 +1103,11 @@ export function DataTable<T extends Record<string, any>>({
                 </table>
               </div>
 
-              <div className="flex items-center justify-between border-t px-4 py-3">
+              {(() => {
+                const desktopPagerHidden = !serverPagination && viewMode !== 'infinite' && hideSinglePagePagination && totalPages <= 1;
+                if (desktopPagerHidden) return null;
+                return (
+                  <div className="flex items-center justify-between border-t px-4 py-3">
                 <span className="text-xs text-muted-foreground">
                   {serverPagination
                     ? `${effectivePage * pageSize + 1}\u2013${Math.min((effectivePage + 1) * pageSize, totalRowsForPaging)} de ${totalRowsForPaging} registros`
@@ -1120,7 +1130,9 @@ export function DataTable<T extends Record<string, any>>({
                     <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
                   </div>
                 )}
-              </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
