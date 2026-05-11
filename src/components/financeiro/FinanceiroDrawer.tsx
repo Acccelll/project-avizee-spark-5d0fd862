@@ -19,7 +19,17 @@ import { useActionLock } from "@/hooks/useActionLock";
 import { useCan } from "@/hooks/useCan";
 import { useEstornarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
-import { getOrigemLabel } from "@/lib/financeiro";
+import {
+  getOrigemLabel,
+  normalizeFormaPagamento,
+  FORMA_PAGAMENTO_LABELS,
+} from "@/lib/financeiro";
+import {
+  displayObservacoes,
+  labelEventoAuditoria,
+  getOrigemModulo,
+} from "@/lib/displayLancamento";
+import { PrazoChip } from "@/components/financeiro/PrazoChip";
 
 interface Baixa {
   id: string;
@@ -92,6 +102,9 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const { confirm: confirmEstorno, dialog: estornoDialog } = useConfirmDestructive({
     verb: "Estornar",
   });
+  const { confirm: confirmCancelar, dialog: cancelarDialog } = useConfirmDestructive({
+    verb: "Cancelar",
+  });
 
   // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
   if (!open || !selected) return null;
@@ -122,6 +135,21 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const totalBaixado = baixasList.reduce((sum, b) => sum + Number(b.valor_pago || 0), 0);
 
   const origemLabel = getOrigemLabel(selected);
+  const origemModulo = getOrigemModulo(selected.origem_tipo);
+
+  const formaPagamentoLabel = (() => {
+    const raw = selected.forma_pagamento;
+    if (!raw) return "—";
+    const norm = normalizeFormaPagamento(raw);
+    return (norm && FORMA_PAGAMENTO_LABELS[norm]) || raw;
+  })();
+
+  const observacoesLegivel = displayObservacoes(selected.observacoes);
+
+  const hojeStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   const summary = (
     <DrawerSummaryGrid cols={4}>
@@ -132,9 +160,10 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
         tone="success"
       />
       <DrawerSummaryCard
-        label="Saldo em Aberto"
+        label="Em Aberto"
         value={formatCurrency(saldoRestante)}
         tone={saldoRestante > 0 ? "destructive" : "success"}
+        hint="Saldo restante"
       />
       <DrawerSummaryCard
         label="Vencimento"
