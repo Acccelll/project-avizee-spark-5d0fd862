@@ -441,31 +441,77 @@ export function OrcamentoView({ id }: Props) {
               </div>
             </div>
           )}
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Número</span>
-              <span className="font-mono font-medium">{selected.numero}</span>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+            <div className="flex justify-between sm:block">
+              <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Número</dt>
+              <dd className="font-mono font-medium">{selected.numero}</dd>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Data</span>
-              <span>{formatDate(selected.data_orcamento)}</span>
+            <div className="flex justify-between sm:block">
+              <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Data</dt>
+              <dd>{formatDate(selected.data_orcamento)}</dd>
+            </div>
+            {selected.clientes && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Cliente</dt>
+                <dd className="text-right sm:text-left">
+                  <RelationalLink onClick={() => pushView("cliente", selected.clientes?.id)}>
+                    {selected.clientes.nome_razao_social || "—"}
+                  </RelationalLink>
+                </dd>
+              </div>
+            )}
+            <div className="flex justify-between sm:block">
+              <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Status</dt>
+              <dd><StatusBadge status={selected.status} /></dd>
             </div>
             {selected.validade && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Validade</span>
-                <span className={isExpired ? "text-warning font-medium" : ""}>{formatDate(selected.validade)}</span>
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Validade</dt>
+                <dd className={isExpired ? "text-warning font-medium" : ""}>{formatDate(selected.validade)}</dd>
               </div>
             )}
-            {/* M-02: status já aparece no header (RecordIdentityCard). Removido daqui para evitar duplicação. */}
+            {(selected.pagamento || selected.prazo_pagamento) && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Pagamento</dt>
+                <dd>
+                  {selected.pagamento
+                    ? `${pagamentoLabels[selected.pagamento] || selected.pagamento}${selected.prazo_pagamento ? ` · ${selected.prazo_pagamento}` : ""}`
+                    : selected.prazo_pagamento}
+                </dd>
+              </div>
+            )}
+            {selected.prazo_entrega && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Entrega</dt>
+                <dd>{selected.prazo_entrega}</dd>
+              </div>
+            )}
+            {selected.frete_tipo && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Frete</dt>
+                <dd>
+                  {freteTipoLabels[selected.frete_tipo] || selected.frete_tipo}
+                  {selected.modalidade ? ` · ${selected.modalidade}` : ""}
+                </dd>
+              </div>
+            )}
+            {selected.updated_at && (
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Atualizado</dt>
+                <dd>{formatDate(selected.updated_at)}</dd>
+              </div>
+            )}
             {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Convertido em Pedido</span>
-                <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
-                  {linkedOV.numero}
-                </RelationalLink>
+              <div className="flex justify-between sm:block">
+                <dt className="text-muted-foreground sm:text-[10px] sm:uppercase sm:font-semibold">Convertido em Pedido</dt>
+                <dd>
+                  <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
+                    {linkedOV.numero}
+                  </RelationalLink>
+                </dd>
               </div>
             )}
-          </div>
+          </dl>
           {selected.observacoes && (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Observações</p>
