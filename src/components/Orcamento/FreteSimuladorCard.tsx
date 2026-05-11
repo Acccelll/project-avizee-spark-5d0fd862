@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Package, Truck, Plus, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Loader2, Package, Truck, Plus, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { formatCurrency } from '@/lib/format';
 import { useFreteSimulador, type UseFreteSimuladorProps } from './useFreteSimulador';
 import { FreteSimuladorForm } from './FreteSimuladorForm';
 import { FreteOpcoesList } from './FreteSimuladorResultados';
@@ -48,6 +49,13 @@ export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
           <Truck className="h-4 w-4" />
           Simulador de Frete
         </CardTitle>
+
+        {props.simulacaoId && (
+          <div className="mt-2 flex items-center gap-1.5 text-xs rounded-md bg-success/10 text-success px-2 py-1">
+            <CheckCircle2 className="h-3 w-3" />
+            <span className="truncate">Cotação aplicada ao orçamento</span>
+          </div>
+        )}
 
         {!loadingConfig && cepOrigem.length !== 8 && (
           <p className="text-xs text-destructive mt-1">⚠ CEP de origem não configurado. Vá em Administração → Empresa.</p>
