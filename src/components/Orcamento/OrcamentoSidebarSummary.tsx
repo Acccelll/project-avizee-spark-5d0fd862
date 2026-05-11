@@ -1,33 +1,22 @@
-import { Button } from "@/components/ui/button";
-import { Save, Eye, FileText, Weight } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { Weight } from "lucide-react";
+import { formatCurrency, formatDate, formatWeightKg } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  status: string;
-  numero: string;
-  clienteNome: string;
   qtdItens: number;
   totalProdutos: number;
   freteValor: number;
   valorTotal: number;
   pesoTotal?: number;
   validade?: string;
-  isEdit?: boolean;
-  onSave: () => void;
-  onPreview: () => void;
-  onGeneratePdf: () => void;
-  saving?: boolean;
 }
 
 export function OrcamentoSidebarSummary({
-  status, numero, clienteNome, qtdItens,
+  qtdItens,
   totalProdutos, freteValor, valorTotal,
-  pesoTotal, validade, isEdit,
-  onSave, onPreview, onGeneratePdf, saving
+  pesoTotal, validade,
 }: Props) {
   const isExpired = validade ? new Date(validade) < new Date(new Date().toDateString()) : false;
-  const saveLabel = isEdit && status !== "rascunho" ? "Salvar Alterações" : "Salvar Rascunho";
 
   return (
     <div className="bg-card rounded-xl border shadow-soft p-4 sticky top-6">
@@ -42,7 +31,7 @@ export function OrcamentoSidebarSummary({
             <span className="text-muted-foreground flex items-center gap-1">
               <Weight className="h-3.5 w-3.5" />Peso
             </span>
-            <span className="font-mono text-xs">{pesoTotal.toFixed(2)} kg</span>
+            <span className="font-mono text-xs">{formatWeightKg(pesoTotal)}</span>
           </div>
         )}
         {validade && (
@@ -66,22 +55,6 @@ export function OrcamentoSidebarSummary({
             <span className="font-semibold text-sm">Total</span>
             <span className="font-mono font-bold text-lg text-primary">{formatCurrency(valorTotal)}</span>
           </div>
-        </div>
-      </div>
-      <div className="mt-4 space-y-2">
-        <Button className="w-full gap-2 h-9" onClick={onSave} disabled={saving}>
-          <Save className="w-3.5 h-3.5" />
-          {saving ? "Salvando..." : saveLabel}
-        </Button>
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="gap-1.5 h-8 text-xs" onClick={onPreview}>
-            <Eye className="w-3.5 h-3.5" />
-            Visualizar
-          </Button>
-          <Button variant="secondary" className="gap-1.5 h-8 text-xs" onClick={onGeneratePdf}>
-            <FileText className="w-3.5 h-3.5" />
-            PDF
-          </Button>
         </div>
       </div>
     </div>
