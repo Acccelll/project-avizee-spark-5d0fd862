@@ -351,16 +351,25 @@ const Estoque = () => {
 
   // Movimentações filter chips
   const movActiveFilters = useMemo((): FilterChip[] => {
-    return tipoFilters.map((f) => ({
+    const chips: FilterChip[] = tipoFilters.map((f) => ({
       key: "tipo",
       label: "Tipo",
       value: [f],
       displayValue: tipoMovConfig[f]?.label ?? f,
     }));
-  }, [tipoFilters]);
+    origemFilters.forEach((f) => {
+      const label =
+        f === "saldo_inicial" ? "Saldo inicial" :
+        f === "sem_origem" ? "Sem origem" :
+        (origemConfig[f]?.label ?? f);
+      chips.push({ key: "origem", label: "Origem", value: [f], displayValue: label });
+    });
+    return chips;
+  }, [tipoFilters, origemFilters]);
 
   const handleRemoveMovFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters((prev) => prev.filter((v) => v !== value));
+    if (key === "origem") setOrigemFilters((prev) => prev.filter((v) => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [
@@ -380,6 +389,19 @@ const Estoque = () => {
     { label: "Em Atenção", value: "atencao" },
     { label: "Abaixo do Mínimo", value: "critico" },
     { label: "Sem Estoque", value: "zerado" },
+    { label: "Sem mínimo", value: "sem_minimo" },
+  ];
+
+  const origemOptions: MultiSelectOption[] = [
+    { label: "Manual", value: "manual" },
+    { label: "Saldo inicial", value: "saldo_inicial" },
+    { label: "Compra", value: "compra" },
+    { label: "Pedido de Compra", value: "pedido_compra" },
+    { label: "Venda", value: "venda" },
+    { label: "Pedido de Venda", value: "pedido" },
+    { label: "Nota Fiscal", value: "nota_fiscal" },
+    { label: "Ajuste", value: "ajuste" },
+    { label: "Sem origem", value: "sem_origem" },
   ];
 
   const movColumns = [
