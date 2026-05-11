@@ -913,17 +913,23 @@ export default function Logistica() {
                   size="sm"
                   disabled={selectedRemessaIds.length === 0}
                   onClick={() => setEtiquetaSimplesIds(selectedRemessaIds)}
-                  title="Gerar etiqueta simples (A4) das remessas selecionadas"
+                  title={selectedRemessaIds.length === 0 ? "Selecione remessas para gerar etiquetas A4" : "Gerar etiqueta simples (A4) das remessas selecionadas"}
                 >
                   <Printer className="h-3.5 w-3.5 mr-1.5" />
                   Etiquetas simples{selectedRemessaIds.length > 0 ? ` (${selectedRemessaIds.length})` : ""}
                 </Button>
               )}
-              <Button
+              {(() => {
+                const emitidasFiltradas = filteredRemessas
+                  .map((r) => etiquetasMap[r.id])
+                  .filter((e) => e?.status === "emitida" && e.pdf_path).length;
+                return (
+                <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={printingBatch}
+                disabled={printingBatch || emitidasFiltradas === 0}
+                title={emitidasFiltradas === 0 ? "Nenhuma etiqueta emitida nas remessas filtradas" : `Imprimir ${emitidasFiltradas} etiqueta(s) emitidas — 4 por A4`}
                 onClick={async () => {
                   const paths = filteredRemessas
                     .map((r) => etiquetasMap[r.id])
@@ -955,8 +961,10 @@ export default function Logistica() {
                 }}
               >
                 {printingBatch ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Printer className="h-3.5 w-3.5 mr-1.5" />}
-                Imprimir etiquetas (4/A4)
+                Imprimir etiquetas filtradas{emitidasFiltradas > 0 ? ` (${emitidasFiltradas})` : ""}
               </Button>
+                );
+              })()}
             </AdvancedFilterBar>
             <DataTable
               columns={remessaColumns}
