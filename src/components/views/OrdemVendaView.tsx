@@ -289,11 +289,20 @@ export function OrdemVendaView({ id }: Props) {
           </p>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
-            <StatusBadge
-              status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
-              label={statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
-              className="text-[10px] px-1.5 py-0.5"
-            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <StatusBadge
+                    status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
+                    label={fatLabelOutOfContext(selected.status_faturamento)}
+                    className="text-[10px] px-1.5 py-0.5"
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {statusFaturamentoTooltip[selected.status_faturamento || "aguardando"] || "Situação fiscal do pedido."}
+              </TooltipContent>
+            </Tooltip>
             <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
               {formatCurrency(Number(selected.valor_total || 0))}
             </span>
@@ -322,7 +331,7 @@ export function OrdemVendaView({ id }: Props) {
             onClick={() => setCancelOpen(true)}
             disabled={locked("cancel_pedido")}
           >
-            <XCircle className="h-3.5 w-3.5" /> Cancelar
+            <XCircle className="h-3.5 w-3.5" /> Cancelar pedido
           </Button>
         )}
         {notasFiscais.map((nf) => (
