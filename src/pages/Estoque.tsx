@@ -36,7 +36,8 @@ import { AlertTriangle, ArrowDownCircle, RotateCcw,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
-import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
+import { getOrigemConfigFull, getTipoMovConfig, tipoMovConfig, origemConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
 import { useCan } from "@/hooks/useCan";
@@ -57,7 +58,7 @@ type ProdutoPosicao = ProdutoRow & {
   estoque_reservado?: number | null;
 };
 
-type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado";
+type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado" | "sem_minimo";
 
 function getSituacao(p: ProdutoPosicao): SituacaoEstoque {
   const atual = Number(p.estoque_atual ?? 0);
@@ -65,6 +66,7 @@ function getSituacao(p: ProdutoPosicao): SituacaoEstoque {
   if (atual <= 0) return "zerado";
   if (minimo > 0 && atual <= minimo) return "critico";
   if (minimo > 0 && atual <= minimo * 1.2) return "atencao";
+  if (minimo === 0) return "sem_minimo";
   return "normal";
 }
 
@@ -73,6 +75,7 @@ const situacaoConfig: Record<SituacaoEstoque, { label: string; icon: typeof Chec
   atencao: { label: "Em Atenção",        icon: AlertTriangle, cls: "bg-warning/10 text-warning border-warning/20" },
   critico: { label: "Abaixo do Mínimo", icon: TrendingDown,  cls: "bg-destructive/10 text-destructive border-destructive/20" },
   zerado:  { label: "Sem Estoque",       icon: XCircle,       cls: "bg-destructive/10 text-destructive border-destructive/20" },
+  sem_minimo: { label: "Sem mínimo",     icon: Info,          cls: "bg-muted text-muted-foreground border-border" },
 };
 
 function SituacaoEstoqueBadge({ situacao }: { situacao: SituacaoEstoque }) {
