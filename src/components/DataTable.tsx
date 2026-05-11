@@ -85,6 +85,8 @@ export interface Column<T> {
    * Demais colunas perdem o ícone de sort no modo server-paged.
    */
   serverSortable?: boolean;
+  /** Tooltip exibido no header da coluna (ícone de info ao lado do label). */
+  headerTooltip?: string;
 }
 
 type FilterOperator = 'contains' | 'equals' | 'gt' | 'between';
@@ -1055,7 +1057,20 @@ export function DataTable<T extends Record<string, any>>({
                              : col.sortable !== false;
                            return (
                              <th key={col.key} className={cn('px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', sortableHere && 'cursor-pointer hover:text-foreground transition-colors')} onClick={() => sortableHere && handleSort(col.key)}>
-                               <div className="flex items-center gap-1.5">{col.label}{sortableHere && <SortIcon colKey={col.key} />}</div>
+                                <div className="flex items-center gap-1.5">
+                                  {col.label}
+                                  {col.headerTooltip && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span onClick={(e) => e.stopPropagation()} className="inline-flex cursor-help text-muted-foreground/70 hover:text-foreground">
+                                          <Info className="h-3 w-3" />
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-xs">{col.headerTooltip}</TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                  {sortableHere && <SortIcon colKey={col.key} />}
+                                </div>
                              </th>
                            );
                          })
