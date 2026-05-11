@@ -1,114 +1,101 @@
 ## Escopo
 
-Refinos de UX/UI no módulo Logística (`src/pages/Logistica.tsx`) e ajustes pontuais em `useEntregas`/`useRecebimentos`/colunas. Sem mudanças em RLS, RPC, schema, nem no fluxo transacional de criação de remessa/etiqueta. Foco: trocar `—` por estados acionáveis, KPIs clicáveis, CTAs de empty state, microcopy e rastreabilidade visível.
+Refinos de UX/UI no módulo Financeiro — Lançamentos (`src/pages/Financeiro.tsx` + `src/pages/financeiro/config/financeiroColumns.tsx` + `src/pages/financeiro/hooks/useFinanceiroFiltros.ts`). Sem mudanças em RPCs (`kpis_financeiro`), schema, RLS ou serviços de baixa/estorno. Foco: vocabulário neutro nos KPIs, criticidade visual mais clara, descrição mais escaneável, filtros reordenados e ações em lote ampliadas.
 
 ---
 
 ## Alta prioridade
 
-### 1. Substituir `—` por estados nomeados nas três abas
-Trocar a renderização atual de hífen por chips/labels que indicam pendência, mantendo `text-muted-foreground italic`:
+### 1. Renomear KPI "Pagos" → "Baixados"
+Termo neutro para tela unificada (CP+CR). Apenas label visual em `SummaryCard` — `kpis_financeiro` continua expondo `pago/total_pago`. Tooltip: "Inclui pagos (CP) e recebidos (CR) no período".
 
-- **Entregas** (`entregaColumns`): `Transportadora` → "Sem transportadora"; `Prev. Entrega` → "Sem previsão"; `Expedição` → "Sem expedição"; `Rastreio` (oculta) → "Sem rastreio".
-- **Recebimentos** (`recebimentosColumns`): `Prev. Entrega` → "Sem previsão"; `Recebido em` → "Aguardando".
-- **Remessas** (`remessaColumns`): `Rastreio` → "Sem rastreio"; `Postagem` → "Postagem pendente"; `Etiqueta` → "Etiqueta pendente"; `Cliente`/`Transportadora` → "Não definido(a)" quando não houver vínculo.
+### 2. Adicionar coluna **Natureza** dedicada e renomear a atual "Tipo"
+Hoje a coluna `tipo` mostra badge `Pagar/Receber` — isso é **natureza**, não categoria. Renomear o `label` para "Natureza" (key continua `tipo`). A "categoria/origem financeira" pedida pelo usuário já existe como coluna oculta `origem` (Fiscal, Comercial, Compras, Manual, etc.) — passar a exibi-la por padrão (`hidden: false`) com label "Categoria".
 
-Implementar via helper local `<MissingChip label="..." />` para padronizar o estilo (font 11px, italic, tom muted) — uso interno, sem extrair para módulo.
+### 3. Reestruturar coluna "Descrição" em duas linhas
+Em `financeiroColumns.tsx`, render da chave `descricao` passa a exibir:
+- Linha 1: descrição principal (`displayDescricao(l)`).
+- Linha 2 (subtítulo `text-[11px] text-muted-foreground`): documento + parcela + complemento curto, montado dinamicamente:
+  - `NF {numero}` quando houver `nota_fiscal_id` (já vinculado) ou prefixo "NF" detectado;
+  - `parcela {n}/{t}` quando `parcela_total > 1` (substitui o badge atual à direita);
+  - origem curta apenas se "Categoria" estiver oculta.
 
-### 2. Status de Remessa "Pendente" mais específico
-Onde a remessa estiver no status genérico `pendente`, exibir microtexto contextual abaixo do `StatusBadge`, derivado do estado real:
-- sem etiqueta emitida → "Etiqueta pendente"
-- etiqueta emitida + sem `data_postagem` → "Aguardando postagem"
-- etiqueta emitida + `data_postagem` + sem rastreio Correios → "Aguardando coleta"
+### 4. Reordenar colunas para foco operacional
+Nova ordem default: `Ações → Selecionar → Natureza → Pessoa → Descrição → Vencimento → Valor Total → Saldo em Aberto → Status → Forma Pgto → Categoria → Banco`. A coluna **Vencimento já existe** — apenas mover para a posição correta. `Forma Pgto`, `Categoria` e `Banco` ficam visíveis por padrão (deixar `Banco` opcional via column toggle se ficar pesado em laptop).
 
-Não cria novos status no banco — apenas anota o motivo da pendência abaixo do badge usando `etiquetasMap[r.id]` + `r.data_postagem` + `r.codigo_rastreio`. Ordem da cadeia continua sendo definida em `remessaStatusMap`.
+### 5. Chip de criticidade temporal explícito
+Status hoje já recebe ênfase (vencimento em vermelho/amarelo no `data_vencimento`). Acrescentar **abaixo do StatusBadge**, na coluna `status`, um chip pequeno derivado do prazo:
+- `Vencido` (destructive) quando `getEffectiveStatus = vencido`;
+- `Vence hoje` (warning) quando `data_vencimento === hojeStr` e aberto;
+- `≤3 dias` (warning leve) quando diferença entre 1 e 3 dias;
+- `Parcial` (info) quando status efetivo = `parcial`;
+- nada quando dentro do prazo confortável.
 
-### 3. Tornar KPIs clicáveis como filtros rápidos
-Adicionar `onClick` em todos `SummaryCard` das três abas, replicando o padrão usado no Estoque:
+Helper local `<PrazoChip lancamento={l} />` em `financeiroColumns.tsx`. Reusa `getEffectiveStatus` já injetado.
 
-**Entregas**:
-- "Total de Entregas" → limpa filtros
-- "Em Transporte" → `setStatusFilters(["em_transporte"])`
-- "Atrasadas" → `setPrazoFilters(["atrasado"])`
-- "Entregues" → `setStatusFilters(["entregue"])`
-- "Pendentes de Expedição" → `setStatusFilters(["aguardando_separacao","em_separacao","separado","aguardando_expedicao"])`
-
-**Recebimentos**:
-- Total → limpa; Em Trânsito → `["em_transito"]`; Atrasados → `setPrazoFiltersReceb(["atrasado"])`; Recebidos → `["recebido"]`.
-
-**Remessas**: criar 4 cards no topo (hoje não há) — Total, Aguardando postagem, Em transporte, Entregues. Cada um filtra `remStatusFilters`.
-
-### 4. Botões de etiqueta com microcopy clara
-- Botão **"Etiquetas simples"** já mostra contagem `(N)`; quando desabilitado, o `title` atual é fixo. Trocar para `title` dinâmico: "Selecione remessas para gerar etiquetas A4" quando `selectedRemessaIds.length === 0`.
-- Botão **"Imprimir etiquetas (4/A4)"**: mostrar contagem útil. Hoje varre `filteredRemessas`; ajustar label para `Imprimir etiquetas filtradas (N)` quando há etiquetas emitidas no filtro, ou desabilitar com `title` "Nenhuma etiqueta emitida nas remessas filtradas" quando 0.
-
-### 5. Rastreabilidade ao alterar status em Entregas
-A coluna `Atualizar status` chama `updateEntregaStatus`. Adicionar `useConfirmDialog` antes de transições críticas:
-
-- → **entregue**: confirma e pergunta `data_entrega` (date input); persistir junto.
-- → **em_transporte**: avisar se `transportadora` está vazia ("Recomendado vincular transportadora antes — continuar?").
-- → **atrasada/devolvida**: pedir motivo (textarea opcional, salvo em `motivo` ou observações da remessa quando aplicável).
-
-A persistência usa o hook `useTransicionarRemessa` existente; campos extras gravados conforme já suportado pelo RPC. Caso o RPC não aceite os campos hoje, registrar apenas como `observacoes` no payload do hook (não criar nova RPC). **Confirmar via leitura de `useTransicionarRemessa` antes de implementar** — se campos não suportados, manter apenas confirmação + toast informativo, sem persistir o motivo.
+### 6. Tornar filtro **Cartão** condicional
+Hoje o `MultiSelect` de cartão aparece como linha solta quando há `cartaoOpts.length > 0`. Passar a renderizá-lo **apenas quando** `formaPagamentoFilters` incluir alguma forma de cartão (cartão de crédito/débito). Se o usuário desmarcar a forma "cartão", limpar `cartaoFilters` automaticamente. Mantém o `cartaoOpts` carregado em `useFinanceiroFiltros` — mudança puramente de visibilidade no JSX da `AdvancedFilterBar`.
 
 ---
 
 ## Média prioridade
 
-### 6. Renomear KPIs/labels para reduzir confusão
-- "Total de Entregas" → "Pedidos em entrega"
-- Aviso superior de Recebimentos: encurtar para "Esta aba acompanha a logística dos recebimentos. A conferência quantitativa oficial permanece em **Compras**."
-- Tooltips dos `TabsTrigger` já existem — manter.
+### 7. Reordenar filtros segundo prioridade operacional
+Nova ordem na `AdvancedFilterBar`: **Status → Natureza (tipo) → Banco → Forma de pagamento → Origem → (Cartão condicional)**. O "período/vencimento" já está acima (PeriodFilter + MonthFilter) — manter; apenas adicionar microcopy "Filtra por vencimento" no `PeriodFilter` (via `helpText` se a prop existir; senão tooltip).
 
-### 7. CTA no empty state de Recebimentos
-Estender `DataTable` com prop `emptyAction?: ReactNode` (renderizada dentro de `<EmptyState>`); usar em Recebimentos:
+### 8. Reduzir peso visual do botão "Baixar" por linha
+Manter botão direto (operação intensiva é desejada), mas deixar mais leve:
+- `variant="ghost"` em vez de `outline`;
+- remover borda `border-primary/30`, manter cor `text-primary`;
+- mostrar apenas ícone (`CreditCard`) com label "Baixar" em `sr-only`, e exibir o texto via tooltip ou apenas em hover (`group-hover:inline`). Mantém área clicável >32px.
+Mobile (`mobilePrimaryAction`) permanece full-width como hoje.
 
-```tsx
-emptyAction={<Button variant="outline" size="sm" onClick={() => navigate("/pedidos-compra")}><ExternalLink/> Ver pedidos de compra</Button>}
-```
+### 9. Ampliar barra de ações em lote
+Hoje existe apenas "Baixar N selecionado(s)". Quando `selectedIds.length > 0`, exibir grupo:
+- **Baixar em lote** (atual);
+- **Exportar selecionados** (chama `handleExportar("excel", selectedForBaixa)` — verificar se `useFinanceiroActions.handleExportar` aceita lista; se não, ajustar assinatura para aceitar `subset?: Lancamento[]`);
+- **Cancelar selecionados** (PermissionGate `excluir`; abre `ConfirmDialog` único pedindo motivo, itera `cancelarLancamento`).
 
-Aplicar também no empty de Remessas: "Nova remessa" (já existe `addLabel` no header, mas o CTA dentro do empty é mais descobrível).
+Fica dentro do slot `extra` do `AdvancedFilterBar`. Sem mudar serviços — usa `cancelarLancamento` já importado.
 
-### 8. Última atualização nas Remessas
-Adicionar coluna oculta por padrão `updated_at` (label "Atualizada em") em `remessaColumns`, formato `dd/MM/yyyy HH:mm`. Útil para auditoria operacional. Sem alterar select; o campo já vem do `useSupabaseCrud<Remessa>`.
+### 10. Tooltip nos toggles Lista / Calendário
+Envolver com `Tooltip`:
+- Lista: "Gestão operacional — baixas, edição em lote";
+- Calendário: "Visão por vencimentos no mês".
 
-### 9. Ações por linha em Remessas
-Já há `onView`/`onEdit` + coluna "Etiqueta simples" + "Rastrear". Adicionar via `rowExtraActions`:
-- "Ver pedido" (quando `r.ordem_venda_id` existir): `pushView("ordem_venda", r.ordem_venda_id)`.
-- "Informar rastreio" (quando `!r.codigo_rastreio` e `canEdit`): abre `EditableField`/dialog simples para inserir código (reaproveitar drawer de edição via `navigate(/remessas/:id`)`).
-
-### 10. Filtro extra em Recebimentos
-Adicionar (se houver dado disponível) filtro por **transportadora** no MultiSelect lateral. Verificar se `Recebimento` já expõe esse campo em `useRecebimentos` antes de implementar; caso contrário, **pular**.
+### 11. Tooltips nos KPIs
+`SummaryCard` já aceita `tooltip` (verificar via `code--view` — se não, adicionar prop opcional). Textos curtos: "A Vencer = abertos com vencimento futuro no período"; "Vencidos = abertos com data < hoje (independente do período)"; "Parcialmente Baixados = saldo > 0 com pelo menos uma baixa"; "Baixados = quitados no período".
 
 ---
 
 ## Baixa prioridade
 
-### 11. Tooltips em todos os KPIs
-Envolver `SummaryCard` com `Tooltip` informativo (texto curto explicando origem do número).
+### 12. Refinar espaçamento dos filtros
+Reduzir `gap` entre `MultiSelect`s para `gap-2` quando >4 filtros (hoje o slot `Cartão` quebrava linha por largura). Ajustar `className="w-[180px]"` mínimos consistentes.
 
-### 12. Ocultar paginação quando uma única página
-Verificar comportamento atual no `DataTable` — provavelmente já oculta. Se aparecer "1 de 1", ajustar via prop existente (sem mexer na lib).
-
-### 13. Microcopy do aviso superior de Entregas
-Trocar para: "Visão consolidada por pedido. Para múltiplas remessas, gerencie status na aba **Remessas**."
-
-### 14. Espaçamentos
-Reduzir `mb-6` → `mb-4` no grid de KPIs de Recebimentos para alinhar com Entregas.
+### 13. Contador segmentado nos KPIs
+Subtítulo dos cards "A Vencer" e "Vencidos" pode mostrar split CP/CR (ex.: "12 CP · 8 CR") — depende de campos novos no RPC `kpis_financeiro`. **Pular nesta entrega** (requer migração) e registrar como follow-up.
 
 ---
 
 ## Detalhes técnicos
 
-- **Arquivo principal**: `src/pages/Logistica.tsx`.
-- **Componente alterado**: `src/components/DataTable.tsx` — adicionar prop opcional `emptyAction?: React.ReactNode` repassada ao `<EmptyState>` (verificar se `EmptyState` já aceita action; se não, ajustar o componente também).
-- Helpers locais: `MissingChip` (componente interno em `Logistica.tsx`).
-- **Reaproveitar**: `useConfirmDialog` (já em uso na página via `confirmDialog`), `pushView` (já em uso).
-- Não editar: `useTransicionarRemessa`, `useEntregas`, `useRecebimentos`, RPCs, `remessaStatusMap`, lógica de etiquetas Correios, `EtiquetaSimplesPreviewDialog`.
+- **Arquivos a editar**:
+  - `src/pages/Financeiro.tsx` — KPIs renomeados, filtros reordenados, cartão condicional, ações em lote, tooltips, botão baixar mais leve.
+  - `src/pages/financeiro/config/financeiroColumns.tsx` — reordenar colunas, expor `origem` como "Categoria", subtítulo da descrição, `<PrazoChip />`.
+  - `src/pages/financeiro/hooks/useFinanceiroActions.ts` — aceitar `subset` opcional em `handleExportar` (assinatura retro-compatível).
+  - `src/pages/financeiro/hooks/useFinanceiroFiltros.ts` — possível helper para detectar formas-cartão (`isFormaCartao(forma): boolean`).
+- **Componentes possivelmente ajustados**:
+  - `SummaryCard` — adicionar prop opcional `tooltip` se ainda não existir (ler antes de implementar).
+- **Não tocar**:
+  - RPC `kpis_financeiro`, hooks de baixa (`useBaixaFinanceira`, `BaixaLoteModal`, `BaixaParcialDialog`), serviços `processarBaixaLote/processarEstorno/cancelarLancamento`, `displayDescricao`, schema/RLS.
+- **Riscos**:
+  - Mostrar `origem` por padrão pode aumentar largura horizontal — mitigar com badge compacto (já existe `ORIGEM_BADGE_CLASSES` enxuto).
+  - Cancelar em lote: garantir loop com `Promise.allSettled` e toast resumo (`X cancelados, Y falharam`); não criar nova RPC.
 
-## O que NÃO está incluído
+## Fora de escopo
 
-- Criar novos status de remessa no banco (ex.: `etiqueta_pendente` como enum) — apenas microtexto derivado em UI.
-- Implementar campo "responsável por última atualização" — depende de coluna `updated_by` no banco; só exibir `updated_at` se já existir.
-- Refazer o flow de impressão de etiquetas A4 (4-up) — escopo já estável.
-- Mudar o RPC de transição de entrega para aceitar `data_entrega`/motivo se hoje não aceita — apenas confirmação UI + observações no campo já suportado.
+- Criar novos status no banco (ex.: `vence_hoje` como enum) — apenas chip derivado em UI.
+- Refatorar `BaixaLoteModal` ou `FinanceiroDrawer`.
+- Alterar a RPC `kpis_financeiro` para retornar split CP/CR.
+- Mudar o calendário (`FinanceiroCalendar`).
