@@ -781,6 +781,7 @@ export default function Logistica() {
                 icon={Clock}
                 variationType="neutral"
                 variation="aguardando saída"
+                onClick={() => { setStatusFilters(["aguardando_separacao", "em_separacao", "separado", "aguardando_expedicao"]); setPrazoFilters([]); }}
               />
               </div>
               </CollapsibleContent>
