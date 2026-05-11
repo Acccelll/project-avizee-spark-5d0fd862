@@ -33,7 +33,7 @@ import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelect
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tables } from "@/integrations/supabase/types";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatWeightKg } from "@/lib/format";
 import { TemplateConfig } from "@/types/orcamento";
 import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamentoRentabilidade";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
@@ -128,6 +128,45 @@ const emptyCliente: ClienteSnapshot = {
   email: "", telefone: "", celular: "", contato: "", logradouro: "", numero: "",
   bairro: "", cidade: "", uf: "", cep: "", codigo: "",
 };
+
+/** Mini stepper de status do orçamento — destaca a etapa atual. */
+function StatusStepper({ status }: { status: string }) {
+  const steps = [
+    { key: "rascunho", label: "Rascunho", match: ["rascunho"] },
+    { key: "pendente", label: "Aprovação", match: ["pendente"] },
+    { key: "aprovado", label: "Aprovado", match: ["aprovado"] },
+    { key: "convertido", label: "Pedido", match: ["convertido"] },
+  ];
+  const currentIdx = steps.findIndex((s) => s.match.includes(status));
+  const isTerminal = ["rejeitado", "cancelado", "expirado", "historico"].includes(status);
+  if (isTerminal) {
+    return (
+      <p className="text-[11px] text-muted-foreground">Status terminal: <span className="font-medium text-foreground capitalize">{status}</span></p>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1 mt-1" aria-label="Fluxo do orçamento">
+      {steps.map((s, i) => {
+        const active = i === currentIdx;
+        const done = currentIdx >= 0 && i < currentIdx;
+        return (
+          <div key={s.key} className="flex items-center gap-1 min-w-0">
+            <span
+              className={
+                "inline-block h-1.5 w-1.5 rounded-full shrink-0 " +
+                (active ? "bg-primary ring-2 ring-primary/30" : done ? "bg-primary/60" : "bg-muted-foreground/30")
+              }
+            />
+            <span className={"text-[10px] " + (active ? "font-semibold text-foreground" : "text-muted-foreground")}>
+              {s.label}
+            </span>
+            {i < steps.length - 1 && <span className="text-muted-foreground/40 text-[10px]">›</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function OrcamentoForm() {
   const { id } = useParams();
@@ -994,9 +1033,9 @@ export default function OrcamentoForm() {
           </DropdownMenu>
         </div>
         <div className="hidden items-center gap-2 md:flex md:flex-wrap">
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
+          <Button onClick={handleSave} disabled={saving} className="gap-2" title={isEdit ? "Salvar alterações neste orçamento" : "Salvar novo orçamento"}>
             <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : isEdit && status !== "rascunho" ? "Salvar" : "Salvar"}
+            {saving ? "Salvando..." : "Salvar"}
           </Button>
           <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2"><Eye className="w-4 h-4" />Visualizar</Button>
           <Button variant="secondary" onClick={handleGeneratePdf} className="gap-2"><FileText className="w-4 h-4" />Gerar PDF</Button>
@@ -1191,7 +1230,7 @@ export default function OrcamentoForm() {
                     </Select>
                   )}
                 />
-                <p className="text-[11px] text-muted-foreground">Fluxo: Rascunho → Aguardando aprovação → Aprovado → Convertido em pedido</p>
+                <StatusStepper status={status} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Validade</Label>
@@ -1233,7 +1272,7 @@ export default function OrcamentoForm() {
                     </Button>
                   </div>
                 </div>
-                <div className="space-y-1.5"><Label className="text-xs">Código</Label><Input value={clienteSnapshot.codigo} readOnly className="bg-accent/30 font-mono text-xs" /></div>
+                <div className="space-y-1.5"><Label className="text-xs" title="Identificador interno (cód. legado/ERP)">Código do cliente</Label><Input value={clienteSnapshot.codigo} readOnly className="bg-accent/30 font-mono text-xs" /></div>
               </div>
               {fieldErrors.clienteId && <p className="text-[11px] text-destructive">{fieldErrors.clienteId.message}</p>}
               {clienteId && (
@@ -1291,6 +1330,13 @@ export default function OrcamentoForm() {
             onPesoOverrideChange={setPesoTotalOverride}
             form={{ valor_total: valorTotal, desconto, imposto_st: impostoSt, imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas }}
             onChange={handleTotalChange}
+            freteSimulacaoId={freteSimulacaoId}
+            freteServico={freteServico || servicoFrete || null}
+            onClearFrete={() => {
+              setValue('freteValor', 0);
+              setValue('servicoFrete', '');
+              setFreteSimulacaoId(null);
+            }}
           />
 
           <FreteSimuladorCard
@@ -1347,12 +1393,9 @@ export default function OrcamentoForm() {
 
         <div className="hidden lg:col-span-4 lg:block">
           <OrcamentoSidebarSummary
-            status={status} numero={numero} clienteNome={clienteSnapshot.nome_razao_social}
             qtdItens={items.filter(i => i.produto_id).length} totalProdutos={totalProdutos}
             freteValor={freteValor} valorTotal={valorTotal}
-            pesoTotal={pesoTotal} validade={validade} isEdit={isEdit}
-            onSave={handleSave} onPreview={() => setPreviewOpen(true)}
-            onGeneratePdf={handleGeneratePdf} saving={saving}
+            pesoTotal={pesoTotal} validade={validade}
           />
           <div className="mt-4 rounded-xl border bg-card p-4 space-y-3">
             <h4 className="font-semibold">Simulador de Condições</h4>
@@ -1376,8 +1419,7 @@ export default function OrcamentoForm() {
           {isEdit && (
             <div className="mt-4 rounded-xl border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Ações Comerciais</h4>
-                <Button variant="outline" size="sm" onClick={() => setMailModalOpen(true)}>Reenviar por e-mail</Button>
+                <h4 className="font-semibold">Compartilhamento da proposta</h4>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -1414,11 +1456,21 @@ export default function OrcamentoForm() {
                 >
                   Abrir link público
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMailModalOpen(true)}
+                  disabled={!clienteSnapshot.email}
+                  title={!clienteSnapshot.email ? "Cliente sem e-mail cadastrado" : undefined}
+                >
+                  Reenviar por e-mail
+                </Button>
               </div>
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p>• Criado em: <span className="text-foreground font-medium">{formatDate(dataOrcamento)}</span></p>
                 {validade && <p>• Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></p>}
-                <p className="text-xs mt-2">Use "Reenviar por e-mail" para notificar o cliente sobre este orçamento.</p>
+                {/* TODO: persistir "último envio" em coluna futura */}
+                <p>• Último envio: <span className="text-foreground font-medium">—</span></p>
               </div>
             </div>
           )}
@@ -1830,13 +1882,13 @@ export default function OrcamentoForm() {
           </div>
           <div className="text-right text-[10px] text-muted-foreground leading-tight">
             <p>{items.filter(i => i.produto_id).length} item(ns)</p>
-            {pesoTotal > 0 && <p>{pesoTotal.toFixed(2)} kg</p>}
+            {pesoTotal > 0 && <p>{formatWeightKg(pesoTotal)}</p>}
           </div>
         </div>
         <div className="grid grid-cols-[1fr_auto_auto] gap-2">
           <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
             <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : isEdit && status !== "rascunho" ? "Salvar Alt." : "Salvar"}
+            {saving ? "Salvando..." : "Salvar"}
           </Button>
           <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
             <Eye className="w-4 h-4" />

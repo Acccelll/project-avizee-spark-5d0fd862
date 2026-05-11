@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { formatWeightKg } from "@/lib/format";
 
 interface CondicoesForm {
   quantidade_total: number;
@@ -30,9 +30,9 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs h-4 flex items-center">Peso Total (kg)</Label>
+          <Label className="text-xs h-4 flex items-center">Peso total</Label>
           <div className="h-10 flex items-center px-3 bg-accent/30 rounded-md font-mono text-sm">
-            {form.peso_total.toFixed(2)}
+            {formatWeightKg(form.peso_total)}
           </div>
         </div>
         <div className="space-y-1.5">
