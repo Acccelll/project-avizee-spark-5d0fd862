@@ -239,6 +239,7 @@ export function OrdemVendaView({ id }: Props) {
 
   const pesoTotal = items.reduce((s, i) => s + Number(i.peso_total || 0), 0);
   const qtdTotal = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
+  const subtotalItens = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const { can } = useCan();
   const canFaturarPerm = can("faturamento_fiscal:criar") || can("pedidos:editar");
   const canGenerateNF = canFaturarPedido(selected) && canFaturarPerm;
