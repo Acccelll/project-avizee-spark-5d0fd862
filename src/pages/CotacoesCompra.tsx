@@ -80,10 +80,10 @@ export default function CotacoesCompra() {
         count={data.length}
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard title="Total" value={formatNumber(kpis.total)} icon={ShoppingCart} variationType="neutral" variation="cotações" />
-          <SummaryCard title="Em Cotação" value={formatNumber(kpis.emCotacao)} icon={Clock} variationType="neutral" variation="abertas ou em análise" />
-          <SummaryCard title="Sem propostas" value={formatNumber(kpis.semPropostas)} icon={AlertCircle} variationType={kpis.semPropostas > 0 ? "negative" : "positive"} variation="ações em aberto" />
-          <SummaryCard title="Aguardando Aprovação" value={formatNumber(kpis.aguardandoAprovacao)} icon={FileSearch} variationType={kpis.aguardandoAprovacao > 0 ? "negative" : "neutral"} variation="pendentes de decisão" />
+          <SummaryCard title="Total" shortTitle="Total" value={formatNumber(kpis.total)} icon={ShoppingCart} variationType="neutral" variation="cotações" />
+          <SummaryCard title="Em Cotação" shortTitle="Em cotação" value={formatNumber(kpis.emCotacao)} icon={Clock} variationType="neutral" variation="abertas ou em análise" />
+          <SummaryCard title="Sem propostas" shortTitle="Sem propostas" value={formatNumber(kpis.semPropostas)} icon={AlertCircle} variationType={kpis.semPropostas > 0 ? "negative" : "positive"} variation={kpis.semPropostas > 0 ? "adicionar proposta" : "tudo em dia"} />
+          <SummaryCard title="Aguardando Aprovação" shortTitle="Aprovação" value={formatNumber(kpis.aguardandoAprovacao)} icon={FileSearch} variationType={kpis.aguardandoAprovacao > 0 ? "negative" : "neutral"} variation="pendentes de decisão" />
         </div>
 
         <CotacaoCompraFilters
