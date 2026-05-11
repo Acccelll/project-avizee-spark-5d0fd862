@@ -183,6 +183,45 @@ export function OrcamentoView({ id }: Props) {
       if (novoId) navigate(`/orcamentos/${novoId}`);
     }).catch(() => {});
 
+  const handleCancelOrcamento = () => {
+    if (!selected) return;
+    if (linkedOVAtivo) {
+      toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
+        description: `Pedido ${linkedOV?.numero} está ativo. Cancele o pedido antes.`,
+      });
+      return;
+    }
+    const sideEffects: React.ReactNode[] = [
+      "Status muda para Cancelado e não pode mais avançar no fluxo comercial.",
+    ];
+    if (selected.public_token) {
+      sideEffects.push("O link público continuará válido — revogue manualmente se necessário.");
+    }
+    if (normalizeOrcamentoStatus(selected.status) === "aprovado") {
+      sideEffects.push("A aprovação atual será descartada.");
+    }
+    void confirmCancel(
+      {
+        verb: "Cancelar",
+        entity: `orçamento ${selected.numero}`,
+        sideEffects,
+        requireReason: exigirMotivoCancel,
+        confirmLabel: "Cancelar orçamento",
+      },
+      async (motivo) => {
+        try {
+          await cancelarOrcamento(selected.id, motivo || undefined);
+          invalidate(["orcamentos"]);
+          await reload();
+        } catch (err) {
+          console.error("[OrcamentoView] erro ao cancelar:", err);
+          notifyError(err);
+          throw err;
+        }
+      },
+    );
+  };
+
   const itemsSubtotal = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const kpiItens = items.length;
   const kpiQtd = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
