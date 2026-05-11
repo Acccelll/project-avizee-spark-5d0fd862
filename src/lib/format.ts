@@ -16,6 +16,18 @@ export function formatCurrency(value: number): string {
 
 export const formatMoney = formatCurrency;
 
+const compactCurrencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/** Versão compacta para KPIs em telas estreitas: ex. `R$ 731,8 mil`, `R$ 1,2 mi`. */
+export function formatCurrencyCompact(value: number): string {
+  return compactCurrencyFormatter.format(Number.isFinite(value) ? value : 0);
+}
+
 export function formatNumber(value: number): string {
   return numberFormatter.format(Number.isFinite(value) ? value : 0);
 }

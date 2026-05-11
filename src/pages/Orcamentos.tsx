@@ -23,6 +23,8 @@ import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
+import { formatCurrencyCompact } from "@/lib/format";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCan } from "@/hooks/useCan";
 import { Send } from "lucide-react";
@@ -129,6 +131,7 @@ const statusLabels: Record<string, string> = Object.fromEntries(
 const Orcamentos = () => {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
+  const isMobile = useIsMobile();
   const { data: rawData, loading, fetchData } = useSupabaseCrud({ table: "orcamentos", select: "*, clientes(nome_razao_social)" });
   const data = rawData as unknown as Orcamento[];
   const [convertingId, setConvertingId] = useState<string | null>(null);
@@ -340,7 +343,7 @@ const Orcamentos = () => {
       render: (o: Orcamento) => <span className="text-xs">{formatDate(o.data_orcamento)}</span>,
     },
     {
-      key: "validade", label: "Validade",
+      key: "validade", mobileCard: true, label: "Validade",
       render: (o: Orcamento) => <ValidadeBadge validade={o.validade} status={o.status} origem={o.origem} />,
     },
     {
@@ -359,7 +362,10 @@ const Orcamentos = () => {
         const effectiveStatus =
           vs === "vencida" && normalizedStatus === "pendente" ? "expirado" : normalizedStatus;
         const badge = (
-          <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />
+          <StatusBadge
+            status={effectiveStatus}
+            label={effectiveStatus === "historico" ? "Legado" : (statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status))}
+          />
         );
         if (effectiveStatus === "historico") {
           return (
@@ -405,8 +411,12 @@ const Orcamentos = () => {
     });
     if (dataInicio) chips.push({ key: "dataInicio", label: "Emissão desde", value: [dataInicio], displayValue: formatDate(dataInicio) });
     if (dataFim) chips.push({ key: "dataFim", label: "Emissão até", value: [dataFim], displayValue: formatDate(dataFim) });
+    if (historicoFilter && historicoFilter !== "todos") {
+      const opt = historicoOptions.find(x => x.value === historicoFilter);
+      chips.push({ key: "historico", label: "Legados", value: [historicoFilter], displayValue: opt?.label || historicoFilter });
+    }
     return chips;
-  }, [statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim, clientesList]);
+  }, [statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim, historicoFilter, clientesList]);
 
   const handleRemoveOrcFilter = (key: string, value?: string) => {
     if (key === "status") setStatusFilters(prev => prev.filter(v => v !== value));
@@ -414,6 +424,7 @@ const Orcamentos = () => {
     if (key === "validade") setValidadeFilters(prev => prev.filter(v => v !== value));
     if (key === "dataInicio") setDataInicio("");
     if (key === "dataFim") setDataFim("");
+    if (key === "historico") setHistoricoFilter("todos");
   };
 
   const statusOptions: MultiSelectOption[] = Object.entries(statusLabels).map(([k, v]) => ({
@@ -433,12 +444,13 @@ const Orcamentos = () => {
         addButtonHelpId="orcamentos.novoBtn"
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard title="Total de Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="no período filtrado" />
-          <SummaryCard title="Valor Total" value={formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="soma do filtro atual" />
+          <SummaryCard title="Total de Orçamentos" shortTitle="Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="no período filtrado" />
+          <SummaryCard title="Valor Total" shortTitle="Valor total" value={isMobile ? formatCurrencyCompact(kpis.totalValue) : formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="soma do filtro atual" />
           <SummaryCard title="Aguardando pedido" value={String(kpis.approved)} icon={CheckCircle} variationType="positive" variation="aprovados, ainda não convertidos" />
           <div title="Convertidos em pedido ÷ total de orçamentos no filtro">
             <SummaryCard
               title="Taxa de Conversão"
+              shortTitle="Conversão"
               value={`${kpis.conversionRate}%`}
               icon={BarChart3}
               variationType="positive"
@@ -561,15 +573,17 @@ const Orcamentos = () => {
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-10 w-10 p-0"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/orcamentos/${o.id}`); }}
-                  aria-label="Editar"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                {normalizeOrcamentoStatus(o.status) !== "historico" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-10 w-10 p-0"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/orcamentos/${o.id}`); }}
+                    aria-label="Editar"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
             mobilePrimaryAction={(o) => {
@@ -615,6 +629,31 @@ const Orcamentos = () => {
                     onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}
                   >
                     <Send className="w-4 h-4" /> Enviar para aprovação
+                  </Button>
+                );
+              }
+              const ns = normalizeOrcamentoStatus(o.status);
+              if (ns === "convertido") {
+                return (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-11 w-full gap-2 text-sm"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/pedidos?cotacao=${o.id}`); }}
+                  >
+                    <ArrowRightCircle className="w-4 h-4" /> Abrir pedido
+                  </Button>
+                );
+              }
+              if (ns === "historico") {
+                return (
+                  <Button
+                    size="lg"
+                    variant="ghost"
+                    className="h-11 w-full gap-2 text-sm"
+                    onClick={(e) => { e.stopPropagation(); pushView("orcamento", o.id); }}
+                  >
+                    <Eye className="w-4 h-4" /> Visualizar
                   </Button>
                 );
               }
