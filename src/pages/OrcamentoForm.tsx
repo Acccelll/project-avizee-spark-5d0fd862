@@ -1456,11 +1456,21 @@ export default function OrcamentoForm() {
                 >
                   Abrir link público
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMailModalOpen(true)}
+                  disabled={!clienteSnapshot.email}
+                  title={!clienteSnapshot.email ? "Cliente sem e-mail cadastrado" : undefined}
+                >
+                  Reenviar por e-mail
+                </Button>
               </div>
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p>• Criado em: <span className="text-foreground font-medium">{formatDate(dataOrcamento)}</span></p>
                 {validade && <p>• Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></p>}
-                <p className="text-xs mt-2">Use "Reenviar por e-mail" para notificar o cliente sobre este orçamento.</p>
+                {/* TODO: persistir "último envio" em coluna futura */}
+                <p>• Último envio: <span className="text-foreground font-medium">—</span></p>
               </div>
             </div>
           )}
