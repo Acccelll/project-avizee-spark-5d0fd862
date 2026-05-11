@@ -223,6 +223,11 @@ interface DataTableProps<T> {
   serverSortKey?: string | null;
   /** Estado controlado de ordenação server-side (direção atual). */
   serverSortDir?: 'asc' | 'desc' | null;
+  /**
+   * Quando `true`, esconde o rodapé de paginação se houver apenas
+   * uma página de resultados (não aplicável a `serverPagination`).
+   */
+  hideSinglePagePagination?: boolean;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -274,6 +279,7 @@ export function DataTable<T extends Record<string, any>>({
   onServerSort,
   serverSortKey,
   serverSortDir,
+  hideSinglePagePagination = false,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
