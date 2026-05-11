@@ -224,8 +224,22 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
           ]}
           destructive={canPermCancelar ? {
             icon: Trash2,
-            tooltip: "Cancelar",
-            onClick: () => runAction(() => { onDelete(selected.id); onClose(); }),
+            tooltip: "Cancelar lançamento",
+            onClick: () =>
+              confirmCancelar(
+                {
+                  verb: "Cancelar",
+                  entity: `${tipoLabel} de ${formatCurrency(valorTotal)} — ${pessoa}`,
+                  sideEffects: [
+                    "Lançamento sai do contas a pagar/receber",
+                    "Pode afetar relatórios e conciliações bancárias",
+                    "Se houver baixa registrada, será necessário estornar antes",
+                  ],
+                },
+                async () => {
+                  await runAction(async () => { onDelete(selected.id); onClose(); });
+                },
+              ),
             pending: actionPending,
           } : undefined}
         />
