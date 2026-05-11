@@ -64,6 +64,11 @@ export function useCotacoesEnrichment(data: CotacaoCompra[]) {
             )
             .join(" ")
             .toLowerCase();
+          const produtoPrincipal = (
+            cItens as Array<{ produtos?: { nome?: string | null } | null }>
+          )
+            .map((i) => i.produtos?.nome)
+            .find((n): n is string => !!n && n.trim().length > 0) ?? null;
           map[id] = {
             itens_count: cItens.length,
             fornecedores_count: fornUniq,
@@ -72,6 +77,7 @@ export function useCotacoesEnrichment(data: CotacaoCompra[]) {
             tem_vencedor: selecionadas.length > 0,
             fornecedor_ids: fornecedorIds,
             produtos_text: produtosText,
+            produto_principal: produtoPrincipal,
           };
         }
         setSummaries(map);

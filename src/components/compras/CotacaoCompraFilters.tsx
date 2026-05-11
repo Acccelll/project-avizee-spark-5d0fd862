@@ -49,7 +49,7 @@ export function CotacaoCompraFilters({
     <AdvancedFilterBar
       searchValue={searchTerm}
       onSearchChange={onSearchChange}
-      searchPlaceholder="Buscar por número, observações ou produto..."
+      searchPlaceholder="Buscar cotação..."
       activeFilters={activeFilters}
       onRemoveFilter={onRemoveFilter}
       onClearAll={onClearAll}

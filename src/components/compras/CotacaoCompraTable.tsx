@@ -1,6 +1,7 @@
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { AlertCircle, CheckCircle2, Clock3, Trophy } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { CotacaoCompra, CotacaoSummary } from "./cotacaoCompraTypes";
 import { statusLabels } from "./cotacaoCompraTypes";
 import { canonicalCotacaoStatus } from "./comprasStatus";
@@ -16,16 +17,39 @@ interface CotacaoCompraTableProps {
 
 export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }: CotacaoCompraTableProps) {
   const isExpired = (validade: string | null) => !!validade && calculateDaysBetween(new Date(), validade) < 0;
+  const getNextAction = (c: CotacaoCompra): { label: string; show: boolean } => {
+    const s = summaries[c.id];
+    const status = canonicalCotacaoStatus(c.status);
+    if (status === "convertida" || status === "cancelada" || status === "rejeitada") return { label: "", show: false };
+    if (!s) return { label: "Abrir", show: true };
+    if (status === "aguardando_aprovacao") return { label: "Aprovar cotação", show: true };
+    if (s.itens_count === 0) return { label: "Adicionar itens", show: true };
+    if (s.fornecedores_count === 0) return { label: "Selecionar fornecedores", show: true };
+    if (s.propostas_count === 0) return { label: "Adicionar proposta", show: true };
+    if (s.tem_vencedor) return { label: "Pronta p/ aprovação", show: true };
+    return { label: "Selecionar fornecedor", show: true };
+  };
   const columns = [
     {
       key: "numero",
       label: "Cotação",
+      mobilePrimary: true,
       render: (c: CotacaoCompra) => (
         <div>
           <span className="font-mono text-xs font-semibold text-primary">{c.numero}</span>
           <p className="text-[10px] text-muted-foreground mt-0.5">
             {formatDate(c.data_cotacao)}
           </p>
+          {(() => {
+            const s = summaries[c.id];
+            if (!s || s.itens_count === 0) return null;
+            const label = s.produto_principal
+              ? `${s.itens_count} ${s.itens_count === 1 ? "item" : "itens"} · ${s.produto_principal}`
+              : `${s.itens_count} ${s.itens_count === 1 ? "item" : "itens"}`;
+            return (
+              <p className="text-[11px] text-muted-foreground mt-1 truncate max-w-[260px]">{label}</p>
+            );
+          })()}
         </div>
       ),
     },
@@ -41,16 +65,10 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
     {
       key: "fornecedores",
       label: "Fornecedores / Propostas",
+      mobileCard: true,
       render: (c: CotacaoCompra) => {
         const s = summaries[c.id];
         if (!s) return <span className="text-muted-foreground/40 text-xs">—</span>;
-        if (s.fornecedores_count === 0 && s.propostas_count === 0) {
-          return (
-            <span className="text-xs text-muted-foreground italic">
-              Sem fornecedores · sem propostas
-            </span>
-          );
-        }
         return (
           <div className="space-y-0.5">
             <span className="text-xs font-mono font-medium">
@@ -62,9 +80,9 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
                 <Trophy className="h-2.5 w-2.5 shrink-0" />
                 <span className="truncate max-w-[140px]">{s.vencedor_nome}</span>
               </p>
-            ) : (
+            ) : (s.fornecedores_count > 0 || s.propostas_count > 0) ? (
               <p className="text-[10px] text-muted-foreground mt-0.5">Sem vencedor definido</p>
-            )}
+            ) : null}
           </div>
         );
       },
@@ -130,6 +148,21 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
       onView={onView}
       onEdit={onEdit}
       mobileStatusKey="status"
+      mobileLabeledDetails
+      mobilePrimaryAction={(c) => {
+        const a = getNextAction(c);
+        if (!a.show) return null;
+        return (
+          <Button
+            size="sm"
+            className="w-full gap-1.5"
+            onClick={(e) => { e.stopPropagation(); onView(c); }}
+          >
+            {a.label}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        );
+      }}
       emptyTitle="Nenhuma cotação de compra encontrada"
       emptyDescription="Tente ajustar os filtros ou crie uma nova cotação de compra."
     />
