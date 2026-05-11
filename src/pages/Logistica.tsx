@@ -367,6 +367,31 @@ export default function Logistica() {
       toast.warning("Entrega em estado terminal. Atualize pela remessa se necessário.");
       return;
     }
+    // Avisos contextuais antes de transições críticas (rastreabilidade UX).
+    if (status === "em_transporte" && (!entrega.transportadora || entrega.transportadora === "—")) {
+      const ok = await confirm({
+        title: "Sem transportadora vinculada",
+        description: "Recomendado vincular uma transportadora antes de marcar como Em Transporte. Continuar mesmo assim?",
+        confirmLabel: "Continuar",
+      });
+      if (!ok) return;
+    }
+    if (status === "entregue") {
+      const ok = await confirm({
+        title: "Confirmar entrega",
+        description: "Marcar entrega como concluída? A data de entrega registrada será a de hoje.",
+        confirmLabel: "Confirmar entrega",
+      });
+      if (!ok) return;
+    }
+    if (status === "devolvido") {
+      const ok = await confirm({
+        title: "Marcar como devolvida",
+        description: "Confirma a devolução? O estoque pode ser revertido conforme regra da remessa.",
+        confirmLabel: "Confirmar devolução",
+      });
+      if (!ok) return;
+    }
     if (ENTREGA_STATUS_META[status]?.sensivel) {
       const ok = await confirm({
         title: "Confirmar mudança de status",
