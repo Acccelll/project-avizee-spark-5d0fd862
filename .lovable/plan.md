@@ -1,112 +1,114 @@
 ## Escopo
 
-Tela `src/pages/Estoque.tsx` + helpers `src/components/estoque/estoqueMovimentacaoConfig.ts`. Apenas ajustes de UI/UX, microcopy, semântica de status e uma confirmação extra. Sem mudanças em RLS, RPC, schema ou regras de negócio (a RPC `ajustar_estoque_manual` continua sendo a única via de gravação).
+Refinos de UX/UI no módulo Logística (`src/pages/Logistica.tsx`) e ajustes pontuais em `useEntregas`/`useRecebimentos`/colunas. Sem mudanças em RLS, RPC, schema, nem no fluxo transacional de criação de remessa/etiqueta. Foco: trocar `—` por estados acionáveis, KPIs clicáveis, CTAs de empty state, microcopy e rastreabilidade visível.
 
 ---
 
 ## Alta prioridade
 
-### 1. Corrigir "--3" na coluna Qtd (Movimentações)
-Em `Estoque.tsx` linha 390 a render concatena sinal manual (`neg ? "-" : "+"`) com `formatNumber(m.quantidade)`. Se `quantidade` já vem negativo do banco (ex.: saídas históricas), aparece `--3`.
+### 1. Substituir `—` por estados nomeados nas três abas
+Trocar a renderização atual de hífen por chips/labels que indicam pendência, mantendo `text-muted-foreground italic`:
 
-Usar valor absoluto: `{neg ? "−" : "+"}{formatNumber(Math.abs(m.quantidade))}` (com sinal Unicode minus para clareza visual, mantendo classe de cor já aplicada).
+- **Entregas** (`entregaColumns`): `Transportadora` → "Sem transportadora"; `Prev. Entrega` → "Sem previsão"; `Expedição` → "Sem expedição"; `Rastreio` (oculta) → "Sem rastreio".
+- **Recebimentos** (`recebimentosColumns`): `Prev. Entrega` → "Sem previsão"; `Recebido em` → "Aguardando".
+- **Remessas** (`remessaColumns`): `Rastreio` → "Sem rastreio"; `Postagem` → "Postagem pendente"; `Etiqueta` → "Etiqueta pendente"; `Cliente`/`Transportadora` → "Não definido(a)" quando não houver vínculo.
 
-### 2. Reclassificar "Itens Críticos" e separar "Sem mínimo"
-- Em `kpis` (linha 158-170), separar:
-  - `abaixoMinimo` = produtos com `estoque_minimo > 0` e `atual ≤ minimo` e `atual > 0`
-  - `zerados` = `atual ≤ 0`
-  - `semMinimo` = ativos com `estoque_minimo = 0` (informativo, não crítico)
-- Substituir card "Itens Críticos" por **dois cards menores** lado a lado dentro do mesmo slot, ou trocar o card por **"Abaixo do mínimo"** + adicionar `variation` "+ N zerados" no próprio card. Manter 4 cards no topo (sem quebrar grid `summaryCards`).
-- Ao clicar, filtra `situacaoFilters` apenas por `["critico"]` (e variante separada para `["zerado"]`).
+Implementar via helper local `<MissingChip label="..." />` para padronizar o estilo (font 11px, italic, tom muted) — uso interno, sem extrair para módulo.
 
-### 3. Mínimo "—" → "Sem mínimo"
-Coluna `estoque_minimo` (linha 409): trocar `"—"` por badge `<span className="text-[11px] text-muted-foreground italic">Sem mínimo</span>` quando `estoque_minimo === 0`.
+### 2. Status de Remessa "Pendente" mais específico
+Onde a remessa estiver no status genérico `pendente`, exibir microtexto contextual abaixo do `StatusBadge`, derivado do estado real:
+- sem etiqueta emitida → "Etiqueta pendente"
+- etiqueta emitida + sem `data_postagem` → "Aguardando postagem"
+- etiqueta emitida + `data_postagem` + sem rastreio Correios → "Aguardando coleta"
 
-### 4. Nova situação "Sem mínimo definido"
-Em `getSituacao` (linha 62), adicionar tipo `sem_minimo`:
-- Se `atual > 0` e `minimo === 0` → `sem_minimo` (badge neutro/info, não verde "Normal").
-- `normal` agora exige `minimo > 0` e `atual > minimo * 1.2`.
+Não cria novos status no banco — apenas anota o motivo da pendência abaixo do badge usando `etiquetasMap[r.id]` + `r.data_postagem` + `r.codigo_rastreio`. Ordem da cadeia continua sendo definida em `remessaStatusMap`.
 
-Atualizar `situacaoConfig` e `situacaoOptions` com a nova entrada (label "Sem mínimo", ícone `Info`, classe `bg-muted/40 text-muted-foreground`).
+### 3. Tornar KPIs clicáveis como filtros rápidos
+Adicionar `onClick` em todos `SummaryCard` das três abas, replicando o padrão usado no Estoque:
 
-### 5. Confirmação obrigatória antes de "Registrar Ajuste"
-Já existe `ConfirmDialog` para movimentações (linha 953), porém o `description` é só uma string. Enriquecer com bloco estruturado quando `tipo === "ajuste"`:
+**Entregas**:
+- "Total de Entregas" → limpa filtros
+- "Em Transporte" → `setStatusFilters(["em_transporte"])`
+- "Atrasadas" → `setPrazoFilters(["atrasado"])`
+- "Entregues" → `setStatusFilters(["entregue"])`
+- "Pendentes de Expedição" → `setStatusFilters(["aguardando_separacao","em_separacao","separado","aguardando_expedicao"])`
 
-```text
-Produto: <nome>
-Saldo atual: <atual> <UN>
-Novo saldo:  <novo>  <UN>
-Diferença:   <±delta> <UN>
-Categoria:   <categoria_ajuste>
-Justificativa: <motivo ou "—">
-```
+**Recebimentos**:
+- Total → limpa; Em Trânsito → `["em_transito"]`; Atrasados → `setPrazoFiltersReceb(["atrasado"])`; Recebidos → `["recebido"]`.
 
-Renderizar via JSX dentro de `description` (ConfirmDialog já aceita ReactNode) ou refatorar para componente próprio. Confirmar diferença em destaque.
+**Remessas**: criar 4 cards no topo (hoje não há) — Total, Aguardando postagem, Em transporte, Entregues. Cada um filtra `remStatusFilters`.
 
-### 6. Tooltips de Estoque Atual vs. Disponível
-Na coluna "Disponível" e "Estoque Atual" (linhas 406, 408), adicionar `<Tooltip>` no header (via prop `headerTooltip` se DataTable suportar, caso contrário envolver o label no render):
-- Estoque Atual: "Saldo físico/sistêmico do produto."
-- Disponível: "Saldo livre = Estoque atual − Reservado. Reservas vêm de pedidos de venda em separação."
+### 4. Botões de etiqueta com microcopy clara
+- Botão **"Etiquetas simples"** já mostra contagem `(N)`; quando desabilitado, o `title` atual é fixo. Trocar para `title` dinâmico: "Selecione remessas para gerar etiquetas A4" quando `selectedRemessaIds.length === 0`.
+- Botão **"Imprimir etiquetas (4/A4)"**: mostrar contagem útil. Hoje varre `filteredRemessas`; ajustar label para `Imprimir etiquetas filtradas (N)` quando há etiquetas emitidas no filtro, ou desabilitar com `title` "Nenhuma etiqueta emitida nas remessas filtradas" quando 0.
 
-Verificar se `DataTable` aceita header customizado; se não, criar wrapper `<th>`-friendly com `Tooltip` no `label` JSX.
+### 5. Rastreabilidade ao alterar status em Entregas
+A coluna `Atualizar status` chama `updateEntregaStatus`. Adicionar `useConfirmDialog` antes de transições críticas:
 
-### 7. Tooltip no card "Valor em Estoque"
-SummaryCard "Valor em Estoque" (linha 447): adicionar tooltip no ícone com texto:
-"Calculado por Σ(estoque_atual × preço_custo) dos produtos ativos. Quando o produto não tem custo cadastrado, usa-se o preço de venda como fallback."
+- → **entregue**: confirma e pergunta `data_entrega` (date input); persistir junto.
+- → **em_transporte**: avisar se `transportadora` está vazia ("Recomendado vincular transportadora antes — continuar?").
+- → **atrasada/devolvida**: pedir motivo (textarea opcional, salvo em `motivo` ou observações da remessa quando aplicável).
+
+A persistência usa o hook `useTransicionarRemessa` existente; campos extras gravados conforme já suportado pelo RPC. Caso o RPC não aceite os campos hoje, registrar apenas como `observacoes` no payload do hook (não criar nova RPC). **Confirmar via leitura de `useTransicionarRemessa` antes de implementar** — se campos não suportados, manter apenas confirmação + toast informativo, sem persistir o motivo.
 
 ---
 
 ## Média prioridade
 
-### 8. Origem "Sem origem" → "Saldo inicial"
-Em `getOrigemConfig` (`estoqueMovimentacaoConfig.ts` linha 48): quando `documento_tipo` é null **e** o motivo começa com "Saldo inicial" (heurística), retornar `{ label: "Saldo inicial", className: "bg-info/10 text-info border-info/30" }`. 
+### 6. Renomear KPIs/labels para reduzir confusão
+- "Total de Entregas" → "Pedidos em entrega"
+- Aviso superior de Recebimentos: encurtar para "Esta aba acompanha a logística dos recebimentos. A conferência quantitativa oficial permanece em **Compras**."
+- Tooltips dos `TabsTrigger` já existem — manter.
 
-Alternativa mais limpa: aceitar segundo parâmetro opcional `motivo?: string | null` em `getOrigemConfig`, usar em `Estoque.tsx` (linha 394). Manter fallback "Sem origem" quando motivo não casa.
+### 7. CTA no empty state de Recebimentos
+Estender `DataTable` com prop `emptyAction?: ReactNode` (renderizada dentro de `<EmptyState>`); usar em Recebimentos:
 
-### 9. Filtro de origem na aba Movimentações
-Adicionar `MultiSelect` "Origem" (`origemFilters`) ao lado do filtro de Tipo, com opções derivadas das chaves de `origemConfig` + "saldo_inicial" + "sem_origem". Aplicar no `filteredData.filter`.
+```tsx
+emptyAction={<Button variant="outline" size="sm" onClick={() => navigate("/pedidos-compra")}><ExternalLink/> Ver pedidos de compra</Button>}
+```
 
-### 10. Diferença calculada e saldo atual mais visíveis no Ajuste Manual
-Já existe o card "Impacto no saldo" (linhas 810-848) com saldo atual, novo saldo e delta. Acrescentar:
-- Linha "Diferença" explícita em destaque (chip colorido), não apenas como sufixo da unidade.
-- Quando `produtoSelecionado` mudar, popular o histórico lateral também com **última movimentação geral** (não só ajustes), saldo atual em destaque, último ajuste e responsável (`usuario_id`, fallback "—" se não disponível).
+Aplicar também no empty de Remessas: "Nova remessa" (já existe `addLabel` no header, mas o CTA dentro do empty é mais descobrível).
 
-### 11. Cards de KPI clicáveis como filtros rápidos
-- "Itens em Estoque" → tab Saldos, sem filtro
-- "Abaixo do mínimo" → `situacaoFilters=["critico"]`
-- "Sem mínimo" (novo) → `situacaoFilters=["sem_minimo"]`
-- "Ajustes Manuais" → tab Movimentações, `tipoFilters=["ajuste"]`
-Reaproveitar prop `onClick` do `SummaryCard` (já usada em "Itens Críticos").
+### 8. Última atualização nas Remessas
+Adicionar coluna oculta por padrão `updated_at` (label "Atualizada em") em `remessaColumns`, formato `dd/MM/yyyy HH:mm`. Útil para auditoria operacional. Sem alterar select; o campo já vem do `useSupabaseCrud<Remessa>`.
 
-### 12. Coluna "Responsável" nas Movimentações
-Adicionar coluna oculta por padrão (`hidden: true`) em `movColumns`, exibindo `usuario_id` (mostrar email/nome se houver join disponível em `select`; caso contrário, mostrar UUID truncado com tooltip). Mais detalhamento real fica para futuro (requer ampliar `select`).
+### 9. Ações por linha em Remessas
+Já há `onView`/`onEdit` + coluna "Etiqueta simples" + "Rastrear". Adicionar via `rowExtraActions`:
+- "Ver pedido" (quando `r.ordem_venda_id` existir): `pushView("ordem_venda", r.ordem_venda_id)`.
+- "Informar rastreio" (quando `!r.codigo_rastreio` e `canEdit`): abre `EditableField`/dialog simples para inserir código (reaproveitar drawer de edição via `navigate(/remessas/:id`)`).
+
+### 10. Filtro extra em Recebimentos
+Adicionar (se houver dado disponível) filtro por **transportadora** no MultiSelect lateral. Verificar se `Recebimento` já expõe esse campo em `useRecebimentos` antes de implementar; caso contrário, **pular**.
 
 ---
 
 ## Baixa prioridade
 
-### 13. Rename de aba
-"Ajuste Manual" → "Ajustes" no `TabsTrigger` (linha 519). Mantém rota interna `value="ajuste"` para não quebrar deep-link.
+### 11. Tooltips em todos os KPIs
+Envolver `SummaryCard` com `Tooltip` informativo (texto curto explicando origem do número).
 
-### 14. Microcopy do alerta superior
-Quando há produtos abaixo do mínimo, o card já é claro. Refinar a frase para "N produto(s) precisam de reposição" e manter botão "Ajustar".
+### 12. Ocultar paginação quando uma única página
+Verificar comportamento atual no `DataTable` — provavelmente já oculta. Se aparecer "1 de 1", ajustar via prop existente (sem mexer na lib).
 
-### 15. Coluna opcional "Custo total" em Saldos
-Já existe `valor_estoque` (linha 411) como hidden. Renomear label para "Custo total (saldo × custo)" para deixar critério explícito.
+### 13. Microcopy do aviso superior de Entregas
+Trocar para: "Visão consolidada por pedido. Para múltiplas remessas, gerencie status na aba **Remessas**."
+
+### 14. Espaçamentos
+Reduzir `mb-6` → `mb-4` no grid de KPIs de Recebimentos para alinhar com Entregas.
 
 ---
 
 ## Detalhes técnicos
 
-- **Arquivo único de edição principal**: `src/pages/Estoque.tsx`.
-- **Helper alterado**: `src/components/estoque/estoqueMovimentacaoConfig.ts` (assinatura de `getOrigemConfig`).
-- Imports adicionais: `Tooltip, TooltipContent, TooltipProvider, TooltipTrigger` de `@/components/ui/tooltip` (já presente em outras telas).
-- Não tocar no hook `useAjustarEstoque` nem na RPC.
-- Não tocar em `EstoqueAjusteSheet` (ajuste rápido mobile) — fora de escopo.
+- **Arquivo principal**: `src/pages/Logistica.tsx`.
+- **Componente alterado**: `src/components/DataTable.tsx` — adicionar prop opcional `emptyAction?: React.ReactNode` repassada ao `<EmptyState>` (verificar se `EmptyState` já aceita action; se não, ajustar o componente também).
+- Helpers locais: `MissingChip` (componente interno em `Logistica.tsx`).
+- **Reaproveitar**: `useConfirmDialog` (já em uso na página via `confirmDialog`), `pushView` (já em uso).
+- Não editar: `useTransicionarRemessa`, `useEntregas`, `useRecebimentos`, RPCs, `remessaStatusMap`, lógica de etiquetas Correios, `EtiquetaSimplesPreviewDialog`.
 
 ## O que NÃO está incluído
 
-- Implementar reservas reais (já há coluna; depende de fluxos comercial/venda).
-- Trocar `useSupabaseCrud` por server-side pagination em movimentações.
-- Adicionar nome do responsável via JOIN com `auth.users`/profiles (apenas exibir UUID; ampliação real fica para próxima iteração).
-- Mudar categorias de ajuste (já cobrem os principais cenários: correção, perda, avaria, vencimento, furto, divergência, outro).
+- Criar novos status de remessa no banco (ex.: `etiqueta_pendente` como enum) — apenas microtexto derivado em UI.
+- Implementar campo "responsável por última atualização" — depende de coluna `updated_by` no banco; só exibir `updated_at` se já existir.
+- Refazer o flow de impressão de etiquetas A4 (4-up) — escopo já estável.
+- Mudar o RPC de transição de entrega para aceitar `data_entrega`/motivo se hoje não aceita — apenas confirmação UI + observações no campo já suportado.
