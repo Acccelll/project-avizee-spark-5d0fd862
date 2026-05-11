@@ -1256,7 +1256,7 @@ export default function OrcamentoForm() {
             <h3 className="font-semibold text-foreground mb-4">Cliente</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2 space-y-1.5">
+                <div className="col-span-2 md:col-span-2 space-y-1.5">
                   <Label className="text-xs">Buscar Cliente</Label>
                   <div className="flex gap-2">
                     <AutocompleteSearch
@@ -1273,17 +1273,17 @@ export default function OrcamentoForm() {
                       clientes={clientes}
                       onSelect={(c) => handleClienteChange(c.id)}
                       trigger={
-                        <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Ver lista completa de clientes" title="Ver lista completa">
+                        <Button type="button" variant="outline" size="icon" className="hidden md:inline-flex h-10 w-10 shrink-0" aria-label="Ver lista completa de clientes" title="Ver lista completa">
                           <Search className="h-4 w-4" />
                         </Button>
                       }
                     />
-                    <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setQuickAddOpen(true)} aria-label="Cadastrar novo cliente" title="Cadastrar novo cliente">
+                    <Button type="button" variant="outline" size="icon" className="hidden md:inline-flex h-10 w-10 shrink-0" onClick={() => setQuickAddOpen(true)} aria-label="Cadastrar novo cliente" title="Cadastrar novo cliente">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <div className="space-y-1.5"><Label className="text-xs" title="Identificador interno (cód. legado/ERP)">Código do cliente</Label><Input value={clienteSnapshot.codigo} readOnly className="bg-accent/30 font-mono text-xs" /></div>
+                <div className="hidden md:block space-y-1.5"><Label className="text-xs" title="Identificador interno (cód. legado/ERP)">Código do cliente</Label><Input value={clienteSnapshot.codigo} readOnly className="bg-accent/30 font-mono text-xs" /></div>
               </div>
               {fieldErrors.clienteId && <p className="text-[11px] text-destructive">{fieldErrors.clienteId.message}</p>}
               {clienteId && (
@@ -1293,6 +1293,9 @@ export default function OrcamentoForm() {
                   <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Cidade/UF</Label><p className="text-sm">{clienteSnapshot.cidade ? `${clienteSnapshot.cidade}/${clienteSnapshot.uf}` : "—"}</p></div>
                   {clienteSnapshot.email && <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Email</Label><p className="text-xs truncate">{clienteSnapshot.email}</p></div>}
                   {clienteSnapshot.telefone && <div className="space-y-0.5"><Label className="text-xs text-muted-foreground">Telefone</Label><p className="text-xs">{clienteSnapshot.telefone}</p></div>}
+                  {clienteSnapshot.codigo && (
+                    <div className="md:hidden space-y-0.5"><Label className="text-xs text-muted-foreground">Código do cliente</Label><p className="font-mono text-xs">{clienteSnapshot.codigo}</p></div>
+                  )}
                 </div>
               )}
               {clienteId && (clienteSnapshot.logradouro || clienteSnapshot.bairro || clienteSnapshot.cep) && (
