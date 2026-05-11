@@ -993,8 +993,14 @@ export default function OrcamentoForm() {
   return (
     <PageShell
       backTo="/orcamentos"
-      title={isEdit ? `Editando Orçamento${numero ? ` — ${numero}` : ""}` : "Novo Orçamento"}
-      subtitle={isEdit ? "Revisão e ajuste da proposta comercial" : "Criação e emissão da proposta comercial"}
+      title={isEdit ? (isMobile ? "Editar Orçamento" : `Editando Orçamento${numero ? ` — ${numero}` : ""}`) : "Novo Orçamento"}
+      subtitle={
+        isMobile && isEdit && numero
+          ? `${numero} · ${STATUS_LABEL[status] || status}`
+          : isEdit
+          ? "Revisão e ajuste da proposta comercial"
+          : "Criação e emissão da proposta comercial"
+      }
       actions={
         <>
         {/* Mobile: Salvar + menu "Mais" */}
@@ -1011,8 +1017,9 @@ export default function OrcamentoForm() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Visualização</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
-                <Eye className="w-4 h-4 mr-2" />Visualizar
+                <Eye className="w-4 h-4 mr-2" />Visualizar proposta
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={handleGeneratePdf}>
                 <FileText className="w-4 h-4 mr-2" />Gerar PDF
@@ -1026,12 +1033,12 @@ export default function OrcamentoForm() {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Edição</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('usuario'); }}>
                 <Wand2 className="w-4 h-4 mr-2" />Salvar como meu template
               </DropdownMenuItem>
               {isEdit && (
                 <>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={handleDuplicate}>
                     <Copy className="w-4 h-4 mr-2" />Duplicar
                   </DropdownMenuItem>
