@@ -692,6 +692,12 @@ const Pedidos = () => {
           </ul>
         )}
       </ConfirmDialog>
+      <PedidoEditDrawer
+        open={!!editingPedidoId}
+        pedidoId={editingPedidoId}
+        onClose={() => setEditingPedidoId(null)}
+        onSaved={() => { void pedidosQuery.refetch(); }}
+      />
     </>
   );
 };
