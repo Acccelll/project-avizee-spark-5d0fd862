@@ -665,51 +665,8 @@ export function OrcamentoView({ id }: Props) {
         </TabsContent>
       </Tabs>
 
-      {/* Cancel confirm */}
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onClose={() => {
-          setDeleteConfirmOpen(false);
-          setCancelMotivo("");
-        }}
-        onConfirm={async () => {
-          try {
-            // Usa a RPC oficial `cancelar_orcamento` para garantir auditoria.
-            const motivo = cancelMotivo.trim();
-            if (exigirMotivoCancel && !motivo) {
-              toast.error("Informe o motivo do cancelamento.");
-              return;
-            }
-            await cancelarOrcamento(id, motivo || undefined);
-            invalidate(["orcamentos"]);
-            await reload();
-            setCancelMotivo("");
-          } catch (err: unknown) {
-            console.error("[OrcamentoView] erro ao cancelar:", err);
-            notifyError(err);
-          } finally {
-            setDeleteConfirmOpen(false);
-          }
-        }}
-        title="Cancelar orçamento"
-        description={`Tem certeza que deseja cancelar o orçamento ${selected?.numero || ""}? Ele permanecerá no histórico e não poderá avançar no fluxo comercial.`}
-        confirmLabel="Cancelar orçamento"
-        confirmVariant="destructive"
-      >
-        <div className="space-y-2 mt-2">
-          <Label className="text-xs">
-            Motivo {exigirMotivoCancel ? <span className="text-destructive">*</span> : "(opcional)"}
-          </Label>
-          <Input
-            value={cancelMotivo}
-            onChange={(e) => setCancelMotivo(e.target.value)}
-            placeholder="Ex: cliente desistiu, valor fora do orçado..."
-            className="h-9"
-            required={exigirMotivoCancel}
-          />
-          <p className="text-[10px] text-muted-foreground">O motivo é registrado na auditoria do orçamento.</p>
-        </div>
-      </ConfirmDialog>
+      {/* Cancel confirm — padronizado via ConfirmDestructiveDialog */}
+      {cancelDialog}
 
       {/* Approve confirm */}
       <ConfirmDialog
