@@ -942,25 +942,25 @@ export function OrdemVendaView({ id }: Props) {
         loading={locked("generate_nf")}
         title="Gerar Nota Fiscal"
         description={`Confirma a geração de uma NF de saída para o pedido ${selected.numero}?`}
-        confirmLabel="Gerar NF"
+        confirmLabel={nfIssues.length > 0 ? "Gerar NF assim mesmo" : "Gerar NF"}
         impacts={[
+          ...(nfIssuesLoading
+            ? [{ label: "Validando pré-requisitos…", tone: "default" } as ImpactItem]
+            : nfIssues.length > 0
+              ? nfIssues.map<ImpactItem>((i) => ({
+                  label: i.label,
+                  tone: "warning",
+                  icon: AlertTriangle,
+                }))
+              : [{ label: "Pré-validação OK", tone: "success", icon: CheckCircle2 } as ImpactItem]),
           {
             label: "Cria NF de saída em /fiscal",
             detail: `${items.length} ${items.length === 1 ? "item" : "itens"} · ${formatCurrency(selected.valor_total || 0)}`,
             tone: "primary",
           },
-          {
-            label: "Atualiza estoque (saída)",
-            tone: "warning",
-          },
-          {
-            label: "Gera lançamentos a receber em /financeiro",
-            tone: "info",
-          },
-          {
-            label: `Pedido ${selected.numero} muda status de faturamento`,
-            tone: "success",
-          },
+          { label: "Atualiza estoque (saída)", tone: "warning" },
+          { label: "Gera lançamentos a receber em /financeiro", tone: "info" },
+          { label: `Pedido ${selected.numero} muda status de faturamento`, tone: "success" },
         ] satisfies ImpactItem[]}
       />
 
@@ -973,7 +973,8 @@ export function OrdemVendaView({ id }: Props) {
                 <XCircle className="h-4 w-4 text-destructive" /> Cancelar pedido {selected.numero}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                O cancelamento é registrado em auditoria. NFs ativas vinculadas precisam ser canceladas antes.
+                Esta ação é <strong>irreversível</strong> e afeta faturamento, logística e o vínculo com o orçamento de origem.
+                NFs ativas vinculadas precisam ser canceladas antes. O cancelamento é registrado em auditoria.
               </p>
             </div>
             <div className="space-y-1.5">
