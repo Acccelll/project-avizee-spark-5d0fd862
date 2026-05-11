@@ -516,7 +516,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
       <div className="flex items-center justify-between p-4 border-b flex-wrap gap-2">
         <h3 className="font-semibold text-foreground">Itens do Orçamento</h3>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium">Parcial: {formatCurrency(subtotal)}</div>
+          <div className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium">Subtotal dos itens: {formatCurrency(subtotal)}</div>
           <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1"><Upload className="h-3.5 w-3.5" /><span className="hidden sm:inline">Importar texto</span></Button>
           <Button size="sm" variant="outline" onClick={() => setExpandedOpen(true)} className="gap-1 hidden md:inline-flex"><Maximize2 className="h-3.5 w-3.5" />Tela cheia</Button>
           <Button size="sm" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
@@ -534,7 +534,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
           </DialogHeader>
           <div className="flex-1 min-h-0 overflow-auto px-5 py-3">{renderTable(false)}</div>
           <div className="shrink-0 flex items-center justify-between gap-2 px-5 py-3 border-t bg-background">
-            <div className="text-xs text-muted-foreground">Parcial: <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span></div>
+            <div className="text-xs text-muted-foreground">Subtotal dos itens: <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span></div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
               <Button size="sm" onClick={() => setExpandedOpen(false)}>Fechar</Button>
