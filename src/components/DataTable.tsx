@@ -1103,7 +1103,11 @@ export function DataTable<T extends Record<string, any>>({
                 </table>
               </div>
 
-              <div className="flex items-center justify-between border-t px-4 py-3">
+              {(() => {
+                const desktopPagerHidden = !serverPagination && viewMode !== 'infinite' && hideSinglePagePagination && totalPages <= 1;
+                if (desktopPagerHidden) return null;
+                return (
+                  <div className="flex items-center justify-between border-t px-4 py-3">
                 <span className="text-xs text-muted-foreground">
                   {serverPagination
                     ? `${effectivePage * pageSize + 1}\u2013${Math.min((effectivePage + 1) * pageSize, totalRowsForPaging)} de ${totalRowsForPaging} registros`
@@ -1126,7 +1130,9 @@ export function DataTable<T extends Record<string, any>>({
                     <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
                   </div>
                 )}
-              </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
