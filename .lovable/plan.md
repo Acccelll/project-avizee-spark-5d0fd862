@@ -1,89 +1,83 @@
-# Onda 42r — Drawer de Pedidos: clareza operacional
 
-Refinamento exclusivamente UI/UX no drawer `OrdemVendaView` (e dois ajustes pontuais no Timeline e CTA da aba Logística). Sem alterações de schema, RPCs ou regras de negócio. Reaproveita `verificarPrerequisitosNF` já existente (hoje usado só na grid `Pedidos.tsx`).
+# Grid de Cotações de Compra — melhorias operacionais
+
+Foco em transformar a listagem em uma central de ação, deixando claro o **próximo passo** de cada cotação e dando filtros/KPIs orientados ao processo de negociação. Mudanças apenas de UI/presentation — nenhuma alteração em RPC, RLS ou serviços.
 
 ## Alta prioridade
 
-1. **Cancelar → Cancelar pedido + aviso forte**
-   - Renomear o botão desktop de `Cancelar` para `Cancelar pedido` (dropdown mobile já usa esse rótulo).
-   - No diálogo de cancelamento, ampliar a descrição: explicar impactos (faturamento, logística, vínculo com orçamento) e que é **irreversível**; bloqueio quando há NF ativa já é tratado, mas reforçar o aviso.
+1. **Coluna "Prontidão" → "Próxima ação"** (`CotacaoCompraTable.tsx`)
+   - Renomear o header.
+   - Trocar o conteúdo por verbos/comandos:
+     - `convertida` → "Pedido gerado" (ícone check)
+     - `aguardando_aprovacao` → "Aprovar cotação"
+     - `tem_vencedor && itens > 0` → "Pronta p/ aprovação"
+     - `propostas > 0 && sem vencedor` → "Selecionar fornecedor"
+     - `itens > 0 && propostas === 0` → "Adicionar proposta"
+     - `itens === 0` → "Adicionar itens"
+     - `cancelada/rejeitada` → estado neutro
+   - Cada texto continua usando `StatusBadge` com a `variant` adequada do `STATUS_VARIANT_MAP` (sem cores hardcoded).
 
-2. **Gerar NF com checklist de pré-requisitos** (reuso)
-   - Carregar `verificarPrerequisitosNF(selected.id)` quando o usuário abrir `setGenerateNfOpen(true)` (state local + `useEffect`).
-   - No `CrossModuleActionDialog`, prefixar a lista de `impacts` com itens de pendência (tone `warning`) quando houver issues; quando não houver, exibir `Pré-validação OK` (tone `success`).
-   - Trocar `confirmLabel` para `Gerar NF assim mesmo` quando houver pendências (sem bloquear — a RPC continua sendo a autoridade final).
-   - Aplicar a mesma checklist no botão `Gerar NF` do empty-state da aba Faturamento.
+2. **Ação contextual rápida na linha** (`CotacaoCompraTable.tsx`)
+   - Adicionar um botão pequeno no fim da coluna "Próxima ação" (ou via `actions` do DataTable) que dispara `onView` na cotação — abrindo o drawer já no contexto certo (selecionar/propostas/aprovar).
+   - Tooltip explicando o efeito.
+   - Mantém-se `onView`/`onEdit` padrão; nenhum novo handler de negócio.
 
-3. **Status “Aguardando” → rótulo específico**
-   - Manter a fonte `statusFaturamentoLabels` mas criar um helper local que troca `Aguardando` por `Aguardando NF` quando renderizado **fora do contexto de Faturamento** (header/KPI). Na aba Faturamento o rótulo já é claro pelo contexto (`Situação: Aguardando NF`).
+3. **Coluna "Fornecedores" mais semântica** (`CotacaoCompraTable.tsx`)
+   - Renomear para "Fornecedores / Propostas".
+   - Conteúdo em duas linhas: `Nf fornecedores · Np propostas` (a partir de `summaries[id].fornecedor_ids.length` e total de propostas — adicionar `propostas_count` em `CotacaoSummary`).
+   - Manter "Trophy + vencedor" quando houver.
+   - Estado vazio: "Sem fornecedores · sem propostas" (texto neutro, sem alerta visual).
 
-4. **KPI Peso Total**
-   - Quando `pesoTotal === 0`: exibir `0,00 kg` + sub-rótulo `peso não informado` em `text-warning` (mantendo grid). Remove o traço `—`.
+4. **Card "Em Cotação" sem semântica negativa** (`CotacoesCompra.tsx`)
+   - Trocar `variationType` para `"neutral"` (estar em cotação não é problema).
+   - Reservar `negative` para cotações vencidas/sem proposta.
 
-5. **Aba Itens — composição de totais**
-   - Após a tabela, expandir o bloco de total para mostrar:
-     - `Subtotal dos itens` (soma `valor_total` dos `items`).
-     - `Diferença` (= `selected.valor_total - subtotal`) com label `Ajustes/Frete/Impostos` quando ≠ 0; clicar leva para aba Faturamento.
-     - `Total do pedido` em destaque.
-   - Mostrar SKU/variação já existem; adicionar pequeno badge `Faturado` no item quando houver NF confirmada vinculada (heurística simples: `notasFiscais.some(n => ['confirmada','autorizada'].includes(n.status))` aplicada a todos os itens — sem mapeamento por item, mantendo escopo UI).
+5. **Esclarecer filtros de data** (`CotacaoCompraFilters.tsx`)
+   - Adicionar label visível "Período de abertura" antes dos dois inputs.
+   - Manter apenas data de abertura nesta iteração (mais filtros de data ficam para média prioridade).
 
 ## Média prioridade
 
-6. **Timeline — `shortLabel` para NF**
-   - Em `OrdemVendaView`, passar `shortLabel: "NF"` no step `nf` para evitar truncamento `Nota F...` em mobile (componente já suporta `shortLabel`).
-   - Também passar `shortLabel: "Orçamento"` e `shortLabel: "Pedido"` para consistência.
+6. **Novo KPI "Sem propostas"** (`CotacoesCompra.tsx` + `useCotacoesCompra.ts`)
+   - Substituir o card "Convertidas" pelo card "Sem propostas" (mais acionável no dia a dia) ou reorganizar para 4 cards: Total · Em Cotação · Sem propostas · Aguardando aprovação.
+   - Cálculo: cotações ativas (não convertida/cancelada/rejeitada) cujo `summaries[id].propostas_count === 0`.
+   - `variationType` `"negative"` quando > 0.
 
-7. **Aba Logística — CTA `Criar remessa`**
-   - Em `LogisticaRastreioSection` (apenas o empty-state visto pelo drawer): substituir/adicionar CTA primário `Criar remessa` que navegue para `/logistica?tab=remessas&from_pedido={id}` (parâmetro novo somente leitura, sem mudança de schema). O link `Ir para Remessas` vira ação secundária. *(Out of scope: criar a remessa de fato — apenas direcionar com contexto.)*
+7. **Filtro rápido de Validade** (`CotacaoCompraFilters.tsx` + `useCotacaoCompraFilters.ts`)
+   - Novo `MultiSelect`/`Select` "Validade" com opções: Todas · Vencidas · Vencendo (≤7d) · Sem validade.
+   - Aplicar no `filteredData` usando a `data_validade` já existente.
+   - Persistir no URL state (`useUrlListState`).
 
-8. **Aba Resumo — agrupar em mini-cards**
-   - Reorganizar conteúdo em 3 blocos visuais (`bg-card border rounded-lg p-3`):
-     - **Cliente**: nome (link).
-     - **Origem**: orçamento + PO (quando existirem).
-     - **Operação**: frete + prazo + condição de pagamento + datas.
-   - Compactar o bloco "Escopo de edição do pedido" para 1 linha (`Edição operacional · itens, valores e vínculos permanecem...`).
-
-9. **Aba Vínculos — abrir cliente/orçamento direto**
-   - Já usam `RelationalLink`; adicionar ícones `ExternalLink` (lucide) e tooltip "Abrir em drawer" para reforço visual. Sem mudança de comportamento.
+8. **Renomear filtro "Fornecedor (proposta)" → "Fornecedor"** (`CotacaoCompraFilters.tsx`)
+   - Adicionar tooltip explicando que filtra fornecedor com proposta na cotação.
 
 ## Baixa prioridade
 
-10. Tooltips nos badges de status (KPI Faturamento + header) com a descrição operacional curta (ex.: `Aguardando emissão de NF`).
-11. Microcopy do empty-state de NFs (`Nenhuma NF emitida ainda` → `Pedido ainda não foi faturado`).
-
-## Fora de escopo
-
-- Lógica fiscal real (CFOP/CST/estoque) — `verificarPrerequisitosNF` já cobre IE/condição/NCM e a SEFAZ valida o restante.
-- Criação de remessa direto do drawer (apenas redireciona).
-- Mapeamento item-a-item de "faturado" via `notas_fiscais_itens` (mantém heurística simples por NF).
-- Mudanças em RPCs, schema, RLS, permissions.
+9. **Microcopy + tooltips no DataTable**
+   - Tooltip nos `StatusBadge` da coluna Status e Próxima ação descrevendo a regra.
+   - Empty state já existe; adicionar abaixo da tabela uma linha contextual quando `data.length > 0 && data.length < 3`: "Cotações abertas aguardam seleção de fornecedores e registro de propostas para comparação."
 
 ## Detalhes técnicos
 
-**Arquivos a editar (apenas frontend):**
-- `src/components/views/OrdemVendaView.tsx` — itens 1, 2, 3, 4, 5, 6, 8, 9, 10, 11.
-- `src/components/logistica/LogisticaRastreioSection.tsx` — item 7 (somente empty-state CTA).
+- **`CotacaoSummary`** ganha `propostas_count: number` — calcular em `useCotacoesEnrichment.ts` a partir do mesmo array de propostas já enriquecido.
+- **Ações contextuais** são apenas `onView` (drawer existente). Não criar novas mutations.
+- **Cores**: respeitar o contrato de status (`STATUS_VARIANT_MAP`); nada de classes `text-red-*` diretas.
+- **Filtro de validade**: estende `useUrlListState` schema com `validade: { type: "string" }` (compatível com link compartilhado).
+- **KPI "Sem propostas"** depende de `summaries` — mover o cálculo do KPI para `useMemo` que dependa de `summaries` (já disponível no hook).
+- Sem mudanças em `services/cotacoesCompra.service.ts`, RPCs, RLS ou tipagem do banco.
 
-**Estado novo no drawer:**
-```ts
-const [nfIssues, setNfIssues] = useState<NFPrerequisiteIssue[]>([]);
-const [nfIssuesLoading, setNfIssuesLoading] = useState(false);
+## Arquivos afetados
 
-useEffect(() => {
-  if (!generateNfOpen || !selected) return;
-  setNfIssuesLoading(true);
-  verificarPrerequisitosNF(selected.id)
-    .then(setNfIssues)
-    .finally(() => setNfIssuesLoading(false));
-}, [generateNfOpen, selected]);
-```
+- `src/components/compras/CotacaoCompraTable.tsx`
+- `src/components/compras/CotacaoCompraFilters.tsx`
+- `src/components/compras/useCotacaoCompraFilters.ts`
+- `src/components/compras/cotacaoCompraTypes.ts` (campo `propostas_count`)
+- `src/hooks/compras/useCotacoesEnrichment.ts`
+- `src/hooks/useCotacoesCompra.ts` (KPI extra)
+- `src/pages/CotacoesCompra.tsx` (cards e props)
 
-**Render dos `impacts` no `CrossModuleActionDialog`:** pré-pendar `nfIssues.map(i => ({ label: i.label, tone: 'warning' }))` antes dos impacts atuais; `confirmLabel` condicional.
+## Fora de escopo (registrar para depois)
 
-**Composição de totais (aba Itens):**
-```ts
-const subtotalItens = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
-const diferenca = Number(selected.valor_total || 0) - subtotalItens;
-```
-
-**Validação:** rodar `tsc` (build automático). Sem novas dependências.
+- Novas colunas "Valor estimado / Menor proposta / Economia / Prazo" — exigem agregação adicional por item × proposta; tratar em iteração separada.
+- Filtro de data por evento (abertura/aprovação/conversão) — depende de campos de timestamp por transição que hoje não existem.
+- Ocultar setas de paginação quando uma só página — ajuste de `DataTable` global (afeta outros módulos).
