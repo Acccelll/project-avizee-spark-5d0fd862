@@ -445,12 +445,14 @@ const Estoque = () => {
       <div><span className="font-medium">{p.nome}{formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes)}</span>{p.sku && <><br/><span className="text-xs text-muted-foreground font-mono">{p.sku}</span></>}</div>
     )},
     { key: "unidade", label: "Unid.", render: (p: ProdutoPosicao) => p.unidade_medida ?? "UN" },
-    { key: "estoque_atual", label: "Estoque Atual", render: (p: ProdutoPosicao) => <span className="font-semibold font-mono">{formatNumber(Number(p.estoque_atual ?? 0))}</span> },
+    { key: "estoque_atual", label: "Estoque Atual", headerTooltip: "Saldo físico/sistêmico do produto.", render: (p: ProdutoPosicao) => <span className="font-semibold font-mono">{formatNumber(Number(p.estoque_atual ?? 0))}</span> },
     { key: "estoque_reservado", label: "Reservado", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{formatNumber(Number(p.estoque_reservado ?? 0))}</span>, hidden: true },
-    { key: "estoque_disponivel", label: "Disponível", render: (p: ProdutoPosicao) => <span className="font-mono font-semibold">{formatNumber(Number(p.estoque_atual ?? 0) - Number(p.estoque_reservado ?? 0))}</span> },
-    { key: "estoque_minimo", label: "Mínimo", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{(p.estoque_minimo ?? 0) > 0 ? formatNumber(p.estoque_minimo ?? 0) : "—"}</span> },
+    { key: "estoque_disponivel", label: "Disponível", headerTooltip: "Saldo livre = Estoque atual − Reservado. Reservas vêm de pedidos em separação.", render: (p: ProdutoPosicao) => <span className="font-mono font-semibold">{formatNumber(Number(p.estoque_atual ?? 0) - Number(p.estoque_reservado ?? 0))}</span> },
+    { key: "estoque_minimo", label: "Mínimo", render: (p: ProdutoPosicao) => (p.estoque_minimo ?? 0) > 0
+      ? <span className="font-mono text-muted-foreground">{formatNumber(p.estoque_minimo ?? 0)}</span>
+      : <span className="text-[11px] text-muted-foreground italic">Sem mínimo</span> },
     { key: "situacao", label: "Situação", render: (p: ProdutoPosicao) => <SituacaoEstoqueBadge situacao={getSituacao(p)} /> },
-    { key: "valor_estoque", label: "Valor Est.", render: (p: ProdutoPosicao) => {
+    { key: "valor_estoque", label: "Custo total (saldo × custo)", render: (p: ProdutoPosicao) => {
       // Use preco_custo for valuation; fallback to preco_venda when cost is unavailable.
       const custo = Number(p.preco_custo ?? p.preco_venda ?? 0);
       return <span className="font-mono font-medium">{formatCurrency(Number(p.estoque_atual ?? 0) * custo)}</span>;
