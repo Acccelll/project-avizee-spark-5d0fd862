@@ -522,7 +522,8 @@ export function OrcamentoView({ id }: Props) {
 
         {/* --- ITENS --- */}
         <TabsContent value="itens" className="space-y-3 mt-3">
-          <div className="rounded-lg border overflow-hidden">
+          {/* Tabela: telas ≥sm */}
+          <div className="rounded-lg border overflow-hidden hidden sm:block">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-muted/50 border-b">
@@ -569,6 +570,39 @@ export function OrcamentoView({ id }: Props) {
               </tbody>
             </table>
           </div>
+          {/* Cards: telas estreitas */}
+          <div className="sm:hidden space-y-2">
+            {items.length === 0 && (
+              <div className="rounded-lg border p-4 text-center text-xs text-muted-foreground">
+                Nenhum item
+              </div>
+            )}
+            {items.map((i, idx) => (
+              <button
+                key={idx}
+                onClick={() => i.produtos?.id && pushView("produto", i.produtos.id)}
+                className="w-full text-left rounded-lg border bg-card p-3 space-y-1.5 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {i.codigo_snapshot || i.produtos?.sku || "—"}
+                  </span>
+                  <span className="font-mono text-sm font-semibold">
+                    {formatCurrency(i.valor_total)}
+                  </span>
+                </div>
+                <p className="text-xs line-clamp-2">
+                  {i.descricao_snapshot || i.produtos?.nome || "—"}
+                </p>
+                {i.variacao && (
+                  <p className="text-[10px] text-muted-foreground">{i.variacao}</p>
+                )}
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  Qtd: {i.quantidade}{i.unidade ? ` ${i.unidade}` : ""} · Unit.: {formatCurrency(i.valor_unitario)}
+                </p>
+              </button>
+            ))}
+          </div>
         </TabsContent>
 
         {/* --- TOTAIS --- */}
@@ -601,14 +635,29 @@ export function OrcamentoView({ id }: Props) {
         {/* --- CONDIÇÕES --- */}
         <TabsContent value="condicoes" className="space-y-4 mt-3 text-sm">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Pagamento</p>
-              <p>{pagamentoLabels[selected.pagamento] || selected.pagamento || "—"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de Pagamento</p>
-              <p>{selected.prazo_pagamento || "—"}</p>
-            </div>
+            {selected.pagamento ? (
+              <>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Forma de pagamento</p>
+                  <p>{pagamentoLabels[selected.pagamento] || selected.pagamento}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de pagamento</p>
+                  <p>{selected.prazo_pagamento || "—"}</p>
+                </div>
+              </>
+            ) : selected.prazo_pagamento ? (
+              <div className="col-span-2">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Condição de pagamento</p>
+                <p>{selected.prazo_pagamento}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Forma de pagamento não definida.</p>
+              </div>
+            ) : (
+              <div className="col-span-2">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Pagamento</p>
+                <p className="text-muted-foreground">Não definida</p>
+              </div>
+            )}
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de Entrega</p>
               <p>{selected.prazo_entrega || "—"}</p>
@@ -648,8 +697,25 @@ export function OrcamentoView({ id }: Props) {
                 <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
                   {linkedOV.numero}
                 </RelationalLink>
+              ) : canConvertOrcamento(selected.status) ? (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Nenhum pedido vinculado.</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={() => setConvertConfirmOpen(true)}
+                    disabled={isAnyLocked}
+                  >
+                    <ArrowRightCircle className="h-3 w-3" /> Gerar pedido a partir deste orçamento
+                  </Button>
+                </div>
+              ) : ["rascunho", "pendente"].includes(normalizeOrcamentoStatus(selected.status)) ? (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum pedido vinculado. O pedido será liberado após aprovação.
+                </p>
               ) : (
-                <p className="text-xs text-muted-foreground">Nenhum pedido vinculado</p>
+                <p className="text-xs text-muted-foreground">Nenhum pedido vinculado.</p>
               )}
             </div>
 
@@ -657,7 +723,12 @@ export function OrcamentoView({ id }: Props) {
               <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-2">Link Público</p>
               {publicLink ? (
                 <div className="space-y-2">
-                  <p className="text-xs font-mono bg-muted rounded px-2 py-1.5 break-all">{publicLink}</p>
+                  <p className="text-xs font-mono bg-muted rounded px-2 py-1.5 break-all" title="Token mascarado por segurança. Use Copiar/Abrir.">
+                    {`${window.location.origin}/orcamento-publico?token=••••••••${(selected.public_token || "").slice(-8)}`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" /> Link ativo
+                  </p>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 flex-1" onClick={handleCopyLink}>
                       <Copy className="h-3 w-3" /> Copiar link
