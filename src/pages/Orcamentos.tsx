@@ -436,12 +436,13 @@ const Orcamentos = () => {
         addButtonHelpId="orcamentos.novoBtn"
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard title="Total de Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="no período filtrado" />
-          <SummaryCard title="Valor Total" value={formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="soma do filtro atual" />
+          <SummaryCard title="Total de Orçamentos" shortTitle="Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="no período filtrado" />
+          <SummaryCard title="Valor Total" shortTitle="Valor total" value={isMobile ? formatCurrencyCompact(kpis.totalValue) : formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="soma do filtro atual" />
           <SummaryCard title="Aguardando pedido" value={String(kpis.approved)} icon={CheckCircle} variationType="positive" variation="aprovados, ainda não convertidos" />
           <div title="Convertidos em pedido ÷ total de orçamentos no filtro">
             <SummaryCard
               title="Taxa de Conversão"
+              shortTitle="Conversão"
               value={`${kpis.conversionRate}%`}
               icon={BarChart3}
               variationType="positive"
