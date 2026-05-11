@@ -29,6 +29,8 @@ export interface CotacaoSummary {
   fornecedor_ids: string[];
   /** Lista normalizada (lowercase) de nomes/códigos de produtos para busca textual. */
   produtos_text: string;
+  /** Nome do primeiro produto da cotação (para exibição em cards mobile). */
+  produto_principal: string | null;
 }
 
 export interface Proposta {
