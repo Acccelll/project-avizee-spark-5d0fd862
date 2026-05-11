@@ -563,7 +563,7 @@ const Estoque = () => {
               <RotateCcw className="h-3.5 w-3.5" />Movimentações
             </TabsTrigger>
             <TabsTrigger value="ajuste" className="gap-1.5">
-              <SlidersHorizontal className="h-3.5 w-3.5" />Ajuste Manual
+              <SlidersHorizontal className="h-3.5 w-3.5" />Ajustes
             </TabsTrigger>
           </ScrollableTabsList>
 
@@ -648,7 +648,7 @@ const Estoque = () => {
               searchPlaceholder="Buscar produto por nome ou SKU..."
               activeFilters={movActiveFilters}
               onRemoveFilter={handleRemoveMovFilter}
-              onClearAll={() => { setTipoFilters([]); setSearchMovimentacao(""); setDataInicio(""); setDataFim(""); }}
+              onClearAll={() => { setTipoFilters([]); setOrigemFilters([]); setSearchMovimentacao(""); setDataInicio(""); setDataFim(""); }}
               count={filteredData.length}
             >
               <MultiSelect
@@ -657,6 +657,13 @@ const Estoque = () => {
                 onChange={setTipoFilters}
                 placeholder="Tipo de Movimento"
                 className="w-[200px]"
+              />
+              <MultiSelect
+                options={origemOptions}
+                selected={origemFilters}
+                onChange={setOrigemFilters}
+                placeholder="Origem"
+                className="w-[180px]"
               />
               <PeriodFilter
                 mode="both"
