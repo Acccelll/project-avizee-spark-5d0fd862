@@ -875,6 +875,7 @@ export function OrdemVendaView({ id }: Props) {
                     {selected.clientes.nome_razao_social}
                   </RelationalLink>
                 </div>
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60" aria-label="Abrir em drawer" />
               </div>
             )}
 
@@ -886,6 +887,7 @@ export function OrdemVendaView({ id }: Props) {
                     {selected.orcamentos?.numero ? `Orçamento ${selected.orcamentos.numero}` : "Ver orçamento"}
                   </RelationalLink>
                 </div>
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60" aria-label="Abrir em drawer" />
               </div>
             )}
 
