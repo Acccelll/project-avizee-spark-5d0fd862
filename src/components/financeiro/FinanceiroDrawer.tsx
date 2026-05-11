@@ -344,7 +344,11 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                         <tr key={b.id ?? `tmp-${i}`} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
                           <td className="px-3 py-2">{new Date(b.data_baixa).toLocaleDateString("pt-BR")}</td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-success">{formatCurrency(Number(b.valor_pago))}</td>
-                          <td className="px-3 py-2">{b.forma_pagamento || "—"}</td>
+                          <td className="px-3 py-2">{(() => {
+                            if (!b.forma_pagamento) return "—";
+                            const norm = normalizeFormaPagamento(b.forma_pagamento);
+                            return (norm && FORMA_PAGAMENTO_LABELS[norm]) || b.forma_pagamento;
+                          })()}</td>
                           <td className="px-3 py-2 text-muted-foreground truncate max-w-[100px]">{b.observacoes || "—"}</td>
                           <td className="px-3 py-2 text-right">
                             {canPermBaixar ? (
@@ -391,6 +395,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
           <div className="space-y-4">
             <ViewSection title="Origem do Lançamento">
               <ViewField label="Tipo de Origem">{origemLabel}</ViewField>
+              <ViewField label="Módulo de Origem">{origemModulo}</ViewField>
               {selected.nota_fiscal_id && (
                 <ViewField label="Nota Fiscal Vinculada">
                   <RelationalLink type="nota_fiscal" id={selected.nota_fiscal_id}>Ver NF vinculada</RelationalLink>
