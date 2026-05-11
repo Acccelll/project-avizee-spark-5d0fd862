@@ -37,14 +37,19 @@ export function CotacaoCompraHeaderSummary({ selected, viewItems, drawerStats }:
             <Users2 className="h-3 w-3" /> Fornecedores
           </p>
           <p className="text-xl font-bold font-mono mt-0.5">{drawerStats.uniqueSuppliers}</p>
+          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">com proposta</p>
         </div>
         <div className="rounded-lg bg-muted/50 px-3 py-2 text-center">
           <p className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center justify-center gap-1">
             <TrendingDown className="h-3 w-3" /> Melhor Total
           </p>
-          <p className="text-sm font-bold font-mono mt-0.5 text-success dark:text-success leading-tight">
-            {drawerStats.bestTotal > 0 ? formatCurrency(drawerStats.bestTotal) : "—"}
-          </p>
+          {drawerStats.bestTotal > 0 ? (
+            <p className="text-sm font-bold font-mono mt-0.5 text-success dark:text-success leading-tight">
+              {formatCurrency(drawerStats.bestTotal)}
+            </p>
+          ) : (
+            <p className="text-[11px] mt-1 text-muted-foreground leading-tight">Aguardando propostas</p>
+          )}
         </div>
       </div>
       {/* Flow stepper */}

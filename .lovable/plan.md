@@ -1,83 +1,63 @@
+## Objetivo
 
-# Grid de Cotações de Compra — melhorias operacionais
+Tornar o **Drawer de Cotação de Compra** mais acionável e claro, conforme o feedback. Foco em UI/UX (frontend). Sem alterações de RPC, RLS ou regras de negócio.
 
-Foco em transformar a listagem em uma central de ação, deixando claro o **próximo passo** de cada cotação e dando filtros/KPIs orientados ao processo de negociação. Mudanças apenas de UI/presentation — nenhuma alteração em RPC, RLS ou serviços.
+## Mudanças por arquivo
 
-## Alta prioridade
+### 1. `src/components/compras/CotacaoCompraDrawer.tsx`
 
-1. **Coluna "Prontidão" → "Próxima ação"** (`CotacaoCompraTable.tsx`)
-   - Renomear o header.
-   - Trocar o conteúdo por verbos/comandos:
-     - `convertida` → "Pedido gerado" (ícone check)
-     - `aguardando_aprovacao` → "Aprovar cotação"
-     - `tem_vencedor && itens > 0` → "Pronta p/ aprovação"
-     - `propostas > 0 && sem vencedor` → "Selecionar fornecedor"
-     - `itens > 0 && propostas === 0` → "Adicionar proposta"
-     - `itens === 0` → "Adicionar itens"
-     - `cancelada/rejeitada` → estado neutro
-   - Cada texto continua usando `StatusBadge` com a `variant` adequada do `STATUS_VARIANT_MAP` (sem cores hardcoded).
+**Header / actions (topo):**
+- Adicionar **ação principal contextual** (botão primário) baseada no estado:
+  - `aberta`/`em_analise` + `viewPropostas.length === 0` → **"+ Adicionar proposta"** (abre a aba Propostas e dispara o form do primeiro item via `setAddingProposal`).
+  - `aberta`/`em_analise` + `propostas > 0 && !allItemsHaveSelected` → **"Selecionar fornecedor"** (muda para aba Propostas).
+  - `aguardando_aprovacao` → **"Aprovar"** (já existe no footer; manter no topo para destaque).
+  - `aprovada` + `allItemsHaveSelected` → **"Gerar pedido de compra"** (já cobre o caso atual).
+- Manter **Editar** como ação secundária (`variant="outline"`).
+- **Mover "Excluir"** para um menu **"Mais"** (DropdownMenu de `@/components/ui/dropdown-menu` com ícone `MoreVertical`), e usar **`useConfirmDestructive`** (`mem://tech/confirm-destructive-dialog`) com `verb="Excluir"`, `entity="cotação #{numero}"`, `sideEffects=["Remove itens","Remove propostas","Remove histórico vinculado"]`. O `onDeleteOpen` atual continua sendo o gatilho.
 
-2. **Ação contextual rápida na linha** (`CotacaoCompraTable.tsx`)
-   - Adicionar um botão pequeno no fim da coluna "Próxima ação" (ou via `actions` do DataTable) que dispara `onView` na cotação — abrindo o drawer já no contexto certo (selecionar/propostas/aprovar).
-   - Tooltip explicando o efeito.
-   - Mantém-se `onView`/`onEdit` padrão; nenhum novo handler de negócio.
+**Footer:**
+- Renomear botão **"Cancelar"** para **"Cancelar cotação"** (label + aria-label). Manter ícone `Ban` e o fluxo de motivo já existente.
+- Não há botão "Fechar" hoje no footer (o drawer fecha pelo X do header), então não há ambiguidade adicional a tratar.
 
-3. **Coluna "Fornecedores" mais semântica** (`CotacaoCompraTable.tsx`)
-   - Renomear para "Fornecedores / Propostas".
-   - Conteúdo em duas linhas: `Nf fornecedores · Np propostas` (a partir de `summaries[id].fornecedor_ids.length` e total de propostas — adicionar `propostas_count` em `CotacaoSummary`).
-   - Manter "Trophy + vencedor" quando houver.
-   - Estado vazio: "Sem fornecedores · sem propostas" (texto neutro, sem alerta visual).
+**Aba Resumo:**
+- Trocar `selected.data_validade ? formatDate(...) : "—"` por **"Sem validade definida"** quando nulo.
+- Adicionar bloco **"Próxima ação"** (card com título + descrição curta + botão), reaproveitando a mesma lógica do CTA do topo. Quando convertida/cancelada/rejeitada, ocultar o bloco.
 
-4. **Card "Em Cotação" sem semântica negativa** (`CotacoesCompra.tsx`)
-   - Trocar `variationType` para `"neutral"` (estar em cotação não é problema).
-   - Reservar `negative` para cotações vencidas/sem proposta.
+**Aba Decisão (empty state):**
+- Quando `selectedPropostas.length === 0`, expandir o aviso atual com a lista de **critérios futuros**: "menor preço · prazo · fornecedor · observações · condição comercial".
+- Trocar o texto `"{n} / {total}"` por **"{n} de {total} item(ns) com proposta selecionada"** (mais amigável).
 
-5. **Esclarecer filtros de data** (`CotacaoCompraFilters.tsx`)
-   - Adicionar label visível "Período de abertura" antes dos dois inputs.
-   - Manter apenas data de abertura nesta iteração (mais filtros de data ficam para média prioridade).
+### 2. `src/components/compras/CotacaoCompraHeader.tsx` (CotacaoCompraHeaderSummary)
 
-## Média prioridade
+- Renomear o card **"Fornecedores"** → **"Fornecedores"** com sublinha: `"{n} com proposta"` (esclarece a ambiguidade do `0`). Tooltip via `Tooltip` explicando "Fornecedores que enviaram ao menos uma proposta".
+- Card **"Melhor Total"**: quando `bestTotal === 0`, exibir **"Aguardando propostas"** (texto pequeno em `text-muted-foreground`) no lugar do `—`.
+- Stepper: encurtar labels para caber no drawer estreito → **"Cotação · Análise · Aprovação · Pedido"** (atualizar em `comprasStatus.ts` `COTACAO_FLOW_STEPS` apenas se os labels longos vierem de lá; caso contrário ajustar localmente). Adicionar abaixo do stepper uma linha textual **"Etapa atual: X · Próxima: Y"** (só em telas estreitas, `md:hidden`), reforçando a leitura.
 
-6. **Novo KPI "Sem propostas"** (`CotacoesCompra.tsx` + `useCotacoesCompra.ts`)
-   - Substituir o card "Convertidas" pelo card "Sem propostas" (mais acionável no dia a dia) ou reorganizar para 4 cards: Total · Em Cotação · Sem propostas · Aguardando aprovação.
-   - Cálculo: cotações ativas (não convertida/cancelada/rejeitada) cujo `summaries[id].propostas_count === 0`.
-   - `variationType` `"negative"` quando > 0.
+### 3. `src/components/compras/comprasStatus.ts`
 
-7. **Filtro rápido de Validade** (`CotacaoCompraFilters.tsx` + `useCotacaoCompraFilters.ts`)
-   - Novo `MultiSelect`/`Select` "Validade" com opções: Todas · Vencidas · Vencendo (≤7d) · Sem validade.
-   - Aplicar no `filteredData` usando a `data_validade` já existente.
-   - Persistir no URL state (`useUrlListState`).
+- Verificar `COTACAO_FLOW_STEPS` e encurtar `label` se necessário (ex.: `"Em cotação"` → `"Cotação"`, `"Aguardando aprovação"` → `"Aprovação"`). Apenas labels visuais; `key` permanece.
 
-8. **Renomear filtro "Fornecedor (proposta)" → "Fornecedor"** (`CotacaoCompraFilters.tsx`)
-   - Adicionar tooltip explicando que filtra fornecedor com proposta na cotação.
+### 4. `src/components/compras/CotacaoCompraPropostasPanel.tsx`
 
-## Baixa prioridade
+- Reforçar empty state quando não há nenhuma proposta no item: bloco com título **"Nenhuma proposta cadastrada"**, descrição **"Adicione uma proposta para comparar fornecedores."** e botão primário **"+ Adicionar proposta"** (atual `Adicionar Proposta` virando CTA mais evidente, `variant="default"` em vez de outline, full width em mobile).
 
-9. **Microcopy + tooltips no DataTable**
-   - Tooltip nos `StatusBadge` da coluna Status e Próxima ação descrevendo a regra.
-   - Empty state já existe; adicionar abaixo da tabela uma linha contextual quando `data.length > 0 && data.length < 3`: "Cotações abertas aguardam seleção de fornecedores e registro de propostas para comparação."
+## Fora de escopo
+
+- **Aba Itens enrich** (último custo, fornecedor habitual, estoque atual, prazo desejado, observação por item): exige novos joins/colunas (`produtos.ultimo_custo`, vínculo fornecedor habitual, leitura de `estoque_atual`) e potencial mudança de schema em `cotacao_itens` (campo observação). Fica para um plano separado.
+- **Histórico/Exportar** no menu "Mais": dependem de telas/handlers ainda não existentes.
+- Mudanças no contrato de status ou novas RPCs.
 
 ## Detalhes técnicos
 
-- **`CotacaoSummary`** ganha `propostas_count: number` — calcular em `useCotacoesEnrichment.ts` a partir do mesmo array de propostas já enriquecido.
-- **Ações contextuais** são apenas `onView` (drawer existente). Não criar novas mutations.
-- **Cores**: respeitar o contrato de status (`STATUS_VARIANT_MAP`); nada de classes `text-red-*` diretas.
-- **Filtro de validade**: estende `useUrlListState` schema com `validade: { type: "string" }` (compatível com link compartilhado).
-- **KPI "Sem propostas"** depende de `summaries` — mover o cálculo do KPI para `useMemo` que dependa de `summaries` (já disponível no hook).
-- Sem mudanças em `services/cotacoesCompra.service.ts`, RPCs, RLS ou tipagem do banco.
+- Usar tokens semânticos (`text-muted-foreground`, `bg-warning/5`, etc.) — sem cores hardcoded.
+- Botão principal contextual reutiliza handlers já recebidos via props (`setAddingProposal`, `onApprove`, `onGerarPedido`); nenhum estado novo no `useCotacoesCompra`.
+- Ação de mudar de aba: o `ViewDrawerV2` controla aba via `defaultTab`; para CTA "Adicionar proposta" no topo/Resumo, podemos passar uma prop `onJumpToPropostas` que altera estado local de `activeTab` (transformar `defaultTab` em controlado, `value`/`onValueChange`).
+- Remover deps não usados após mover Excluir para o menu (`Trash2` continua sendo usado no item do menu).
+- Build: `tsc` deve ficar limpo. Sem mudanças em testes existentes.
 
 ## Arquivos afetados
 
-- `src/components/compras/CotacaoCompraTable.tsx`
-- `src/components/compras/CotacaoCompraFilters.tsx`
-- `src/components/compras/useCotacaoCompraFilters.ts`
-- `src/components/compras/cotacaoCompraTypes.ts` (campo `propostas_count`)
-- `src/hooks/compras/useCotacoesEnrichment.ts`
-- `src/hooks/useCotacoesCompra.ts` (KPI extra)
-- `src/pages/CotacoesCompra.tsx` (cards e props)
-
-## Fora de escopo (registrar para depois)
-
-- Novas colunas "Valor estimado / Menor proposta / Economia / Prazo" — exigem agregação adicional por item × proposta; tratar em iteração separada.
-- Filtro de data por evento (abertura/aprovação/conversão) — depende de campos de timestamp por transição que hoje não existem.
-- Ocultar setas de paginação quando uma só página — ajuste de `DataTable` global (afeta outros módulos).
+- `src/components/compras/CotacaoCompraDrawer.tsx`
+- `src/components/compras/CotacaoCompraHeader.tsx`
+- `src/components/compras/CotacaoCompraPropostasPanel.tsx`
+- `src/components/compras/comprasStatus.ts` (apenas labels do stepper, se necessário)

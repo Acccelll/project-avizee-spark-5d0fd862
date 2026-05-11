@@ -29,11 +29,11 @@ export const pedidoStatusLabelMap: Record<string, string> = {
 };
 
 export const COTACAO_FLOW_STEPS = [
-  { key: "aberta", label: "Em Cotação" },
-  { key: "em_analise", label: "Em Análise" },
+  { key: "aberta", label: "Cotação" },
+  { key: "em_analise", label: "Análise" },
   { key: "aguardando_aprovacao", label: "Aprovação" },
   { key: "aprovada", label: "Aprovada" },
-  { key: "convertida", label: "Convertida" },
+  { key: "convertida", label: "Pedido" },
 ] as const;
 
 const COTACAO_FLOW_STEP_ORDER = COTACAO_FLOW_STEPS.map((s) => s.key);
