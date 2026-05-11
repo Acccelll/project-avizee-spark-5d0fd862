@@ -1330,6 +1330,13 @@ export default function OrcamentoForm() {
             onPesoOverrideChange={setPesoTotalOverride}
             form={{ valor_total: valorTotal, desconto, imposto_st: impostoSt, imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas }}
             onChange={handleTotalChange}
+            freteSimulacaoId={freteSimulacaoId}
+            freteServico={freteServico || servicoFrete || null}
+            onClearFrete={() => {
+              setValue('freteValor', 0);
+              setValue('servicoFrete', '');
+              setFreteSimulacaoId(null);
+            }}
           />
 
           <FreteSimuladorCard
@@ -1412,8 +1419,7 @@ export default function OrcamentoForm() {
           {isEdit && (
             <div className="mt-4 rounded-xl border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Ações Comerciais</h4>
-                <Button variant="outline" size="sm" onClick={() => setMailModalOpen(true)}>Reenviar por e-mail</Button>
+                <h4 className="font-semibold">Compartilhamento da proposta</h4>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
