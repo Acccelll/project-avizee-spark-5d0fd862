@@ -1144,28 +1144,21 @@ export default function OrcamentoForm() {
           )}
 
           {isMobile && (
-            <div className="grid grid-cols-2 gap-3 rounded-2xl border bg-card p-4 shadow-sm">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Orçamento</p>
-                <p className="mt-1 font-mono text-sm font-semibold">{numero || '—'}</p>
+            <div className="rounded-2xl border bg-card p-4 shadow-sm space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-mono text-sm font-semibold">{numero || '—'}</p>
+                {isEdit && <StatusBadge status={status} />}
               </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
-                <p className="mt-1 text-base font-semibold">{formatCurrency(valorTotal)}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
-                <p className="mt-1 truncate text-sm">{clienteSnapshot.nome_razao_social || 'Selecione um cliente'}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Itens</p>
-                <p className="mt-1 text-sm">{items.filter(i => i.produto_id).length} item(ns)</p>
-              </div>
-              {isEdit && (
-                <div className="col-span-2 flex items-center gap-2 pt-1 border-t">
-                  <StatusBadge status={status} />
-                  {validade && <span className="text-xs text-muted-foreground">Válido até {formatDate(validade)}</span>}
-                </div>
+              <p className="truncate text-sm font-medium" title={clienteSnapshot.nome_razao_social || ''}>
+                {clienteSnapshot.nome_razao_social || 'Selecione um cliente'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{formatCurrency(valorTotal)}</span>
+                <span> · {items.filter(i => i.produto_id).length} {items.filter(i => i.produto_id).length === 1 ? 'item' : 'itens'}</span>
+                {pesoTotal > 0 && <span> · {formatWeightKg(pesoTotal)}</span>}
+              </p>
+              {isEdit && validade && (
+                <p className="text-[11px] text-muted-foreground">Válido até {formatDate(validade)}</p>
               )}
             </div>
           )}
