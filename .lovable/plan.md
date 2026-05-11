@@ -1,101 +1,77 @@
-## Escopo
+## Drawer de Lançamentos Financeiros — Plano de melhorias
 
-Refinos de UX/UI no módulo Financeiro — Lançamentos (`src/pages/Financeiro.tsx` + `src/pages/financeiro/config/financeiroColumns.tsx` + `src/pages/financeiro/hooks/useFinanceiroFiltros.ts`). Sem mudanças em RPCs (`kpis_financeiro`), schema, RLS ou serviços de baixa/estorno. Foco: vocabulário neutro nos KPIs, criticidade visual mais clara, descrição mais escaneável, filtros reordenados e ações em lote ampliadas.
+Foco: limpar dados técnicos/brutos exibidos (`[object Object]`, `cartao_credito`), corrigir truncamento ("Saldo em Aber..."), adicionar contexto temporal, melhorar segurança da exclusão e enriquecer abas Resumo, Origem e Histórico.
 
----
+Escopo restrito a `src/components/financeiro/FinanceiroDrawer.tsx` + 1 helper novo. Sem mudanças em RPCs, schema, baixas, services ou banco.
 
-## Alta prioridade
+### Alta prioridade
 
-### 1. Renomear KPI "Pagos" → "Baixados"
-Termo neutro para tela unificada (CP+CR). Apenas label visual em `SummaryCard` — `kpis_financeiro` continua expondo `pago/total_pago`. Tooltip: "Inclui pagos (CP) e recebidos (CR) no período".
+1. **Eliminar `[object Object]` em `observacoes`**
+   - Criar helper `displayObservacoes(value: unknown): string` em `src/lib/displayLancamento.ts`:
+     - `string` → retorna a string (filtra `"[object Object]"` → `""`).
+     - `object` → tenta renderizar pares chave/valor amigáveis (ex.: `{ origem: "CP", referencia: "Manual" }` → `"Origem: Conta a Pagar\nReferência: Manual"`); fallback `JSON.stringify` formatado.
+     - `null/undefined/""` → `null` (não renderiza a seção).
+   - Aplicar em `Resumo > Observações` e `Histórico > Observações Internas`.
+   - Mesmo tratamento aplicado a `payload.motivo` na coluna "Detalhes" da Trilha de Auditoria.
 
-### 2. Adicionar coluna **Natureza** dedicada e renomear a atual "Tipo"
-Hoje a coluna `tipo` mostra badge `Pagar/Receber` — isso é **natureza**, não categoria. Renomear o `label` para "Natureza" (key continua `tipo`). A "categoria/origem financeira" pedida pelo usuário já existe como coluna oculta `origem` (Fiscal, Comercial, Compras, Manual, etc.) — passar a exibi-la por padrão (`hidden: false`) com label "Categoria".
+2. **Corrigir truncamento "Saldo em Aber..."**
+   - Trocar label do `DrawerSummaryCard` para **"Em Aberto"** e adicionar `hint="Saldo restante"` (já suportado pelo componente).
+   - Aplicar também na aba "Baixas" para manter consistência.
 
-### 3. Reestruturar coluna "Descrição" em duas linhas
-Em `financeiroColumns.tsx`, render da chave `descricao` passa a exibir:
-- Linha 1: descrição principal (`displayDescricao(l)`).
-- Linha 2 (subtítulo `text-[11px] text-muted-foreground`): documento + parcela + complemento curto, montado dinamicamente:
-  - `NF {numero}` quando houver `nota_fiscal_id` (já vinculado) ou prefixo "NF" detectado;
-  - `parcela {n}/{t}` quando `parcela_total > 1` (substitui o badge atual à direita);
-  - origem curta apenas se "Categoria" estiver oculta.
+3. **Forma de pagamento amigável**
+   - No Resumo, substituir `selected.forma_pagamento || "—"` por:
+     ```ts
+     FORMA_PAGAMENTO_LABELS[normalizeFormaPagamento(selected.forma_pagamento)] ?? selected.forma_pagamento ?? "—"
+     ```
+   - Reaproveitar `normalizeFormaPagamento` + `FORMA_PAGAMENTO_LABELS` já existentes em `src/lib/financeiro.ts`.
+   - Aplicar o mesmo na coluna "Forma" da tabela de Baixas.
 
-### 4. Reordenar colunas para foco operacional
-Nova ordem default: `Ações → Selecionar → Natureza → Pessoa → Descrição → Vencimento → Valor Total → Saldo em Aberto → Status → Forma Pgto → Categoria → Banco`. A coluna **Vencimento já existe** — apenas mover para a posição correta. `Forma Pgto`, `Categoria` e `Banco` ficam visíveis por padrão (deixar `Banco` opcional via column toggle se ficar pesado em laptop).
+4. **Status temporal (chip de prazo)**
+   - Reutilizar o `<PrazoChip>` recém-introduzido na grid (em `financeiroColumns.tsx`). Extrair para `src/components/financeiro/PrazoChip.tsx` para reuso.
+   - No header do drawer, ao lado do `<StatusBadge>` no `badge`, renderizar também `<PrazoChip lancamento={selected} />` (Vencido, Vence hoje, Vence em N dias, Parcial). Para `pago`/`cancelado` o chip não renderiza.
 
-### 5. Chip de criticidade temporal explícito
-Status hoje já recebe ênfase (vencimento em vermelho/amarelo no `data_vencimento`). Acrescentar **abaixo do StatusBadge**, na coluna `status`, um chip pequeno derivado do prazo:
-- `Vencido` (destructive) quando `getEffectiveStatus = vencido`;
-- `Vence hoje` (warning) quando `data_vencimento === hojeStr` e aberto;
-- `≤3 dias` (warning leve) quando diferença entre 1 e 3 dias;
-- `Parcial` (info) quando status efetivo = `parcial`;
-- nada quando dentro do prazo confortável.
+5. **Proteger ação de cancelar/excluir**
+   - Trocar o `runAction(() => onDelete(...))` por `useConfirmDestructive` com:
+     - verb: "Cancelar"
+     - entity: descrição + valor formatado
+     - sideEffects: `["Lançamento sai do contas a pagar/receber", "Pode afetar relatórios e conciliações", "Caso haja baixa registrada, a ação será bloqueada — estorne antes"]`
+   - Continua bloqueado por permissão `financeiro:cancelar` (já existe). Hard-delete continua via `financeiro:excluir` (regra atual mantida).
 
-Helper local `<PrazoChip lancamento={l} />` em `financeiroColumns.tsx`. Reusa `getEffectiveStatus` já injetado.
+### Média prioridade
 
-### 6. Tornar filtro **Cartão** condicional
-Hoje o `MultiSelect` de cartão aparece como linha solta quando há `cartaoOpts.length > 0`. Passar a renderizá-lo **apenas quando** `formaPagamentoFilters` incluir alguma forma de cartão (cartão de crédito/débito). Se o usuário desmarcar a forma "cartão", limpar `cartaoFilters` automaticamente. Mantém o `cartaoOpts` carregado em `useFinanceiroFiltros` — mudança puramente de visibilidade no JSX da `AdvancedFilterBar`.
+6. **Enriquecer Resumo > Identificação**
+   - Adicionar abaixo de "Descrição" os campos: Documento (`numero_documento` se existir), Parcela (`X/Y` se existir), Emissão (`data_emissao` se existir), Vencimento, Competência (`competencia` se existir).
+   - Usar fallback `—` quando ausente. Verificar campos disponíveis no tipo `LancamentoFinanceiro` antes de renderizar (evita TS errors — render condicional).
 
----
+7. **Botão "Editar" com label em telas largas**
+   - No `DrawerActionBar`, manter ícone, mas exibir texto "Editar" via `aria-label`/tooltip já presente. (Mudança mínima — `DrawerActionBar` define o layout; manter como está se exigir refactor maior). Apenas garantir tooltip explícito.
 
-## Média prioridade
+8. **Histórico — labels e responsável**
+   - Mapear `e.evento` para labels amigáveis: `criacao→Criação`, `baixa→Baixa registrada`, `estorno→Estorno`, `edicao→Edição`, `cancelamento→Cancelamento`.
+   - Quando `payload.user_email` ou `payload.responsavel` existir, mostrar como segunda linha em "Detalhes".
+   - Padronizar timestamp com `toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })`.
 
-### 7. Reordenar filtros segundo prioridade operacional
-Nova ordem na `AdvancedFilterBar`: **Status → Natureza (tipo) → Banco → Forma de pagamento → Origem → (Cartão condicional)**. O "período/vencimento" já está acima (PeriodFilter + MonthFilter) — manter; apenas adicionar microcopy "Filtra por vencimento" no `PeriodFilter` (via `helpText` se a prop existir; senão tooltip).
+9. **Origem mais explícita**
+   - Adicionar campo "Módulo de origem" (derivado de `origem_tipo` via novo helper `getOrigemModulo`: fiscal_nota→"Fiscal", comercial→"Comercial", compras→"Compras", etc.).
+   - Manter os `RelationalLink` já existentes.
 
-### 8. Reduzir peso visual do botão "Baixar" por linha
-Manter botão direto (operação intensiva é desejada), mas deixar mais leve:
-- `variant="ghost"` em vez de `outline`;
-- remover borda `border-primary/30`, manter cor `text-primary`;
-- mostrar apenas ícone (`CreditCard`) com label "Baixar" em `sr-only`, e exibir o texto via tooltip ou apenas em hover (`group-hover:inline`). Mantém área clicável >32px.
-Mobile (`mobilePrimaryAction`) permanece full-width como hoje.
+### Baixa prioridade
 
-### 9. Ampliar barra de ações em lote
-Hoje existe apenas "Baixar N selecionado(s)". Quando `selectedIds.length > 0`, exibir grupo:
-- **Baixar em lote** (atual);
-- **Exportar selecionados** (chama `handleExportar("excel", selectedForBaixa)` — verificar se `useFinanceiroActions.handleExportar` aceita lista; se não, ajustar assinatura para aceitar `subset?: Lancamento[]`);
-- **Cancelar selecionados** (PermissionGate `excluir`; abre `ConfirmDialog` único pedindo motivo, itera `cancelarLancamento`).
+10. **Tooltips/microcopy**
+    - Adicionar `hint` nos `DrawerSummaryCard`: "Valor original do título" (Valor Total), "Total liquidado até hoje" (Recebido/Pago), "Saldo restante" (Em Aberto).
+    - Tooltip no botão "Registrar Baixa" no header explicando que abre fluxo de baixa total/parcial.
 
-Fica dentro do slot `extra` do `AdvancedFilterBar`. Sem mudar serviços — usa `cancelarLancamento` já importado.
+11. **Reduzir redundância do "Registrar Baixa"**
+    - Manter botão grande no topo; na aba Baixas, manter apenas no `DetailEmpty` (já está assim — confirmar).
 
-### 10. Tooltip nos toggles Lista / Calendário
-Envolver com `Tooltip`:
-- Lista: "Gestão operacional — baixas, edição em lote";
-- Calendário: "Visão por vencimentos no mês".
+### Detalhes técnicos
 
-### 11. Tooltips nos KPIs
-`SummaryCard` já aceita `tooltip` (verificar via `code--view` — se não, adicionar prop opcional). Textos curtos: "A Vencer = abertos com vencimento futuro no período"; "Vencidos = abertos com data < hoje (independente do período)"; "Parcialmente Baixados = saldo > 0 com pelo menos uma baixa"; "Baixados = quitados no período".
+**Arquivos editados:**
+- `src/lib/displayLancamento.ts` — adicionar `displayObservacoes`.
+- `src/components/financeiro/PrazoChip.tsx` — extrair do `financeiroColumns.tsx` (mover, reexportar para a coluna).
+- `src/pages/financeiro/config/financeiroColumns.tsx` — passar a importar `PrazoChip` do novo local.
+- `src/components/financeiro/FinanceiroDrawer.tsx` — todas as mudanças de UI listadas acima.
 
----
+**Arquivos não tocados:** services, RPCs, schema, hooks de baixa/estorno, tabela financeiroColumns (apenas import).
 
-## Baixa prioridade
-
-### 12. Refinar espaçamento dos filtros
-Reduzir `gap` entre `MultiSelect`s para `gap-2` quando >4 filtros (hoje o slot `Cartão` quebrava linha por largura). Ajustar `className="w-[180px]"` mínimos consistentes.
-
-### 13. Contador segmentado nos KPIs
-Subtítulo dos cards "A Vencer" e "Vencidos" pode mostrar split CP/CR (ex.: "12 CP · 8 CR") — depende de campos novos no RPC `kpis_financeiro`. **Pular nesta entrega** (requer migração) e registrar como follow-up.
-
----
-
-## Detalhes técnicos
-
-- **Arquivos a editar**:
-  - `src/pages/Financeiro.tsx` — KPIs renomeados, filtros reordenados, cartão condicional, ações em lote, tooltips, botão baixar mais leve.
-  - `src/pages/financeiro/config/financeiroColumns.tsx` — reordenar colunas, expor `origem` como "Categoria", subtítulo da descrição, `<PrazoChip />`.
-  - `src/pages/financeiro/hooks/useFinanceiroActions.ts` — aceitar `subset` opcional em `handleExportar` (assinatura retro-compatível).
-  - `src/pages/financeiro/hooks/useFinanceiroFiltros.ts` — possível helper para detectar formas-cartão (`isFormaCartao(forma): boolean`).
-- **Componentes possivelmente ajustados**:
-  - `SummaryCard` — adicionar prop opcional `tooltip` se ainda não existir (ler antes de implementar).
-- **Não tocar**:
-  - RPC `kpis_financeiro`, hooks de baixa (`useBaixaFinanceira`, `BaixaLoteModal`, `BaixaParcialDialog`), serviços `processarBaixaLote/processarEstorno/cancelarLancamento`, `displayDescricao`, schema/RLS.
-- **Riscos**:
-  - Mostrar `origem` por padrão pode aumentar largura horizontal — mitigar com badge compacto (já existe `ORIGEM_BADGE_CLASSES` enxuto).
-  - Cancelar em lote: garantir loop com `Promise.allSettled` e toast resumo (`X cancelados, Y falharam`); não criar nova RPC.
-
-## Fora de escopo
-
-- Criar novos status no banco (ex.: `vence_hoje` como enum) — apenas chip derivado em UI.
-- Refatorar `BaixaLoteModal` ou `FinanceiroDrawer`.
-- Alterar a RPC `kpis_financeiro` para retornar split CP/CR.
-- Mudar o calendário (`FinanceiroCalendar`).
+**Validação:** `tsc` clean, smoke visual no drawer (abas Resumo/Baixas/Origem/Histórico) com lançamento aberto, vencido e pago.
