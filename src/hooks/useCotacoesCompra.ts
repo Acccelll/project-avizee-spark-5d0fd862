@@ -214,12 +214,6 @@ export function useCotacoesCompra() {
       toast.success("Cotação de compra salva!");
       setModalOpen(false);
       fetchData();
-
-      // Caminho único: após CRIAR pelo modal rápido, redireciona para a
-      // rota dedicada (a edição posterior só acontece via rota).
-      if (mode === "create" && cotacaoId) {
-        navigate(`/cotacoes-compra/${cotacaoId}`);
-      }
     });
   };
 
