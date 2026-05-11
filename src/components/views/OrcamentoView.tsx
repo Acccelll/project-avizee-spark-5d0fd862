@@ -257,7 +257,7 @@ export function OrcamentoView({ id }: Props) {
         {/* MB-02: em mobile só mostra ações primárias; secundárias vão para dropdown abaixo. */}
         {canSendOrcamento(selected.status) && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden md:inline-flex" onClick={handleSendForApproval} disabled={isAnyLocked}>
-            <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
+            <Send className="h-3.5 w-3.5" /> Enviar para aprovação
           </Button>
         )}
         {canApproveOrcamento(selected.status) && canAprovar && (
@@ -374,6 +374,7 @@ export function OrcamentoView({ id }: Props) {
           {
             key: "orcamento",
             label: `Orçamento ${selected.numero}`,
+            shortLabel: "Orçamento",
             done: true,
             current: !linkedOV,
             hint: "Etapa atual",
@@ -381,6 +382,7 @@ export function OrcamentoView({ id }: Props) {
           {
             key: "pedido",
             label: linkedOV ? `Pedido ${linkedOV.numero}` : "Pedido de Venda",
+            shortLabel: "Pedido",
             done: !!linkedOV,
             hint: linkedOV ? "Abrir pedido vinculado" : "Use 'Converter em Pedido' para avançar",
             onClick: linkedOV ? () => pushView("ordem_venda", linkedOV.id) : undefined,
@@ -388,6 +390,7 @@ export function OrcamentoView({ id }: Props) {
           {
             key: "nf",
             label: "Nota Fiscal",
+            shortLabel: "NF",
             done: false,
             hint: "Emitida a partir do Pedido (módulo Faturamento)",
           },
@@ -398,7 +401,7 @@ export function OrcamentoView({ id }: Props) {
       <DrawerSummaryGrid cols={4}>
         <DrawerSummaryCard label="Itens" value={String(kpiItens)} align="center" />
         <DrawerSummaryCard label="Qtd Total" value={String(kpiQtd)} align="center" />
-        <DrawerSummaryCard label="Peso (kg)" value={kpiPeso.toFixed(2)} align="center" />
+        <DrawerSummaryCard label="Peso" value={formatWeightKg(kpiPeso)} align="center" />
         <DrawerSummaryCard label="Total" value={formatCurrency(kpiValor)} tone="primary" align="center" />
       </DrawerSummaryGrid>
 
