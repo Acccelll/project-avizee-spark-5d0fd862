@@ -69,7 +69,6 @@ export function CotacaoCompraFilters({
         onChange={onFornecedorChange}
         placeholder="Fornecedor"
         className={FILTER_W_LG}
-        title="Filtra cotações com proposta deste fornecedor"
       />
       <MultiSelect
         options={[
