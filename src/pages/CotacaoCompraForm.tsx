@@ -337,36 +337,38 @@ export default function CotacaoCompraForm() {
 
         {/* Form */}
         {!isTerminal && (
-          <div className="rounded-lg border bg-card p-5 space-y-5">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dados da Cotação</p>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <div className="space-y-2">
-                <Label>Número *</Label>
-                <Input value={form.numero} disabled required className="font-mono" />
-                <p className="text-[11px] text-muted-foreground">
-                  Número atribuído automaticamente pelo sistema.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label>Data Cotação</Label>
-                <Input type="date" value={form.data_cotacao} onChange={(e) => updateForm({ ...form, data_cotacao: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Validade</Label>
-                <Input type="date" value={form.data_validade} onChange={(e) => updateForm({ ...form, data_validade: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Input value={statusLabels[form.status] || form.status} disabled />
-                <p className="text-[11px] text-muted-foreground">
-                  O status é alterado por ações de workflow (aprovar/rejeitar/gerar pedido), não no formulário.
-                </p>
+          <>
+            <div className="rounded-lg border bg-card p-5 space-y-5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datas e Status</p>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="space-y-2">
+                  <Label>Número *</Label>
+                  <Input value={form.numero} disabled required className="font-mono" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Número atribuído automaticamente pelo sistema.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data Cotação</Label>
+                  <Input type="date" value={form.data_cotacao} onChange={(e) => updateForm({ ...form, data_cotacao: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Validade</Label>
+                  <Input type="date" value={form.data_validade} onChange={(e) => updateForm({ ...form, data_validade: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Input value={statusLabels[form.status] || form.status} disabled />
+                  <p className="text-[11px] text-muted-foreground">
+                    Alterado por ações de workflow (aprovar/rejeitar/gerar pedido).
+                  </p>
+                </div>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Itens Solicitados</Label>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens Solicitados</p>
                 <Button type="button" variant="outline" size="sm" onClick={addLocalItem} className="gap-1.5">
                   <Plus className="h-3.5 w-3.5" /> Adicionar Item
                 </Button>
@@ -408,11 +410,11 @@ export default function CotacaoCompraForm() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Observações</Label>
+            <div className="rounded-lg border bg-card p-5 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Observações</p>
               <Textarea value={form.observacoes} onChange={(e) => updateForm({ ...form, observacoes: e.target.value })} />
             </div>
-          </div>
+          </>
         )}
 
         {/* Itens (read-only view when terminal) */}
