@@ -44,6 +44,8 @@ import {
   Edit,
   XCircle,
   MoreHorizontal,
+  ExternalLink,
+  CheckCircle2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -52,6 +54,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  verificarPrerequisitosNF,
+  type NFPrerequisiteIssue,
+} from "@/utils/comercialNFChecks";
 
 interface Props {
   id: string;
@@ -82,10 +89,28 @@ const statusNFLabels: Record<string, string> = {
   denegada: "Denegada",
 };
 
+/**
+ * Onda 42r — fora do contexto de Faturamento, "Aguardando" sozinho é genérico.
+ * Aqui devolvemos "Aguardando NF" para uso no header e KPI.
+ */
+function fatLabelOutOfContext(key: string | null | undefined): string {
+  const k = key || "";
+  if (k === "aguardando") return "Aguardando NF";
+  return statusFaturamentoLabels[k] || k || "—";
+}
+
+const statusFaturamentoTooltip: Record<string, string> = {
+  aguardando: "Pedido aprovado aguardando emissão de Nota Fiscal.",
+  parcial: "Pedido parcialmente faturado — emita NF complementar.",
+  total: "Todas as NFs deste pedido já foram emitidas.",
+};
+
 export function OrdemVendaView({ id }: Props) {
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState("");
+  const [nfIssues, setNfIssues] = useState<NFPrerequisiteIssue[]>([]);
+  const [nfIssuesLoading, setNfIssuesLoading] = useState(false);
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const { run, locked } = useDetailActions();
@@ -194,8 +219,27 @@ export function OrdemVendaView({ id }: Props) {
     });
   };
 
+  // Onda 42r — pré-validação leve antes de Gerar NF (não bloqueia, só alerta).
+  useEffect(() => {
+    if (!generateNfOpen || !selected) return;
+    let cancelled = false;
+    setNfIssuesLoading(true);
+    setNfIssues([]);
+    verificarPrerequisitosNF(selected.id)
+      .then((res) => {
+        if (!cancelled) setNfIssues(res);
+      })
+      .finally(() => {
+        if (!cancelled) setNfIssuesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [generateNfOpen, selected]);
+
   const pesoTotal = items.reduce((s, i) => s + Number(i.peso_total || 0), 0);
   const qtdTotal = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
+  const subtotalItens = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const { can } = useCan();
   const canFaturarPerm = can("faturamento_fiscal:criar") || can("pedidos:editar");
   const canGenerateNF = canFaturarPedido(selected) && canFaturarPerm;
@@ -246,11 +290,20 @@ export function OrdemVendaView({ id }: Props) {
           </p>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
-            <StatusBadge
-              status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
-              label={statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
-              className="text-[10px] px-1.5 py-0.5"
-            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <StatusBadge
+                    status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
+                    label={fatLabelOutOfContext(selected.status_faturamento)}
+                    className="text-[10px] px-1.5 py-0.5"
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {statusFaturamentoTooltip[selected.status_faturamento || "aguardando"] || "Situação fiscal do pedido."}
+              </TooltipContent>
+            </Tooltip>
             <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
               {formatCurrency(Number(selected.valor_total || 0))}
             </span>
@@ -279,7 +332,7 @@ export function OrdemVendaView({ id }: Props) {
             onClick={() => setCancelOpen(true)}
             disabled={locked("cancel_pedido")}
           >
-            <XCircle className="h-3.5 w-3.5" /> Cancelar
+            <XCircle className="h-3.5 w-3.5" /> Cancelar pedido
           </Button>
         )}
         {notasFiscais.map((nf) => (
@@ -345,17 +398,29 @@ export function OrdemVendaView({ id }: Props) {
           <p className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center justify-center gap-1 mb-1">
             <Scale className="h-3 w-3" /> Peso Total
           </p>
-          <p className="text-sm font-bold font-mono">{pesoTotal > 0 ? `${pesoTotal.toFixed(2)} kg` : "—"}</p>
+          <p className="text-sm font-bold font-mono">{pesoTotal.toFixed(2)} kg</p>
+          {pesoTotal === 0 && (
+            <p className="text-[10px] text-warning mt-0.5">peso não informado</p>
+          )}
         </div>
         <div className="bg-muted/30 rounded-lg p-3 text-center">
           <p className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center justify-center gap-1 mb-1">
             <Receipt className="h-3 w-3" /> Faturamento
           </p>
-          <StatusBadge
-            status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
-            label={statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
-            className="text-[10px] px-1.5 py-0.5"
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <StatusBadge
+                  status={selected.status_faturamento === "total" ? "faturado" : (selected.status_faturamento || "aguardando")}
+                  label={fatLabelOutOfContext(selected.status_faturamento)}
+                  className="text-[10px] px-1.5 py-0.5"
+                />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {statusFaturamentoTooltip[selected.status_faturamento || "aguardando"] || "Situação fiscal do pedido."}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -367,6 +432,7 @@ export function OrdemVendaView({ id }: Props) {
             label: selected.orcamentos?.numero
               ? `Orçamento ${selected.orcamentos.numero}`
               : "Sem orçamento",
+            shortLabel: "Orçamento",
             done: !!selected.cotacao_id,
             hint: selected.cotacao_id ? "Abrir orçamento de origem" : "Pedido criado sem orçamento",
             onClick: selected.cotacao_id
@@ -376,6 +442,7 @@ export function OrdemVendaView({ id }: Props) {
           {
             key: "pedido",
             label: `Pedido ${selected.numero}`,
+            shortLabel: "Pedido",
             done: true,
             current: notasFiscais.length === 0,
             hint: "Etapa atual",
@@ -388,6 +455,7 @@ export function OrdemVendaView({ id }: Props) {
                 : notasFiscais.length === 1
                   ? `NF ${notasFiscais[0].numero}`
                   : `${notasFiscais.length} NFs`,
+            shortLabel: "NF",
             done: notasFiscais.some((n) => ["confirmada", "autorizada"].includes(n.status || "")),
             current: notasFiscais.length > 0,
             hint:
@@ -455,88 +523,99 @@ export function OrdemVendaView({ id }: Props) {
         {/* ── Resumo ─────────────────────────────────────── */}
         <TabsContent value="resumo" className="space-y-4 mt-3 text-sm">
           <div className="space-y-3">
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Status Operacional</p>
-              <div className="mt-0.5">
-                <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold">Status</span>
+              <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
             </div>
-            <div className="rounded-md border bg-muted/20 px-3 py-2">
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Escopo de edição do pedido</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                A edição do pedido altera apenas dados operacionais (status, prazos, PO e observações). Itens, valores e vínculos com orçamento/NF permanecem no fluxo original.
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Cliente</p>
-              <RelationalLink onClick={() => pushView("cliente", selected.clientes?.id)}>
-                {selected.clientes?.nome_razao_social || "—"}
-              </RelationalLink>
-            </div>
-            {selected.cotacao_id && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Orçamento de Origem</p>
-                <RelationalLink type="orcamento" id={selected.cotacao_id}>
-                  {selected.orcamentos?.numero ? `Orçamento ${selected.orcamentos.numero}` : "Ver orçamento"}
+
+            {/* Escopo compactado em 1 linha */}
+            <p className="text-[11px] text-muted-foreground italic">
+              Edição operacional · itens, valores e vínculos permanecem no fluxo original.
+            </p>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              {/* Cliente */}
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Cliente</p>
+                <RelationalLink onClick={() => pushView("cliente", selected.clientes?.id)}>
+                  {selected.clientes?.nome_razao_social || "—"}
                 </RelationalLink>
               </div>
-            )}
-            {selected.po_number && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">PO do Cliente</p>
-                <p className="font-mono">{selected.po_number}</p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Data de Emissão</p>
-                <p>{formatDate(selected.data_emissao)}</p>
-              </div>
-              {selected.data_aprovacao && (
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Data de Aprovação</p>
-                  <p>{formatDate(selected.data_aprovacao)}</p>
-                </div>
-              )}
-              {selected.data_prometida_despacho && (
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">
-                    <CalendarClock className="inline h-3 w-3 mr-0.5" /> Despacho Prometido
+
+              {/* Origem (Orçamento + PO) */}
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Origem</p>
+                {selected.cotacao_id ? (
+                  <RelationalLink type="orcamento" id={selected.cotacao_id}>
+                    {selected.orcamentos?.numero ? `Orçamento ${selected.orcamentos.numero}` : "Ver orçamento"}
+                  </RelationalLink>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Sem orçamento de origem</p>
+                )}
+                {selected.po_number && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    PO <span className="font-mono">{selected.po_number}</span>
                   </p>
-                  <p>{formatDate(selected.data_prometida_despacho)}</p>
+                )}
+              </div>
+
+              {/* Operação (frete + prazos + pagamento) */}
+              <div className="rounded-lg border bg-card p-3 sm:col-span-2 space-y-1.5">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Operação</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {selected.orcamentos?.frete_tipo && (
+                    <div>
+                      <span className="text-muted-foreground">Frete: </span>
+                      <span>{freteTipoLabels[selected.orcamentos.frete_tipo] || selected.orcamentos.frete_tipo}</span>
+                    </div>
+                  )}
+                  {selected.orcamentos?.pagamento && (
+                    <div>
+                      <span className="text-muted-foreground">Pagamento: </span>
+                      <span>
+                        {pagamentoLabels[selected.orcamentos.pagamento] || selected.orcamentos.pagamento}
+                        {selected.orcamentos.prazo_pagamento ? ` — ${selected.orcamentos.prazo_pagamento}` : ""}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-muted-foreground">Emissão: </span>
+                    <span>{formatDate(selected.data_emissao)}</span>
+                  </div>
+                  {selected.data_aprovacao && (
+                    <div>
+                      <span className="text-muted-foreground">Aprovação: </span>
+                      <span>{formatDate(selected.data_aprovacao)}</span>
+                    </div>
+                  )}
+                  {selected.data_prometida_despacho && (
+                    <div>
+                      <span className="text-muted-foreground inline-flex items-center gap-0.5">
+                        <CalendarClock className="h-3 w-3" /> Despacho:
+                      </span>{" "}
+                      <span>{formatDate(selected.data_prometida_despacho)}</span>
+                    </div>
+                  )}
+                  {selected.prazo_despacho_dias != null && (
+                    <div>
+                      <span className="text-muted-foreground">Prazo despacho: </span>
+                      <span>{selected.prazo_despacho_dias} dias</span>
+                    </div>
+                  )}
+                  {selected.orcamentos?.prazo_entrega && (
+                    <div>
+                      <span className="text-muted-foreground">Prazo entrega: </span>
+                      <span>{selected.orcamentos.prazo_entrega}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {selected.prazo_despacho_dias != null && (
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo Despacho</p>
-                  <p>{selected.prazo_despacho_dias} dias</p>
-                </div>
-              )}
+              </div>
             </div>
-            {selected.orcamentos?.pagamento && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Condição de Pagamento</p>
-                <p>{pagamentoLabels[selected.orcamentos.pagamento] || selected.orcamentos.pagamento}
-                  {selected.orcamentos.prazo_pagamento ? ` — ${selected.orcamentos.prazo_pagamento}` : ""}
-                </p>
-              </div>
-            )}
-            {selected.orcamentos?.frete_tipo && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Tipo de Frete</p>
-                <p>{freteTipoLabels[selected.orcamentos.frete_tipo] || selected.orcamentos.frete_tipo}</p>
-              </div>
-            )}
-            {selected.orcamentos?.prazo_entrega && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de Entrega (Orçamento)</p>
-                <p>{selected.orcamentos.prazo_entrega}</p>
-              </div>
-            )}
+
             {selected.observacoes && (
-              <div>
+              <div className="rounded-lg border bg-muted/10 px-3 py-2">
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold">Observações</p>
-                <p className="text-xs text-muted-foreground italic">{selected.observacoes}</p>
+                <p className="text-xs text-muted-foreground italic mt-0.5">{selected.observacoes}</p>
               </div>
             )}
             {selected.status === "cancelada" && (
@@ -583,6 +662,11 @@ export function OrdemVendaView({ id }: Props) {
                               <span className="text-[10px] text-muted-foreground"> · {i.variacao}</span>
                             )}
                           </button>
+                          {notasFiscais.some((n) => ["confirmada", "autorizada"].includes(n.status || "")) && (
+                            <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] uppercase font-semibold text-success">
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Faturado
+                            </span>
+                          )}
                         </td>
                         <td className="px-2 py-2 text-xs text-muted-foreground hidden sm:table-cell">
                           {i.unidade || "—"}
@@ -599,9 +683,23 @@ export function OrdemVendaView({ id }: Props) {
                   </tbody>
                 </table>
               </div>
-              <div className="flex justify-between items-center rounded-lg border bg-muted/30 px-3 py-2">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase">Total do Pedido</span>
-                <span className="font-mono text-sm font-bold text-primary">{formatCurrency(selected.valor_total || 0)}</span>
+              <div className="rounded-lg border bg-muted/30 divide-y">
+                <div className="flex justify-between items-center px-3 py-1.5 text-xs">
+                  <span className="text-muted-foreground">Subtotal dos itens</span>
+                  <span className="font-mono">{formatCurrency(subtotalItens)}</span>
+                </div>
+                {Math.abs(Number(selected.valor_total || 0) - subtotalItens) > 0.005 && (
+                  <div className="flex justify-between items-center px-3 py-1.5 text-xs">
+                    <span className="text-muted-foreground">Ajustes / Frete / Impostos</span>
+                    <span className="font-mono">
+                      {formatCurrency(Number(selected.valor_total || 0) - subtotalItens)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center px-3 py-2">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Total do Pedido</span>
+                  <span className="font-mono text-sm font-bold text-primary">{formatCurrency(selected.valor_total || 0)}</span>
+                </div>
               </div>
             </>
           )}
@@ -678,7 +776,7 @@ export function OrdemVendaView({ id }: Props) {
           ) : (
             <div className="py-4 text-center border rounded-lg bg-muted/10">
               <Receipt className="w-7 h-7 mx-auto text-muted-foreground/40 mb-2" />
-              <p className="text-xs text-muted-foreground">Nenhuma Nota Fiscal emitida ainda.</p>
+              <p className="text-xs text-muted-foreground">Pedido ainda não foi faturado.</p>
               {canGenerateNF && (
                 <Button
                   size="sm"
@@ -777,6 +875,7 @@ export function OrdemVendaView({ id }: Props) {
                     {selected.clientes.nome_razao_social}
                   </RelationalLink>
                 </div>
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60" aria-label="Abrir em drawer" />
               </div>
             )}
 
@@ -788,6 +887,7 @@ export function OrdemVendaView({ id }: Props) {
                     {selected.orcamentos?.numero ? `Orçamento ${selected.orcamentos.numero}` : "Ver orçamento"}
                   </RelationalLink>
                 </div>
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60" aria-label="Abrir em drawer" />
               </div>
             )}
 
@@ -844,25 +944,25 @@ export function OrdemVendaView({ id }: Props) {
         loading={locked("generate_nf")}
         title="Gerar Nota Fiscal"
         description={`Confirma a geração de uma NF de saída para o pedido ${selected.numero}?`}
-        confirmLabel="Gerar NF"
+        confirmLabel={nfIssues.length > 0 ? "Gerar NF assim mesmo" : "Gerar NF"}
         impacts={[
+          ...(nfIssuesLoading
+            ? [{ label: "Validando pré-requisitos…", tone: "default" } as ImpactItem]
+            : nfIssues.length > 0
+              ? nfIssues.map<ImpactItem>((i) => ({
+                  label: i.label,
+                  tone: "warning",
+                  icon: AlertTriangle,
+                }))
+              : [{ label: "Pré-validação OK", tone: "success", icon: CheckCircle2 } as ImpactItem]),
           {
             label: "Cria NF de saída em /fiscal",
             detail: `${items.length} ${items.length === 1 ? "item" : "itens"} · ${formatCurrency(selected.valor_total || 0)}`,
             tone: "primary",
           },
-          {
-            label: "Atualiza estoque (saída)",
-            tone: "warning",
-          },
-          {
-            label: "Gera lançamentos a receber em /financeiro",
-            tone: "info",
-          },
-          {
-            label: `Pedido ${selected.numero} muda status de faturamento`,
-            tone: "success",
-          },
+          { label: "Atualiza estoque (saída)", tone: "warning" },
+          { label: "Gera lançamentos a receber em /financeiro", tone: "info" },
+          { label: `Pedido ${selected.numero} muda status de faturamento`, tone: "success" },
         ] satisfies ImpactItem[]}
       />
 
@@ -875,7 +975,8 @@ export function OrdemVendaView({ id }: Props) {
                 <XCircle className="h-4 w-4 text-destructive" /> Cancelar pedido {selected.numero}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                O cancelamento é registrado em auditoria. NFs ativas vinculadas precisam ser canceladas antes.
+                Esta ação é <strong>irreversível</strong> e afeta faturamento, logística e o vínculo com o orçamento de origem.
+                NFs ativas vinculadas precisam ser canceladas antes. O cancelamento é registrado em auditoria.
               </p>
             </div>
             <div className="space-y-1.5">
