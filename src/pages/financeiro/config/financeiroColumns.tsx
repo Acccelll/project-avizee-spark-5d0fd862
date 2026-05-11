@@ -27,12 +27,36 @@ interface Params {
   hojeStr: string;
 }
 
+/**
+ * Chip de criticidade temporal — exibido abaixo do StatusBadge.
+ * Resolve a pergunta "o que devo olhar primeiro?" sem depender só do `status`.
+ */
+function PrazoChip({ l, hoje, hojeStr, effectiveStatus }: { l: Lancamento; hoje: Date; hojeStr: string; effectiveStatus: string }) {
+  if (effectiveStatus === "pago" || effectiveStatus === "cancelado") return null;
+  if (effectiveStatus === "vencido") {
+    return <span className="inline-block text-[10px] font-medium px-1.5 py-0 leading-tight rounded bg-destructive/10 text-destructive">Vencido</span>;
+  }
+  if (effectiveStatus === "parcial") {
+    return <span className="inline-block text-[10px] font-medium px-1.5 py-0 leading-tight rounded bg-info/10 text-info">Parcial</span>;
+  }
+  if (l.data_vencimento === hojeStr) {
+    return <span className="inline-block text-[10px] font-medium px-1.5 py-0 leading-tight rounded bg-warning/15 text-warning">Vence hoje</span>;
+  }
+  const [y, m, d] = l.data_vencimento.split("-").map(Number);
+  const venc = new Date(y, m - 1, d);
+  const dias = Math.floor((venc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+  if (dias > 0 && dias <= 3) {
+    return <span className="inline-block text-[10px] font-medium px-1.5 py-0 leading-tight rounded bg-warning/10 text-warning">≤{dias}d</span>;
+  }
+  return null;
+}
+
 export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: Params) {
   return [
     {
       key: "tipo",
       mobileCard: true,
-      label: "Tipo",
+      label: "Natureza",
       sortable: true,
       render: (l: Lancamento) => (
         <Badge
@@ -76,20 +100,19 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
       sortable: true,
       render: (l: Lancamento) => {
         const hasParcelas = (l.parcela_total ?? 0) > 1 && (l.parcela_numero ?? 0) > 0;
+        const sub: string[] = [];
+        if (hasParcelas) sub.push(`parcela ${l.parcela_numero}/${l.parcela_total}`);
+        const origemTipo = (l as Lancamento & { origem_tipo?: string | null }).origem_tipo
+          ?? (l.nota_fiscal_id ? "fiscal_nota" : null);
+        if (origemTipo === "fiscal_nota" && !/NF\s*\d/i.test(displayDescricao(l))) {
+          sub.push("vinculado a NF");
+        }
         return (
           <div className="space-y-0.5">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-sm">{displayDescricao(l)}</span>
-              {hasParcelas && (
-                <Badge
-                  variant="outline"
-                  className="border-info/40 text-info bg-info/5 text-[10px] font-mono px-1.5 py-0 h-4 leading-none"
-                  title={`Parcela ${l.parcela_numero} de ${l.parcela_total}`}
-                >
-                  {l.parcela_numero}/{l.parcela_total}
-                </Badge>
-              )}
-            </div>
+            <span className="text-sm block">{displayDescricao(l)}</span>
+            {sub.length > 0 && (
+              <span className="text-[11px] text-muted-foreground block">{sub.join(" · ")}</span>
+            )}
           </div>
         );
       },
@@ -161,12 +184,19 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
       key: "status",
       label: "Status",
       sortable: true,
-      render: (l: Lancamento) => <StatusBadge status={getLancamentoStatus(l)} />,
+      render: (l: Lancamento) => {
+        const es = getLancamentoStatus(l);
+        return (
+          <div className="flex flex-col items-start gap-0.5">
+            <StatusBadge status={es} />
+            <PrazoChip l={l} hoje={hoje} hojeStr={hojeStr} effectiveStatus={es} />
+          </div>
+        );
+      },
     },
     {
       key: "origem",
-      label: "Origem",
-      hidden: true,
+      label: "Categoria",
       render: (l: Lancamento) => {
         const tipoRaw = (l as Lancamento & { origem_tipo?: string | null }).origem_tipo
           ?? (l.nota_fiscal_id ? "fiscal_nota" : l.documento_pai_id ? "parcelamento" : "manual");
@@ -181,7 +211,6 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: P
     {
       key: "forma_pagamento",
       label: "Forma Pgto",
-      hidden: true,
       render: (l: Lancamento) =>
         l.forma_pagamento ? <span className="text-xs">{l.forma_pagamento}</span> : <span className="text-muted-foreground text-xs">—</span>,
     },
