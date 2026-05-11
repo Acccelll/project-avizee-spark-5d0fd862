@@ -98,6 +98,16 @@ const recebimentoStatusMultiOptions: MultiSelectOption[] = Object.entries(RECEBI
 const prazoOptions: MultiSelectOption[] = [{ label: "Atrasadas", value: "atrasado" }, { label: "No prazo", value: "ok" }];
 const prazoOptionsReceb: MultiSelectOption[] = [{ label: "Atrasados", value: "atrasado" }, { label: "No prazo", value: "ok" }];
 
+/**
+ * Chip discreto para indicar campo vazio com semântica de pendência
+ * (ex.: "Sem rastreio", "Postagem pendente"). Substitui o `—` cru.
+ */
+function MissingChip({ label }: { label: string }) {
+  return (
+    <span className="text-[11px] italic text-muted-foreground/80">{label}</span>
+  );
+}
+
 export default function Logistica() {
   const navigate = useNavigate();
   const { can } = useCan();
