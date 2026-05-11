@@ -192,7 +192,12 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
           </span>
         );
       })()}
-      badge={<StatusBadge status={effectiveStatus} />}
+      badge={
+        <span className="inline-flex items-center gap-1.5">
+          <StatusBadge status={effectiveStatus} />
+          <PrazoChip l={selected} hoje={hoje} hojeStr={hojeStr} effectiveStatus={effectiveStatus} />
+        </span>
+      }
       summary={summary}
       actions={
         <DrawerActionBar
