@@ -11,10 +11,17 @@ import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
 import { useActionLock } from "@/hooks/useActionLock";
 import { formatCurrency } from "@/lib/format";
 import {
-  ShoppingCart, Edit, Trash2, Clock, Ban,
+  ShoppingCart, Edit, Trash2, Clock, Ban, MoreVertical, Plus, Users2, ArrowRight,
   ClipboardList, AlertCircle, Info,
   ThumbsUp, ThumbsDown, Send, ChevronRight, Trophy,
 } from "lucide-react";
@@ -88,6 +95,57 @@ export function CotacaoCompraDrawer({
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [gerarOpen, setGerarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("resumo");
+  const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive({ verb: "Excluir" });
+
+  // Próxima ação contextual (CTA principal)
+  const nextAction = useMemo(() => {
+    if (!selected) return null;
+    const st = selected.status;
+    if (["convertida", "cancelada", "rejeitada"].includes(st)) return null;
+    if (viewItems.length === 0) {
+      return { label: "Adicionar itens", icon: Plus, onClick: () => onEdit(selected), description: "Cadastre os produtos a cotar." } as const;
+    }
+    if (st === "aguardando_aprovacao") {
+      return { label: "Aprovar cotação", icon: ThumbsUp, onClick: () => runApprove(() => onApprove()), description: "Cotação aguardando sua decisão." } as const;
+    }
+    if (st === "aprovada" && drawerStats.allItemsHaveSelected && cotacaoCanGeneratePedido(st)) {
+      return { label: "Gerar pedido de compra", icon: ShoppingCart, onClick: () => setGerarOpen(true), description: "Converter a cotação em pedido." } as const;
+    }
+    if (viewPropostas.length === 0) {
+      return {
+        label: "Adicionar proposta",
+        icon: Plus,
+        onClick: () => { setActiveTab("propostas"); setAddingProposal(viewItems[0].id); setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" }); },
+        description: "Registre a primeira proposta para iniciar a comparação.",
+      } as const;
+    }
+    if (!drawerStats.allItemsHaveSelected) {
+      return {
+        label: "Selecionar fornecedor",
+        icon: Users2,
+        onClick: () => setActiveTab("propostas"),
+        description: "Escolha a melhor proposta para cada item.",
+      } as const;
+    }
+    return null;
+  }, [selected, viewItems, viewPropostas, drawerStats.allItemsHaveSelected, onEdit, onApprove, runApprove, setAddingProposal, setProposalForm]);
+
+  const handleDeleteRequest = () => {
+    if (!selected) return;
+    confirmDestructive(
+      {
+        verb: "Excluir",
+        entity: `cotação ${selected.numero}`,
+        sideEffects: [
+          "Itens da cotação serão removidos",
+          "Propostas registradas serão removidas",
+          "Histórico vinculado será perdido",
+        ],
+      },
+      () => { onDeleteOpen(); },
+    );
+  };
 
   // Memoize the approved-total to avoid recomputing the reduce on every render of the Decisão tab.
   const totalAprovado = useMemo(() => {
@@ -107,6 +165,17 @@ export function CotacaoCompraDrawer({
       actions={
         selected ? (
           <>
+            {/* CTA principal contextual */}
+            {nextAction && (
+              <Button
+                size="sm"
+                className="gap-1.5"
+                aria-label={nextAction.label}
+                onClick={nextAction.onClick}
+              >
+                <nextAction.icon className="h-3.5 w-3.5" /> {nextAction.label}
+              </Button>
+            )}
             {/* Block edit/delete once the quotation is in a terminal state */}
             {!["convertida", "cancelada"].includes(selected.status) && (
               <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar cotação" disabled={editPending} onClick={() => runEdit(() => { onEdit(selected); onClose(); })}>
@@ -114,15 +183,21 @@ export function CotacaoCompraDrawer({
               </Button>
             )}
             {!["convertida", "cancelada"].includes(selected.status) && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
-                aria-label="Excluir cotação"
-                onClick={onDeleteOpen}
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Excluir
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5 px-2" aria-label="Mais ações">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={(e) => { e.preventDefault(); handleDeleteRequest(); }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir cotação
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </>
         ) : undefined
@@ -147,7 +222,7 @@ export function CotacaoCompraDrawer({
           </div>
         ) : undefined
       }
-      defaultTab={viewPropostas.length > 0 ? "propostas" : "resumo"}
+      defaultTab={activeTab}
       tabs={
         selected
           ? [
@@ -164,9 +239,22 @@ export function CotacaoCompraDrawer({
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground uppercase font-semibold">Validade</p>
-                        <p className="text-sm mt-0.5">{selected.data_validade ? formatDate(selected.data_validade) : "—"}</p>
+                        <p className={`text-sm mt-0.5 ${selected.data_validade ? "" : "text-muted-foreground italic"}`}>
+                          {selected.data_validade ? formatDate(selected.data_validade) : "Sem validade definida"}
+                        </p>
                       </div>
                     </div>
+                    {nextAction && (
+                      <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-3 space-y-2">
+                        <p className="text-[10px] text-primary uppercase font-semibold flex items-center gap-1">
+                          <ArrowRight className="h-3 w-3" /> Próxima ação
+                        </p>
+                        <p className="text-sm text-foreground">{nextAction.description}</p>
+                        <Button size="sm" className="gap-1.5" onClick={nextAction.onClick}>
+                          <nextAction.icon className="h-3.5 w-3.5" /> {nextAction.label}
+                        </Button>
+                      </div>
+                    )}
                     {selected.observacoes && (
                       <div>
                         <p className="text-[10px] text-muted-foreground uppercase font-semibold">Observações</p>
@@ -317,9 +405,21 @@ export function CotacaoCompraDrawer({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-3 text-xs text-warning">
-                        <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                        Nenhum fornecedor selecionado. Acesse a aba Propostas para selecionar as melhores condições.
+                      <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-3 space-y-2 text-xs">
+                        <div className="flex items-start gap-2 text-muted-foreground">
+                          <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                          <span>A decisão será liberada após receber propostas.</span>
+                        </div>
+                        <div className="pl-5">
+                          <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1">Critérios considerados</p>
+                          <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
+                            <li>menor preço</li>
+                            <li>prazo de entrega</li>
+                            <li>fornecedor</li>
+                            <li>observações</li>
+                            <li>condição comercial</li>
+                          </ul>
+                        </div>
                       </div>
                     )}
 
@@ -327,7 +427,9 @@ export function CotacaoCompraDrawer({
                       <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-2">Situação do Processo</p>
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Itens com proposta selecionada</span>
+                          <span className="text-muted-foreground">
+                            {drawerStats.selectedPropostas.length} de {viewItems.length} {viewItems.length === 1 ? "item" : "itens"} com proposta selecionada
+                          </span>
                           <span className={`font-mono font-semibold ${drawerStats.allItemsHaveSelected ? "text-success dark:text-success" : ""}`}>
                             {drawerStats.selectedPropostas.length} / {viewItems.length}
                           </span>
@@ -375,7 +477,7 @@ export function CotacaoCompraDrawer({
                 )}
                 {!["convertida","cancelada","rejeitada"].includes(selected.status) && (
                   <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive max-sm:h-11 max-sm:w-full" disabled={cancelPending} onClick={() => { setCancelMotivo(""); setCancelOpen(true); }}>
-                    <Ban className="h-4 w-4" /> Cancelar
+                    <Ban className="h-4 w-4" /> Cancelar cotação
                   </Button>
                 )}
               </>
@@ -415,6 +517,7 @@ export function CotacaoCompraDrawer({
     />
     {selected && (
       <>
+        {destructiveDialog}
         <ConfirmDialog
           open={rejectOpen}
           onClose={() => { setRejectOpen(false); setRejectMotivo(""); }}
